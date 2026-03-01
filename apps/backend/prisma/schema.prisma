@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  @@map("profiles")
+  id                String    @id @db.Uuid
+  updatedAt         DateTime? @map("updated_at")
+  email             String?   @db.Text
+  fullName          String?   @map("full_name") @db.Text
+  avatarUrl         String?   @map("avatar_url") @db.Text
+  phoneNumber       String?   @unique @map("phone_number") @db.Text
+  userType          String?   @default("HAIRDRESSER") @map("user_type") @db.Text
+  salonPhoneNumber  String?   @map("salon_phone_number") @db.Text
+  salonName         String?   @map("salon_name") @db.Text
+  aboutMe           String?   @map("about_me") @db.Text
+  setupStatus       Boolean?  @map("setup_status")
+  signupDate        DateTime? @map("signup_date")
+  socialMedia       String?   @map("social_media") @db.Text
+  bookingSite       String?   @map("booking_site") @db.Text
+  hairStructure     String?   @map("hair_structure") @db.Text
+  hairThickness     String?   @map("hair_thickness") @db.Text
+  greyHairPercentage String? @map("grey_hair_percentage") @db.Text
+  naturalHairColor  String?   @map("natural_hair_color") @db.Text
+}
+
+model Client {
+  @@map("clients")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  haircodes          Haircode[]
+  hairdresserClients HairdresserClient[]
+}
+
+model Hairdresser {
+  @@map("hairdressers")
+  id        String   @id @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  salonName String?  @map("salon_name") @db.Text
+  aboutMe   String?  @map("about_me") @db.Text
+
+  haircodes          Haircode[]
+  hairdresserClients HairdresserClient[]
+}
+
+model Haircode {
+  @@map("haircodes")
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at")
+  clientId          String   @map("client_id") @db.Uuid
+  hairdresserId     String   @map("hairdresser_id") @db.Uuid
+  serviceDescription String? @map("service_description") @db.Text
+  services          String?  @db.Text
+  price             String?  @db.Text
+  duration          String?  @db.Text
+  hairdresserName   String?  @map("hairdresser_name") @db.Text
+
+  client            Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  hairdresser       Hairdresser    @relation(fields: [hairdresserId], references: [id], onDelete: Cascade)
+  haircodeMedia     HaircodeMedia[]
+}
+
+model HaircodeMedia {
+  @@map("haircode_media")
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+  haircodeId String   @map("haircode_id") @db.Uuid
+  mediaUrl   String   @map("media_url") @db.Text
+  mediaType  String   @map("media_type") @db.Text
+
+  haircode   Haircode @relation(fields: [haircodeId], references: [id])
+}
+
+model HairdresserClient {
+  @@map("hairdresser_clients")
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  hairdresserId String   @map("hairdresser_id") @db.Uuid
+  clientId      String   @map("client_id") @db.Uuid
+
+  hairdresser   Hairdresser @relation(fields: [hairdresserId], references: [id])
+  client        Client      @relation(fields: [clientId], references: [id])
+
+  @@unique([hairdresserId, clientId])
+}
+
+model Inspiration {
+  @@map("inspirations")
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+  sharedBy         String?  @map("shared_by") @db.Uuid
+  imageUrl         String?  @map("image_url") @db.Text
+  ownerId          String?  @map("owner_id") @db.Uuid
+  lowResImageUrl   String?  @map("low_res_image_url") @db.Text
+  lowMiddleResUrl  String?  @map("low_middle_res_url") @db.Text
+  highMiddleResUrl String?  @map("high_middle_res_url") @db.Text
+}
+
+model Notification {
+  @@map("notifications")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    String   @map("user_id") @db.Uuid
+  message   String   @map("message") @db.Text
+  read      Boolean  @default(false)
+  type      String?  @db.Text
+  senderId  String?  @map("sender_id") @db.Uuid
+  status    String?  @db.Text
+  extraData String?  @map("data") @db.Text
+}
+
+model BlockedUser {
+  @@map("blocked_users")
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blockerId  String   @map("blocker_id") @db.Uuid
+  blockedId  String   @map("blocked_id") @db.Uuid
+  reason     String?  @db.Text
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz
+}
+
+model PushToken {
+  @@map("push_tokens")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  token     String   @db.Text
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime? @map("updated_at") @db.Timestamptz
+}
+
+model UserStrike {
+  @@map("user_strikes")
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @unique @map("user_id") @db.Uuid
+  strikeCount   Int      @default(0) @map("strike_count")
+  isBanned      Boolean  @default(false) @map("is_banned")
+  isRestricted  Boolean  @default(false) @map("is_restricted")
+  banReason     String?  @map("ban_reason") @db.Text
+  banDate       DateTime? @map("ban_date") @db.Timestamptz
+  bannedBy      String?  @map("banned_by") @db.Uuid
+  lastStrikeDate DateTime? @map("last_strike_date") @db.Timestamptz
+  adminNotes    String?  @map("admin_notes") @db.Text
+}
+
+model ReportedUser {
+  @@map("reported_users")
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterId String   @map("reporter_id") @db.Uuid
+  reportedId String   @map("reported_id") @db.Uuid
+  reason     String   @db.Text
+  status     String   @default("pending") @db.Text
+  priority   String?  @db.Text
+  adminNotes String?  @map("admin_notes") @db.Text
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz
+}
+
+model UserRestriction {
+  @@map("user_restrictions")
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  restrictedUntil DateTime @map("restricted_until") @db.Timestamptz
+  reason         String   @db.Text
+  appliedBy      String   @map("applied_by") @db.Uuid
+}
+
+model AdminAction {
+  @@map("admin_actions")
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  adminId      String   @map("admin_id") @db.Uuid
+  targetUserId String   @map("target_user_id") @db.Uuid
+  actionType   String   @map("action_type") @db.Text
+  description  String   @db.Text
+  notes        String?  @db.Text
+}
+
+model SharedInspiration {
+  @@map("shared_inspiration")
+  id          Int      @id @default(autoincrement())
+  clientId    String?  @map("client_id") @db.Uuid
+  hairdresserId String? @map("hairdresser_id") @db.Uuid
+  senderId    String?  @map("sender_id") @db.Uuid
+  recipientId String?  @map("recipient_id") @db.Uuid
+  imageUrl    String?  @map("image_url") @db.Text
+  batchId     String?  @map("batch_id") @db.Uuid
+}
+
+model SupportTicket {
+  @@map("support_tickets")
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  userId    String   @map("user_id") @db.Uuid
+  subject   String?  @db.Text
+  message   String   @db.Text
+  status    String   @default("open") @db.Text
+  priority  String?  @db.Text
+}

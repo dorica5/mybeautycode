@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Environment (secrets - never commit)
+.env
+.env.*
+!.env.example
+
+# Build output (TypeScript compile)
+dist/
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Logs
+*.log
