@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "440323732113",
+    "project_id": "myhaircode",
+    "storage_bucket": "myhaircode.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:440323732113:android:5c07bf1c51032d84278530",
+        "android_client_info": {
+          "package_name": "com.dorica.myHaircodeFinal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCxHTlWcK9QkbYS4r91CIM7kmtIzRMjfB8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

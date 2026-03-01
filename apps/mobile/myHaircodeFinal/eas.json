@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "version": ">= 14.2.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": { "credentialsSource": "remote" },
+      "android": {
+        "credentialsSource": "remote",
+        "gradleCommand": ":app:assembleDebug"
+      },
+      "env": { "NPM_USE_CI": "false" }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": { "credentialsSource": "remote" },
+      "android": {
+        "credentialsSource": "remote",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "env": { "NPM_USE_CI": "false" }
+    },
+    "production": {
+      "autoIncrement": true,
+      "ios": { "credentialsSource": "remote" },
+      "android": { "credentialsSource": "remote" },
+      "env": {
+        "NPM_USE_CI": "false",
+        "EXPO_NO_DEV_CLIENT": "1"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "C:\\Users\\dorca\\Documents\\myHaircode\\Important\\myhaircode-b993e4c8ff66.json"
+      }
+    }
+  }
+}
