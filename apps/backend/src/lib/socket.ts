@@ -1,17 +1,21 @@
 import { Server } from "socket.io";
-import jwt from "jsonwebtoken";
+import { jwtVerify, createRemoteJWKSet } from "jose";
 
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const JWKS_URL = SUPABASE_URL
+  ? `${SUPABASE_URL.replace(/\/$/, "")}/auth/v1/.well-known/jwks.json`
+  : null;
+const projectJWKS = JWKS_URL ? createRemoteJWKSet(new URL(JWKS_URL)) : null;
 
 export function setupSocket(io: Server) {
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token ?? socket.handshake.headers?.authorization?.replace("Bearer ", "");
-    if (!token || !JWT_SECRET) {
+    if (!token || !projectJWKS) {
       return next(new Error("Authentication required"));
     }
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { sub: string };
-      (socket as unknown as { userId: string }).userId = decoded.sub;
+      const { payload } = await jwtVerify(token, projectJWKS);
+      (socket as unknown as { userId: string }).userId = payload.sub as string;
       next();
     } catch {
       next(new Error("Invalid token"));

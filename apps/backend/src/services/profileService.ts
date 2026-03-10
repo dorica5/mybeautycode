@@ -23,6 +23,8 @@ export const profileService = {
       natural_hair_color: "naturalHairColor",
       updated_at: "updatedAt",
       signup_date: "signupDate",
+      user_type: "userType",
+      setup_status: "setupStatus",
     };
     const allowed = new Set([
       ...Object.keys(snakeToCamel),
@@ -33,6 +35,8 @@ export const profileService = {
       "aboutMe",
       "updatedAt",
       "signupDate",
+      "userType",
+      "setupStatus",
     ]);
     const filtered: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(data)) {
@@ -42,6 +46,24 @@ export const profileService = {
       }
     }
     filtered.updatedAt = new Date();
+
+    const userType = (filtered.userType ?? filtered.user_type) as string | undefined;
+    if (userType === "CLIENT" || userType === "HAIRDRESSER") {
+      if (userType === "CLIENT") {
+        await prisma.client.upsert({
+          where: { id },
+          create: { id },
+          update: {},
+        }).catch(() => {});
+      } else {
+        await prisma.hairdresser.upsert({
+          where: { id },
+          create: { id },
+          update: {},
+        }).catch(() => {});
+      }
+    }
+
     return prisma.profile.update({
       where: { id },
       data: filtered as never,
@@ -80,15 +102,19 @@ export const profileService = {
       select: { clientId: true },
     });
     const clientIds = rels.map((r) => r.clientId);
+    if (clientIds.length === 0) return [];
 
     const blocked = await prisma.blockedUser.findMany({
       where: { blockerId: hairdresserId },
       select: { blockedId: true },
     });
     const blockedIds = new Set(blocked.map((b) => b.blockedId));
+    const validClientIds = clientIds.filter((id) => !blockedIds.has(id));
+    if (validClientIds.length === 0) return [];
 
     const profiles = await prisma.profile.findMany({
       where: {
+        id: { in: validClientIds },
         fullName: { contains: searchQuery, mode: "insensitive" },
       },
       select: {
@@ -99,15 +125,13 @@ export const profileService = {
       },
     });
 
-    return profiles
-      .filter((p) => !blockedIds.has(p.id))
-      .map((p) => ({
-        client_id: p.id,
-        full_name: p.fullName,
-        avatar_url: p.avatarUrl,
-        phone_number: p.phoneNumber,
-        has_relationship: clientIds.includes(p.id),
-      }));
+    return profiles.map((p) => ({
+      client_id: p.id,
+      full_name: p.fullName,
+      avatar_url: p.avatarUrl,
+      phone_number: p.phoneNumber,
+      has_relationship: true,
+    }));
   },
 
   async searchHairdressersWithRelationship(
@@ -119,15 +143,19 @@ export const profileService = {
       select: { hairdresserId: true },
     });
     const hairdresserIds = rels.map((r) => r.hairdresserId);
+    if (hairdresserIds.length === 0) return [];
 
     const blocked = await prisma.blockedUser.findMany({
       where: { blockerId: clientId },
       select: { blockedId: true },
     });
     const blockedIds = new Set(blocked.map((b) => b.blockedId));
+    const validHairdresserIds = hairdresserIds.filter((id) => !blockedIds.has(id));
+    if (validHairdresserIds.length === 0) return [];
 
     const profiles = await prisma.profile.findMany({
       where: {
+        id: { in: validHairdresserIds },
         userType: "HAIRDRESSER",
         fullName: { contains: searchQuery, mode: "insensitive" },
       },
@@ -138,13 +166,11 @@ export const profileService = {
       },
     });
 
-    return profiles
-      .filter((p) => !blockedIds.has(p.id))
-      .map((p) => ({
-        hairdresser_id: p.id,
-        full_name: p.fullName,
-        avatar_url: p.avatarUrl,
-        has_relationship: hairdresserIds.includes(p.id),
-      }));
+    return profiles.map((p) => ({
+      hairdresser_id: p.id,
+      full_name: p.fullName,
+      avatar_url: p.avatarUrl,
+      has_relationship: true,
+    }));
   },
 };

@@ -4,6 +4,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { Alert, Platform } from "react-native";
 import { api } from "@/src/lib/apiClient";
+import { supabase } from "@/src/lib/supabase";
 import { router } from "expo-router";
 
 export interface PushNotification {

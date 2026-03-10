@@ -31,3 +31,16 @@ npm-debug.log*
 
 # Stray system paths
 %ProgramData%/
+
+# Supabase local temp (project refs, connection URLs)
+supabase/.temp/
+
+# SQL dumps (may contain sensitive data - use for migrations only, do not commit)
+auth_data.sql
+auth_schema.sql
+data.sql
+public_data.sql
+push_tokens_only.sql
+restore_push_tokens.sql
+roles.sql
+schema.sql

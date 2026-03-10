@@ -52,7 +52,8 @@ const ShareInspirationModal = ({ onClose }) => {
     const queryTrimmed = query.toLowerCase().trim();
     
     return data.filter(person => {
-      const fullNameLower = person.full_name.toLowerCase();
+      const fullName = person?.full_name ?? '';
+      const fullNameLower = fullName.toLowerCase();
       const nameParts = fullNameLower.split(/\s+/);
       
       if (queryTrimmed.includes(' ')) {
@@ -64,15 +65,16 @@ const ShareInspirationModal = ({ onClose }) => {
   }, []);
 
   const highlightMatch = useCallback((text, query) => {
-    if (!query || !query.trim()) return <Text style={styles.fullName}>{text}</Text>;
+    const displayText = text ?? '';
+    if (!query || !query.trim()) return <Text style={styles.fullName}>{displayText}</Text>;
 
     const queryTrimmed = query.toLowerCase().trim();
     
     if (queryTrimmed.includes(' ')) {
-      const textLower = text.toLowerCase();
+      const textLower = displayText.toLowerCase();
       if (textLower.startsWith(queryTrimmed)) {
-        const match = text.slice(0, queryTrimmed.length);
-        const after = text.slice(queryTrimmed.length);
+        const match = displayText.slice(0, queryTrimmed.length);
+        const after = displayText.slice(queryTrimmed.length);
         
         return (
           <Text style={styles.fullName}>
@@ -81,10 +83,10 @@ const ShareInspirationModal = ({ onClose }) => {
           </Text>
         );
       }
-      return <Text style={styles.fullName}>{text}</Text>;
+      return <Text style={styles.fullName}>{displayText}</Text>;
     }
     
-    const nameParts = text.split(/\s+/);
+    const nameParts = displayText.split(/\s+/);
     let matchedPartIndex = -1;
     let matchStartIndex = -1;
     let matchEndIndex = -1;
@@ -105,12 +107,12 @@ const ShareInspirationModal = ({ onClose }) => {
     }
 
     if (matchedPartIndex === -1) {
-      return <Text style={styles.fullName}>{text}</Text>;
+      return <Text style={styles.fullName}>{displayText}</Text>;
     }
 
-    const before = text.slice(0, matchStartIndex);
-    const match = text.slice(matchStartIndex, matchEndIndex);
-    const after = text.slice(matchEndIndex);
+    const before = displayText.slice(0, matchStartIndex);
+    const match = displayText.slice(matchStartIndex, matchEndIndex);
+    const after = displayText.slice(matchEndIndex);
 
     return (
       <Text style={styles.fullName}>

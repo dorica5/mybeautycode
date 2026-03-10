@@ -4,13 +4,13 @@
 
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 console.log("Hello from Functions!");
 
 Deno.serve(async (req) => {
   try {
-    const { userId } = req.json();
+    const { userId } = await req.json();
 
     if (!userId) {
       return new Response("Missing userId", { status: 400 });
@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     );
 
     const { data: userFiles, error: storageError } = await supabase.storage
-      .from("avatar").list("", { limit: 100, search: userId });
+      .from("avatars").list("", { limit: 100, search: userId });
 
     if (storageError) {
       console.error("Error fetching user files:", storageError.message);
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
 
     return new Response("User and files deleted successfully", { status: 200 });
   } catch (error) {
-    console.error("Error processing request:", error.message);
+    console.error("Error processing request:", (error as Error).message);
     return new Response("Internal server error", { status: 500 });
   }
 });
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
   2. Make an HTTP request:
 
   curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/deleteUser' \
-    --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0' \
+    --header 'Authorization: Bearer YOUR_SUPABASE_ANON_KEY' \
     --header 'Content-Type: application/json' \
     --data '{"name":"Functions"}'
 

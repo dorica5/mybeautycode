@@ -8,9 +8,14 @@ const API_URL =
 type GetSession = () => Promise<{ access_token?: string } | null>;
 
 let getSessionFn: GetSession | null = null;
+let on401Fn: (() => void | Promise<void>) | null = null;
 
 export function setApiSessionGetter(fn: GetSession) {
   getSessionFn = fn;
+}
+
+export function setApiOn401(fn: () => void | Promise<void>) {
+  on401Fn = fn;
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
@@ -35,6 +40,13 @@ async function handleResponse(res: Response) {
     data = text;
   }
   if (!res.ok) {
+    if (res.status === 401 && on401Fn) {
+      try {
+        await on401Fn();
+      } catch (e) {
+        console.warn("Error in 401 handler:", e);
+      }
+    }
     const err = new Error(
       (data as { error?: string })?.error ?? res.statusText ?? "Request failed"
     );

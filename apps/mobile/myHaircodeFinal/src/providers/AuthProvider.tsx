@@ -1,6 +1,6 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { supabase } from "../lib/supabase";
-import { api } from "../lib/apiClient";
+import { api, setApiOn401 } from "../lib/apiClient";
 import { Session } from "@supabase/supabase-js";
 import {
   createContext,
@@ -494,6 +494,10 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
     }
   }, [session?.user?.id]);
+
+  useEffect(() => {
+    setApiOn401(() => signOut());
+  }, []);
 
   useEffect(() => {
     console.log("Initializing AuthProvider...");

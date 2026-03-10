@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { jwtVerify, createRemoteJWKSet } from "jose";
 
 declare global {
   namespace Express {
@@ -9,9 +9,14 @@ declare global {
   }
 }
 
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const JWKS_URL = SUPABASE_URL
+  ? `${SUPABASE_URL.replace(/\/$/, "")}/auth/v1/.well-known/jwks.json`
+  : null;
 
-export const authMiddleware = (
+const projectJWKS = JWKS_URL ? createRemoteJWKSet(new URL(JWKS_URL)) : null;
+
+export const authMiddleware = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -25,20 +30,23 @@ export const authMiddleware = (
     return res.status(401).json({ error: "Missing or invalid authorization" });
   }
 
-  if (!JWT_SECRET) {
+  if (!projectJWKS) {
+    console.error("[auth] JWT verify failed: missing SUPABASE_URL");
     return res.status(500).json({ error: "Server misconfiguration" });
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { sub: string };
-    req.userId = decoded.sub;
+    const { payload } = await jwtVerify(token, projectJWKS);
+    req.userId = payload.sub as string;
     next();
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[auth] JWT verify failed:", msg);
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 };
 
-export const optionalAuth = (
+export const optionalAuth = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -48,13 +56,13 @@ export const optionalAuth = (
     ? authHeader.slice(7)
     : undefined;
 
-  if (!token || !JWT_SECRET) {
+  if (!token || !projectJWKS) {
     return next();
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { sub: string };
-    req.userId = decoded.sub;
+    const { payload } = await jwtVerify(token, projectJWKS);
+    req.userId = payload.sub as string;
   } catch {
     // ignore
   }

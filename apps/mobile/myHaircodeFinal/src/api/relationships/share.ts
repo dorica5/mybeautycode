@@ -44,24 +44,28 @@ export async function searchShareProfiles(
 ): Promise<{ id: string; full_name: string; avatar_url: string }[]> {
   if (!query.trim()) return [];
   if (userType === "CLIENT") {
-    const data = await api.get<{ id: string; fullName: string; avatarUrl: string }[]>(
+    const data = await api.get<{ hairdresser_id: string; full_name: string; avatar_url: string; has_relationship: boolean }[]>(
       `/api/profiles/search/hairdressers-with-relationship?q=${encodeURIComponent(query)}`
     );
     const arr = Array.isArray(data) ? data : [];
-    return arr.map((p) => ({
-      id: p.id,
-      full_name: p.fullName,
-      avatar_url: p.avatarUrl,
-    }));
+    return arr
+      .filter((p) => p.has_relationship)
+      .map((p) => ({
+        id: p.hairdresser_id,
+        full_name: p.full_name ?? "",
+        avatar_url: p.avatar_url ?? "",
+      }));
   } else {
-    const data = await api.get<{ id: string; fullName: string; avatarUrl: string }[]>(
+    const data = await api.get<{ client_id: string; full_name: string; avatar_url: string; has_relationship: boolean }[]>(
       `/api/profiles/search/clients-with-relationship?q=${encodeURIComponent(query)}`
     );
     const arr = Array.isArray(data) ? data : [];
-    return arr.map((p) => ({
-      id: p.id,
-      full_name: p.fullName,
-      avatar_url: p.avatarUrl,
-    }));
+    return arr
+      .filter((p) => p.has_relationship)
+      .map((p) => ({
+        id: p.client_id,
+        full_name: p.full_name ?? "",
+        avatar_url: p.avatar_url ?? "",
+      }));
   }
 }
