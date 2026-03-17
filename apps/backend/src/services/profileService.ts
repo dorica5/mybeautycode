@@ -1,67 +1,69 @@
 import { prisma } from "../lib/prisma";
+import { professionService } from "./professionService";
+
+const PROFILE_FIELDS = [
+  "fullName",
+  "avatarUrl",
+  "phoneNumber",
+  "setupStatus",
+  "signupDate",
+  "updatedAt",
+] as const;
+
+const PROFESSIONAL_FIELDS = [
+  "displayName",
+  "businessName",
+  "businessNumber",
+  "aboutMe",
+  "socialMedia",
+  "bookingSite",
+] as const;
+
+const SNAKE_TO_CAMEL: Record<string, string> = {
+  full_name: "fullName",
+  avatar_url: "avatarUrl",
+  phone_number: "phoneNumber",
+  setup_status: "setupStatus",
+  signup_date: "signupDate",
+  updated_at: "updatedAt",
+  display_name: "displayName",
+  business_name: "businessName",
+  business_number: "businessNumber",
+  about_me: "aboutMe",
+  social_media: "socialMedia",
+  booking_site: "bookingSite",
+};
 
 export const profileService = {
   async getById(id: string) {
-    return prisma.profile.findUnique({
+    const profile = await prisma.profile.findUnique({
       where: { id },
+      include: { professionalProfile: true },
     });
+    return profile;
   },
 
   async update(id: string, data: Record<string, unknown>) {
-    const snakeToCamel: Record<string, string> = {
-      full_name: "fullName",
-      avatar_url: "avatarUrl",
-      phone_number: "phoneNumber",
-      salon_phone_number: "salonPhoneNumber",
-      salon_name: "salonName",
-      about_me: "aboutMe",
-      social_media: "socialMedia",
-      booking_site: "bookingSite",
-      hair_structure: "hairStructure",
-      hair_thickness: "hairThickness",
-      grey_hair_percentage: "greyHairPercentage",
-      natural_hair_color: "naturalHairColor",
-      updated_at: "updatedAt",
-      signup_date: "signupDate",
-      user_type: "userType",
-      setup_status: "setupStatus",
-    };
-    const allowed = new Set([
-      ...Object.keys(snakeToCamel),
-      "fullName",
-      "avatarUrl",
-      "phoneNumber",
-      "salonName",
-      "aboutMe",
-      "updatedAt",
-      "signupDate",
-      "userType",
-      "setupStatus",
-    ]);
     const filtered: Record<string, unknown> = {};
+    const professionalData: Record<string, unknown> = {};
+
     for (const [k, v] of Object.entries(data)) {
-      const key = snakeToCamel[k] ?? k;
-      if (allowed.has(k) || allowed.has(key)) {
+      const key = (SNAKE_TO_CAMEL[k] ?? k) as string;
+      if (PROFILE_FIELDS.includes(key as (typeof PROFILE_FIELDS)[number])) {
         filtered[key] = v;
+      } else if (PROFESSIONAL_FIELDS.includes(key as (typeof PROFESSIONAL_FIELDS)[number])) {
+        professionalData[key] = v;
       }
     }
     filtered.updatedAt = new Date();
 
-    const userType = (filtered.userType ?? filtered.user_type) as string | undefined;
-    if (userType === "CLIENT" || userType === "HAIRDRESSER") {
-      if (userType === "CLIENT") {
-        await prisma.client.upsert({
-          where: { id },
-          create: { id },
-          update: {},
-        }).catch(() => {});
-      } else {
-        await prisma.hairdresser.upsert({
-          where: { id },
-          create: { id },
-          update: {},
-        }).catch(() => {});
-      }
+    if (Object.keys(professionalData).length > 0) {
+      const profProfileId = await professionService.getOrCreateProfessionalProfileId(id);
+      professionalData.updatedAt = new Date();
+      await prisma.professionalProfile.update({
+        where: { id: profProfileId },
+        data: professionalData as never,
+      });
     }
 
     return prisma.profile.update({
@@ -70,12 +72,15 @@ export const profileService = {
     });
   },
 
-  async searchClients(searchQuery: string, hairdresserId: string) {
-    const rels = await prisma.hairdresserClient.findMany({
-      where: { hairdresserId },
-      select: { clientId: true },
+  async searchClients(searchQuery: string, professionalProfileId: string) {
+    const rels = await prisma.clientProfessionalLink.findMany({
+      where: {
+        professionalProfileId,
+        status: "active",
+      },
+      select: { clientUserId: true },
     });
-    const clientIds = rels.map((r) => r.clientId);
+    const clientIds = rels.map((r) => r.clientUserId);
     if (clientIds.length === 0) return [];
 
     const profiles = await prisma.profile.findMany({
@@ -95,17 +100,27 @@ export const profileService = {
 
   async searchClientsWithRelationship(
     searchQuery: string,
-    hairdresserId: string
+    professionalProfileId: string
   ) {
-    const rels = await prisma.hairdresserClient.findMany({
-      where: { hairdresserId },
-      select: { clientId: true },
+    const rels = await prisma.clientProfessionalLink.findMany({
+      where: {
+        professionalProfileId,
+        status: "active",
+      },
+      select: { clientUserId: true },
     });
-    const clientIds = rels.map((r) => r.clientId);
+    const clientIds = rels.map((r) => r.clientUserId);
     if (clientIds.length === 0) return [];
 
+    const profProfile = await prisma.professionalProfile.findUnique({
+      where: { id: professionalProfileId },
+      select: { profileId: true },
+    });
+    const profileId = profProfile?.profileId;
+    if (!profileId) return [];
+
     const blocked = await prisma.blockedUser.findMany({
-      where: { blockerId: hairdresserId },
+      where: { blockerId: profileId },
       select: { blockedId: true },
     });
     const blockedIds = new Set(blocked.map((b) => b.blockedId));
@@ -134,42 +149,42 @@ export const profileService = {
     }));
   },
 
-  async searchHairdressersWithRelationship(
+  async searchProfessionalsWithRelationship(
     searchQuery: string,
-    clientId: string
+    clientUserId: string
   ) {
-    const rels = await prisma.hairdresserClient.findMany({
-      where: { clientId },
-      select: { hairdresserId: true },
+    const rels = await prisma.clientProfessionalLink.findMany({
+      where: {
+        clientUserId,
+        status: "active",
+      },
+      select: { professionalProfileId: true },
     });
-    const hairdresserIds = rels.map((r) => r.hairdresserId);
-    if (hairdresserIds.length === 0) return [];
+    const profProfileIds = rels.map((r) => r.professionalProfileId);
+    if (profProfileIds.length === 0) return [];
 
     const blocked = await prisma.blockedUser.findMany({
-      where: { blockerId: clientId },
+      where: { blockerId: clientUserId },
       select: { blockedId: true },
     });
     const blockedIds = new Set(blocked.map((b) => b.blockedId));
-    const validHairdresserIds = hairdresserIds.filter((id) => !blockedIds.has(id));
-    if (validHairdresserIds.length === 0) return [];
 
-    const profiles = await prisma.profile.findMany({
+    const profProfiles = await prisma.professionalProfile.findMany({
       where: {
-        id: { in: validHairdresserIds },
-        userType: "HAIRDRESSER",
-        fullName: { contains: searchQuery, mode: "insensitive" },
+        id: { in: profProfileIds },
+        profile: {
+          fullName: { contains: searchQuery, mode: "insensitive" },
+        },
       },
-      select: {
-        id: true,
-        fullName: true,
-        avatarUrl: true,
-      },
+      include: { profile: { select: { id: true, fullName: true, avatarUrl: true } } },
     });
 
-    return profiles.map((p) => ({
-      hairdresser_id: p.id,
-      full_name: p.fullName,
-      avatar_url: p.avatarUrl,
+    const valid = profProfiles.filter((pp) => !blockedIds.has(pp.profileId));
+    return valid.map((pp) => ({
+      professional_profile_id: pp.id,
+      profile_id: pp.profileId,
+      full_name: pp.displayName ?? pp.profile.fullName,
+      avatar_url: pp.profile.avatarUrl,
       has_relationship: true,
     }));
   },

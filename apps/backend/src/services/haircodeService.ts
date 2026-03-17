@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { createClient } from "@supabase/supabase-js";
+import { professionService } from "./professionService";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -7,112 +8,129 @@ const supabase = createClient(
 );
 
 export const haircodeService = {
-  async listClientHaircodes(clientId: string) {
-    const haircodes = await prisma.haircode.findMany({
-      where: { clientId },
+  async listClientHaircodes(clientUserId: string) {
+    const hairProfessionId = await professionService.getProfessionIdByCode();
+    const records = await prisma.serviceRecord.findMany({
+      where: { clientUserId },
       orderBy: { createdAt: "desc" },
+      include: {
+        professionalProfile: {
+          include: { profile: true },
+        },
+      },
     });
-    const hairdresserIds = [...new Set(haircodes.map((h) => h.hairdresserId))];
-    const profiles = await prisma.profile.findMany({
-      where: { id: { in: hairdresserIds } },
-    });
-    return haircodes.map((h) => {
-      const p = profiles.find((prof) => prof.id === h.hairdresserId);
+    return records.map((r) => {
+      const pp = r.professionalProfile;
+      const p = pp?.profile;
       return {
-        id: h.id,
-        created_at: h.createdAt?.toISOString(),
-        client_id: h.clientId,
-        hairdresser_id: h.hairdresserId,
-        hairdresser_name: h.hairdresserName,
-        service_description: h.serviceDescription,
-        services: h.services,
-        price: h.price,
-        duration: h.duration,
-        hairdresser_profile: p
+        id: r.id,
+        created_at: r.createdAt?.toISOString(),
+        client_id: r.clientUserId,
+        professional_profile_id: r.professionalProfileId,
+        hairdresser_id: pp?.profileId,
+        hairdresser_name: pp?.displayName ?? p?.fullName,
+        service_description: r.summary,
+        services: (r.recordData as { services?: string })?.services ?? null,
+        price: r.price?.toString() ?? null,
+        duration: r.durationMinutes?.toString() ?? null,
+        professional_profile: pp
           ? {
-              avatar_url: p.avatarUrl,
-              salon_name: p.salonName,
-              salon_phone_number: p.salonPhoneNumber,
-              about_me: p.aboutMe,
-              booking_site: p.bookingSite,
-              social_media: p.socialMedia,
+              avatar_url: p?.avatarUrl,
+              business_name: pp.businessName,
+              business_number: pp.businessNumber,
+              about_me: pp.aboutMe,
+              booking_site: pp.bookingSite,
+              social_media: pp.socialMedia,
             }
           : null,
       };
     });
   },
 
-  async listLatestHaircodes(hairdresserId: string) {
-    const rels = await prisma.hairdresserClient.findMany({
-      where: { hairdresserId },
-      select: { clientId: true },
+  async listLatestHaircodes(professionalProfileIdOrProfileId: string) {
+    const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
+      professionalProfileIdOrProfileId
+    );
+    const rels = await prisma.clientProfessionalLink.findMany({
+      where: {
+        professionalProfileId,
+        status: "active",
+      },
+      select: { clientUserId: true },
     });
-    const activeClientIds = rels.map((r) => r.clientId);
+    const activeClientIds = rels.map((r) => r.clientUserId);
+
+    const profProfile = await prisma.professionalProfile.findUnique({
+      where: { id: professionalProfileId },
+      select: { profileId: true },
+    });
+    const profileId = profProfile?.profileId;
+    if (!profileId) return [];
 
     const blocking = await prisma.blockedUser.findMany({
       where: {
-        OR: [{ blockerId: hairdresserId }, { blockedId: hairdresserId }],
+        OR: [{ blockerId: profileId }, { blockedId: profileId }],
       },
     });
     const blockedIds = new Set<string>();
     blocking.forEach((b) => {
-      if (b.blockerId === hairdresserId) blockedIds.add(b.blockedId);
+      if (b.blockerId === profileId) blockedIds.add(b.blockedId);
       else blockedIds.add(b.blockerId);
     });
     const validClientIds = activeClientIds.filter((id) => !blockedIds.has(id));
     if (validClientIds.length === 0) return [];
 
-    const haircodes = await prisma.haircode.findMany({
+    const records = await prisma.serviceRecord.findMany({
       where: {
-        hairdresserId,
-        clientId: { in: validClientIds },
+        professionalProfileId,
+        clientUserId: { in: validClientIds },
       },
       orderBy: { createdAt: "desc" },
       take: 20,
+      include: {
+        clientUser: { select: { id: true, fullName: true, avatarUrl: true } },
+      },
     });
-    const clientIds = [...new Set(haircodes.map((h) => h.clientId))];
-    const profiles = await prisma.profile.findMany({
-      where: { id: { in: clientIds } },
-    });
-    return haircodes.map((h) => ({
-      ...h,
-      client_profile: profiles.find((p) => p.id === h.clientId) ?? null,
+    return records.map((r) => ({
+      ...r,
+      client_profile: r.clientUser,
     }));
   },
 
-  async getWithMedia(haircodeId: string) {
-    const haircode = await prisma.haircode.findUnique({
-      where: { id: haircodeId },
+  async getWithMedia(serviceRecordId: string) {
+    const record = await prisma.serviceRecord.findUnique({
+      where: { id: serviceRecordId },
     });
-    if (!haircode) return null;
-    const media = await prisma.haircodeMedia.findMany({
-      where: { haircodeId },
-      select: { mediaUrl: true, mediaType: true, haircodeId: true },
+    if (!record) return null;
+    const media = await prisma.serviceRecordMedia.findMany({
+      where: { serviceRecordId },
+      select: { mediaUrl: true, mediaType: true, serviceRecordId: true },
     });
-    return { ...haircode, media };
+    return { ...record, media };
   },
 
-  async getMedia(haircodeId: string) {
-    return prisma.haircodeMedia.findMany({
-      where: { haircodeId },
-      select: { mediaUrl: true, mediaType: true, haircodeId: true },
+  async getMedia(serviceRecordId: string) {
+    return prisma.serviceRecordMedia.findMany({
+      where: { serviceRecordId },
+      select: { mediaUrl: true, mediaType: true, serviceRecordId: true },
     });
   },
 
-  async listClientGallery(clientId: string) {
-    const haircodes = await prisma.haircode.findMany({
-      where: { clientId },
+  async listClientGallery(clientUserId: string) {
+    const records = await prisma.serviceRecord.findMany({
+      where: { clientUserId },
       select: { id: true },
     });
-    const ids = haircodes.map((h) => h.id);
+    const ids = records.map((r) => r.id);
     if (ids.length === 0) return [];
-    const media = await prisma.haircodeMedia.findMany({
-      where: { haircodeId: { in: ids } },
-      select: { haircodeId: true, mediaUrl: true, mediaType: true },
+    const media = await prisma.serviceRecordMedia.findMany({
+      where: { serviceRecordId: { in: ids } },
+      select: { serviceRecordId: true, mediaUrl: true, mediaType: true },
       orderBy: { createdAt: "desc" },
     });
     return media.map((m) => ({
-      haircode_id: m.haircodeId,
+      haircode_id: m.serviceRecordId,
+      service_record_id: m.serviceRecordId,
       media_url: m.mediaUrl,
       media_type: m.mediaType,
     }));
@@ -127,45 +145,74 @@ export const haircodeService = {
     price?: string;
     duration?: string;
   }) {
-    return prisma.haircode.create({
+    const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
+      data.hairdresser_id
+    );
+    const professionId = await professionService.getProfessionIdByCode();
+
+    const link = await prisma.clientProfessionalLink.findFirst({
+      where: {
+        clientUserId: data.client_id,
+        professionalProfileId,
+        status: "active",
+      },
+      select: { id: true },
+    });
+
+    const durationMinutes = data.duration ? parseInt(data.duration, 10) : null;
+    const price = data.price ? parseFloat(data.price) : null;
+
+    return prisma.serviceRecord.create({
       data: {
-        clientId: data.client_id,
-        hairdresserId: data.hairdresser_id,
-        hairdresserName: data.hairdresser_name,
-        serviceDescription: data.service_description,
-        services: data.services,
-        price: data.price,
-        duration: data.duration,
+        clientUserId: data.client_id,
+        professionalProfileId,
+        professionId,
+        clientProfessionalLinkId: link?.id,
+        serviceName: data.service_description,
+        summary: data.service_description,
+        price: price ? Number(price) : null,
+        durationMinutes: durationMinutes ? Number(durationMinutes) : null,
+        recordData: data.services ? { services: data.services } : undefined,
+        createdByUserId: data.hairdresser_id,
       },
     });
   },
 
-  async update(haircodeId: string, data: Record<string, unknown>) {
-    return prisma.haircode.update({
-      where: { id: haircodeId },
-      data: {
-        serviceDescription: (data.service_description as string) ?? undefined,
-        services: (data.services as string) ?? undefined,
-        price: (data.price as string) ?? undefined,
-        duration: (data.duration as string) ?? undefined,
-      },
-    });
-  },
-
-  async deleteHairdresser(haircodeId: string, hairdresserId: string) {
-    const haircode = await prisma.haircode.findUnique({
-      where: { id: haircodeId },
-    });
-    if (!haircode || haircode.hairdresserId !== hairdresserId) {
-      throw new Error("You can only delete your own haircodes.");
+  async update(serviceRecordId: string, data: Record<string, unknown>) {
+    const updateData: Record<string, unknown> = {};
+    if (data.service_description != null) {
+      updateData.summary = data.service_description;
+      updateData.serviceName = data.service_description;
     }
-    const createdAt = new Date(haircode.createdAt);
+    if (data.services != null) {
+      updateData.recordData = { services: data.services };
+    }
+    if (data.price != null) updateData.price = parseFloat(String(data.price));
+    if (data.duration != null) updateData.durationMinutes = parseInt(String(data.duration), 10);
+
+    return prisma.serviceRecord.update({
+      where: { id: serviceRecordId },
+      data: updateData as never,
+    });
+  },
+
+  async deleteByProfessional(serviceRecordId: string, professionalProfileIdOrProfileId: string) {
+    const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
+      professionalProfileIdOrProfileId
+    );
+    const record = await prisma.serviceRecord.findUnique({
+      where: { id: serviceRecordId },
+    });
+    if (!record || record.professionalProfileId !== professionalProfileId) {
+      throw new Error("You can only delete your own service records.");
+    }
+    const createdAt = new Date(record.createdAt);
     const daysDiff = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysDiff > 7) {
-      throw new Error("You can only delete haircodes within 7 days.");
+      throw new Error("You can only delete service records within 7 days.");
     }
-    const media = await prisma.haircodeMedia.findMany({
-      where: { haircodeId },
+    const media = await prisma.serviceRecordMedia.findMany({
+      where: { serviceRecordId },
       select: { mediaUrl: true },
     });
     if (media.length > 0) {
@@ -173,20 +220,23 @@ export const haircodeService = {
         .from("haircode_images")
         .remove(media.map((m) => m.mediaUrl));
     }
-    await prisma.haircodeMedia.deleteMany({ where: { haircodeId } });
-    await prisma.haircode.delete({ where: { id: haircodeId } });
+    await prisma.serviceRecordMedia.deleteMany({ where: { serviceRecordId } });
+    await prisma.serviceRecord.delete({ where: { id: serviceRecordId } });
     return { success: true };
   },
 
-  async deleteClient(haircodeId: string, hairdresserId: string) {
-    const haircode = await prisma.haircode.findUnique({
-      where: { id: haircodeId },
+  async deleteByClient(serviceRecordId: string, professionalProfileIdOrProfileId: string) {
+    const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
+      professionalProfileIdOrProfileId
+    );
+    const record = await prisma.serviceRecord.findUnique({
+      where: { id: serviceRecordId },
     });
-    if (!haircode || haircode.hairdresserId !== hairdresserId) {
+    if (!record || record.professionalProfileId !== professionalProfileId) {
       throw new Error("Unauthorized");
     }
-    const media = await prisma.haircodeMedia.findMany({
-      where: { haircodeId },
+    const media = await prisma.serviceRecordMedia.findMany({
+      where: { serviceRecordId },
       select: { mediaUrl: true },
     });
     if (media.length > 0) {
@@ -194,33 +244,33 @@ export const haircodeService = {
         .from("haircode_images")
         .remove(media.map((m) => m.mediaUrl));
     }
-    await prisma.haircodeMedia.deleteMany({ where: { haircodeId } });
-    await prisma.haircode.delete({ where: { id: haircodeId } });
+    await prisma.serviceRecordMedia.deleteMany({ where: { serviceRecordId } });
+    await prisma.serviceRecord.delete({ where: { id: serviceRecordId } });
     return { success: true };
   },
 
   async insertMedia(records: { haircode_id: string; media_url: string; media_type: string }[]) {
-    return prisma.haircodeMedia.createMany({
+    return prisma.serviceRecordMedia.createMany({
       data: records.map((r) => ({
-        haircodeId: r.haircode_id,
+        serviceRecordId: r.haircode_id,
         mediaUrl: r.media_url,
         mediaType: r.media_type,
       })),
     });
   },
 
-  async deleteMediaItems(haircodeId: string, mediaUrls: string[]) {
+  async deleteMediaItems(serviceRecordId: string, mediaUrls: string[]) {
     for (const url of mediaUrls) {
       await supabase.storage.from("haircode_images").remove([url]);
     }
     for (const url of mediaUrls) {
-      await prisma.haircodeMedia.deleteMany({
-        where: { haircodeId, mediaUrl: url },
+      await prisma.serviceRecordMedia.deleteMany({
+        where: { serviceRecordId, mediaUrl: url },
       });
     }
   },
 
-  async deleteAllMedia(haircodeId: string) {
-    await prisma.haircodeMedia.deleteMany({ where: { haircodeId } });
+  async deleteAllMedia(serviceRecordId: string) {
+    await prisma.serviceRecordMedia.deleteMany({ where: { serviceRecordId } });
   },
 };

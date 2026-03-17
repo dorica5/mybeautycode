@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { relationshipService } from "../services/relationshipService";
+import { professionService } from "../services/professionService";
 
 export const relationshipController = {
   async add(req: Request, res: Response) {
@@ -24,7 +25,10 @@ export const relationshipController = {
       return res.status(400).json({ error: "hairdresserId and clientId required" });
     }
     try {
-      await relationshipService.remove(hairdresserId, clientId);
+      const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
+        hairdresserId
+      );
+      await relationshipService.remove(professionalProfileId, clientId);
       res.json({ success: true });
     } catch (err) {
       console.error("relationship remove error:", err);
@@ -48,12 +52,15 @@ export const relationshipController = {
   },
 
   async listByHairdresser(req: Request, res: Response) {
-    const hairdresserId = req.query.hairdresser_id ?? req.userId;
+    const hairdresserId = (req.query.hairdresser_id as string) ?? req.userId;
     if (!hairdresserId) {
       return res.status(400).json({ error: "hairdresser_id or auth required" });
     }
     try {
-      const data = await relationshipService.listByHairdresser(String(hairdresserId));
+      const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
+        String(hairdresserId)
+      );
+      const data = await relationshipService.listByProfessional(professionalProfileId);
       res.json(data);
     } catch (err) {
       console.error("relationship listByHairdresser error:", err);
@@ -62,7 +69,7 @@ export const relationshipController = {
   },
 
   async listByClient(req: Request, res: Response) {
-    const clientId = req.query.client_id ?? req.userId;
+    const clientId = (req.query.client_id as string) ?? req.userId;
     if (!clientId) {
       return res.status(400).json({ error: "client_id or auth required" });
     }

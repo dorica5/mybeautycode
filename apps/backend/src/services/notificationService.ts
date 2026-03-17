@@ -1,5 +1,11 @@
 import { prisma } from "../lib/prisma";
 
+const NOTIFICATION_TYPE_MAP: Record<string, string> = {
+  FRIEND_REQUEST: "link_request",
+  FRIEND_ACCEPTED: "link_accepted",
+  FRIEND_DECLINED: "link_declined",
+};
+
 export const notificationService = {
   async send(
     senderId: string,
@@ -11,19 +17,18 @@ export const notificationService = {
       extraData?: Record<string, unknown>;
     }
   ) {
+    const mappedType = NOTIFICATION_TYPE_MAP[params.type] ?? params.type;
     const notification = await prisma.notification.create({
       data: {
         userId: recipientId,
         message: params.message,
-        type: params.type,
+        type: mappedType as "link_request" | "link_accepted" | "link_declined" | "shared_inspiration" | "service_record" | "system" | "support" | "other",
         senderId,
         status: params.type === "FRIEND_REQUEST" ? "pending" : null,
-        extraData: params.extraData
-          ? JSON.stringify(params.extraData)
-          : null,
+        data: (params.extraData ?? undefined) as object | undefined,
       },
     });
-    const pushToken = await prisma.pushToken.findUnique({
+    const pushToken = await prisma.pushToken.findFirst({
       where: { userId: recipientId },
     });
     if (pushToken?.token) {
@@ -34,7 +39,11 @@ export const notificationService = {
           to: pushToken.token,
           title: params.title ?? "Good News",
           body: params.message,
-          data: { notificationId: notification.id, type: params.type, ...params.extraData },
+          data: {
+            notificationId: notification.id,
+            type: params.type,
+            ...params.extraData,
+          },
           sound: "default",
           priority: "high",
         }),
@@ -46,18 +55,18 @@ export const notificationService = {
     return notification;
   },
 
-  async savePushToken(userId: string, token: string) {
-    const existing = await prisma.pushToken.findUnique({
-      where: { userId },
+  async savePushToken(userId: string, token: string, deviceId?: string) {
+    const existing = await prisma.pushToken.findFirst({
+      where: { userId, deviceId: deviceId ?? null },
     });
     if (existing) {
       await prisma.pushToken.update({
-        where: { userId },
+        where: { id: existing.id },
         data: { token, updatedAt: new Date() },
       });
     } else {
       await prisma.pushToken.create({
-        data: { userId, token },
+        data: { userId, token, deviceId },
       });
     }
     return { success: true };
@@ -89,7 +98,7 @@ export const notificationService = {
       ...n,
       sender_id: n.senderId,
       sender: n.senderId ? senderMap[n.senderId] : null,
-      data: n.extraData ? (() => { try { return JSON.parse(n.extraData!); } catch { return null; } })() : null,
+      data: n.data,
     }));
   },
 
@@ -105,7 +114,7 @@ export const notificationService = {
       where: {
         senderId,
         userId,
-        type: "FRIEND_REQUEST",
+        type: "link_request",
       },
       orderBy: { createdAt: "desc" },
       select: { status: true },

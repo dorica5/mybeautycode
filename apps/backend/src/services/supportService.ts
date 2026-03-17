@@ -10,13 +10,15 @@ export const supportService = {
       priority?: string;
     }
   ) {
+    const status = (data.status ?? "open") as "open" | "in_progress" | "resolved" | "closed";
+    const priority = data.priority as "low" | "medium" | "high" | "urgent" | undefined;
     return prisma.supportTicket.create({
       data: {
         userId,
         subject: data.subject,
         message: data.message,
-        status: data.status ?? "open",
-        priority: data.priority,
+        status,
+        priority: priority ?? undefined,
       },
     });
   },

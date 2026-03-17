@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { profileService } from "../services/profileService";
+import { professionService } from "../services/professionService";
 
 export const profileController = {
   async getById(req: Request, res: Response) {
@@ -37,9 +38,12 @@ export const profileController = {
       return res.status(400).json({ error: "q and hairdresserId required" });
     }
     try {
+      const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
+        String(hairdresserId)
+      );
       const results = await profileService.searchClients(
         String(q),
-        String(hairdresserId)
+        professionalProfileId
       );
       res.json(results);
     } catch (err) {
@@ -55,9 +59,12 @@ export const profileController = {
       return res.status(400).json({ error: "q required" });
     }
     try {
+      const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
+        hairdresserId!
+      );
       const results = await profileService.searchClientsWithRelationship(
         String(q),
-        hairdresserId
+        professionalProfileId
       );
       res.json(results);
     } catch (err) {
@@ -73,9 +80,9 @@ export const profileController = {
       return res.status(400).json({ error: "q required" });
     }
     try {
-      const results = await profileService.searchHairdressersWithRelationship(
+      const results = await profileService.searchProfessionalsWithRelationship(
         String(q),
-        clientId
+        clientId!
       );
       res.json(results);
     } catch (err) {

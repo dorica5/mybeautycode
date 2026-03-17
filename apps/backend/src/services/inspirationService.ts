@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { createClient } from "@supabase/supabase-js";
+import { professionService } from "./professionService";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -9,9 +10,12 @@ const supabase = createClient(
 const SUPABASE_URL = process.env.SUPABASE_URL;
 
 export const inspirationService = {
-  async listByOwner(ownerId: string) {
+  async listByOwner(ownerId: string, professionCode?: string) {
+    const professionId = await professionService.getProfessionIdByCode(
+      professionCode ?? "hair"
+    );
     const results = await prisma.inspiration.findMany({
-      where: { ownerId },
+      where: { ownerId, professionId },
       orderBy: { createdAt: "desc" },
     });
     return results.map((r) => ({
@@ -27,15 +31,23 @@ export const inspirationService = {
     owner_id?: string;
     client_id?: string;
     shared_by?: string;
+    profession_id?: string;
     image_url: string;
     low_res_image_url?: string;
     low_middle_res_url?: string;
     high_middle_res_url?: string;
   }) {
+    const ownerId = data.owner_id ?? data.client_id;
+    if (!ownerId) throw new Error("owner_id or client_id required");
+
+    const professionId = data.profession_id
+      ? data.profession_id
+      : await professionService.getProfessionIdByCode("hair");
+
     return prisma.inspiration.create({
       data: {
-        ownerId: data.owner_id ?? data.client_id,
-        sharedBy: data.shared_by,
+        ownerId,
+        professionId,
         imageUrl: data.image_url,
         lowResImageUrl: data.low_res_image_url,
         lowMiddleResUrl: data.low_middle_res_url,

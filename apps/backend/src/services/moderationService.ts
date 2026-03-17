@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { professionService } from "./professionService";
 
 export const moderationService = {
   async getBlockedIds(blockerId: string) {
@@ -28,11 +29,13 @@ export const moderationService = {
     await prisma.blockedUser.create({
       data: { blockerId, blockedId, reason },
     });
-    await prisma.hairdresserClient.deleteMany({
+    const blockerProfId = await professionService.getOrCreateProfessionalProfileId(blockerId);
+    const blockedProfId = await professionService.getOrCreateProfessionalProfileId(blockedId);
+    await prisma.clientProfessionalLink.deleteMany({
       where: {
         OR: [
-          { hairdresserId: blockerId, clientId: blockedId },
-          { hairdresserId: blockedId, clientId: blockerId },
+          { professionalProfileId: blockerProfId, clientUserId: blockedId },
+          { professionalProfileId: blockedProfId, clientUserId: blockerId },
         ],
       },
     });
@@ -87,11 +90,13 @@ export const moderationService = {
         adminNotes: additionalDetails,
       },
     });
-    await prisma.hairdresserClient.deleteMany({
+    const reporterProfId = await professionService.getOrCreateProfessionalProfileId(reporterId);
+    const reportedProfId = await professionService.getOrCreateProfessionalProfileId(reportedId);
+    await prisma.clientProfessionalLink.deleteMany({
       where: {
         OR: [
-          { hairdresserId: reporterId, clientId: reportedId },
-          { hairdresserId: reportedId, clientId: reporterId },
+          { professionalProfileId: reporterProfId, clientUserId: reportedId },
+          { professionalProfileId: reportedProfId, clientUserId: reporterId },
         ],
       },
     });

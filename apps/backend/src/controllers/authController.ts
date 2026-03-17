@@ -7,21 +7,23 @@ function profileToSnakeCase(p: Record<string, unknown>) {
     fullName: "full_name",
     avatarUrl: "avatar_url",
     phoneNumber: "phone_number",
-    userType: "user_type",
-    salonPhoneNumber: "salon_phone_number",
-    salonName: "salon_name",
-    aboutMe: "about_me",
     setupStatus: "setup_status",
     signupDate: "signup_date",
-    socialMedia: "social_media",
-    bookingSite: "booking_site",
-    hairStructure: "hair_structure",
-    hairThickness: "hair_thickness",
-    greyHairPercentage: "grey_hair_percentage",
-    naturalHairColor: "natural_hair_color",
   };
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(p)) {
+    if (k === "professionalProfile") {
+      const pp = v as Record<string, unknown> | null;
+      if (pp) {
+        out.display_name = pp.displayName;
+        out.business_name = pp.businessName;
+        out.business_number = pp.businessNumber;
+        out.about_me = pp.aboutMe;
+        out.social_media = pp.socialMedia;
+        out.booking_site = pp.bookingSite;
+      }
+      continue;
+    }
     const key = map[k] ?? k;
     out[key] = v;
   }

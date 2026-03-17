@@ -99,7 +99,7 @@ export const haircodeController = {
     const { id } = req.params;
     const hairdresserId = req.userId!;
     try {
-      await haircodeService.deleteHairdresser(id, hairdresserId);
+      await haircodeService.deleteByProfessional(id, hairdresserId);
       res.json({ success: true });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to delete";
@@ -111,7 +111,7 @@ export const haircodeController = {
     const { id } = req.params;
     const hairdresserId = req.userId!;
     try {
-      await haircodeService.deleteClient(id, hairdresserId);
+      await haircodeService.deleteByClient(id, hairdresserId);
       res.json({ success: true });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to delete";
@@ -121,9 +121,15 @@ export const haircodeController = {
 
   async insertMedia(req: Request, res: Response) {
     const body = req.body as {
-      records?: { haircode_id: string; media_url: string; media_type: string }[];
+      records?: { haircode_id: string; service_record_id?: string; media_url: string; media_type: string }[];
     };
-    const records = body.records ?? [];
+    const records = (body.records ?? [])
+      .filter((r) => r.haircode_id || r.service_record_id)
+      .map((r) => ({
+        haircode_id: r.haircode_id ?? r.service_record_id!,
+        media_url: r.media_url,
+        media_type: r.media_type,
+      }));
     try {
       await haircodeService.insertMedia(records);
       res.json({ success: true });
