@@ -1,76 +1,220 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /* eslint-disable react/react-in-jsx-scope */
-import { ResponsiveText } from "@/src/components/ResponsiveText";
+import CheckIcon from "../../../assets/icons/check.svg";
+import LeftArrowIcon from "../../../assets/icons/left_arrow.svg";
+import RightArrowIcon from "../../../assets/icons/right_arrow.svg";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
 import { useFirstLaunch } from "@/src/hooks/useFirstLaunch";
-import { router } from "expo-router";
-import React, { useRef, useState } from "react";
-import { StatusBar } from "expo-status-bar";
 import {
-  Dimensions,
+  getDeviceType,
+  responsiveMargin,
+  responsivePadding,
+  responsiveScale,
+  responsiveVerticalScale,
+} from "@/src/utils/responsive";
+import { router } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import {
   FlatList,
   Image,
+  ImageSourcePropType,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
+  StyleProp,
   StyleSheet,
+  Text,
+  useWindowDimensions,
   View,
+  ViewStyle,
 } from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { Colors } from "@/src/constants/Colors";
-import { 
-  responsiveScale, 
-  scalePercent, 
-  responsivePadding,
-  responsiveMargin
-} from "@/src/utils/responsive";
 
-const PAGES = [
+type OnboardingPage = {
+  title: string;
+  subtitle?: string;
+  image: ImageSourcePropType;
+};
+
+const ONBOARDING_HERO_IMAGE = require("@/assets/images/onboarding_image.png");
+
+const PAGES: OnboardingPage[] = [
   {
-    title: "Client history",
-    subtitle: "View past client history and upload new haircodes.",
-    image: require("@/assets/onboarding1.jpg"),
+    title: "Everything stays with you",
+    image: ONBOARDING_HERO_IMAGE,
   },
   {
     title: "Inspiration",
-    subtitle: "Share ideas with each other ahead of appointments.",
-    image: require("@/assets/onboarding2.jpg"),
+    subtitle:
+      "Share inspiration and ideas with each other ahead of appointments",
+    image: ONBOARDING_HERO_IMAGE,
   },
   {
-    title: "Hairdresser search",
-    subtitle: "Find the perfect hairdresser for you.",
-    image: require("@/assets/onboarding3.jpg"),
+    title: "Search for professionals",
+    subtitle: "Find the perfect match for your beauty needs",
+    image: ONBOARDING_HERO_IMAGE,
   },
 ];
+
+function OnboardingPagerControls({
+  index,
+  go,
+  done,
+  style,
+}: {
+  index: number;
+  go: (dir: -1 | 1) => void;
+  done: () => void | Promise<void>;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const navSize = responsiveScale(48);
+  return (
+    <View style={style}>
+      <View style={styles.side}>
+        {index > 0 && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Previous"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => go(-1)}
+          >
+            <LeftArrowIcon width={navSize} height={navSize} />
+          </Pressable>
+        )}
+      </View>
+
+      <View pointerEvents="none" style={styles.dots}>
+        {PAGES.map((_, i) => (
+          <View
+            key={i}
+            style={[styles.dot, i === index && styles.dotActive]}
+          />
+        ))}
+      </View>
+
+      <View style={[styles.side, { alignItems: "flex-end" }]}>
+        {index < PAGES.length - 1 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Next"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => go(1)}
+          >
+            <RightArrowIcon width={navSize} height={navSize} />
+          </Pressable>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Done"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={done}
+          >
+            <CheckIcon width={navSize} height={navSize} />
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
 
 export default function Onboarding() {
   const { markSeen } = useFirstLaunch();
   const [index, setIndex] = useState(0);
   const ref = useRef<FlatList>(null);
+  /** Only drive index from onScroll while the user is dragging — avoids fighting scrollToIndex. */
+  const userDragging = useRef(false);
   const insets = useSafeAreaInsets();
-  const { width, height } = Dimensions.get("window");
+  const { width, height } = useWindowDimensions();
 
-  const pageHeight = height - insets.top; 
+  const pageHeight = height - insets.top;
+
+  /** Same top offset + image height for every slide (text length must not move the image). */
+  const heroLayout = useMemo(() => {
+    const pageH = height - insets.top;
+    const tablet = getDeviceType() === "tablet";
+    const landscape = width > height;
+
+    // Breathing room below status bar (safe area handled by SafeAreaView `top` edge).
+    const top = responsiveMargin(16, 22);
+    let ratio = 0.62;
+    if (tablet) {
+      ratio = landscape ? 0.36 : 0.48;
+    } else if (landscape) {
+      ratio = 0.44;
+    }
+    let imageH = Math.round(pageH * ratio);
+    const reserveForTextAndChrome = responsiveVerticalScale(26, 36);
+    const maxH = Math.max(
+      Math.round(pageH * 0.68 - reserveForTextAndChrome),
+      Math.round(pageH * 0.4)
+    );
+    imageH = Math.min(imageH, maxH);
+
+    const imageToTitle = responsiveMargin(22, 28);
+
+    return {
+      heroImageTop: top,
+      heroImageHeight: Math.max(imageH, Math.round(pageH * 0.36)),
+      heroTitleMarginTop: imageToTitle,
+    };
+  }, [width, height, insets.top]);
+
+  const syncIndexFromOffset = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const x = e.nativeEvent.contentOffset.x;
+      const next = Math.round(x / width);
+      const clamped = Math.max(0, Math.min(PAGES.length - 1, next));
+      setIndex((prev) => (prev !== clamped ? clamped : prev));
+    },
+    [width]
+  );
 
   const go = (dir: -1 | 1) => {
     const next = index + dir;
     if (next >= 0 && next < PAGES.length) {
-      setIndex(next); 
+      setIndex(next);
       ref.current?.scrollToIndex({ index: next, animated: true });
     }
   };
 
   const done = async () => {
     await markSeen();
-    router.replace("/Splash"); 
+    router.replace("/Splash");
   };
+
+  const onScrollWhileDragging = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (!userDragging.current) {
+        return;
+      }
+      syncIndexFromOffset(e);
+    },
+    [syncIndexFromOffset]
+  );
+
+  const onScrollBeginDrag = useCallback(() => {
+    userDragging.current = true;
+  }, []);
+
+  const onMomentumScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      userDragging.current = false;
+      syncIndexFromOffset(e);
+    },
+    [syncIndexFromOffset]
+  );
 
   return (
     <SafeAreaView
-      edges={["left", "right",]}
-      style={{ flex: 1, backgroundColor: Colors.dark.warmGreen }}
+      edges={["top", "left", "right"]}
+      style={{ flex: 1, backgroundColor: primaryGreen }}
     >
-      <StatusBar backgroundColor="transparent" /> 
+      <StatusBar style="dark" />
       <FlatList
         ref={ref}
         data={PAGES}
@@ -88,79 +232,60 @@ export default function Onboarding() {
           index: i,
         })}
         scrollEventThrottle={16}
-        onMomentumScrollEnd={(e) => {
-          const i = Math.round(e.nativeEvent.contentOffset.x / width);
-          setIndex(i);
-        }}
+        onScroll={onScrollWhileDragging}
+        onScrollBeginDrag={onScrollBeginDrag}
+        onMomentumScrollEnd={onMomentumScrollEnd}
         renderItem={({ item }) => (
           <View style={[styles.card, { width, height: pageHeight }]}>
-            <Image
-              source={item.image}
-              style={[styles.img, { height: pageHeight * 0.68 }]}
-              resizeMode="cover"
-            />
-
-            <View style={styles.footer}>
-              <View style={styles.textContainer}>
-                <ResponsiveText
-                  weight="Bold"
-                  size={28}
-                  tabletSize={24}
-                  style={styles.title}
+            <View style={styles.heroCard}>
+              <View style={styles.heroContent}>
+                <View
+                  style={[
+                    styles.heroImageOuter,
+                    { marginTop: heroLayout.heroImageTop },
+                  ]}
                 >
-                  {item.title}
-                </ResponsiveText>
-                <ResponsiveText 
-                  size={15} 
-                  tabletSize={13} 
-                  style={styles.subtitle}
-                >
-                  {item.subtitle}
-                </ResponsiveText>
-              </View>
-
-              <View style={styles.controls}>
-                <View style={styles.side}>
-                  {index > 0 && (
-                    <Pressable style={styles.navBtn} onPress={() => go(-1)}>
-                      <Image 
-                        source={require("@/assets/icons/on-arrow-left.png")} 
-                        style={styles.arrowIcon}
-                        resizeMode="contain"
-                      />
-                    </Pressable>
-                  )}
-                </View>
-
-               <View pointerEvents="none" style={styles.dots}>
-                  {PAGES.map((_, i) => (
-                    <View
-                      key={i}
-                      style={[styles.dot, i === index && styles.dotActive]}
+                  <View
+                    style={[
+                      styles.heroImageClip,
+                      { height: heroLayout.heroImageHeight },
+                    ]}
+                  >
+                    <Image
+                      source={item.image}
+                      style={styles.heroImageFill}
+                      resizeMode="cover"
                     />
-                  ))}
+                  </View>
                 </View>
-
-                <View style={[styles.side, { alignItems: "flex-end" }]}>
-                  {index < PAGES.length - 1 ? (
-                    <Pressable style={styles.navBtn} onPress={() => go(1)}>
-                      <Image 
-                        source={require("@/assets/icons/on-arrow-right.png")} 
-                        style={styles.arrowIcon}
-                        resizeMode="contain"
-                      />
-                    </Pressable>
-                  ) : (
-                    <Pressable style={styles.navBtn} onPress={done}>
-                       <Image 
-                        source={require("@/assets/icons/on-checkmark.png")} 
-                        style={styles.arrowIcon}
-                        resizeMode="contain"
-                      />
-                    </Pressable>
-                  )}
+                <View style={styles.textContainer}>
+                  <Text
+                    style={[
+                      Typography.h2,
+                      styles.heroTitle,
+                      { marginTop: heroLayout.heroTitleMarginTop },
+                    ]}
+                  >
+                    {item.title}
+                  </Text>
+                  {item.subtitle ? (
+                    <Text style={[Typography.bodyLarge, styles.heroSubtitle]}>
+                      {item.subtitle}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
+
+              <OnboardingPagerControls
+                index={index}
+                go={go}
+                done={done}
+                style={[
+                  styles.controls,
+                  styles.controlsLower,
+                  styles.heroControls,
+                ]}
+              />
             </View>
           </View>
         )}
@@ -171,57 +296,64 @@ export default function Onboarding() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.dark.warmGreen,
+    backgroundColor: primaryGreen,
   },
-  img: {
-    width: "100%",
-  },
-  footer: {
+  heroCard: {
     flex: 1,
-    backgroundColor: Colors.dark.warmGreen,
-    paddingHorizontal: responsivePadding(16),
-    paddingTop: responsivePadding(14),
-    justifyContent: "space-between",
+    width: "100%",
+    backgroundColor: primaryGreen,
   },
-textContainer: {
-  alignItems: "flex-start",
-  width: "100%",          // sørger for at begge tar samme bredde
-},
-title: {
-  color: Colors.dark.dark, 
-  marginTop: responsiveMargin(10),
-  textAlign: "left",
-},
- subtitle: {
-  marginTop: responsiveMargin(12),
-  lineHeight: responsiveScale(22),
-  textAlign: "left",
-  includeFontPadding: false,   // fjerner default font-padding
-  textAlignVertical: "top",    // sørger for at linjene begynner helt øverst
-  width: scalePercent(70),          // sørger for at begge tar samme bredde
-},
+  /** Top-aligned so image top margin is identical on every slide regardless of copy length. */
+  heroContent: {
+    flex: 1,
+    justifyContent: "flex-start",
+    paddingHorizontal: responsivePadding(16),
+    paddingBottom: 0,
+  },
+  heroImageOuter: {
+    width: "100%",
+    paddingHorizontal: responsivePadding(4),
+  },
+  heroControls: {
+    marginVertical: 0,
+  },
+  /** Space above/below pager; extra bottom margin lifts dots + buttons off the home indicator. */
+  controlsLower: {
+    marginTop: responsiveMargin(38),
+    marginBottom: responsiveMargin(30),
+  },
+  heroImageClip: {
+    width: "100%",
+    borderRadius: responsiveScale(21.87),
+    overflow: "hidden",
+  },
+  heroImageFill: {
+    width: "100%",
+    height: "100%",
+  },
+  textContainer: {
+    flex: 1,
+    minHeight: 0,
+    alignItems: "center",
+    width: "100%",
+    justifyContent: "flex-start",
+  },
+  heroTitle: {
+    textAlign: "center",
+  },
+  heroSubtitle: {
+    textAlign: "center",
+    marginTop: responsiveMargin(16),
+    paddingHorizontal: responsivePadding(12),
+  },
   controls: {
     position: "relative",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginVertical: responsiveMargin(14),
-    paddingHorizontal: responsivePadding(8),
+    paddingHorizontal: responsivePadding(16),
   },
-  side: { width: responsiveScale(56) }, 
-  navBtn: {
-    width: responsiveScale(46),
-    height: responsiveScale(46),
-    borderRadius: responsiveScale(24),
-    backgroundColor: Colors.dark.dark,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  arrowIcon: {
-    width: responsiveScale(20),
-    height: responsiveScale(20),
-    tintColor: "white", 
-  },
+  side: { width: responsiveScale(60) },
   dots: {
     position: "absolute",
     left: 0,
@@ -235,10 +367,12 @@ title: {
     width: responsiveScale(8),
     height: responsiveScale(8),
     borderRadius: responsiveScale(4),
-    backgroundColor: "black",
-    opacity: 0.35,
+    borderWidth: 1,
+    borderColor: primaryBlack,
+    backgroundColor: "transparent",
   },
   dotActive: {
-    opacity: 1,
+    backgroundColor: primaryBlack,
+    borderColor: primaryBlack,
   },
 });

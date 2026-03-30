@@ -1,0 +1,65 @@
+import { TextStyle } from "react-native";
+
+import { primaryBlack } from "./Colors";
+import { responsiveFontSize } from "../utils/responsive";
+
+/** Font family names must match keys passed to `useFonts` / `@expo-google-fonts/*` loaders. */
+export const FONT_FAMILY = {
+  anton: "Anton_400Regular",
+  outfitLight: "Outfit_300Light",
+  outfitMedium: "Outfit_500Medium",
+} as const;
+
+function antonHeading(
+  size: number,
+  lineHeightPercent: number
+): TextStyle {
+  const fs = responsiveFontSize(size);
+  return {
+    fontFamily: FONT_FAMILY.anton,
+    fontSize: fs,
+    fontWeight: "400",
+    lineHeight: Math.round((fs * lineHeightPercent) / 100),
+    letterSpacing: 0,
+    color: primaryBlack,
+  };
+}
+
+function outfitText(
+  size: number,
+  weight: "300" | "500",
+  lineHeightPercent?: number
+): TextStyle {
+  const fs = responsiveFontSize(size);
+  const family =
+    weight === "300" ? FONT_FAMILY.outfitLight : FONT_FAMILY.outfitMedium;
+  const style: TextStyle = {
+    fontFamily: family,
+    fontSize: fs,
+    fontWeight: weight,
+    letterSpacing: 0,
+    color: primaryBlack,
+  };
+  if (lineHeightPercent !== undefined) {
+    style.lineHeight = Math.round((fs * lineHeightPercent) / 100);
+  }
+  return style;
+}
+
+/**
+ * Brand typography scale. Use by spreading into `Text`: `<Text style={Typography.h1}>…</Text>`
+ * or `style={[Typography.bodyMedium, { textAlign: 'center' }]}>`.
+ */
+export const Typography = {
+  h1: antonHeading(48, 130),
+  h2: antonHeading(44, 120),
+  h3: antonHeading(36, 120),
+  h4: outfitText(24, "300", 120),
+  bodyLarge: outfitText(20, "300", 130),
+  bodyMedium: outfitText(18, "300", 140),
+  bodySmall: outfitText(16, "300", 140),
+  /** Line height: automatic (default line metrics). */
+  label: outfitText(16, "500"),
+} as const;
+
+export type TypographyKey = keyof typeof Typography;

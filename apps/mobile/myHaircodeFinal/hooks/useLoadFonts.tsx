@@ -1,8 +1,14 @@
 // src/hooks/useLoadFonts.ts
+import { Anton_400Regular } from "@expo-google-fonts/anton";
+import { Outfit_300Light, Outfit_500Medium } from "@expo-google-fonts/outfit";
 import { useFonts } from "expo-font";
 
 const useLoadFonts = () => {
   const [fontsLoaded] = useFonts({
+    Anton_400Regular,
+    Outfit_300Light,
+    Outfit_500Medium,
+
     "Inter-Regular": require("../assets/fonts/Inter/static/Inter-Regular.ttf"),
     "Inter-Medium": require("../assets/fonts/Inter/static/Inter-Medium.ttf"),
     "Inter-SemiBold": require("../assets/fonts/Inter/static/Inter-SemiBold.ttf"),

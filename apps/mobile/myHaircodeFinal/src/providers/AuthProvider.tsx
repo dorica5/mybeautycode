@@ -21,6 +21,9 @@ import { useSyncSignupDate } from "./SignUpDate";
 import { useFirstLaunch } from "../hooks/useFirstLaunch";
 import { usePostHog } from "posthog-react-native";
 
+/** Set to `false` when done redesigning onboarding (dev-only; no effect in production builds). */
+const DEV_FORCE_SHOW_ONBOARDING = __DEV__ && true;
+
 type UserStatus = {
   can_act: boolean;
   is_banned: boolean;
@@ -306,11 +309,19 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    if (!session && isFirstLaunch && !firstLaunchHandled.current) {
+    if (
+      !session &&
+      (isFirstLaunch || DEV_FORCE_SHOW_ONBOARDING) &&
+      !firstLaunchHandled.current
+    ) {
       if (onOnboarding) {
         return;
       }
-      console.log("First launch: showing onboarding");
+      console.log(
+        DEV_FORCE_SHOW_ONBOARDING
+          ? "DEV_FORCE_SHOW_ONBOARDING: showing onboarding"
+          : "First launch: showing onboarding"
+      );
       firstLaunchHandled.current = true;
       setIsNavigating(true);
       setTimeout(() => {
@@ -410,7 +421,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    if (!session && !isFirstLaunch) {
+    if (!session && !isFirstLaunch && !DEV_FORCE_SHOW_ONBOARDING) {
       const authPaths = [
         "Splash",
         "SignIn",

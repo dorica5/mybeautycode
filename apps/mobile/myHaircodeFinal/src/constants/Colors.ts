@@ -1,9 +1,15 @@
 const tintColorLight = '#0a7ea4';
 const tintColorDark = '#fff';
 
+/** Brand palette — import these or use `Colors.light` / `Colors.dark` / `useThemeColor`. */
+export const primaryGreen = '#B2DCC5';
+export const primaryBlack = '#212427';
+export const primaryWhite = '#F1F9F4';
+export const secondaryGreen = '#D8EDE2';
+
 const yellowish = '#E1E8DF';
 const warmGreen = '#8FA8A1'; // Note the corrected format for hex color
-const dark = '#212427';
+const dark = primaryBlack;
 const light = '#F8F8FF';
 const yelllowish = '#E2E9DB';
 
@@ -19,7 +25,10 @@ export const Colors = {
     warmGreen: warmGreen, // Added the warmGreen color
     dark: dark, // Added the dark color
     light: light, // Added the light color
-
+    primaryGreen,
+    primaryBlack,
+    primaryWhite,
+    secondaryGreen,
   },
   dark: {
     text: '#ECEDEE',
@@ -32,6 +41,9 @@ export const Colors = {
     warmGreen: warmGreen, // Added the warmGreen color
     dark: dark, // Added the dark color
     light: light, // Added the light color
-  
+    primaryGreen,
+    primaryBlack,
+    primaryWhite,
+    secondaryGreen,
   },
 };
