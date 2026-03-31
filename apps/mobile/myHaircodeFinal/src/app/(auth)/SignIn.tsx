@@ -16,21 +16,19 @@ import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { usePostHog } from "posthog-react-native";
 import { CaretLeft } from "phosphor-react-native";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TouchableWithoutFeedback,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const SignIn = () => {
+  const passwordRef = useRef<TextInput>(null);
   const logoSize = useBeautyCodeLogoSize();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -41,8 +39,20 @@ const SignIn = () => {
   const resetPassword = () => router.push("../../Reset");
 
   async function signInWithEmail() {
-    setLoading(true);
     setErrorMessage("");
+    const lines: string[] = [];
+    if (!email.trim()) {
+      lines.push("Enter your email address.");
+    }
+    if (!password) {
+      lines.push("Enter your password.");
+    }
+    if (lines.length > 0) {
+      setErrorMessage(lines.join("\n\n"));
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -55,10 +65,38 @@ const SignIn = () => {
         return;
       }
 
-      const profile = await api.get<{ user_type?: string }>("/api/auth/me");
+      let profile: { user_type?: string } | null = null;
+      try {
+        profile = await api.get<{ user_type?: string }>("/api/auth/me");
+      } catch (meErr: unknown) {
+        const err = meErr as Error & { status?: number };
+        const status = err.status;
+        const msg = (err.message ?? "").toLowerCase();
+        const recoverableMe =
+          status === 404 ||
+          status === 500 ||
+          status === 502 ||
+          status === 503 ||
+          msg.includes("profile not found") ||
+          msg.includes("failed to fetch profile") ||
+          msg.includes("not found");
+        if (recoverableMe) {
+          posthog.capture("Login", {
+            user_id: data.user.id,
+            role: "pending_setup",
+          });
+          posthog.identify(data.user.id, {
+            email: data.user.email ?? null,
+            role: "pending_setup",
+          });
+          router.replace("/Setup");
+          return;
+        }
+        throw meErr;
+      }
 
       if (!profile) {
-        setErrorMessage("Failed to load profile");
+        router.replace("/Setup");
         return;
       }
       posthog.capture("Login", {
@@ -80,100 +118,110 @@ const SignIn = () => {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={styles.container}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={() => router.back()}
-            style={styles.backRow}
-            hitSlop={12}
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-          </Pressable>
+      <View style={styles.container}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={() => router.back()}
+          style={styles.backRow}
+          hitSlop={12}
+        >
+          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+        </Pressable>
 
-          <View style={styles.upperHalf}>
-            <Logo width={logoSize.width} height={logoSize.height} />
-          </View>
-
-          <View style={styles.lowerHalf}>
-            <KeyboardAvoidingView
-              style={styles.keyboard}
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 0 : responsiveScale(20)}
-            >
-              <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-              >
-                <View style={styles.formBlock}>
-                  <Text
-                    accessibilityRole="header"
-                    style={[Typography.h4, styles.textOnGreen, styles.title]}
-                  >
-                    Sign in
-                  </Text>
-
-                  <PrimaryOutlineTextField
-                    label="Email"
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="Email"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    autoCorrect={false}
-                    containerStyle={styles.emailFieldSpacing}
-                  />
-
-                  <PrimaryOutlineTextField
-                    label="Your password"
-                    value={password}
-                    onChangeText={setPassword}
-                    password
-                    placeholder="Your password"
-                    autoCapitalize="none"
-                    autoComplete="password"
-                    containerStyle={styles.passwordFieldSpacing}
-                  />
-
-                  {errorMessage ? (
-                    <Text style={styles.errorMessage}>{errorMessage}</Text>
-                  ) : null}
-
-                  <PaddedLabelButton
-                    title={loading ? "Signing in…" : "Sign in"}
-                    horizontalPadding={32}
-                    verticalPadding={16}
-                    disabled={loading}
-                    onPress={signInWithEmail}
-                    style={styles.signInButton}
-                    textStyle={styles.signInButtonLabel}
-                  />
-                </View>
-
-                <View style={styles.footerCol}>
-                  <Text style={[Typography.label, styles.textOnGreen]}>
-                    Don&apos;t remember your password?
-                  </Text>
-                  <Pressable onPress={resetPassword} hitSlop={8}>
-                    <Text
-                      style={[
-                        Typography.label,
-                        styles.textOnGreen,
-                        styles.resetLink,
-                      ]}
-                    >
-                      Reset password
-                    </Text>
-                  </Pressable>
-                </View>
-              </ScrollView>
-            </KeyboardAvoidingView>
-          </View>
+        <View style={styles.upperHalf}>
+          <Logo width={logoSize.width} height={logoSize.height} />
         </View>
-      </TouchableWithoutFeedback>
+
+        <View style={styles.lowerHalf}>
+          <KeyboardAwareScrollView
+            style={styles.keyboard}
+            contentContainerStyle={styles.scrollContent}
+            enableOnAndroid
+            enableAutomaticScroll
+            extraScrollHeight={responsiveScale(160)}
+            extraHeight={responsiveScale(100)}
+            keyboardOpeningTime={0}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.formBlock}>
+              <Text
+                accessibilityRole="header"
+                style={[Typography.h4, styles.textOnGreen, styles.title]}
+              >
+                Sign in
+              </Text>
+
+              <PrimaryOutlineTextField
+                label="Email"
+                value={email}
+                onChangeText={(t) => {
+                  setErrorMessage("");
+                  setEmail(t);
+                }}
+                placeholder="Email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                containerStyle={styles.emailFieldSpacing}
+              />
+
+              <PrimaryOutlineTextField
+                inputRef={passwordRef}
+                label="Your password"
+                value={password}
+                onChangeText={(t) => {
+                  setErrorMessage("");
+                  setPassword(t);
+                }}
+                password
+                placeholder="Your password"
+                autoCapitalize="none"
+                autoComplete="password"
+                returnKeyType="done"
+                containerStyle={styles.passwordFieldSpacing}
+              />
+
+              {errorMessage ? (
+                <Text style={styles.errorMessage}>{errorMessage}</Text>
+              ) : null}
+
+              <PaddedLabelButton
+                title={loading ? "Signing in…" : "Sign in"}
+                horizontalPadding={32}
+                verticalPadding={16}
+                disabled={loading}
+                onPress={signInWithEmail}
+                style={styles.signInButton}
+                textStyle={styles.signInButtonLabel}
+              />
+            </View>
+
+            <View style={styles.footerCol}>
+              <Text style={[Typography.label, styles.textOnGreen]}>
+                Don&apos;t remember your password?
+              </Text>
+              <Pressable onPress={resetPassword} hitSlop={8}>
+                <Text
+                  style={[
+                    Typography.label,
+                    styles.textOnGreen,
+                    styles.resetLink,
+                  ]}
+                >
+                  Reset password
+                </Text>
+              </Pressable>
+            </View>
+          </KeyboardAwareScrollView>
+        </View>
+      </View>
     </SafeAreaView>
   );
 };
@@ -225,7 +273,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "space-between",
     paddingTop: 0,
-    paddingBottom: responsiveMargin(24),
+    paddingBottom: responsiveMargin(40),
   },
   formBlock: {
     alignItems: "center",

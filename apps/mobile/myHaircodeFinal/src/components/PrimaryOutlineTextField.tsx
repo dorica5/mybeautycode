@@ -6,6 +6,7 @@ import {
   responsiveScale,
 } from "@/src/utils/responsive";
 import React, { useState } from "react";
+import type { Ref } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -27,6 +28,8 @@ export type PrimaryOutlineTextFieldProps = Omit<
   /** When true, toggles secure entry and shows eye affordance. */
   password?: boolean;
   containerStyle?: ViewStyle;
+  /** Focus programmatically (e.g. jump from email “next” to password). */
+  inputRef?: Ref<TextInput>;
 };
 
 /**
@@ -38,6 +41,7 @@ export function PrimaryOutlineTextField({
   onChangeText,
   password = false,
   containerStyle,
+  inputRef,
   style,
   ...inputProps
 }: PrimaryOutlineTextFieldProps) {
@@ -61,6 +65,7 @@ export function PrimaryOutlineTextField({
             style,
           ]}
           {...inputProps}
+          ref={inputRef}
         />
         {password && value.length > 0 ? (
           <Pressable

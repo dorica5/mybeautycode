@@ -2,10 +2,16 @@ import { prisma } from "../lib/prisma";
 
 export const authService = {
   async getProfile(userId: string) {
-    const profile = await prisma.profile.findUnique({
-      where: { id: userId },
-    });
-    return profile;
+    try {
+      const profile = await prisma.profile.findUnique({
+        where: { id: userId },
+      });
+      return profile;
+    } catch (e) {
+      console.error("getProfile:", userId, e);
+      // Missing/invalid id should be findUnique → null; this catches DB/Prisma faults
+      return null;
+    }
   },
 
   async getUserStatus(userId: string) {

@@ -16,21 +16,49 @@ import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { usePostHog } from "posthog-react-native";
 import { CaretLeft } from "phosphor-react-native";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import {
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TouchableWithoutFeedback,
+  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+type StrengthState = { strength: string; feedback: string };
+
+/** One or more human-readable rule failures (sign up). */
+function signUpRuleMessages(
+  email: string,
+  isEmailValid: boolean,
+  password: string,
+  strength: StrengthState,
+): string | null {
+  const lines: string[] = [];
+  const em = email.trim();
+  if (!em) {
+    lines.push("Enter your email address.");
+  } else if (!isEmailValid) {
+    lines.push(
+      "Use a valid email address (for example name@domain.com).",
+    );
+  }
+
+  const pw = password;
+  if (!pw.trim()) {
+    lines.push("Enter a password.");
+  } else if (strength.strength === "Weak") {
+    lines.push("Password must be at least 8 characters.");
+  }
+
+  if (lines.length === 0) return null;
+  return lines.join("\n\n");
+}
+
 const SignUp = () => {
+  const passwordRef = useRef<TextInput>(null);
   const logoSize = useBeautyCodeLogoSize();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,6 +78,7 @@ const SignUp = () => {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue);
 
   const handleEmailChange = (value: string) => {
+    setErrorMessage("");
     setEmail(value);
     setIsEmailValid(validateEmail(value));
   };
@@ -87,6 +116,7 @@ const SignUp = () => {
   };
 
   const handlePasswordChange = (value: string) => {
+    setErrorMessage("");
     setPassword(value);
     if (value) {
       setPasswordStrength(checkPasswordStrength(value));
@@ -99,14 +129,15 @@ const SignUp = () => {
     }
   };
 
-  const isFormValid = () =>
-    isEmailValid &&
-    (passwordStrength.strength === "Medium" ||
-      passwordStrength.strength === "Strong");
-
   async function signUpWithEmail() {
-    if (!isFormValid()) {
-      setErrorMessage("Please enter a valid email and strong password.");
+    const rulesMsg = signUpRuleMessages(
+      email,
+      isEmailValid,
+      password,
+      passwordStrength,
+    );
+    if (rulesMsg) {
+      setErrorMessage(rulesMsg);
       return;
     }
 
@@ -118,18 +149,45 @@ const SignUp = () => {
 
       if (error) {
         setErrorMessage(error.message);
-      } else {
-        await AsyncStorage.setItem("freshSignup", "true");
-        posthog.capture("Signed Up");
-
-        if (data?.user) {
-          posthog.identify(data.user.id, {
-            email: data.user.email ?? null,
-          });
-        }
-
-        console.log("Signup successful, AuthProvider will handle navigation");
+        return;
       }
+
+      const user = data?.user;
+      if (!user) {
+        setErrorMessage("Could not create account. Please try again.");
+        return;
+      }
+
+      /**
+       * When the email is already registered, Supabase returns 200 + a user stub with
+       * `identities: []` (enumeration protection). Treat as duplicate, not success.
+       */
+      const identities = user.identities ?? [];
+      if (identities.length === 0) {
+        setErrorMessage(
+          "An account with this email already exists. Sign in instead.",
+        );
+        return;
+      }
+
+      await AsyncStorage.setItem("freshSignup", "true");
+
+      try {
+        posthog.capture("Signed Up");
+        posthog.identify(user.id, {
+          email: user.email ?? null,
+        });
+      } catch {
+        /* PostHog optional */
+      }
+
+      if (!data.session) {
+        // Email confirmation on: no session until the user verifies — go to check-email screen
+        router.replace("/CheckMail");
+        return;
+      }
+
+      // Session returned (e.g. confirmations off): AuthProvider picks up via onAuthStateChange
     } catch (err) {
       setErrorMessage("An unexpected error occurred. Please try again.");
       console.error("SignUp error:", err);
@@ -141,100 +199,104 @@ const SignUp = () => {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <View style={styles.container}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={() => router.back()}
-            style={styles.backRow}
-            hitSlop={12}
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-          </Pressable>
+      <View style={styles.container}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          onPress={() => router.back()}
+          style={styles.backRow}
+          hitSlop={12}
+        >
+          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+        </Pressable>
 
-          <View style={styles.upperHalf}>
-            <Logo width={logoSize.width} height={logoSize.height} />
-          </View>
-
-          <View style={styles.lowerHalf}>
-            <KeyboardAvoidingView
-              style={styles.keyboard}
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 0 : responsiveScale(20)}
-            >
-              <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-              >
-                <View style={styles.formBlock}>
-                  <Text
-                    accessibilityRole="header"
-                    style={[Typography.h4, styles.textOnGreen, styles.title]}
-                  >
-                    Sign up
-                  </Text>
-
-                  <PrimaryOutlineTextField
-                    label="Email"
-                    value={email}
-                    onChangeText={handleEmailChange}
-                    placeholder="Email"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    autoCorrect={false}
-                    containerStyle={styles.emailFieldSpacing}
-                  />
-
-                  <PrimaryOutlineTextField
-                    label="Your password"
-                    value={password}
-                    onChangeText={handlePasswordChange}
-                    password
-                    placeholder="Your password"
-                    autoCapitalize="none"
-                    autoComplete="password"
-                    containerStyle={styles.passwordFieldSpacing}
-                  />
-
-                  {errorMessage ? (
-                    <Text style={styles.errorMessage}>{errorMessage}</Text>
-                  ) : null}
-
-                  <PaddedLabelButton
-                    title={loading ? "Creating account…" : "Create account"}
-                    horizontalPadding={32}
-                    verticalPadding={16}
-                    disabled={loading || !isFormValid()}
-                    onPress={signUpWithEmail}
-                    style={styles.primaryButton}
-                    textStyle={styles.primaryButtonLabel}
-                  />
-                </View>
-
-                <View style={styles.footerRow}>
-                  <Text style={[Typography.label, styles.textOnGreen]}>
-                    Already have an account?{" "}
-                  </Text>
-                  <Pressable onPress={goToSignIn} hitSlop={8}>
-                    <Text
-                      style={[
-                        Typography.label,
-                        styles.textOnGreen,
-                        styles.footerLink,
-                      ]}
-                    >
-                      Sign in
-                    </Text>
-                  </Pressable>
-                </View>
-              </ScrollView>
-            </KeyboardAvoidingView>
-          </View>
+        <View style={styles.upperHalf}>
+          <Logo width={logoSize.width} height={logoSize.height} />
         </View>
-      </TouchableWithoutFeedback>
+
+        <View style={styles.lowerHalf}>
+          <KeyboardAwareScrollView
+            style={styles.keyboard}
+            contentContainerStyle={styles.scrollContent}
+            enableOnAndroid
+            enableAutomaticScroll
+            extraScrollHeight={responsiveScale(160)}
+            extraHeight={responsiveScale(100)}
+            keyboardOpeningTime={0}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.formBlock}>
+              <Text
+                accessibilityRole="header"
+                style={[Typography.h4, styles.textOnGreen, styles.title]}
+              >
+                Sign up
+              </Text>
+
+              <PrimaryOutlineTextField
+                label="Email"
+                value={email}
+                onChangeText={handleEmailChange}
+                placeholder="Email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
+                returnKeyType="next"
+                blurOnSubmit={false}
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                containerStyle={styles.emailFieldSpacing}
+              />
+
+              <PrimaryOutlineTextField
+                inputRef={passwordRef}
+                label="Your password"
+                value={password}
+                onChangeText={handlePasswordChange}
+                password
+                placeholder="Your password"
+                autoCapitalize="none"
+                autoComplete="password"
+                returnKeyType="done"
+                containerStyle={styles.passwordFieldSpacing}
+              />
+
+              {errorMessage ? (
+                <Text style={styles.errorMessage}>{errorMessage}</Text>
+              ) : null}
+
+              <PaddedLabelButton
+                title={loading ? "Creating account…" : "Create account"}
+                horizontalPadding={32}
+                verticalPadding={16}
+                disabled={loading}
+                onPress={signUpWithEmail}
+                style={styles.primaryButton}
+                textStyle={styles.primaryButtonLabel}
+              />
+            </View>
+
+            <View style={styles.footerRow}>
+              <Text style={[Typography.label, styles.textOnGreen]}>
+                Already have an account?{" "}
+              </Text>
+              <Pressable onPress={goToSignIn} hitSlop={8}>
+                <Text
+                  style={[
+                    Typography.label,
+                    styles.textOnGreen,
+                    styles.footerLink,
+                  ]}
+                >
+                  Sign in
+                </Text>
+              </Pressable>
+            </View>
+          </KeyboardAwareScrollView>
+        </View>
+      </View>
     </SafeAreaView>
   );
 };
@@ -281,7 +343,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "space-between",
     paddingTop: 0,
-    paddingBottom: responsiveMargin(24),
+    paddingBottom: responsiveMargin(40),
   },
   formBlock: {
     alignItems: "center",

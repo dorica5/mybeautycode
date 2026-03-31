@@ -1,33 +1,20 @@
 import { Request, Response } from "express";
 import { authService } from "../services/authService";
+import type { Profile } from "@prisma/client";
 
-function profileToSnakeCase(p: Record<string, unknown>) {
-  const map: Record<string, string> = {
-    updatedAt: "updated_at",
-    fullName: "full_name",
-    avatarUrl: "avatar_url",
-    phoneNumber: "phone_number",
-    setupStatus: "setup_status",
-    signupDate: "signup_date",
+/** Stable JSON for clients — avoids Prisma/runtime fields breaking serialization. */
+function profileMePayload(profile: Profile) {
+  return {
+    id: profile.id,
+    email: profile.email ?? null,
+    created_at: profile.createdAt?.toISOString?.() ?? null,
+    updated_at: profile.updatedAt?.toISOString?.() ?? null,
+    full_name: profile.fullName ?? null,
+    avatar_url: profile.avatarUrl ?? null,
+    phone_number: profile.phoneNumber ?? null,
+    setup_status: profile.setupStatus ?? null,
+    signup_date: profile.signupDate?.toISOString?.() ?? null,
   };
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(p)) {
-    if (k === "professionalProfile") {
-      const pp = v as Record<string, unknown> | null;
-      if (pp) {
-        out.display_name = pp.displayName;
-        out.business_name = pp.businessName;
-        out.business_number = pp.businessNumber;
-        out.about_me = pp.aboutMe;
-        out.social_media = pp.socialMedia;
-        out.booking_site = pp.bookingSite;
-      }
-      continue;
-    }
-    const key = map[k] ?? k;
-    out[key] = v;
-  }
-  return out;
 }
 
 export const authController = {
@@ -41,10 +28,10 @@ export const authController = {
       if (!profile) {
         return res.status(404).json({ error: "Profile not found" });
       }
-      res.json(profileToSnakeCase(profile as Record<string, unknown>));
+      return res.json(profileMePayload(profile));
     } catch (err) {
       console.error("auth me error:", err);
-      res.status(500).json({ error: "Failed to fetch profile" });
+      return res.status(500).json({ error: "Failed to fetch profile" });
     }
   },
 

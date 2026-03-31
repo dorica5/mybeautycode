@@ -21,8 +21,8 @@ import { useSyncSignupDate } from "./SignUpDate";
 import { useFirstLaunch } from "../hooks/useFirstLaunch";
 import { usePostHog } from "posthog-react-native";
 
-/** Set to `false` when done redesigning onboarding (dev-only; no effect in production builds). */
-const DEV_FORCE_SHOW_ONBOARDING = __DEV__ && true;
+/** Dev-only: force onboarding when unauthenticated. Keep `false` so real signup/sign-in flows work. */
+const DEV_FORCE_SHOW_ONBOARDING = false;
 
 type UserStatus = {
   can_act: boolean;
@@ -210,18 +210,47 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       setSession(data.session);
       console.log("Fetching profile for user:", data.session.user.id);
 
-      let profileData;
+      let profileData: Profile | null = null;
       try {
-        profileData = await api.get("/api/auth/me");
-      } catch (profileError) {
-        console.error("Error fetching profile:", profileError);
-        await clearProfile();
-        setLoading(false);
-        setLoadingProfile(false);
-        return;
+        profileData = (await api.get("/api/auth/me")) as Profile;
+      } catch (profileError: unknown) {
+        const err = profileError as Error & { status?: number };
+        const status = err.status;
+        const msg = (err.message ?? "").toLowerCase();
+        const noProfileYet =
+          status === 404 ||
+          msg.includes("profile not found") ||
+          msg.includes("not found");
+
+        /**
+         * Backend sometimes returns 500 (e.g. serialize bug) even when `profiles` exists
+         * in Supabase. Do not wipe the Supabase session — continue to setup/home and retry later.
+         * Still sign out on 401 (handled above via on401 before throw).
+         */
+        const apiBugOrTransient =
+          status === 500 ||
+          status === 502 ||
+          status === 503 ||
+          msg.includes("failed to fetch profile");
+
+        if (noProfileYet || apiBugOrTransient) {
+          console.log(
+            "Profile API unavailable or missing — keeping session",
+            { status, msg: err.message },
+          );
+          profileData = null;
+        } else {
+          console.error("Error fetching profile:", profileError);
+          await clearProfile();
+          setLoading(false);
+          setLoadingProfile(false);
+          return;
+        }
       }
       if (!profileData) {
-        await clearProfile();
+        setProfile(null);
+        setUserStatus(null);
+        setIsSignUp(true);
         setLoading(false);
         setLoadingProfile(false);
         return;
@@ -246,7 +275,10 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         const setupComplete = (profileData as { setup_status?: boolean; setupStatus?: boolean })?.setup_status ?? (profileData as { setup_status?: boolean; setupStatus?: boolean })?.setupStatus;
         setIsSignUp(!setupComplete);
         await syncSignupDate(data.session, profileData);
-        postHog.capture("App Opened", { role: profile?.user_type ?? "unknown" })
+        postHog.capture("App Opened", {
+          role:
+            (profileData as { user_type?: string }).user_type ?? "unknown",
+        });
       }
     } else {
       console.log("No session found. Clearing profile...");
@@ -343,7 +375,31 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (!profile) {
-        console.log("Session exists but no profile loaded yet, waiting...");
+        const setupScreens = [
+          "/Setup",
+          "/ChooseRole",
+          "/ClientSetup",
+          "/HairdresserSetup",
+          "/LoadingScreen",
+          "/TermsAndPrivacy",
+          "/(setup)/Setup",
+          "/(setup)/ChooseRole",
+          "/(setup)/ClientSetup",
+          "/(setup)/HairdresserSetup",
+          "/(setup)/LoadingScreen",
+          "/(setup)/TermsAndPrivacy",
+        ];
+        const isOnSetupScreen = setupScreens.some((screen) =>
+          pathname.includes(screen),
+        );
+        if (!isOnSetupScreen) {
+          console.log("Session without profile — sending user to setup");
+          setIsNavigating(true);
+          setTimeout(() => {
+            router.replace("/Setup");
+            setTimeout(() => setIsNavigating(false), 1000);
+          }, 100);
+        }
         return;
       }
 

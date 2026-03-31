@@ -29,22 +29,35 @@ export function PaddedLabelButton({
   verticalPadding,
   textStyle,
   style,
+  disabled,
   ...pressableProps
 }: PaddedLabelButtonProps) {
   return (
     <Pressable
       accessibilityRole="button"
       {...pressableProps}
-      style={({ pressed }) => [
+      disabled={disabled}
+      android_ripple={{ color: "rgba(255,255,255,0.2)" }}
+      style={[
         {
           paddingHorizontal: responsivePadding(horizontalPadding),
           paddingVertical: responsivePadding(verticalPadding),
-          opacity: pressed ? 0.88 : 1,
         },
+        disabled && { opacity: 0.45 },
         style,
       ]}
     >
-      <Text style={[Typography.label, textStyle]}>{title}</Text>
+      {({ pressed }) => (
+        <Text
+          style={[
+            Typography.label,
+            textStyle,
+            !disabled && pressed && { opacity: 0.88 },
+          ]}
+        >
+          {title}
+        </Text>
+      )}
     </Pressable>
   );
 }
