@@ -1,128 +1,145 @@
 /* eslint-disable react/react-in-jsx-scope */
-import { Pressable, StyleSheet, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import Logo from "../../../assets/myHaircode_full_logo.svg";
-import MyButton from "@/src/components/MyButton";
+import Logo from "../../../assets/images/myBeautyCode_logo.svg";
+import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
 import { Href, router } from "expo-router";
-import { Colors } from "@/src/constants/Colors";
-import { ResponsiveText } from "@/src/components/ResponsiveText";
-import { 
-  responsiveScale, 
-  scalePercent,
-  isTablet
+import {
+  responsiveMargin,
+  responsivePadding,
+  responsiveScale,
 } from "@/src/utils/responsive";
+import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
 import { StatusBar } from "expo-status-bar";
+import React from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const Splash = () => {
+  const logoSize = useBeautyCodeLogoSize();
   const signUp = () => router.push("./SignUp" as Href);
   const goToSignIn = () => router.push("./SignIn");
 
   return (
-    <>
-      <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
-      <LinearGradient
-        colors={[
-          Colors.dark.warmGreen,
-          Colors.dark.warmGreen, //greenish
-          Colors.dark.yellowish, //purpleish
-          //brownish
-        ]}
-        style={styles.container}
-        end={{ x: 0, y: 1 }}
-      >
-        {/*
-<View style={styles.languageSwitcher}>
-  <Pressable onPress={() => {
-    // set language to English
-  }}>
-    <ResponsiveText size={24}>🇬🇧</ResponsiveText>
-  </Pressable>
-  
-  <Pressable onPress={() => {
-    // set language to Norwegian
-  }}>
-    <ResponsiveText size={24}>🇳🇴</ResponsiveText>
-  </Pressable>
-</View>
-
-
-
-
-    <View style={styles.languageSwitcher}>
-    */}
-
-        <View style={styles.logoContainer}>
-          <Logo width={responsiveScale(180, 240)} height={responsiveScale(240, 320)} />
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <StatusBar style="dark" />
+      <View style={styles.container}>
+        {/* Upper half: large logo only, anchored toward vertical center */}
+        <View style={styles.upperHalf}>
+          <Logo width={logoSize.width} height={logoSize.height} />
         </View>
 
-        <View style={styles.btnContainer}>
-          <MyButton text="Sign in" onPress={goToSignIn} style={styles.btn} textSize={18} textTabletSize={14}/>
-        </View>
+        {/* Lower half: headline starts ~mid-screen, then body, CTA, footer */}
+        <View style={styles.lowerHalf}>
+          <View style={styles.mainTextBlock}>
+            <Text style={[Typography.h1, styles.textOnGreen, styles.headline]}>
+              Welcome to MyBeautycode!
+            </Text>
 
-        <View style={styles.textContainer}>
-          <ResponsiveText size={18} tabletSize={12} style={styles.textStyle}>
-            Don't have an account yet?
-          </ResponsiveText>
+            <Text style={[Typography.bodyLarge, styles.textOnGreen, styles.body]}>
+              We empower hairdressers and clients with seamless client history.
+              Anytime, anywhere.
+            </Text>
 
-          <Pressable onPress={signUp}>
-            <ResponsiveText size={20} tabletSize={14} weight="Bold" style={styles.signInText}>
-              Sign up
-            </ResponsiveText>
-          </Pressable>
+            <PaddedLabelButton
+              title="Sign in"
+              horizontalPadding={32}
+              verticalPadding={16}
+              onPress={goToSignIn}
+              style={styles.signInButton}
+              textStyle={styles.signInButtonLabel}
+            />
+          </View>
+
+          <View style={styles.lowerSpacer} />
+
+          <View style={styles.footerRow}>
+            <Text style={[Typography.label, styles.textOnGreen]}>
+              {"Don't have an account yet? "}
+            </Text>
+            <Pressable onPress={signUp} hitSlop={8}>
+              <Text
+                style={[
+                  Typography.label,
+                  styles.textOnGreen,
+                  styles.signUpBold,
+                ]}
+              >
+                Sign up
+              </Text>
+            </Pressable>
+          </View>
         </View>
-      </LinearGradient>
-    </>
+      </View>
+    </SafeAreaView>
   );
 };
 
 export default Splash;
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.warmGreen,
+    backgroundColor: primaryGreen,
+    paddingHorizontal: responsivePadding(24),
   },
-  languageSwitcher: {
-    position: "absolute",
-    top: responsiveScale(40),
-    right: responsiveScale(20),
-    flexDirection: "row",
-    gap: responsiveScale(5),
-  },
-
-  logoContainer: {
+  /** Top half: logo centered, extra bottom padding nudges it slightly above true vertical center. */
+  upperHalf: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    marginTop: isTablet() ? scalePercent(16) : scalePercent(30),
+    paddingTop: responsiveMargin(6),
+    paddingBottom: responsiveMargin(90),
   },
-  btnContainer: {
-    marginTop: scalePercent(30),
+  /** ~50% height: “Welcome…” starts at screen midpoint. */
+  lowerHalf: {
+    flex: 1,
+    alignItems: "center",
+    width: "100%",
   },
-  textContainer: {
+  /** Welcome → body → Sign in; shifted up without moving the footer row. */
+  mainTextBlock: {
+    alignItems: "center",
+    width: "100%",
+    marginTop: -responsiveMargin(80),
+  },
+  lowerSpacer: {
+    flex: 1,
+    minHeight: responsiveMargin(16),
+  },
+  textOnGreen: {
+    color: primaryBlack,
+    textAlign: "center",
+  },
+  headline: {
+    marginBottom: responsiveMargin(32),
+  },
+  body: {
+    marginBottom: responsiveMargin(38),
+    maxWidth: 340,
+  },
+  signInButton: {
+    alignSelf: "center",
+    backgroundColor: primaryBlack,
+    borderRadius: responsiveScale(999),
+  },
+  signInButtonLabel: {
+    color: primaryWhite,
+    textAlign: "center",
+  },
+  footerRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: scalePercent(10),
+    paddingBottom: responsiveMargin(24),
   },
-  textStyle: {
-    lineHeight: responsiveScale(24),
-  },
-  signInText: {
-    lineHeight: responsiveScale(24),
-  },
-  btn: {
-    width: scalePercent(90),
-    alignSelf: "center",
-    backgroundColor: Colors.dark.yellowish,
-    borderColor: Colors.dark.warmGreen,
-    borderWidth: responsiveScale(2),
-    //iOS Shadow
-    shadowColor: "rgba(0, 0, 0)",
-    shadowOffset: { width: 0, height: responsiveScale(5) },
-    shadowOpacity: 0.3,
-    shadowRadius: responsiveScale(5),
-
-    //Android Shadow
-    elevation: 10,
-    transform: [{ translateY: -0.5 }],
+  signUpBold: {
+    fontFamily: "Outfit_700Bold",
+    textDecorationLine: "underline",
   },
 });

@@ -1,12 +1,22 @@
 /* eslint-disable react/react-in-jsx-scope */
-import MyButton from "@/src/components/MyButton";
-import MyTextinput from "@/src/components/MyTextinput";
-import { Colors } from "@/src/constants/Colors";
-import { supabase } from "@/src/lib/supabase";
+import Logo from "../../../assets/images/myBeautyCode_logo.svg";
+import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
+import { PrimaryOutlineTextField } from "@/src/components/PrimaryOutlineTextField";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
+import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
 import { api } from "@/src/lib/apiClient";
+import { supabase } from "@/src/lib/supabase";
+import {
+  responsiveMargin,
+  responsivePadding,
+  responsiveScale,
+} from "@/src/utils/responsive";
+import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
+import { usePostHog } from "posthog-react-native";
+import { CaretLeft } from "phosphor-react-native";
 import { useState } from "react";
-import Logo from "../../../assets/myHaircode_full_logo.svg";
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -18,23 +28,15 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CaretLeft } from "phosphor-react-native";
-import { 
-  responsiveScale, 
-  scalePercent,
-  responsiveFontSize,
-} from "@/src/utils/responsive";
-import { StatusBar } from "expo-status-bar";
-import { usePostHog } from "posthog-react-native";
 
 const SignIn = () => {
+  const logoSize = useBeautyCodeLogoSize();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const posthog = usePostHog()
+  const posthog = usePostHog();
 
   const resetPassword = () => router.push("../../Reset");
 
@@ -67,8 +69,6 @@ const SignIn = () => {
         email: data.user.email ?? null,
         role: profile?.user_type ?? "unknown",
       });
-
-
     } catch (err) {
       setErrorMessage("An unexpected error occurred. Please try again.");
       console.error("SignIn error:", err);
@@ -78,140 +78,196 @@ const SignIn = () => {
   }
 
   return (
-    <LinearGradient
-      colors={[
-        Colors.dark.warmGreen,
-        Colors.dark.warmGreen, //greenish
-        Colors.dark.yellowish, //purpleish
-        //brownish
-      ]}
-      style={{ flex: 1 }}
-      end={{ x: 0, y: 1 }}
-    >
-      <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
-      <SafeAreaView style={styles.container}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : responsiveScale(20)}
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <StatusBar style="dark" />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.container}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={() => router.back()}
+            style={styles.backRow}
+            hitSlop={12}
           >
-            <ScrollView
-              contentContainerStyle={styles.scrollContainer}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
+            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+          </Pressable>
+
+          <View style={styles.upperHalf}>
+            <Logo width={logoSize.width} height={logoSize.height} />
+          </View>
+
+          <View style={styles.lowerHalf}>
+            <KeyboardAvoidingView
+              style={styles.keyboard}
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 0 : responsiveScale(20)}
             >
-              <Pressable onPress={() => router.back()}>
-                <CaretLeft size={responsiveScale(30)} color={Colors.dark.dark} />
-              </Pressable>
+              <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.formBlock}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[Typography.h4, styles.textOnGreen, styles.title]}
+                  >
+                    Sign in
+                  </Text>
 
-              <View style={styles.logoContainer}>
-                <Logo width={responsiveScale(180, 240)} height={responsiveScale(240, 320)} />
-              </View>
+                  <PrimaryOutlineTextField
+                    label="Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Email"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    autoCorrect={false}
+                    containerStyle={styles.emailFieldSpacing}
+                  />
 
-              <Text style={styles.title}>Sign In</Text>
+                  <PrimaryOutlineTextField
+                    label="Your password"
+                    value={password}
+                    onChangeText={setPassword}
+                    password
+                    placeholder="Your password"
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    containerStyle={styles.passwordFieldSpacing}
+                  />
 
-              <MyTextinput
-                placeholder="Email"
-                value={email}
-                handleChangeText={setEmail}
-                title="Email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
+                  {errorMessage ? (
+                    <Text style={styles.errorMessage}>{errorMessage}</Text>
+                  ) : null}
 
-              <MyTextinput
-                placeholder="Password"
-                value={password}
-                handleChangeText={setPassword}
-                title="Password"
-              />
+                  <PaddedLabelButton
+                    title={loading ? "Signing in…" : "Sign in"}
+                    horizontalPadding={32}
+                    verticalPadding={16}
+                    disabled={loading}
+                    onPress={signInWithEmail}
+                    style={styles.signInButton}
+                    textStyle={styles.signInButtonLabel}
+                  />
+                </View>
 
-              {errorMessage ? (
-                <Text style={styles.errorMessage}>{errorMessage}</Text>
-              ) : null}
-
-              <View style={{ marginTop: responsiveScale(30) }}>
-                <MyButton
-                  text={loading ? "Signing in..." : "Sign In"}
-                  margin={false}
-                  disabled={loading}
-                  onPress={signInWithEmail}
-                  style={styles.btn}
-                  textSize={18}
-                  textTabletSize={14}
-                />
-              </View>
-
-              <View style={styles.textContainer}>
-                <Text style={styles.textStyle}>
-                  Don't remember your password?
-                </Text>
-                <Pressable onPress={resetPassword}>
-                  <Text style={styles.signInText}>Reset</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
-      </SafeAreaView>
-    </LinearGradient>
+                <View style={styles.footerCol}>
+                  <Text style={[Typography.label, styles.textOnGreen]}>
+                    Don&apos;t remember your password?
+                  </Text>
+                  <Pressable onPress={resetPassword} hitSlop={8}>
+                    <Text
+                      style={[
+                        Typography.label,
+                        styles.textOnGreen,
+                        styles.resetLink,
+                      ]}
+                    >
+                      Reset password
+                    </Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </View>
+        </View>
+      </TouchableWithoutFeedback>
+    </SafeAreaView>
   );
 };
 
 export default SignIn;
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
   container: {
     flex: 1,
-    backgroundColor: "transparent",
-    padding: responsiveScale(20),
+    backgroundColor: primaryGreen,
+    paddingHorizontal: responsivePadding(24),
   },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "flex-start",
+  backRow: {
+    position: "absolute",
+    left: responsiveMargin(16),
+    top: responsiveMargin(8),
+    zIndex: 2,
+    paddingVertical: responsiveMargin(4),
   },
-  logoContainer: {
+  /**
+   * Shorter band than Splash’s 1:1 split so “Sign in” + fields sit higher.
+   * 1:2 ≈ 33% / 67% (tighter than 2:3) — no overlap over the logo.
+   */
+  upperHalf: {
+    flex: 1,
+    minHeight: 0,
+    justifyContent: "center",
     alignItems: "center",
-    marginTop: scalePercent(6),
+    paddingTop: responsiveMargin(4),
+    paddingBottom: responsiveMargin(32),
+  },
+  lowerHalf: {
+    flex: 2,
+    minHeight: 0,
+    alignItems: "center",
+    width: "100%",
+  },
+  keyboard: {
+    flex: 1,
+    minHeight: 0,
+    width: "100%",
+  },
+  /** No negative margins: they pull content above ScrollView’s clip and hide it behind “empty” green. */
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "space-between",
+    paddingTop: 0,
+    paddingBottom: responsiveMargin(24),
+  },
+  formBlock: {
+    alignItems: "center",
+    width: "100%",
+  },
+  textOnGreen: {
+    color: primaryBlack,
+    textAlign: "center",
   },
   title: {
-    fontFamily: "Inter-Bold",
-    fontSize: responsiveFontSize(20, 16),
-    marginTop: scalePercent(15),
+    marginBottom: responsiveMargin(28),
   },
-  textContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: responsiveScale(30),
+  emailFieldSpacing: {
+    marginBottom: responsiveMargin(30),
   },
-  textStyle: {
-    fontFamily: "Inter-Regular",
-    lineHeight: responsiveFontSize(24),
-    fontSize: responsiveFontSize(18, 12),
+  passwordFieldSpacing: {
+    marginBottom: responsiveMargin(28),
   },
-  signInText: {
-    fontFamily: "Inter-Bold",
-    fontSize: responsiveFontSize(20, 14),
-    alignSelf: "baseline",
-    lineHeight: responsiveFontSize(24),
+  signInButton: {
+    alignSelf: "center",
+    marginTop: responsiveMargin(28),
+    backgroundColor: primaryBlack,
+    borderRadius: responsiveScale(999),
   },
-  btn: {
-    backgroundColor: Colors.dark.yellowish,
-    borderColor: Colors.dark.warmGreen,
-    borderWidth: responsiveScale(2),
-    shadowColor: "rgba(0, 0, 0)",
-    shadowOffset: { width: 0, height: responsiveScale(5) },
-    shadowOpacity: 0.3,
-    shadowRadius: responsiveScale(5),
-    elevation: 3,
+  signInButtonLabel: {
+    color: primaryWhite,
+    textAlign: "center",
   },
   errorMessage: {
-    color: "red",
-    fontFamily: "Inter-Regular",
-    fontSize: responsiveFontSize(14),
+    ...Typography.bodySmall,
+    color: "#B00020",
     textAlign: "center",
-    marginTop: responsiveScale(10),
+    marginBottom: responsiveMargin(8),
+    maxWidth: 320,
+  },
+  footerCol: {
+    alignItems: "center",
+    gap: responsiveMargin(6),
+    paddingBottom: responsiveMargin(8),
+  },
+  resetLink: {
+    fontFamily: "Outfit_700Bold",
+    textDecorationLine: "underline",
   },
 });
