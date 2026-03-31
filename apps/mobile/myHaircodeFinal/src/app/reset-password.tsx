@@ -1,44 +1,60 @@
-import React, { useState, useEffect } from "react";
+/* eslint-disable react/react-in-jsx-scope */
+import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
+import { PrimaryOutlineTextField } from "@/src/components/PrimaryOutlineTextField";
+import CustomAlert from "@/src/components/CustomAlert";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
+import { supabase } from "@/src/lib/supabase";
 import {
-  StyleSheet,
-  Text,
-  View,
+  responsiveMargin,
+  responsivePadding,
+  responsiveScale,
+} from "@/src/utils/responsive";
+import * as Linking from "expo-linking";
+import { router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
   Keyboard,
-  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import * as Linking from "expo-linking";
-import MyTextinput from "@/src/components/MyTextinput";
-import MyButton from "@/src/components/MyButton";
-import TopNav from "@/src/components/TopNav";
-import { supabase } from "@/src/lib/supabase";
-import { Colors } from "@/src/constants/Colors";
-import { router } from "expo-router";
-import CustomAlert from "@/src/components/CustomAlert";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  moderateScale,
-  scale,
-  scalePercent,
-  verticalScale,
-} from "../utils/responsive";
 import LoadingScreen from "./(setup)/LoadingScreen";
-import { useAuth } from "@/src/providers/AuthProvider"; 
+
+/**
+ * In development, you can open `/reset-password` with no query params to preview the layout.
+ * Saving still requires a real link (tokens); in preview mode, Save shows an explanation.
+ */
+const DEV_PREVIEW_PASSWORD_RESET = __DEV__;
+
+type AuthTokens = {
+  access_token: string | null;
+  refresh_token: string | null;
+};
 
 const PasswordReset = () => {
   const urlParams = useLocalSearchParams();
   const [tokensExtracted, setTokensExtracted] = useState(false);
-  const [authTokens, setAuthTokens] = useState({ access_token: null, refresh_token: null });
+  const [authTokens, setAuthTokens] = useState<AuthTokens>({
+    access_token: null,
+    refresh_token: null,
+  });
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
-  const [errorMessages, setErrorMessages] = useState({});
+  const [errorMessages, setErrorMessages] = useState<Record<string, string>>(
+    {},
+  );
   const [buttonDisabled, setButtonDisabled] = useState(true);
   const [alertVisible, setAlertVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); 
-  const { signOut } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
 
   const [passwordStrength, setPasswordStrength] = useState({
     strength: "Weak",
@@ -80,7 +96,15 @@ const PasswordReset = () => {
 
   useEffect(() => {
     const extractTokens = async () => {
-      let { access_token, refresh_token } = urlParams as any;
+      let access_token: string | undefined;
+      let refresh_token: string | undefined;
+      const raw = urlParams as Record<string, string | string[] | undefined>;
+      const a = raw.access_token;
+      const r = raw.refresh_token;
+      access_token =
+        typeof a === "string" ? a : Array.isArray(a) ? a[0] : undefined;
+      refresh_token =
+        typeof r === "string" ? r : Array.isArray(r) ? r[0] : undefined;
 
       if (!access_token || !refresh_token) {
         const url = await Linking.getInitialURL();
@@ -119,75 +143,101 @@ const PasswordReset = () => {
     }
 
     setButtonDisabled(
-      isLoading || // Disable if loading
-      !newPassword ||
-      !confirmPassword ||
-      newPassword !== confirmPassword ||
-      passwordStrength.strength === "Weak"
+      isLoading ||
+        !newPassword ||
+        !confirmPassword ||
+        newPassword !== confirmPassword ||
+        passwordStrength.strength === "Weak",
     );
-  }, [newPassword, confirmPassword, passwordStrength.strength, isLoading]);
+  }, [
+    newPassword,
+    confirmPassword,
+    passwordStrength.strength,
+    isLoading,
+  ]);
 
+  const hasValidTokens = Boolean(
+    authTokens.access_token && authTokens.refresh_token,
+  );
+  const isDevPreview = DEV_PREVIEW_PASSWORD_RESET && !hasValidTokens;
 
-const updatePassword = async () => {
-  if (isLoading) return;
-  
-  setIsLoading(true);
-  setAttemptedSubmit(true);
+  const updatePassword = async () => {
+    if (isLoading) return;
 
-  const errors = {};
-  if (newPassword !== confirmPassword) {
-    errors.confirmPassword = "Passwords do not match.";
-  }
-  if (passwordStrength.strength === "Weak") {
-    errors.newPassword = "Password must be at least 8 characters.";
-  }
-  if (Object.keys(errors).length > 0) {
-    setErrorMessages(errors);
-    setIsLoading(false);
-    return;
-  }
+    if (isDevPreview) {
+      Alert.alert(
+        "Development preview",
+        "Open this screen from the link in your reset email to save a new password. Layout-only in dev without tokens.",
+      );
+      return;
+    }
 
-  try {
-    const { error: sessionError } = await supabase.auth.setSession(authTokens);
-    if (sessionError) throw sessionError;
+    setIsLoading(true);
+    setAttemptedSubmit(true);
 
-    const { error } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-    if (error) throw error;
+    const errors: Record<string, string> = {};
+    if (newPassword !== confirmPassword) {
+      errors.confirmPassword = "Passwords do not match.";
+    }
+    if (passwordStrength.strength === "Weak") {
+      errors.newPassword = "Password must be at least 8 characters.";
+    }
+    if (Object.keys(errors).length > 0) {
+      setErrorMessages(errors);
+      setIsLoading(false);
+      return;
+    }
 
-    // ✅ Show success alert immediately
-    setAlertVisible(true);
-    
-    // ✅ Sign out and navigate after brief delay
-    setTimeout(async () => {
-      await supabase.auth.signOut(); // Direct sign out, don't use signOut() function
-      router.replace("/SignIn");
-    }, 2000);
+    try {
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: authTokens.access_token!,
+        refresh_token: authTokens.refresh_token!,
+      });
+      if (sessionError) throw sessionError;
 
-  } catch (error) {
-    console.error("Error updating password:", error);
-    setErrorMessages({ newPassword: error.message || "Failed to update password" });
-    setIsLoading(false);
-  }
-};
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (error) throw error;
+
+      setAlertVisible(true);
+
+      setTimeout(async () => {
+        await supabase.auth.signOut();
+        router.replace("/SignIn");
+      }, 2000);
+    } catch (error: unknown) {
+      console.error("Error updating password:", error);
+      const message =
+        error instanceof Error ? error.message : "Failed to update password";
+      setErrorMessages({ newPassword: message });
+      setIsLoading(false);
+    }
+  };
 
   if (!tokensExtracted) {
     return <LoadingScreen />;
   }
 
-  if (!authTokens.access_token || !authTokens.refresh_token) {
+  if (!hasValidTokens && !isDevPreview) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorTitle}>Invalid Reset Link</Text>
-          <Text style={styles.errorText}>
-            This password reset link is invalid or has expired. Please request a new password reset.
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <StatusBar style="dark" />
+        <View style={styles.invalidWrap}>
+          <Text style={[Typography.h3, styles.invalidTitle]}>
+            Invalid reset link
           </Text>
-          <MyButton
-            style={styles.button}
-            text="Go to Sign In"
+          <Text style={[Typography.bodyMedium, styles.invalidBody]}>
+            This password reset link is invalid or has expired. Please request a
+            new password reset.
+          </Text>
+          <PaddedLabelButton
+            title="Go to Sign in"
+            horizontalPadding={32}
+            verticalPadding={16}
             onPress={() => router.replace("/SignIn")}
+            style={styles.primaryButton}
+            textStyle={styles.primaryButtonLabel}
           />
         </View>
       </SafeAreaView>
@@ -195,77 +245,77 @@ const updatePassword = async () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <StatusBar style="dark" />
       <KeyboardAvoidingView
-        style={styles.keyboardContainer}
+        style={styles.keyboard}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={
+          Platform.OS === "ios" ? 0 : responsiveScale(20)
+        }
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.contentContainer}>
-            <TopNav title="Reset Password" />
-            <View style={styles.subContainer}>
-              <MyTextinput
-                placeholder="Enter new password"
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {isDevPreview ? (
+              <Text style={styles.devBanner}>
+                Dev preview — use the email link for a working reset.
+              </Text>
+            ) : null}
+
+            <View style={styles.formBlock}>
+              <Text
+                accessibilityRole="header"
+                style={[Typography.h2, styles.headline]}
+              >
+                New password
+              </Text>
+
+              <PrimaryOutlineTextField
+                label="Enter new password"
                 value={newPassword}
-                handleChangeText={setNewPassword}
-                title="Password"
-                containerStyle={[
-                  styles.input,
-                  attemptedSubmit && errorMessages.newPassword
-                    ? styles.inputInvalid
-                    : attemptedSubmit && newPassword
-                    ? styles.inputValid
-                    : null,
-                ]}
+                onChangeText={setNewPassword}
+                password
+                placeholder="Enter new password"
+                autoCapitalize="none"
+                autoComplete="password"
+                containerStyle={styles.firstFieldSpacing}
               />
-              {errorMessages.newPassword && (
-                <Text style={styles.errorMessage}>
+              {attemptedSubmit && errorMessages.newPassword ? (
+                <Text style={styles.fieldError}>
                   {errorMessages.newPassword}
                 </Text>
-              )}
+              ) : null}
 
-              {/* 🔹 Strength meter */}
-              {newPassword !== "" && (
-                <View style={styles.passwordStrengthContainer}>
-                  <View
-                    style={[
-                      styles.passwordStrengthBar,
-                      { backgroundColor: passwordStrength.color },
-                    ]}
-                  />
-                  <Text style={{ color: passwordStrength.color }}>
-                    {passwordStrength.strength} - {passwordStrength.feedback}
-                  </Text>
-                </View>
-              )}
-
-              <MyTextinput
-                placeholder="Confirm new password"
+              <PrimaryOutlineTextField
+                label="Repeat password"
                 value={confirmPassword}
-                handleChangeText={setConfirmPassword}
-                title="Confirm Password"
-                containerStyle={[
-                  styles.input,
-                  attemptedSubmit && errorMessages.confirmPassword
-                    ? styles.inputInvalid
-                    : attemptedSubmit && confirmPassword
-                    ? styles.inputValid
-                    : null,
-                ]}
+                onChangeText={setConfirmPassword}
+                password
+                placeholder="Repeat password"
+                autoCapitalize="none"
+                autoComplete="password"
+                containerStyle={styles.secondFieldSpacing}
               />
-              {errorMessages.confirmPassword && (
-                <Text style={styles.errorMessage}>
+              {attemptedSubmit && errorMessages.confirmPassword ? (
+                <Text style={styles.fieldError}>
                   {errorMessages.confirmPassword}
                 </Text>
-              )}
-            </View>
+              ) : null}
 
-            <MyButton
-              style={styles.button}
-              text={isLoading ? "Updating..." : "Save"}
-              onPress={updatePassword}
-              disabled={buttonDisabled}
-            />
+              <PaddedLabelButton
+                title={isLoading ? "Saving…" : "Save"}
+                horizontalPadding={32}
+                verticalPadding={16}
+                disabled={buttonDisabled}
+                onPress={updatePassword}
+                style={styles.primaryButton}
+                textStyle={styles.primaryButtonLabel}
+              />
+            </View>
 
             <CustomAlert
               visible={alertVisible}
@@ -276,7 +326,7 @@ const updatePassword = async () => {
                 router.replace("/SignIn");
               }}
             />
-          </View>
+          </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -284,57 +334,77 @@ const updatePassword = async () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
+  keyboard: {
     flex: 1,
   },
-  contentContainer: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: responsivePadding(24),
+    paddingVertical: responsiveMargin(32),
   },
-  subContainer: { paddingVertical: scalePercent(5) },
-  input: {
-    backgroundColor: Colors.light.yellowish,
-    height: scale(50),
-    borderWidth: scale(1),
-    borderColor: "transparent",
-    marginVertical: verticalScale(10),
+  devBanner: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
+    textAlign: "center",
+    opacity: 0.85,
+    marginBottom: responsiveMargin(16),
   },
-  inputValid: { borderColor: "green", borderWidth: scale(1) },
-  inputInvalid: { borderColor: "red", borderWidth: scale(1) },
-  errorMessage: {
-    color: "red",
-    fontSize: moderateScale(14),
-    marginTop: scale(5),
+  formBlock: {
+    alignItems: "center",
+    width: "100%",
   },
-  keyboardContainer: { flex: 1, padding: scale(20) },
-  button: { width: scalePercent(90), alignSelf: "center" },
-  errorContainer: {
+  headline: {
+    color: primaryBlack,
+    textAlign: "center",
+    marginBottom: responsiveMargin(32),
+  },
+  /** Tighter gap between the two password fields */
+  firstFieldSpacing: {
+    marginBottom: responsiveMargin(16),
+    width: "100%",
+  },
+  secondFieldSpacing: {
+    marginBottom: responsiveMargin(28),
+    width: "100%",
+  },
+  primaryButton: {
+    alignSelf: "center",
+    marginTop: responsiveMargin(28),
+    backgroundColor: primaryBlack,
+    borderRadius: responsiveScale(999),
+  },
+  primaryButtonLabel: {
+    color: primaryWhite,
+    textAlign: "center",
+  },
+  fieldError: {
+    ...Typography.bodySmall,
+    color: "#B00020",
+    textAlign: "center",
+    marginTop: -responsiveMargin(12),
+    marginBottom: responsiveMargin(8),
+    maxWidth: 320,
+    alignSelf: "center",
+  },
+  invalidWrap: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    padding: scale(20),
+    paddingHorizontal: responsivePadding(24),
   },
-  errorTitle: {
-    fontSize: moderateScale(24),
-    fontWeight: "bold",
-    color: "red",
-    marginBottom: verticalScale(10),
+  invalidTitle: {
+    color: primaryBlack,
     textAlign: "center",
+    marginBottom: responsiveMargin(16),
   },
-  errorText: {
-    fontSize: moderateScale(16),
-    color: Colors.light.text,
+  invalidBody: {
+    color: primaryBlack,
     textAlign: "center",
-    marginBottom: verticalScale(20),
-  },
-  passwordStrengthContainer: {
-    marginTop: verticalScale(10),
-    alignItems: "center",
-  },
-  passwordStrengthBar: {
-    width: scalePercent(70),
-    height: verticalScale(10),
-    borderRadius: scale(5),
-    marginBottom: verticalScale(5),
+    marginBottom: responsiveMargin(28),
   },
 });
 

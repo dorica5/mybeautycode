@@ -1,20 +1,32 @@
-import { StyleSheet, Text, View } from "react-native";
-import React from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "@/src/constants/Colors";
-import { 
-  responsiveScale, 
-  responsiveFontSize,
-  responsiveBorderRadius
+/* eslint-disable react/react-in-jsx-scope */
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
+import {
+  responsiveMargin,
+  responsivePadding,
+  responsiveScale,
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const CheckMail = () => {
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor= {Colors.dark.yellowish} /> 
-      <View style={styles.textBox}>
-        <Text style={styles.text}>Please check your email</Text>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <StatusBar style="dark" />
+      <View style={styles.content}>
+        <Text
+          accessibilityRole="header"
+          style={[Typography.h3, styles.headline]}
+        >
+          Password sent
+        </Text>
+        <View style={styles.card}>
+          <Text style={[Typography.bodyLarge, styles.cardText]}>
+            Please check your e-mail
+          </Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -23,24 +35,32 @@ const CheckMail = () => {
 export default CheckMail;
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
+  content: {
     flex: 1,
     justifyContent: "center",
-    padding: responsiveScale(20),
-    backgroundColor: Colors.dark.yellowish,
+    alignItems: "center",
+    paddingHorizontal: responsivePadding(24),
   },
-  textBox: {
-    backgroundColor: Colors.dark.light,
-    width: "98%",
-    height: "15%",
-    alignSelf: "center",
-    borderRadius: responsiveBorderRadius(20),
-    justifyContent: "center",
-  },
-  text: {
+  headline: {
+    color: primaryBlack,
     textAlign: "center",
-    fontFamily: "Inter-Regular",
-    fontSize: responsiveFontSize(20, 16),
-    color: Colors.dark.dark,
+    marginBottom: responsiveMargin(28),
+  },
+  card: {
+    width: "100%",
+    maxWidth: 400,
+    backgroundColor: primaryWhite,
+    borderRadius: responsiveScale(20),
+    paddingVertical: responsivePadding(28),
+    paddingHorizontal: responsivePadding(24),
+    alignSelf: "center",
+  },
+  cardText: {
+    color: primaryBlack,
+    textAlign: "center",
   },
 });
