@@ -84,8 +84,12 @@ model Profile {
   id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime? @map("updated_at") @db.Timestamptz
-  email        String?   @db.Text
-  fullName     String?   @map("full_name") @db.Text
+  email         String?   @db.Text
+  firstName     String?   @map("first_name") @db.Text
+  lastName      String?   @map("last_name") @db.Text
+  /// Lowercase [a-z][a-z0-9_]{2,29}; unique when set (see profileService).
+  username      String?   @unique @map("username") @db.Text
+  country       String?   @map("country") @db.Text
   avatarUrl    String?   @map("avatar_url") @db.Text
   phoneNumber  String?   @unique @map("phone_number") @db.Text
   setupStatus  Boolean?  @default(false) @map("setup_status")

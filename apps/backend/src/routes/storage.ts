@@ -10,3 +10,5 @@ storageRoutes.post(
   storageController.uploadMiddleware,
   storageController.upload
 );
+storageRoutes.get("/signed-url", storageController.signedUrl);
+storageRoutes.post("/sign-batch", storageController.signBatch);

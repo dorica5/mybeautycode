@@ -40,7 +40,6 @@ const UserProfile = () => {
         full_name: profileData.fullName ?? profileData.full_name,
         avatar_url: profileData.avatarUrl ?? profileData.avatar_url,
         phone_number: profileData.phoneNumber ?? profileData.phone_number,
-        about_me: profileData.aboutMe ?? profileData.about_me,
         hair_structure: profileData.hairStructure ?? profileData.hair_structure,
         hair_thickness: profileData.hairThickness ?? profileData.hair_thickness,
         natural_hair_color: profileData.naturalHairColor ?? profileData.natural_hair_color,
@@ -180,17 +179,6 @@ const UserProfile = () => {
 
             {isRelated && !isBlockedUser && (
               <View style={styles.stack}>
-                {/* Only show about me section if it has content */}
-                {hasContent(data?.about_me) && (
-                  <>
-                    <Text style={styles.FirstTextHeader}>About me</Text>
-                    <View style={styles.aboutContainer}>
-                      <Text style={styles.aboutText}>{data?.about_me}</Text>
-                    </View>
-                  </>
-                )}
-
-                
                 {hasContent(data?.hair_structure) && (
                   <View style={styles.aboutHairRow}>
                     <Text style={styles.TextHeader}>Hair structure</Text>
@@ -318,14 +306,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: scalePercent(5),
   },
-  FirstTextHeader: {
-    fontSize: responsiveFontSize(20, 16),
-    marginTop: responsiveScale(80),
-    fontFamily: "Inter-SemiBold",
-    marginBottom: responsiveScale(10),
-    textAlign: "left",
-    width: scalePercent(90),
-  },
   TextHeader: {
     fontSize: responsiveFontSize(20, 16),
     marginTop: responsiveScale(35),
@@ -334,20 +314,6 @@ const styles = StyleSheet.create({
     textAlign: "left",
     marginRight: scalePercent(10),
     width: scalePercent(40),
-  },
-  aboutText: {
-    textAlign: "left",
-    fontSize: responsiveFontSize(16, 14),
-    fontFamily: "Inter-Regular",
-    marginTop: "0%",
-  },
-  aboutContainer: {
-    backgroundColor: Colors.dark.light,
-    borderRadius: responsiveBorderRadius(20),
-    borderColor: Colors.dark.yellowish,
-    borderWidth: responsiveScale(3),
-    width: scalePercent(90),
-    padding: scalePercent(5),
   },
   dropDownContainers: {
     backgroundColor: Colors.dark.light,

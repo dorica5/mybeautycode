@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import Constants from "expo-constants";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   Pressable,
@@ -33,6 +32,7 @@ import Carousel from "react-native-reanimated-carousel";
 import Dots from "react-native-dots-pagination";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
+import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
 import { randomUUID } from "expo-crypto";
 import { api } from "@/src/lib/apiClient";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -135,26 +135,46 @@ const NewHaircode = () => {
   };
 
   useEffect(() => {
-    if (params.media) {
+    if (!params.media) return;
+    let cancelled = false;
+    (async () => {
       try {
         const mediaData = JSON.parse(params.media.toString());
-        console.log("Loading media data:", mediaData);
-
+        if (cancelled) return;
         setOriginalMedia(mediaData);
-
-        const formattedMedia = mediaData.map((item) => ({
-          uri: `${Constants?.expoConfig?.extra?.SUPABASE_URL}/storage/v1/object/public/haircode_images/${item.media_url}`,
-          type: item.media_type,
-          media_url: item.media_url,
-          id: item.id,
-          isFromDB: true,
-        }));
-
+        const uris = await fetchSignedStorageUrls(
+          mediaData.map((item: { media_url: string }) => ({
+            bucket: "haircode_images",
+            path: item.media_url,
+          }))
+        );
+        if (cancelled) return;
+        const formattedMedia = mediaData
+          .map(
+            (
+              item: {
+                media_url: string;
+                media_type: string;
+                id: string;
+              },
+              i: number
+            ) => ({
+              uri: uris[i] ?? "",
+              type: item.media_type,
+              media_url: item.media_url,
+              id: item.id,
+              isFromDB: true,
+            })
+          )
+          .filter((m: { uri: string }) => !!m.uri);
         setCapturedMedia(formattedMedia);
       } catch (error) {
         console.error("Error parsing media data:", error);
       }
-    }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [params.media]);
 
   const hasMediaChanged = () => {

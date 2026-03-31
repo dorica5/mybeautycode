@@ -26,7 +26,14 @@ export const profileController = {
     try {
       const profile = await profileService.update(id, req.body);
       res.json(profile);
-    } catch (err) {
+    } catch (err: unknown) {
+      const e = err as Error & { statusCode?: number };
+      if (e.statusCode === 409) {
+        return res.status(409).json({ error: e.message });
+      }
+      if (e.statusCode === 400) {
+        return res.status(400).json({ error: e.message });
+      }
       console.error("profile update error:", err);
       res.status(500).json({ error: "Failed to update profile" });
     }

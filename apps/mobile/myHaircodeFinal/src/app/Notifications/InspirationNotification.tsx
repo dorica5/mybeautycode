@@ -40,13 +40,18 @@ import { ResponsiveText } from "@/src/components/ResponsiveText";
 import { isBlocked } from "@/src/api/moderation";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
+
+type SharedInspirationRow = { path: string; displayUri: string };
 
 const InspirationNotification = () => {
   const { senderName, batch_id, profile_pic, senderId } =
     useLocalSearchParams();
   const { profile } = useAuth();
-  const [images, setImages] = useState([]);
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [images, setImages] = useState<SharedInspirationRow[]>([]);
+  const [selectedImage, setSelectedImage] = useState<SharedInspirationRow | null>(
+    null
+  );
   const [modalVisible, setModalVisible] = useState(false);
   const [flatListKey, setFlatListKey] = useState("flatlist-0");
   const [hasPendingImages, setHasPendingImages] = useState(false);
@@ -80,7 +85,19 @@ const InspirationNotification = () => {
       }
 
       try {
-        const imageList = await fetchSharedInspirationsByBatch(batch_id as string);
+        const paths = await fetchSharedInspirationsByBatch(batch_id as string);
+        const displayUris = await fetchSignedStorageUrls(
+          paths.map((path) => ({
+            bucket: "shared_inspiration_images",
+            path,
+          }))
+        );
+        const imageList: SharedInspirationRow[] = paths
+          .map((path, i) => ({
+            path,
+            displayUri: displayUris[i] ?? "",
+          }))
+          .filter((row) => !!row.displayUri);
         setImages(imageList);
         setHasPendingImages(imageList.length > 0);
         setFlatListKey(`flatlist-${Date.now()}`);
@@ -107,15 +124,15 @@ const InspirationNotification = () => {
     }, 500);
   };
 
-  const handleAccept = async (imageUrl) => {
-    if (isProcessing || !batch_id) return;
+  const handleAccept = async (row: SharedInspirationRow | null) => {
+    if (isProcessing || !batch_id || !row) return;
     setIsProcessing(true);
 
     try {
-      await acceptSharedInspiration(batch_id as string, imageUrl);
+      await acceptSharedInspiration(batch_id as string, row.path);
       await addToInspirationContext([]);
 
-      const updatedImages = images.filter((img) => img !== imageUrl);
+      const updatedImages = images.filter((img) => img.path !== row.path);
       setImages(updatedImages);
       setHasPendingImages(updatedImages.length > 0);
       setFlatListKey(`flatlist-${Date.now()}`);
@@ -133,7 +150,10 @@ const InspirationNotification = () => {
     setIsProcessing(true);
 
     try {
-      const { accepted } = await acceptSharedInspirations(batch_id as string, images);
+      const { accepted } = await acceptSharedInspirations(
+        batch_id as string,
+        images.map((r) => r.path)
+      );
       await addToInspirationContext([]);
 
       setImages([]);
@@ -142,7 +162,7 @@ const InspirationNotification = () => {
 
       if (accepted === 0) {
         Alert.alert("Error", "Failed to save any inspirations.");
-      } else if (accepted < images.length) {
+      } else if (accepted < images.length && images.length > 0) {
         Alert.alert(
           "Partial Success",
           `Saved ${accepted} of ${images.length} images.`
@@ -158,14 +178,14 @@ const InspirationNotification = () => {
     }
   };
 
-  const handleReject = async (imageUrl) => {
-    if (isProcessing) return;
+  const handleReject = async (row: SharedInspirationRow | null) => {
+    if (isProcessing || !row) return;
     setIsProcessing(true);
 
     try {
-      await rejectSharedInspiration(imageUrl);
+      await rejectSharedInspiration(row.path);
 
-      const updatedImages = images.filter((img) => img !== imageUrl);
+      const updatedImages = images.filter((img) => img.path !== row.path);
       setImages(updatedImages);
       setHasPendingImages(updatedImages.length > 0);
       setFlatListKey(`flatlist-${Date.now()}`);
@@ -183,7 +203,7 @@ const InspirationNotification = () => {
     setIsProcessing(true);
 
     try {
-      await rejectSharedInspirations(images);
+      await rejectSharedInspirations(images.map((r) => r.path));
       setImages([]);
       setHasPendingImages(false);
       setFlatListKey(`flatlist-${Date.now()}`);
@@ -194,18 +214,6 @@ const InspirationNotification = () => {
       setIsProcessing(false);
     }
   };
-
-  console.log("Images:", images);
-  useEffect(() => {
-    console.log("TESTING DIRECT IMAGE ACCESS");
-    console.log("Number of images found:", images.length);
-
-    if (images.length > 0) {
-      images.slice(0, 3).forEach((url, index) => {
-        console.log(`Image ${index} URL: ${url}`);
-      });
-    }
-  }, [batch_id]);
 
   const getImageGridDimensions = () => {
     const screenWidth = Dimensions.get("window").width;
@@ -296,7 +304,7 @@ const InspirationNotification = () => {
             <FlatList
               key={flatListKey}
               data={images}
-              keyExtractor={(item, index) => `${item}-${index}`}
+              keyExtractor={(item) => item.path}
               numColumns={numColumns}
               columnWrapperStyle={numColumns > 1 ? styles.row : null}
               contentContainerStyle={styles.contentContainer}
@@ -312,7 +320,7 @@ const InspirationNotification = () => {
                   ]}
                 >
                   <Image
-                    source={{ uri: item }}
+                    source={{ uri: item.displayUri }}
                     style={[
                       styles.image, 
                       { width: imageSize, height: imageSize }
@@ -368,7 +376,7 @@ const InspirationNotification = () => {
 
                   {selectedImage && (
                     <Image
-                      source={{ uri: selectedImage }}
+                      source={{ uri: selectedImage.displayUri }}
                       style={[
                         styles.modalImage,
                         { 

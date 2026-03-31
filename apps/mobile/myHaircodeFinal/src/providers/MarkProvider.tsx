@@ -13,8 +13,11 @@ import { useAuth } from "./AuthProvider";
 import { randomUUID } from "expo-crypto";
 import * as FileSystem from "expo-file-system/legacy";
 import { sendPushNotification } from "./useNotifcations";
-import { getStorageUrl } from "../utils/supabaseHelpers";
 import { uploadToStorage } from "../lib/uploadHelpers";
+import {
+  fetchSignedStorageUrl,
+  normalizeStorageObjectPath,
+} from "../lib/storageSignedUrl";
 
 type MarkData = {
   marked: boolean;
@@ -89,18 +92,19 @@ export default function MarkProvider({ children }: PropsWithChildren) {
       const batchId = randomUUID();
       const STORAGE_BUCKET = "shared_inspiration_images";
   
-      const pathMatch = (url: string) => {
-        if (url.includes("/inspirations/")) {
-          const p = url.split("/inspirations/")[1];
-          return p?.split("?")[0] ?? url;
-        }
-        return url.split("/").pop()?.split("?")[0] ?? url;
-      };
-
       const uploadedImages = await Promise.all(
         selectedImages.map(async (imagePath) => {
-          const fileName = pathMatch(imagePath);
-          const storageUrl = getStorageUrl("inspirations", fileName);
+          const objectPath =
+            normalizeStorageObjectPath("inspirations", imagePath) ??
+            (imagePath.includes("/inspirations/")
+              ? imagePath.split("/inspirations/")[1]?.split("?")[0]
+              : imagePath.split("/").pop()?.split("?")[0]) ??
+            imagePath;
+          const storageUrl = await fetchSignedStorageUrl(
+            "inspirations",
+            objectPath
+          );
+          if (!storageUrl) throw new Error("Could not resolve inspiration image");
           const downloadResult = await FileSystem.downloadAsync(
             storageUrl,
             FileSystem.cacheDirectory + `${randomUUID()}.png`
@@ -112,9 +116,7 @@ export default function MarkProvider({ children }: PropsWithChildren) {
             "image/png"
           );
           if (!path) throw new Error("Upload failed");
-          return {
-            imageUrl: getStorageUrl(STORAGE_BUCKET, path),
-          };
+          return { imageUrl: path };
         })
       );
 

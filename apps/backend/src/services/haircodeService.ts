@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { profileDisplayName } from "../lib/profileDisplay";
 import { createClient } from "@supabase/supabase-js";
 import { professionService } from "./professionService";
 
@@ -28,7 +29,7 @@ export const haircodeService = {
         client_id: r.clientUserId,
         professional_profile_id: r.professionalProfileId,
         hairdresser_id: pp?.profileId,
-        hairdresser_name: pp?.displayName ?? p?.fullName,
+        hairdresser_name: pp?.displayName ?? (p ? profileDisplayName(p) : null),
         service_description: r.summary,
         services: (r.recordData as { services?: string })?.services ?? null,
         price: r.price?.toString() ?? null,
@@ -88,7 +89,9 @@ export const haircodeService = {
       orderBy: { createdAt: "desc" },
       take: 20,
       include: {
-        clientUser: { select: { id: true, fullName: true, avatarUrl: true } },
+        clientUser: {
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+        },
       },
     });
     return records.map((r) => ({

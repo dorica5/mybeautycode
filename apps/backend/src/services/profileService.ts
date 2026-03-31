@@ -1,8 +1,20 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { profileDisplayName } from "../lib/profileDisplay";
 import { professionService } from "./professionService";
 
+const nameSearch = (searchQuery: string) => ({
+  OR: [
+    { firstName: { contains: searchQuery, mode: "insensitive" as const } },
+    { lastName: { contains: searchQuery, mode: "insensitive" as const } },
+  ],
+});
+
 const PROFILE_FIELDS = [
-  "fullName",
+  "firstName",
+  "lastName",
+  "username",
+  "country",
   "avatarUrl",
   "phoneNumber",
   "setupStatus",
@@ -20,7 +32,10 @@ const PROFESSIONAL_FIELDS = [
 ] as const;
 
 const SNAKE_TO_CAMEL: Record<string, string> = {
-  full_name: "fullName",
+  first_name: "firstName",
+  last_name: "lastName",
+  username: "username",
+  country: "country",
   avatar_url: "avatarUrl",
   phone_number: "phoneNumber",
   setup_status: "setupStatus",
@@ -46,8 +61,25 @@ export const profileService = {
   async update(id: string, data: Record<string, unknown>) {
     const filtered: Record<string, unknown> = {};
     const professionalData: Record<string, unknown> = {};
+    const body = { ...data };
 
-    for (const [k, v] of Object.entries(data)) {
+    const legacyFull = body.full_name ?? body.fullName;
+    if (
+      typeof legacyFull === "string" &&
+      legacyFull.trim() &&
+      body.first_name == null &&
+      body.firstName == null &&
+      body.last_name == null &&
+      body.lastName == null
+    ) {
+      const t = legacyFull.trim();
+      const space = t.indexOf(" ");
+      body.first_name = space === -1 ? t : t.slice(0, space);
+      const rest = space === -1 ? null : t.slice(space + 1).trim();
+      body.last_name = rest && rest.length > 0 ? rest : null;
+    }
+
+    for (const [k, v] of Object.entries(body)) {
       const key = (SNAKE_TO_CAMEL[k] ?? k) as string;
       if (PROFILE_FIELDS.includes(key as (typeof PROFILE_FIELDS)[number])) {
         filtered[key] = v;
@@ -56,6 +88,35 @@ export const profileService = {
       }
     }
     filtered.updatedAt = new Date();
+
+    if (Object.prototype.hasOwnProperty.call(filtered, "username")) {
+      const u = filtered.username;
+      if (u === "" || u === null || u === undefined) {
+        filtered.username = null;
+      } else if (typeof u === "string") {
+        const raw = u.trim().toLowerCase();
+        // Lowercase only, 3–30 chars, typical handle: letter first, then letters/digits/underscore.
+        if (!/^[a-z][a-z0-9_]{2,29}$/.test(raw)) {
+          throw Object.assign(
+            new Error(
+              "Username must be 3–30 characters: lowercase letters, numbers, and underscores only. It must start with a letter."
+            ),
+            { statusCode: 400 }
+          );
+        }
+        const taken = await prisma.profile.findFirst({
+          where: { username: raw, id: { not: id } },
+          select: { id: true },
+        });
+        if (taken) {
+          throw Object.assign(
+            new Error("This username is already taken."),
+            { statusCode: 409 }
+          );
+        }
+        filtered.username = raw;
+      }
+    }
 
     if (Object.keys(professionalData).length > 0) {
       const profProfileId = await professionService.getOrCreateProfessionalProfileId(id);
@@ -66,10 +127,42 @@ export const profileService = {
       });
     }
 
-    return prisma.profile.update({
-      where: { id },
-      data: filtered as never,
-    });
+    try {
+      return await prisma.profile.update({
+        where: { id },
+        data: filtered as never,
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === "P2002") {
+          const targets = (e.meta?.target as string[] | undefined) ?? [];
+          const t = targets.join(" ").toLowerCase();
+          const raw = (e.message ?? "").toLowerCase();
+          if (
+            t.includes("phone_number") ||
+            t.includes("phonenumber") ||
+            raw.includes("phone_number")
+          ) {
+            throw Object.assign(
+              new Error("This phone number is already in use."),
+              { statusCode: 409 }
+            );
+          }
+          if (t.includes("username") || raw.includes("username")) {
+            throw Object.assign(
+              new Error("This username is already taken."),
+              { statusCode: 409 }
+            );
+          }
+        }
+        if (e.code === "P2025") {
+          throw Object.assign(new Error("Profile not found."), {
+            statusCode: 404,
+          });
+        }
+      }
+      throw e;
+    }
   },
 
   async searchClients(searchQuery: string, professionalProfileId: string) {
@@ -86,16 +179,20 @@ export const profileService = {
     const profiles = await prisma.profile.findMany({
       where: {
         id: { in: clientIds },
-        fullName: { contains: searchQuery, mode: "insensitive" },
+        ...nameSearch(searchQuery),
       },
       select: {
         id: true,
-        fullName: true,
+        firstName: true,
+        lastName: true,
         avatarUrl: true,
         phoneNumber: true,
       },
     });
-    return profiles;
+    return profiles.map((p) => ({
+      ...p,
+      full_name: profileDisplayName(p),
+    }));
   },
 
   async searchClientsWithRelationship(
@@ -130,11 +227,12 @@ export const profileService = {
     const profiles = await prisma.profile.findMany({
       where: {
         id: { in: validClientIds },
-        fullName: { contains: searchQuery, mode: "insensitive" },
+        ...nameSearch(searchQuery),
       },
       select: {
         id: true,
-        fullName: true,
+        firstName: true,
+        lastName: true,
         avatarUrl: true,
         phoneNumber: true,
       },
@@ -142,7 +240,7 @@ export const profileService = {
 
     return profiles.map((p) => ({
       client_id: p.id,
-      full_name: p.fullName,
+      full_name: profileDisplayName(p),
       avatar_url: p.avatarUrl,
       phone_number: p.phoneNumber,
       has_relationship: true,
@@ -172,18 +270,20 @@ export const profileService = {
     const profProfiles = await prisma.professionalProfile.findMany({
       where: {
         id: { in: profProfileIds },
+        profile: nameSearch(searchQuery),
+      },
+      include: {
         profile: {
-          fullName: { contains: searchQuery, mode: "insensitive" },
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
         },
       },
-      include: { profile: { select: { id: true, fullName: true, avatarUrl: true } } },
     });
 
     const valid = profProfiles.filter((pp) => !blockedIds.has(pp.profileId));
     return valid.map((pp) => ({
       professional_profile_id: pp.id,
       profile_id: pp.profileId,
-      full_name: pp.displayName ?? pp.profile.fullName,
+      full_name: pp.displayName ?? profileDisplayName(pp.profile),
       avatar_url: pp.profile.avatarUrl,
       has_relationship: true,
     }));

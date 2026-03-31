@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
-import { authService } from "../services/authService";
 import type { Profile } from "@prisma/client";
+import { profileDisplayName } from "../lib/profileDisplay";
+import { authService } from "../services/authService";
 
 /** Stable JSON for clients — avoids Prisma/runtime fields breaking serialization. */
 function profileMePayload(profile: Profile) {
@@ -9,7 +10,12 @@ function profileMePayload(profile: Profile) {
     email: profile.email ?? null,
     created_at: profile.createdAt?.toISOString?.() ?? null,
     updated_at: profile.updatedAt?.toISOString?.() ?? null,
-    full_name: profile.fullName ?? null,
+    first_name: profile.firstName ?? null,
+    last_name: profile.lastName ?? null,
+    username: profile.username ?? null,
+    /** Derived for older clients; prefer first_name + last_name. */
+    full_name: profileDisplayName(profile),
+    country: profile.country ?? null,
     avatar_url: profile.avatarUrl ?? null,
     phone_number: profile.phoneNumber ?? null,
     setup_status: profile.setupStatus ?? null,

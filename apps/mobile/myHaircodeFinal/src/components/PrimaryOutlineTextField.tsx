@@ -30,6 +30,9 @@ export type PrimaryOutlineTextFieldProps = Omit<
   containerStyle?: ViewStyle;
   /** Focus programmatically (e.g. jump from email “next” to password). */
   inputRef?: Ref<TextInput>;
+  /** Multi-line area (less rounded than single-line pill). */
+  multiline?: boolean;
+  minInputHeight?: number;
 };
 
 /**
@@ -42,6 +45,8 @@ export function PrimaryOutlineTextField({
   password = false,
   containerStyle,
   inputRef,
+  multiline = false,
+  minInputHeight,
   style,
   ...inputProps
 }: PrimaryOutlineTextFieldProps) {
@@ -52,15 +57,30 @@ export function PrimaryOutlineTextField({
       <Text style={[Typography.label, styles.label]} accessibilityRole="text">
         {label}
       </Text>
-      <View style={styles.fieldRow}>
+      <View
+        style={[
+          styles.fieldRow,
+          multiline ? styles.fieldRowArea : null,
+        ]}
+      >
         <TextInput
           value={value}
           onChangeText={onChangeText}
           placeholderTextColor={`${primaryBlack}99`}
           secureTextEntry={password && !showSecret}
           accessibilityLabel={label}
+          multiline={multiline}
+          textAlignVertical={multiline ? "top" : "center"}
           style={[
             styles.input,
+            multiline
+              ? [
+                  styles.inputArea,
+                  minInputHeight != null
+                    ? { minHeight: minInputHeight }
+                    : null,
+                ]
+              : null,
             password && value.length > 0 ? styles.inputWithEye : null,
             style,
           ]}
@@ -108,12 +128,20 @@ const styles = StyleSheet.create({
     borderColor: primaryBlack,
     backgroundColor: primaryWhite,
   },
+  fieldRowArea: {
+    borderRadius: responsiveScale(20),
+  },
   input: {
     ...Typography.bodyMedium,
     color: primaryBlack,
     paddingVertical: responsivePadding(14),
     paddingHorizontal: responsivePadding(18),
     borderRadius: responsiveScale(999),
+  },
+  inputArea: {
+    minHeight: responsiveScale(120),
+    borderRadius: responsiveScale(20),
+    paddingTop: responsivePadding(14),
   },
   inputWithEye: {
     paddingRight: responsivePadding(48),

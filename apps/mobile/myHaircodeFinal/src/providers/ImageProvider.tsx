@@ -8,7 +8,10 @@ import React, {
 } from "react";
 import { api } from "../lib/apiClient";
 import { useAuth } from "./AuthProvider";
-import { getImageTransformUrl } from "../utils/supabaseHelpers";
+import {
+  fetchSignedStorageUrl,
+  fetchSignedStorageUrls,
+} from "../lib/storageSignedUrl";
 
 export interface InspirationRow {
   id: string;
@@ -19,8 +22,11 @@ export interface InspirationRow {
 }
 
 export interface InspirationImage extends InspirationRow {
+  /** Full-resolution signed URL (same object as DB `image_url` path). */
   image_url: string;
   full_url: string;
+  /** Grid/list: smaller file when `low_res_image_url` exists in DB. */
+  thumbnail_url: string;
 }
 
 interface ImageContextValue {
@@ -31,17 +37,6 @@ interface ImageContextValue {
   deleteInspirationImages: (imageUrls?: string[]) => Promise<void>;
   setInspirationImages: React.Dispatch<React.SetStateAction<InspirationImage[]>>;
 }
-
-// Helper wrapper that handles null paths
-const getImageUrl = (
-  bucket: string,
-  path: string | null,
-  width?: number,
-  height?: number
-): string | null => {
-  if (!path) return null;
-  return getImageTransformUrl(bucket, path, width, height);
-};
 
 const ImageContext = createContext<ImageContextValue>({
   inspirationImages: [],
@@ -65,17 +60,27 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
       const data = await api.get<InspirationRow[]>(
         `/api/inspirations?owner_id=${encodeURIComponent(profile.id)}`
       );
-      return (
-        (data ?? [])
-          .filter((img) => !!img.image_url)
-          .map((image) => ({
-            ...image,
-            image_url:
-              getImageUrl("inspirations", image.image_url, 700, 700) ?? "",
-            full_url:
-              getImageUrl("inspirations", image.image_url, 1200, 1200) ?? "",
-          }))
-      );
+      const withPath = (data ?? []).filter((img) => !!img.image_url);
+      const thumbPaths = withPath.map((img) => {
+        const low = img.low_res_image_url as string | null | undefined;
+        const high = img.image_url as string;
+        return low && String(low).trim() ? String(low) : high;
+      });
+      const fullPaths = withPath.map((img) => img.image_url as string);
+      const [thumbSigned, fullSigned] = await Promise.all([
+        fetchSignedStorageUrls(
+          thumbPaths.map((path) => ({ bucket: "inspirations", path }))
+        ),
+        fetchSignedStorageUrls(
+          fullPaths.map((path) => ({ bucket: "inspirations", path }))
+        ),
+      ]);
+      return withPath.map((image, i) => ({
+        ...image,
+        thumbnail_url: thumbSigned[i] ?? "",
+        image_url: fullSigned[i] ?? "",
+        full_url: fullSigned[i] ?? "",
+      }));
     } catch (error) {
       console.error("Error fetching images:", error);
       return [];
@@ -125,10 +130,8 @@ const deleteInspirationImages = useCallback(
       return;
     }
     try {
-      const thumb = getImageUrl("avatars", profile.avatar_url, 100, 100);
-      const high = getImageUrl("avatars", profile.avatar_url, 250, 250);
-      setAvatarImage(thumb);
-      setTimeout(() => setAvatarImage(high), 150);
+      const url = await fetchSignedStorageUrl("avatars", profile.avatar_url);
+      setAvatarImage(url);
     } catch (error) {
       console.error("Error fetching avatar:", error);
       setAvatarImage(null);

@@ -1,7 +1,15 @@
 import { prisma } from "../lib/prisma";
+import { createClient } from "@supabase/supabase-js";
 import { storageService } from "./storageService";
 import { inspirationService } from "./inspirationService";
 import { professionService } from "./professionService";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const SHARED_INSPIRATION_BUCKET = "shared_inspiration_images";
 
 function extractFilename(imageUrl: string): string {
   try {
@@ -46,9 +54,20 @@ export const sharedInspirationService = {
     const successUrls: string[] = [];
     for (const imageUrl of imageUrls) {
       try {
-        const res = await fetch(imageUrl);
-        if (!res.ok) continue;
-        const buffer = Buffer.from(await res.arrayBuffer());
+        let buffer: Buffer;
+        if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+          const res = await fetch(imageUrl);
+          if (!res.ok) continue;
+          buffer = Buffer.from(await res.arrayBuffer());
+        } else {
+          const safePath = imageUrl.trim();
+          if (!safePath || safePath.includes("..")) continue;
+          const { data, error } = await supabase.storage
+            .from(SHARED_INSPIRATION_BUCKET)
+            .download(safePath);
+          if (error || !data) continue;
+          buffer = Buffer.from(await data.arrayBuffer());
+        }
         const filename = extractFilename(imageUrl);
         await storageService.upload("inspirations", filename, buffer, "image/png");
         await inspirationService.create({

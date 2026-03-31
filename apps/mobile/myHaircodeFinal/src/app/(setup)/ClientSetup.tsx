@@ -16,7 +16,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { supabase } from "@/src/lib/supabase";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { router } from "expo-router";
-import { uploadToStorage } from "@/src/lib/uploadHelpers";
+import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import { UploadSimple } from "phosphor-react-native";
 import * as ImagePicker from "expo-image-picker";
 import RemoteImage from "@/src/components/RemoteImage";
@@ -77,7 +77,6 @@ const ClientSetup = () => {
     fullName: "",
     phone_number: "",
     country: "",
-    aboutMe: "",
     hair_structure: "",
     hair_thickness: "",
     natural_hair_color: "",
@@ -228,7 +227,6 @@ const ClientSetup = () => {
       natural_hair_color: fields.natural_hair_color,
       grey_hair_percentage: fields.grey_hair_percentage,
       user_type,
-      about_me: fields.aboutMe,
       setup_status: true,
     });
   };
@@ -272,7 +270,7 @@ const ClientSetup = () => {
   const uploadImage = async () => {
     if (!profilePicture?.startsWith("file://")) return profilePicture;
     try {
-      const path = await uploadToStorage(profilePicture, "avatars");
+      const path = await uploadAvatarToStorage(profilePicture);
       return path;
     } catch (error) {
       Alert.alert("Error uploading image", String(error));

@@ -4,7 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
-import { uploadToStorage } from "@/src/lib/uploadHelpers";
+import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import TopNav from "@/src/components/TopNav";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { Profile } from "@/src/constants/types";
@@ -59,7 +59,7 @@ const ProfilePicture = () => {
 
   const uploadImage = async () => {
     if (!image?.startsWith("file://")) return image;
-    const path = await uploadToStorage(image, "avatars");
+    const path = await uploadAvatarToStorage(image);
     if (!path) Alert.alert("Error", "Failed to upload image");
     return path;
   };

@@ -1,6 +1,6 @@
-import React, { ComponentProps } from "react";
+import React, { ComponentProps, useEffect, useState } from "react";
 import { Video } from "expo-av";
-import { getStorageUrl } from "../utils/supabaseHelpers";
+import { fetchSignedStorageUrl } from "../lib/storageSignedUrl";
 
 type RemoteVideoProps = {
   path?: string | null;
@@ -12,7 +12,31 @@ const RemoteVideo = ({
   storage = "avatars",
   ...videoProps
 }: RemoteVideoProps) => {
-  const uri = path ? getStorageUrl(storage, path) : undefined;
+  const [uri, setUri] = useState<string | undefined>();
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!path) {
+      setUri(undefined);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (path.startsWith("http")) {
+      setUri(path);
+      return () => {
+        cancelled = true;
+      };
+    }
+    void (async () => {
+      const u = await fetchSignedStorageUrl(storage, path);
+      if (!cancelled) setUri(u ?? undefined);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [path, storage]);
+
   return <Video source={{ uri }} {...videoProps} />;
 };
 

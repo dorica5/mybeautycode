@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { profileDisplayName } from "../lib/profileDisplay";
 import { professionService } from "./professionService";
 
 export const relationshipService = {
@@ -85,13 +86,13 @@ export const relationshipService = {
 
     const profiles = await prisma.profile.findMany({
       where: { id: { in: validIds } },
-      select: { id: true, fullName: true, avatarUrl: true },
+      select: { id: true, firstName: true, lastName: true, avatarUrl: true },
     });
     return profiles.map((p) => {
       const rel = rels.find((r) => r.clientUserId === p.id);
       return {
         ...p,
-        full_name: p.fullName,
+        full_name: profileDisplayName(p),
         avatar_url: p.avatarUrl,
         lastInteraction: rel?.createdAt,
       };
@@ -115,14 +116,18 @@ export const relationshipService = {
 
     const profProfiles = await prisma.professionalProfile.findMany({
       where: { id: { in: profProfileIds } },
-      include: { profile: { select: { id: true, fullName: true, avatarUrl: true } } },
+      include: {
+        profile: {
+          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+        },
+      },
     });
     const available = profProfiles.filter((pp) => !blockerIds.has(pp.profileId));
     return available.map((pp) => {
       const rel = rels.find((r) => r.professionalProfileId === pp.id);
       return {
         id: pp.profile.id,
-        full_name: pp.displayName ?? pp.profile.fullName,
+        full_name: pp.displayName ?? profileDisplayName(pp.profile),
         avatar_url: pp.profile.avatarUrl,
         lastInteraction: rel?.createdAt,
       };

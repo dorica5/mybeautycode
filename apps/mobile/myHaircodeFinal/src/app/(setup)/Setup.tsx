@@ -127,7 +127,7 @@ const Setup = () => {
             horizontalPadding={32}
             verticalPadding={16}
             disabled={!isChecked}
-            onPress={() => router.push("./ChooseRole")}
+            onPress={() => router.push("./GeneralSetup")}
             style={styles.cta}
             textStyle={styles.ctaLabel}
           />

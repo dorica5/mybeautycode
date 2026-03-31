@@ -377,12 +377,14 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       if (!profile) {
         const setupScreens = [
           "/Setup",
+          "/GeneralSetup",
           "/ChooseRole",
           "/ClientSetup",
           "/HairdresserSetup",
           "/LoadingScreen",
           "/TermsAndPrivacy",
           "/(setup)/Setup",
+          "/(setup)/GeneralSetup",
           "/(setup)/ChooseRole",
           "/(setup)/ClientSetup",
           "/(setup)/HairdresserSetup",
@@ -418,12 +420,14 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         console.log("Profile exists but setup incomplete");
         const setupScreens = [
           "/Setup",
+          "/GeneralSetup",
           "/ChooseRole",
           "/ClientSetup",
           "/HairdresserSetup",
           "/LoadingScreen",
           "/TermsAndPrivacy",
           "/(setup)/Setup",
+          "/(setup)/GeneralSetup",
           "/(setup)/ChooseRole",
           "/(setup)/ClientSetup",
           "/(setup)/HairdresserSetup",

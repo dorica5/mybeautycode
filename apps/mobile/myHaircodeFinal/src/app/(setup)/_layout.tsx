@@ -8,6 +8,7 @@ const _layout = () => {
         headerShown: false,
       }}
     >
+        <Stack.Screen name="GeneralSetup" />
         <Stack.Screen name="ChooseRole" />
         <Stack.Screen name="HairdresserSetup" />
         <Stack.Screen name="ClientSetup" />

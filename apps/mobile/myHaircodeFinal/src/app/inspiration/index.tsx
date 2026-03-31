@@ -28,7 +28,7 @@ import { Href, router, useFocusEffect } from "expo-router";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import ImageCropModal from "@/src/components/ImageCropModal";
-import { getImageTransformUrl } from "@/src/utils/supabaseHelpers";
+import { fetchSignedStorageUrl } from "@/src/lib/storageSignedUrl";
 import Carousel from "react-native-reanimated-carousel";
 import CustomAlert from "@/src/components/CustomAlert";
 import { Colors } from "@/src/constants/Colors";
@@ -372,29 +372,33 @@ const MyInspiration = () => {
   };
 
   // Calculate aspect ratio for current image
-  const calculateImageAspectRatio = (imageUri: string) => {
-    // Check if it's a local file or stored image
-    const isLocalUri = imageUri.startsWith("file://") || imageUri.startsWith("content://");
+  const calculateImageAspectRatio = async (imageUri: string) => {
+    const isLocalUri =
+      imageUri.startsWith("file://") || imageUri.startsWith("content://");
     const isFullUrl = imageUri.startsWith("http");
 
     let fullUrl: string;
     if (isLocalUri || isFullUrl) {
       fullUrl = imageUri;
     } else {
-      fullUrl = getImageTransformUrl("inspirations", imageUri);
+      fullUrl = (await fetchSignedStorageUrl("inspirations", imageUri)) ?? "";
+    }
+
+    if (!fullUrl) {
+      setCurrentImageAspectRatio(1.3);
+      return;
     }
 
     RNImage.getSize(
       fullUrl,
       (imgWidth, imgHeight) => {
         const aspectRatio = imgHeight / imgWidth;
-        // Bound aspect ratio - minimum ensures ~57% screen height, max is 3
         const boundedRatio = Math.max(minCarouselRatio, Math.min(aspectRatio, 3));
         setCurrentImageAspectRatio(boundedRatio);
       },
       (error) => {
         console.error("Error getting image size:", error);
-        setCurrentImageAspectRatio(1.3); // Fallback to slightly taller than square
+        setCurrentImageAspectRatio(1.3);
       }
     );
   };
@@ -416,9 +420,9 @@ const MyInspiration = () => {
       setModalVisible(true);
 
       // Calculate aspect ratio for selected image
-      const uri = item.localUri || item.image_url;
+      const uri = item.localUri || item.full_url || item.image_url;
       if (uri) {
-        calculateImageAspectRatio(uri);
+        void calculateImageAspectRatio(uri);
       }
     }
   };
@@ -534,10 +538,10 @@ const MyInspiration = () => {
                     defaultIndex={startingIndex}
                     renderItem={({ item }) => {
                       if (!item) return null;
-                      const uri = item.localUri || item.image_url;
+                      const uri =
+                        item.localUri || item.full_url || item.image_url;
                       if (!uri) return null;
 
-                      // Determine if uri is a local temp file or a stored image path
                       const isLocalUri = uri.startsWith("file://") || uri.startsWith("content://");
                       const isFullUrl = uri.startsWith("http");
 
@@ -567,7 +571,11 @@ const MyInspiration = () => {
             extraData={[uploadingImages, uploadProgress, selectedImages]}
             renderItem={({ item }) => {
               if (!item) return null;
-              const uri = item.localUri || item.image_url;
+              const uri =
+                item.localUri ||
+                item.thumbnail_url ||
+                item.full_url ||
+                item.image_url;
               if (!uri) return null;
 
               return (
@@ -625,7 +633,7 @@ const MyInspiration = () => {
               );
             }}
             keyExtractor={(item, index) =>
-              `${item?.image_url || item?.id || index}-${index}`
+              item?.id ? String(item.id) : `insp-${index}`
             }
             numColumns={numColumns}
             columnWrapperStyle={styles.row}

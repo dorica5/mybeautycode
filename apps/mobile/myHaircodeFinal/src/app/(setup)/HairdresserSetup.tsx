@@ -14,7 +14,7 @@ import TopNav from "@/src/components/TopNav";
 import MyTextinput from "@/src/components/MyTextinput";
 import { useSetup } from "@/src/providers/SetUpProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { uploadToStorage } from "@/src/lib/uploadHelpers";
+import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { router } from "expo-router";
 import { UploadSimple } from "phosphor-react-native";
@@ -282,7 +282,7 @@ const HairdresserSetup = () => {
   const uploadImage = async () => {
     if (!profilePicture?.startsWith("file://")) return profilePicture;
     try {
-      const path = await uploadToStorage(profilePicture, "avatars");
+      const path = await uploadAvatarToStorage(profilePicture);
       return path;
     } catch (error) {
       console.error("Error uploading image:", error);

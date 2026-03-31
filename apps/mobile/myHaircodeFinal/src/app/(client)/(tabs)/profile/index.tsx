@@ -90,7 +90,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="About me"
+                title="Hair profile"
                 Icon={PencilSimple}
                 onPress={() => router.push("/(client)/(tabs)/profile/AboutMe")}
               />

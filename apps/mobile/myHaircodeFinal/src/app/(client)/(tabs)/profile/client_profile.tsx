@@ -65,17 +65,6 @@ const HairdresserProfile = () => {
             </View>
 
             <View style={styles.stack}>
-              {profile?.about_me ? (
-                <>
-                  <Text style={styles.FirstTextHeader}>About me</Text>
-                  <View style={styles.aboutContainer}>
-                    <Text style={styles.aboutText}>{profile?.about_me}</Text>
-                  </View>
-                </>
-              ) : (
-                ""
-              )}
-
               <View style={styles.aboutHairRow}>
                 <Text style={styles.TextHeader}>Hair structure</Text>
                 <View style={styles.dropDownContainers}>
@@ -169,14 +158,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: scalePercent(5),
   },
-  FirstTextHeader: {
-    fontSize: responsiveFontSize(20, 16),
-    marginTop: responsiveScale(80),
-    fontFamily: "Inter-SemiBold",
-    marginBottom: responsiveScale(10),
-    textAlign: "left",
-    width: scalePercent(90),
-  },
   TextHeader: {
     fontSize: responsiveFontSize(20, 16),
     marginTop: responsiveScale(35),
@@ -185,21 +166,6 @@ const styles = StyleSheet.create({
     textAlign: "left",
     marginRight: scalePercent(10),
     width: scalePercent(40),
-  },
-  aboutText: {
-    textAlign: "left",
-    fontSize: responsiveFontSize(16, 14),
-    fontFamily: "Inter-Regular",
-    marginTop: "0%",
-  },
-
-  aboutContainer: {
-    backgroundColor: Colors.dark.light,
-    borderRadius: responsiveBorderRadius(20),
-    borderColor: Colors.dark.yellowish,
-    borderWidth: responsiveScale(3),
-    width: scalePercent(90),
-    padding: scalePercent(5),
   },
   dropDownContainers: {
     backgroundColor: Colors.dark.light,

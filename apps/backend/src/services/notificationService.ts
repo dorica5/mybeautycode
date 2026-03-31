@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { profileDisplayName } from "../lib/profileDisplay";
 
 const NOTIFICATION_TYPE_MAP: Record<string, string> = {
   FRIEND_REQUEST: "link_request",
@@ -88,11 +89,14 @@ export const notificationService = {
       senderIds.length > 0
         ? await prisma.profile.findMany({
             where: { id: { in: senderIds } },
-            select: { id: true, fullName: true, avatarUrl: true },
+            select: { id: true, firstName: true, lastName: true, avatarUrl: true },
           })
         : [];
     const senderMap = Object.fromEntries(
-      senders.map((s) => [s.id, { full_name: s.fullName, avatar_url: s.avatarUrl }])
+      senders.map((s) => [
+        s.id,
+        { full_name: profileDisplayName(s), avatar_url: s.avatarUrl },
+      ])
     );
     return notifications.map((n) => ({
       ...n,

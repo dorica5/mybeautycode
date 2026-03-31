@@ -20,6 +20,11 @@ export type Profile = {
   id: string;
   updated_at: string | null;
   email: string | null;
+  /** Populated from API `first_name` / `full_name` (derived). */
+  first_name?: string | null;
+  last_name?: string | null;
+  username?: string | null;
+  country?: string | null;
   full_name: string | null;
   avatar_url: string | null;
   phone_number: string | null;

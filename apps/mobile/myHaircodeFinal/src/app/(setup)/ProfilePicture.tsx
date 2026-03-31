@@ -16,7 +16,7 @@ import { router } from "expo-router";
 import { useSetup } from "@/src/providers/SetUpProvider";
 import { Colors } from "@/src/constants/Colors";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
-import { uploadToStorage } from "@/src/lib/uploadHelpers";
+import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import { useAuth } from "@/src/providers/AuthProvider";
 import RemoteImage from "@/src/components/RemoteImage";
 
@@ -85,7 +85,7 @@ const ProfilePicture = () => {
 
   const uploadImage = async () => {
     if (!profilePicture?.startsWith("file://")) return profilePicture;
-    const path = await uploadToStorage(profilePicture, "avatars");
+    const path = await uploadAvatarToStorage(profilePicture);
     if (!path) Alert.alert("Error", "Failed to upload image");
     return path;
   };

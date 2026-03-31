@@ -25,7 +25,7 @@ import { ResizeMode } from "expo-av";
 import { Image } from "expo-image";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import RemoteVideo from "@/src/components/RemoteVideo";
-import { getImageTransformUrl } from "@/src/utils/supabaseHelpers";
+import { fetchSignedStorageUrl } from "@/src/lib/storageSignedUrl";
 import { useAuth } from "@/src/providers/AuthProvider";
 import NoImageHaircode from "@/src/components/no_image_haircode";
 import {
@@ -245,8 +245,13 @@ const SingleHaircodeClient = () => {
                   const item = mediaArray[idx];
                   const url = item?.mediaUrl ?? item?.media_url;
                   if ((item?.mediaType ?? item?.media_type) === "image" && url) {
-                    const previewUrl = getImageTransformUrl("haircode_images", url, 1600);
-                    Image.prefetch(previewUrl);
+                    void (async () => {
+                      const previewUrl = url.startsWith("http")
+                        ? url
+                        : (await fetchSignedStorageUrl("haircode_images", url)) ??
+                          null;
+                      if (previewUrl) Image.prefetch(previewUrl);
+                    })();
                   }
                 }
               };
