@@ -24,6 +24,36 @@ import { usePostHog } from "posthog-react-native";
 /** Dev-only: force onboarding when unauthenticated. Keep `false` so real signup/sign-in flows work. */
 const DEV_FORCE_SHOW_ONBOARDING = false;
 
+/**
+ * Whether onboarding (Setup / GeneralSetup) can be skipped.
+ * - Prefers explicit `setup_status === true` from API/DB.
+ * - Legacy: some accounts completed older flows but `setup_status` stayed false/null;
+ *   if name, phone, country, and username are present, treat as complete.
+ */
+export function profileSetupIsComplete(
+  profile: Profile | null | undefined
+): boolean {
+  if (!profile) return false;
+  if (
+    profile.setup_status === true ||
+    (profile as { setupStatus?: boolean }).setupStatus === true
+  ) {
+    return true;
+  }
+  const fn = profile.first_name?.trim();
+  const ln = profile.last_name?.trim();
+  const display = profile.full_name?.trim();
+  const hasName = Boolean((fn && ln) || (display && display.length > 0));
+  const hasContact =
+    Boolean(profile.phone_number?.trim()) &&
+    Boolean(profile.country?.trim());
+  const hasUsername = Boolean(profile.username?.trim());
+  if (hasName && hasContact && hasUsername) return true;
+  // Older clients: full_name + phone + country but no username column yet
+  if (hasContact && Boolean(display && display.length > 0)) return true;
+  return false;
+}
+
 type UserStatus = {
   can_act: boolean;
   is_banned: boolean;
@@ -272,7 +302,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
       if (data.session && profileData) {
         setProfile(profileData as Profile);
-        const setupComplete = (profileData as { setup_status?: boolean; setupStatus?: boolean })?.setup_status ?? (profileData as { setup_status?: boolean; setupStatus?: boolean })?.setupStatus;
+        const setupComplete = profileSetupIsComplete(profileData as Profile);
         setIsSignUp(!setupComplete);
         await syncSignupDate(data.session, profileData);
         postHog.capture("App Opened", {
@@ -415,7 +445,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         return;
       }
 
-      const setupComplete = profile?.setup_status ?? (profile as { setupStatus?: boolean })?.setupStatus;
+      const setupComplete = profileSetupIsComplete(profile);
       if (profile && !setupComplete) {
         console.log("Profile exists but setup incomplete");
         const setupScreens = [
@@ -451,7 +481,10 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
       if (profile && setupComplete) {
         // Navigate users directly to their home screens based on user type
-        const userType = profile.user_type ?? (profile as { userType?: string })?.userType;
+        const userTypeRaw =
+          profile.user_type ?? (profile as { userType?: string })?.userType;
+        const userType =
+          userTypeRaw === "HAIRDRESSER" ? "HAIRDRESSER" : "CLIENT";
         if (userType === "CLIENT") {
           if (!initialLoadComplete.current) {
             console.log("Redirecting to client home");
@@ -531,7 +564,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   ]);
 
   useEffect(() => {
-    if (session?.user?.id && profile?.setup_status) {
+    if (session?.user?.id && profileSetupIsComplete(profile)) {
       const interval = setInterval(async () => {
         console.log("Periodic user status check...");
         const status = await checkUserStatus(session.user.id);

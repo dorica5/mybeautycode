@@ -210,7 +210,7 @@ export default function GeneralSetup() {
         username: userName.trim().toLowerCase(),
         country: country!,
         phone_number: parsed ? parsed.format("E.164") : phone.trim(),
-        setup_status: false,
+        setup_status: true,
       };
       if (avatar_url != null) body.avatar_url = avatar_url;
       await updateProfile(body as { id: string; [key: string]: unknown });
@@ -222,7 +222,7 @@ export default function GeneralSetup() {
         },
       });
 
-      router.replace("./ChooseRole");
+      router.replace("/(client)/(tabs)/home");
     } catch (e: unknown) {
       console.error("GeneralSetup save:", e);
       const err = e as Error & { status?: number };

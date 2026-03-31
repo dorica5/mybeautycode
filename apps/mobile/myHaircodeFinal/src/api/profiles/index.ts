@@ -10,9 +10,10 @@ export const useUpdateSupabaseProfile = () => {
 
   return useMutation({
     mutationFn: async (data: { id: string; [key: string]: unknown }) => {
-      const updatedProfile = await api.put(`/api/profiles/${data.id}`, data);
-      setProfile(updatedProfile as never);
-      return updatedProfile;
+      await api.put(`/api/profiles/${data.id}`, data);
+      const fresh = await api.get(`/api/auth/me`);
+      setProfile(fresh as never);
+      return fresh;
     },
     onSuccess: async (_, { id }) => {
       await queryClient.invalidateQueries({ queryKey: ["profiles"] });

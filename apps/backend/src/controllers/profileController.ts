@@ -1,4 +1,6 @@
 import { Request, Response } from "express";
+import { prisma } from "../lib/prisma";
+import { serializeProfileForApi } from "../lib/serializeProfileForApi";
 import { profileService } from "../services/profileService";
 import { professionService } from "../services/professionService";
 
@@ -24,8 +26,15 @@ export const profileController = {
       return res.status(403).json({ error: "Forbidden" });
     }
     try {
-      const profile = await profileService.update(id, req.body);
-      res.json(profile);
+      await profileService.update(id, req.body);
+      const fresh = await prisma.profile.findUnique({
+        where: { id },
+        include: { professionalProfile: { select: { id: true } } },
+      });
+      if (!fresh) {
+        return res.status(404).json({ error: "Profile not found" });
+      }
+      res.json(serializeProfileForApi(fresh));
     } catch (err: unknown) {
       const e = err as Error & { statusCode?: number };
       if (e.statusCode === 409) {

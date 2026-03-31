@@ -1,273 +1,185 @@
-import { View, StyleSheet, StatusBar, Pressable, Text } from "react-native";
-import React, { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Colors } from "@constants/Colors";
-import MyButton from "@/src/components/MyButton";
-import { UserCircle, XCircle } from "phosphor-react-native";
+import React from "react";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Text,
+  Image,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
+import OrganicPattern from "../../../../assets/images/Organic-pattern-5.svg";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
-import ProfileRectangle from "@/src/components/profileRectangles";
-import { useIsFocused } from "@react-navigation/native";
+import { BrandHomeNavLink } from "@/src/components/BrandHomeNavLink";
+import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import {
-  scale,
-  scalePercent,
-  responsiveScale,
+  primaryBlack,
+  primaryGreen,
+  primaryWhite,
+} from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
+import {
   isTablet,
-  responsiveFontSize,
-  responsivePadding,
   responsiveMargin,
-  responsiveBorderRadius,
-  widthPercent,
-  heightPercent,
+  responsivePadding,
+  responsiveScale,
 } from "@/src/utils/responsive";
-import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
-import { Dimensions } from "react-native";
-
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const TAB_COUNT = 4;
-const SEARCH_ICON_INDEX = 2; // 0 = home, 1 = bell, 2 = search, 3 = profile
-const SEARCH_ICON_CENTER =
-  (SCREEN_WIDTH / TAB_COUNT) * (SEARCH_ICON_INDEX + 0.5);
 
 const HomeScreen = () => {
-  const [showTutorial, setshowTutorial] = useState(false);
-  const isFocused = useIsFocused();
-  const { profile, session } = useAuth();
+  const { profile } = useAuth();
   const { avatarImage } = useImageContext();
 
-  useEffect(() => {
-    if (isFocused) {
-      console.log("Focused");
-    }
-  }, [isFocused, profile, session]);
+  const displayName =
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
+    profile?.full_name ||
+    "";
+  const username = profile?.username?.trim() ?? "";
 
-  useEffect(() => {
-  const checkFirstTime = async () => {
-    try {
-      const hasVisited = await AsyncStorage.getItem("hasVisitedHome");
-      if (!hasVisited) {
-        setshowTutorial(true); 
-        await AsyncStorage.setItem("hasVisitedHome", "true");
-      }
-    } catch (error) {
-      console.error("Error checking tutorial state:", error);
-    }
-  };
-
-  checkFirstTime(); 
-}, []);
-
-useEffect(() => {
-  if (isFocused) {
-    console.log("Focused");
-  }
-}, [isFocused, profile, session]);
-
-
-  if (!isFocused) return null;
+  const avatarSize = responsiveScale(120, 144);
 
   return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor={Colors.dark.warmGreen} />
-      <ProfileRectangle full_name={profile.full_name} />
-
-      <View>
-        {profile ? (
-          avatarImage ? (
-            <AvatarWithSpinner
-              uri={avatarImage}
-              size={scalePercent(25)}
-              style={styles.profilePic}
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <StatusBar style="dark" />
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View
+          style={[
+            styles.avatarOuter,
+            {
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 2,
+            },
+          ]}
+        >
+          {avatarImage ? (
+            <Image
+              source={{ uri: avatarImage }}
+              style={{
+                width: avatarSize,
+                height: avatarSize,
+                borderRadius: avatarSize / 2,
+              }}
             />
           ) : (
-            <View style={styles.profilePic}>
-              <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} />
+            <View
+              style={{
+                width: avatarSize,
+                height: avatarSize,
+                borderRadius: avatarSize / 2,
+                overflow: "hidden",
+                backgroundColor: primaryWhite,
+              }}
+            >
+              <OrganicPattern width={avatarSize} height={avatarSize} />
             </View>
-          )
-        ) : (
-          <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} />
-        )}
-      </View>
-
-      <MyButton
-        style={styles.myHaircodesButton}
-        text="My haircodes"
-        onPress={() => router.push("/haircodes/see_haircode_client")}
-      />
-
-      <MyButton
-        style={styles.myInspirationButton}
-        text="My inspiration"
-        onPress={() => {
-          router.push({ pathname: "/inspiration" });
-        }}
-      />
-      {showTutorial && (
-        <View style={styles.tutorialContainer}>
-          <View style={styles.bubble}>
-            <View style={styles.row}>
-              <Text style={styles.bubbleText}>
-                Start here! Search for a specific hairdresser to get started
-              </Text>
-              <Pressable
-                onPress={() => setshowTutorial(false)}
-                style={styles.closeButton}
-              >
-                <XCircle size={scale(26)} color={Colors.dark.dark} />
-              </Pressable>
-            </View>
-          </View>
-
-          <View
-            style={[
-              styles.triangleWrap,
-               { left: SEARCH_ICON_CENTER },
-            ]}
-          >
-            <View style={styles.triangleBorder} />
-            <View style={styles.triangleFill} />
-          </View>
+          )}
         </View>
-      )}
-    </View>
+
+        <Text style={[Typography.h3, styles.name]} accessibilityRole="header">
+          {displayName}
+        </Text>
+        {username ? (
+          <Text style={[Typography.anton24, styles.username]}>{username}</Text>
+        ) : null}
+
+        <View style={styles.searchCard}>
+          <Text
+            style={[Typography.bodyLarge, styles.searchCardCopy]}
+            accessibilityRole="text"
+          >
+            Search for a specific professional to get started
+          </Text>
+          <PaddedLabelButton
+            title="Search for professional"
+            horizontalPadding={32}
+            verticalPadding={16}
+            onPress={() =>
+              router.push("/(client)/(tabs)/userList/hairdresserProfile")
+            }
+            style={styles.searchCta}
+            textStyle={styles.searchCtaLabel}
+          />
+        </View>
+
+        <BrandHomeNavLink
+          title="My visits"
+          onPress={() => router.push("/haircodes/see_haircode_client")}
+          style={styles.navLink}
+        />
+        <BrandHomeNavLink
+          title="My inspiration"
+          onPress={() => router.push({ pathname: "/inspiration" })}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 export default HomeScreen;
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    position: "relative",
+    backgroundColor: primaryGreen,
   },
-
-  myHaircodesButton: {
-    marginTop: isTablet() ? scalePercent(70) : scalePercent(100),
-    marginHorizontal: scale(15),
-    zIndex: 1,
-    shadowColor: Colors.dark.dark,
-    shadowOffset: {
-      width: 0,
-      height: responsiveScale(2),
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: scale(4),
-    elevation: 10,
-  },
-  myInspirationButton: {
-    zIndex: 1,
-    borderWidth: scale(2),
-    borderColor: Colors.light.warmGreen,
-    backgroundColor: Colors.dark.yellowish,
-    marginHorizontal: scale(15),
-    marginTop: scalePercent(1),
-    shadowColor: Colors.dark.dark,
-    shadowOffset: {
-      width: 0,
-      height: responsiveScale(2),
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: scale(4),
-    elevation: 10,
-  },
-  profilePic: {
-    backgroundColor: Colors.dark.yellowish,
-    position: "absolute",
-    width: scalePercent(25),
-    aspectRatio: 1,
-    borderRadius: responsiveScale(100),
-    justifyContent: "center",
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: responsivePadding(24),
+    paddingBottom: responsivePadding(32),
     alignItems: "center",
-    alignSelf: "center",
-    marginTop: responsiveScale(55, 40),
-    zIndex: 2,
   },
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    width: "80%",
+  avatarOuter: {
+    marginTop: responsiveMargin(isTablet() ? 16 : 24),
+    marginBottom: responsiveMargin(16),
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: primaryBlack,
+    backgroundColor: primaryWhite,
   },
-  tutorialContainer: {
-  position: "absolute",
-  bottom: scalePercent(14), 
-  left: 0,
-  right: 0,
-  alignItems: "center",
-  zIndex: 9999,
-},
-  bubble: {
-    backgroundColor: Colors.light.yellowish,
-    borderColor: Colors.dark.warmGreen,
-    borderWidth: scale(3),
-    borderRadius: responsiveBorderRadius(10),
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    maxWidth: widthPercent(90),
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 4,
-    position: "relative",
-  },
-
-  bubbleText: {
-    flexShrink: 1,
-    flexWrap: "wrap",
-    fontFamily: "Inter-SemiBold",
-    fontSize: responsiveFontSize(17, 12),
-    color: Colors.dark.dark,
+  name: {
+    color: primaryBlack,
     textAlign: "center",
-    lineHeight: 22,
-    marginRight: responsiveMargin(8),
+    marginBottom: responsiveMargin(6),
   },
-
-  closeButton: {
-    padding: responsivePadding(2),
-    borderRadius: responsiveBorderRadius(13),
-    backgroundColor: Colors.dark.yellowish,
-    justifyContent: "center",
-    alignItems: "center",
+  username: {
+    color: primaryBlack,
+    textAlign: "center",
+    marginBottom: responsiveMargin(isTablet() ? 28 : 36),
   },
-
-  triangleWrap: {
-  position: "absolute",
-  top: heightPercent(13.6),        
-  width: 0,
-  height: 0,
-  alignItems: "center",
-  justifyContent: "center",
-},
-
-triangleBorder: {
-  position: "relative",
-  width: 0,
-  height: 0,
-  borderLeftWidth: scale(20),
-  borderRightWidth: scale(20),
-  borderTopWidth: scale(32),               
-  borderLeftColor: "transparent",
-  borderRightColor: "transparent",
-  borderTopColor: Colors.dark.warmGreen,   
-  justifyContent: "center",
-  alignItems: "center",
-},
-
-triangleFill: {
-  position: "absolute",
-  top: scale(-17),                          
-  width: 0,
-  height: 0,
-  borderLeftWidth: scale(14),
-  borderRightWidth: scale(14),
-  borderTopWidth: scale(22),
-  borderLeftColor: "transparent",
-  borderRightColor: "transparent",
-  borderTopColor: Colors.light.yellowish,  
-},
-
-
-
+  searchCard: {
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
+    backgroundColor: primaryWhite,
+    borderRadius: responsiveScale(20),
+    paddingHorizontal: responsivePadding(22),
+    paddingVertical: responsivePadding(28),
+    marginBottom: responsiveMargin(24),
+    borderWidth: 1,
+    borderColor: `${primaryBlack}18`,
+  },
+  searchCardCopy: {
+    color: primaryBlack,
+    textAlign: "center",
+    marginBottom: responsiveMargin(20),
+  },
+  searchCta: {
+    alignSelf: "center",
+    backgroundColor: primaryBlack,
+    borderRadius: responsiveScale(999),
+    overflow: "hidden",
+  },
+  searchCtaLabel: {
+    color: primaryWhite,
+    textAlign: "center",
+  },
+  navLink: {
+    marginBottom: responsiveMargin(14),
+  },
 });
