@@ -63,6 +63,7 @@ const ProfilePicture = () => {
       avatar_url,
       phone_number,
       user_type,
+      setup_status: true,
     });
   };
 

@@ -25,21 +25,13 @@ import { usePostHog } from "posthog-react-native";
 const DEV_FORCE_SHOW_ONBOARDING = false;
 
 /**
- * Whether onboarding (Setup / GeneralSetup) can be skipped.
- * - Prefers explicit `setup_status === true` from API/DB.
- * - Legacy: some accounts completed older flows but `setup_status` stayed false/null;
- *   if name, phone, country, and username are present, treat as complete.
+ * Legacy heuristics: profile looks "finished" but `setup_status` may still be false in DB.
+ * Used only to run {@link ensureSetupStatusPersisted} so cross-device login reads `true` from `/api/auth/me`.
  */
-export function profileSetupIsComplete(
+function legacyProfileLooksCompleteForSetupSync(
   profile: Profile | null | undefined
 ): boolean {
   if (!profile) return false;
-  if (
-    profile.setup_status === true ||
-    (profile as { setupStatus?: boolean }).setupStatus === true
-  ) {
-    return true;
-  }
   const fn = profile.first_name?.trim();
   const ln = profile.last_name?.trim();
   const display = profile.full_name?.trim();
@@ -49,9 +41,40 @@ export function profileSetupIsComplete(
     Boolean(profile.country?.trim());
   const hasUsername = Boolean(profile.username?.trim());
   if (hasName && hasContact && hasUsername) return true;
-  // Older clients: full_name + phone + country but no username column yet
   if (hasContact && Boolean(display && display.length > 0)) return true;
   return false;
+}
+
+async function ensureSetupStatusPersisted(
+  userId: string,
+  profile: Profile
+): Promise<Profile> {
+  if (profile.setup_status === true) return profile;
+  if (!legacyProfileLooksCompleteForSetupSync(profile)) return profile;
+  try {
+    await api.put(`/api/profiles/${userId}`, {
+      id: userId,
+      setup_status: true,
+    });
+    return (await api.get("/api/auth/me")) as Profile;
+  } catch (e) {
+    console.warn("ensureSetupStatusPersisted failed", e);
+    return profile;
+  }
+}
+
+/**
+ * Whether onboarding (Setup / GeneralSetup) can be skipped.
+ * Source of truth is DB `setup_status` from the API (snake_case `setup_status`).
+ */
+export function profileSetupIsComplete(
+  profile: Profile | null | undefined
+): boolean {
+  if (!profile) return false;
+  return (
+    profile.setup_status === true ||
+    (profile as { setupStatus?: boolean }).setupStatus === true
+  );
 }
 
 type UserStatus = {
@@ -301,6 +324,10 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (data.session && profileData) {
+        profileData = await ensureSetupStatusPersisted(
+          data.session.user.id as string,
+          profileData as Profile
+        );
         setProfile(profileData as Profile);
         const setupComplete = profileSetupIsComplete(profileData as Profile);
         setIsSignUp(!setupComplete);
@@ -651,9 +678,10 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     if (loadingSetup === false && session) {
       const refreshProfile = async () => {
         try {
-          const data = await api.get("/api/auth/me");
-          if (data) {
-            setProfile(data as Profile);
+          let data = (await api.get("/api/auth/me")) as Profile;
+          if (data && session.user?.id) {
+            data = await ensureSetupStatusPersisted(session.user.id, data);
+            setProfile(data);
             initialLoadComplete.current = false;
           }
         } catch (err) {
