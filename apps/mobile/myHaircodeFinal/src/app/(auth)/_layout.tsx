@@ -1,5 +1,5 @@
 import React from "react";
-import { Redirect, Stack, useSegments } from "expo-router";
+import { Href, Redirect, Stack, useSegments } from "expo-router";
 import { useAuth } from "../../providers/AuthProvider";
 
 const AuthLayout = () => {
@@ -19,15 +19,19 @@ const AuthLayout = () => {
     return null;
   }
 
-  // Only redirect to main app if user is fully set up AND not in special flows
+  // Fully set up users should not stay on auth stack (avoids root index loading loop)
   if (
-    session && 
-    profile?.setup_status === true && 
-    segments[1] !== "Delete" && 
+    session &&
+    profile?.setup_status === true &&
+    segments[1] !== "Delete" &&
     segments[1] !== "ChangePassword"
   ) {
-    console.log("🔄 AuthLayout redirecting to main app");
-    return <Redirect href={"/"} />;
+    const home: Href =
+      profile.user_type === "HAIRDRESSER"
+        ? "/(hairdresser)/(tabs)/home"
+        : "/(client)/(tabs)/home";
+    console.log("🔄 AuthLayout redirecting to main app", home);
+    return <Redirect href={home} />;
   }
 
   // If user has session but setup is incomplete, DON'T redirect here

@@ -77,6 +77,35 @@ export function profileSetupIsComplete(
   );
 }
 
+/** Completed setup: leave onboarding/auth entry routes so users are not stuck on Welcome / Sign-in. */
+function shouldCompletedUserLeaveForHome(pathname: string): boolean {
+  const p = pathname ?? "";
+  if (
+    p.includes("ChangePassword") ||
+    p.includes("reset-password") ||
+    p.includes("CheckMail") ||
+    p.includes("Delete")
+  ) {
+    return false;
+  }
+  const bootstrap = [
+    "/Setup",
+    "GeneralSetup",
+    "ChooseRole",
+    "ClientSetup",
+    "HairdresserSetup",
+    "TermsAndPrivacy",
+    "/Splash",
+    "/SignUp",
+    "/SignIn",
+    "Onboarding",
+  ];
+  if (bootstrap.some((x) => p.includes(x))) return true;
+  if (p === "/" || p === "") return true;
+  if (p.includes("(setup)") && p.includes("LoadingScreen")) return true;
+  return false;
+}
+
 type UserStatus = {
   can_act: boolean;
   is_banned: boolean;
@@ -126,6 +155,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loadingSetup, setLoadingSetup] = useState(false);
   const initialLoadComplete = useRef(false);
+  const prevLoadingSetupRef = useRef<boolean | null>(null);
   const isSigningOut = useRef(false);
   const isChangingPassword = useRef(false);
   const pathname = usePathname();
@@ -264,9 +294,37 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       console.log("Fetching profile for user:", data.session.user.id);
 
       let profileData: Profile | null = null;
-      try {
-        profileData = (await api.get("/api/auth/me")) as Profile;
-      } catch (profileError: unknown) {
+      let profileError: unknown = null;
+      /** Retries: 404 (profile row lag), 5xx (cold start / transient DB). */
+      for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+          profileData = (await api.get("/api/auth/me")) as Profile;
+          profileError = null;
+          break;
+        } catch (e: unknown) {
+          profileError = e;
+          const err = e as Error & { status?: number };
+          const status = err.status;
+          const msg = (err.message ?? "").toLowerCase();
+          const noProfileYet =
+            status === 404 ||
+            msg.includes("profile not found") ||
+            (msg.includes("not found") && status !== 500);
+          const transient =
+            status === 500 ||
+            status === 502 ||
+            status === 503 ||
+            msg.includes("failed to fetch profile");
+          if ((noProfileYet || transient) && attempt < 5) {
+            const delay = transient ? 650 * (attempt + 1) : 350 * (attempt + 1);
+            await new Promise((r) => setTimeout(r, delay));
+            continue;
+          }
+          break;
+        }
+      }
+
+      if (!profileData && profileError) {
         const err = profileError as Error & { status?: number };
         const status = err.status;
         const msg = (err.message ?? "").toLowerCase();
@@ -507,34 +565,31 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (profile && setupComplete) {
-        // Navigate users directly to their home screens based on user type
         const userTypeRaw =
           profile.user_type ?? (profile as { userType?: string })?.userType;
         const userType =
           userTypeRaw === "HAIRDRESSER" ? "HAIRDRESSER" : "CLIENT";
-        if (userType === "CLIENT") {
-          if (!initialLoadComplete.current) {
-            console.log("Redirecting to client home");
-            setIsNavigating(true);
-            setTimeout(() => {
-              router.replace("/(client)/(tabs)/home");
-              initialLoadComplete.current = true;
-              setTimeout(() => setIsNavigating(false), 1000);
-            }, 100);
-          }
-        } else if (userType === "HAIRDRESSER") {
-          if (!initialLoadComplete.current) {
-            console.log("Redirecting to hairdresser home");
-            setIsNavigating(true);
-            setTimeout(() => {
-              router.replace("/(hairdresser)/(tabs)/home");
-              initialLoadComplete.current = true;
-              setTimeout(() => setIsNavigating(false), 1000);
-            }, 100);
-          }
-        } else {
-          console.error("Unknown user type:", userType);
-          initialLoadComplete.current = true;
+        const home =
+          userType === "HAIRDRESSER"
+            ? "/(hairdresser)/(tabs)/home"
+            : "/(client)/(tabs)/home";
+
+        const leaveBootstrap = shouldCompletedUserLeaveForHome(pathname);
+        const shouldGoHome =
+          leaveBootstrap || !initialLoadComplete.current;
+
+        if (shouldGoHome) {
+          console.log("Redirecting to home", {
+            home,
+            leaveBootstrap,
+            pathname,
+          });
+          setIsNavigating(true);
+          setTimeout(() => {
+            router.replace(home);
+            initialLoadComplete.current = true;
+            setTimeout(() => setIsNavigating(false), 1000);
+          }, 100);
         }
       }
 
@@ -674,23 +729,23 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
+  /** Only refetch when legacy setup flows flip loadingSetup true → false (avoids duplicate /me on every cold start). */
   useEffect(() => {
-    if (loadingSetup === false && session) {
-      const refreshProfile = async () => {
-        try {
-          let data = (await api.get("/api/auth/me")) as Profile;
-          if (data && session.user?.id) {
-            data = await ensureSetupStatusPersisted(session.user.id, data);
-            setProfile(data);
-            initialLoadComplete.current = false;
-          }
-        } catch (err) {
-          console.error("Error refreshing profile:", err);
-        }
-      };
-      refreshProfile();
-    }
-  }, [loadingSetup, session]);
+    const prev = prevLoadingSetupRef.current;
+    prevLoadingSetupRef.current = loadingSetup;
+    if (prev !== true || loadingSetup !== false || !session?.user?.id) return;
+
+    const refreshProfile = async () => {
+      try {
+        let data = (await api.get("/api/auth/me")) as Profile;
+        data = await ensureSetupStatusPersisted(session.user.id, data);
+        setProfile(data);
+      } catch (err) {
+        console.error("Error refreshing profile:", err);
+      }
+    };
+    void refreshProfile();
+  }, [loadingSetup, session?.user?.id]);
 
   useSyncSignupDate();
 

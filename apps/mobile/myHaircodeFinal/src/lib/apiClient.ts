@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { supabase } from "./supabase";
 
 const API_URL =
   Constants?.expoConfig?.extra?.EXPO_PUBLIC_API_URL ??
@@ -18,15 +19,27 @@ export function setApiOn401(fn: () => void | Promise<void>) {
   on401Fn = fn;
 }
 
+/**
+ * React runs nested `useEffect` before parent `useEffect`. `AuthProvider` can call
+ * `/api/auth/*` before `_layout` registers `setApiSessionGetter`, so we always
+ * fall back to Supabase for the bearer token.
+ */
+async function getBearerToken(): Promise<string | undefined> {
+  if (getSessionFn) {
+    const s = await getSessionFn();
+    if (s?.access_token) return s.access_token;
+  }
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token;
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (getSessionFn) {
-    const session = await getSessionFn();
-    if (session?.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`;
-    }
+  const token = await getBearerToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
   return headers;
 }
@@ -97,10 +110,10 @@ export const api = {
     path: string,
     formData: FormData
   ): Promise<T> {
-    const session = getSessionFn ? await getSessionFn() : null;
+    const token = await getBearerToken();
     const headers: Record<string, string> = {};
-    if (session?.access_token) {
-      headers.Authorization = `Bearer ${session.access_token}`;
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
     }
     const res = await fetch(`${API_URL}${path}`, {
       method: "POST",
@@ -110,3 +123,9 @@ export const api = {
     return handleResponse(res) as Promise<T>;
   },
 };
+
+/** Register immediately on import so requests are authenticated before any React effects run. */
+setApiSessionGetter(async () => {
+  const { data } = await supabase.auth.getSession();
+  return data.session;
+});

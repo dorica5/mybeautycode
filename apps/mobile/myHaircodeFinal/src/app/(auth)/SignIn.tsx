@@ -65,22 +65,23 @@ const SignIn = () => {
         return;
       }
 
-      let profile: { user_type?: string } | null = null;
+      let profile: { user_type?: string; setup_status?: boolean } | null =
+        null;
       try {
-        profile = await api.get<{ user_type?: string }>("/api/auth/me");
+        profile = await api.get<{
+          user_type?: string;
+          setup_status?: boolean;
+        }>("/api/auth/me");
       } catch (meErr: unknown) {
         const err = meErr as Error & { status?: number };
         const status = err.status;
         const msg = (err.message ?? "").toLowerCase();
-        const recoverableMe =
+        /** Only missing profile → setup. Transient/server errors: AuthProvider + session decide. */
+        const needsProfileOnly =
           status === 404 ||
-          status === 500 ||
-          status === 502 ||
-          status === 503 ||
           msg.includes("profile not found") ||
-          msg.includes("failed to fetch profile") ||
-          msg.includes("not found");
-        if (recoverableMe) {
+          (msg.includes("not found") && status !== 500);
+        if (needsProfileOnly) {
           posthog.capture("Login", {
             user_id: data.user.id,
             role: "pending_setup",

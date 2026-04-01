@@ -1,8 +1,6 @@
 import React, { useEffect } from "react";
 import { Stack, router } from "expo-router";
 import * as Linking from "expo-linking";
-import { setApiSessionGetter } from "../lib/apiClient";
-import { supabase } from "../lib/supabase";
 import { SetupProvider } from "../providers/SetUpProvider";
 import AuthProvider from "../providers/AuthProvider";
 import QueryProvider from "../providers/QueryProvider";
@@ -75,13 +73,6 @@ const RootLayout = () => {
     return () => subscription?.remove();
   }, []);
   const fontsLoaded = useLoadFonts();
-
-  useEffect(() => {
-    setApiSessionGetter(async () => {
-      const { data } = await supabase.auth.getSession();
-      return data.session;
-    });
-  }, []);
 
   if (!fontsLoaded) {
     return <LoadingScreen />;
