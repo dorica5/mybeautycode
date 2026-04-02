@@ -60,13 +60,13 @@ const _layout = () => {
 
   const userListTabPress = useCallback((e) => {
   e.preventDefault();
-  const href = "/userList/hairdresserProfile";
-  
+  const href = "/(client)/(tabs)/userList";
+
   if (pathname === href) {
-    return; 
+    return;
   }
-  
-  router.replace(href);
+
+  router.replace({ pathname: href, params: { fromTab: "1" } });
 }, [pathname]);
 
   const profileTabPress = useCallback((e) => {
@@ -132,15 +132,14 @@ const _layout = () => {
       <Tabs.Screen
         name="userList"
         options={{
-          tabBarIcon: ({ focused, color }) => {
-            return (
-              <MagnifyingGlass
-                size={32}
-                color={color}
-                weight={focused ? "fill" : "regular"}
-              />
-            );
-          },
+          href: "/(client)/(tabs)/userList",
+          tabBarIcon: ({ focused, color }) => (
+            <MagnifyingGlass
+              size={32}
+              color={color}
+              weight={focused ? "fill" : "regular"}
+            />
+          ),
         }}
         listeners={{
           tabPress: userListTabPress,

@@ -2,6 +2,7 @@
 import { Anton_400Regular } from "@expo-google-fonts/anton";
 import {
   Outfit_300Light,
+  Outfit_400Regular,
   Outfit_500Medium,
   Outfit_700Bold,
 } from "@expo-google-fonts/outfit";
@@ -11,6 +12,7 @@ const useLoadFonts = () => {
   const [fontsLoaded] = useFonts({
     Anton_400Regular,
     Outfit_300Light,
+    Outfit_400Regular,
     Outfit_500Medium,
     Outfit_700Bold,
 

@@ -100,7 +100,7 @@ const HomeScreen = () => {
             horizontalPadding={32}
             verticalPadding={16}
             onPress={() =>
-              router.push("/(client)/(tabs)/userList/hairdresserProfile")
+              router.push("/(client)/(tabs)/userList")
             }
             style={styles.searchCta}
             textStyle={styles.searchCtaLabel}

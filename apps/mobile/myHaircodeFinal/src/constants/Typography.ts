@@ -7,6 +7,7 @@ import { responsiveFontSize } from "../utils/responsive";
 export const FONT_FAMILY = {
   anton: "Anton_400Regular",
   outfitLight: "Outfit_300Light",
+  outfitRegular: "Outfit_400Regular",
   outfitMedium: "Outfit_500Medium",
 } as const;
 
@@ -46,6 +47,21 @@ function outfitText(
   return style;
 }
 
+function outfitRegularText(size: number, lineHeightPercent?: number): TextStyle {
+  const fs = responsiveFontSize(size);
+  const style: TextStyle = {
+    fontFamily: FONT_FAMILY.outfitRegular,
+    fontSize: fs,
+    fontWeight: "400",
+    letterSpacing: 0,
+    color: primaryBlack,
+  };
+  if (lineHeightPercent !== undefined) {
+    style.lineHeight = Math.round((fs * lineHeightPercent) / 100);
+  }
+  return style;
+}
+
 /**
  * Brand typography scale. Use by spreading into `Text`: `<Text style={Typography.h1}>…</Text>`
  * or `style={[Typography.bodyMedium, { textAlign: 'center' }]}>`.
@@ -62,6 +78,14 @@ export const Typography = {
   bodySmall: outfitText(16, "300", 140),
   /** Line height: automatic (default line metrics). */
   label: outfitText(16, "500"),
+  /** AG label 16 — section / field captions (Outfit medium 16). */
+  agLabel16: outfitText(16, "500", 140),
+  /** AG body medium 18 / 148% — large option rows (Outfit medium 18). */
+  agBodyMedium18: outfitText(18, "500", 148),
+  /** AG body regular 18 / 148% — filter options (Outfit light 18). */
+  agBodyRegular18: outfitText(18, "300", 148),
+  /** Outfit regular 16 — e.g. map location CTA. */
+  outfitRegular16: outfitRegularText(16, 140),
 } as const;
 
 export type TypographyKey = keyof typeof Typography;
