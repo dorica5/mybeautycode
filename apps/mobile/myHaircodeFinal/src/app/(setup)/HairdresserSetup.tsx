@@ -1,30 +1,15 @@
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  TextInput,
-  View,
-  Image,
-  Platform,
-} from "react-native";
+import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import TopNav from "@/src/components/TopNav";
 import MyTextinput from "@/src/components/MyTextinput";
-import { useSetup } from "@/src/providers/SetUpProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { supabase } from "@/src/lib/supabase";
 import { router, useLocalSearchParams } from "expo-router";
-import { UploadSimple } from "phosphor-react-native";
-import * as ImagePicker from "expo-image-picker";
-import RemoteImage from "@/src/components/RemoteImage";
 import MyButton from "@/src/components/MyButton";
-import { Colors } from "@/src/constants/Colors";
-import Dropdown from "@/src/components/Dropdown";
-import { countryItems } from "@/assets/data/items";
+import { primaryBlack, setupSageBackground } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
 import {
   isTablet,
   responsiveFontSize,
@@ -35,13 +20,21 @@ import {
 } from "@/src/utils/responsive";
 import { ResponsiveText } from "@/src/components/ResponsiveText";
 import { Spacer } from "@/src/components/Spacer";
-import {
-  parsePhoneNumberFromString,
-  getCountryCallingCode,
-} from "libphonenumber-js";
+import { parsePhoneNumberFromString, getCountryCallingCode } from "libphonenumber-js";
 import { usePostHog } from "posthog-react-native";
 
+const INPUT_SURFACE = "#FFFFFF";
+const PLACEHOLDER_GRAY = "rgba(33, 36, 39, 0.45)";
+
 const PROFESSION_CODES = ["hair", "brows_lashes", "nails"] as const;
+
+type ProfessionCode = (typeof PROFESSION_CODES)[number];
+
+const PROFESSION_ACCOUNT_TITLE: Record<ProfessionCode, string> = {
+  hair: "Hairdresser account",
+  brows_lashes: "Brow stylist account",
+  nails: "Nail technician account",
+};
 
 const HairdresserSetup = () => {
   const { profession_code } = useLocalSearchParams<{
@@ -50,44 +43,37 @@ const HairdresserSetup = () => {
   const professionCode =
     typeof profession_code === "string" &&
     (PROFESSION_CODES as readonly string[]).includes(profession_code)
-      ? profession_code
+      ? (profession_code as ProfessionCode)
       : "hair";
 
-  const { profilePicture, setProfilePicture } = useSetup();
-
-  const { setLoadingSetup } = useAuth();
+  const accountTitle = PROFESSION_ACCOUNT_TITLE[professionCode];
+  const { profile, setLoadingSetup } = useAuth();
   const user_type = "HAIRDRESSER";
 
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [errors, setErrors] = useState({
-    fullName: false,
     salonName: false,
     salonPhoneNumber: false,
-    country: false,
-    profilePicture: false,
   });
 
   const [fields, setFields] = useState({
-    fullName: "",
     salonName: "",
     salonPhoneNumber: "",
-    country: "",
     aboutMe: "",
   });
   const [errorMessages, setErrorMessages] = useState({
-    fullName: "",
+    salonName: "",
     phone_number: "",
-    country: "",
   });
 
   const posthog = usePostHog();
+  const profileCountry = profile?.country?.trim() || "";
 
-  // Get country calling code for display
   const getCountryCode = (countryCode: string) => {
     try {
-      return `+${getCountryCallingCode(countryCode)}`;
+      return `+${getCountryCallingCode(countryCode as never)}`;
     } catch {
       return "";
     }
@@ -105,19 +91,19 @@ const HairdresserSetup = () => {
     };
 
     fetchUserId();
-    setProfilePicture(null);
   }, []);
 
-  // Validate phone numbers with country context
-  const validatePhoneNumber = (phone: string, countryCode: string) => {
-    if (!countryCode) return false;
+  const validatePhoneNumber = (phone: string) => {
+    const trimmed = phone.replace(/^\+\d+\s?/, "").trim();
+    if (!trimmed) return false;
 
     try {
-      // Remove any existing country code prefix and clean the number
-      const cleanPhone = phone.replace(/^\+\d+\s?/, "").trim();
-
-      // Parse with the selected country
-      const parsed = parsePhoneNumberFromString(cleanPhone, countryCode);
+      if (profileCountry) {
+        const parsed = parsePhoneNumberFromString(trimmed, profileCountry as never);
+        return parsed?.isValid() ?? false;
+      }
+      const withPlus = phone.trim().startsWith("+") ? phone.trim() : `+${trimmed}`;
+      const parsed = parsePhoneNumberFromString(withPlus);
       return parsed?.isValid() ?? false;
     } catch {
       return false;
@@ -126,50 +112,30 @@ const HairdresserSetup = () => {
 
   const validateField = (field: string, value: string) => {
     switch (field) {
-      case "fullName": {
+      case "salonName": {
         const trimmed = value.trim();
-
-        // Empty field
         if (!trimmed) {
           setErrorMessages((prev) => ({
             ...prev,
-            fullName: "Please enter your full name.",
+            salonName: "Please enter your salon name.",
           }));
           return false;
         }
-
-        // More inclusive regex (allows accents, dots, apostrophes, hyphens, etc.)
-        const nameRegex = /^[a-zA-ZÀ-ÿæøåÆØÅ.\s'’-]{2,50}$/;
-        if (!nameRegex.test(trimmed)) {
-          setErrorMessages((prev) => ({
-            ...prev,
-            fullName:
-              "Remove any numbers or unusual symbols. Letters, spaces, hyphens (–), apostrophes (‘), and dots (.) are allowed.",
-          }));
-          return false;
-        }
-
-        // Passed validation
-        setErrorMessages((prev) => ({ ...prev, fullName: "" }));
+        setErrorMessages((prev) => ({ ...prev, salonName: "" }));
         return true;
       }
 
       case "phone_number": {
-        const isValid = validatePhoneNumber(value.trim(), fields.country);
+        const isValid = validatePhoneNumber(value);
         setErrorMessages((prev) => ({
           ...prev,
-          phone_number: isValid ? "" : "Please enter a valid phone number.",
+          phone_number: isValid
+            ? ""
+            : profileCountry
+              ? "Please enter a valid phone number for your country."
+              : "Enter a valid number including country code (e.g. +47 …).",
         }));
         return isValid;
-      }
-
-      case "country": {
-        const valid = value.trim().length > 0;
-        setErrorMessages((prev) => ({
-          ...prev,
-          country: valid ? "" : "Please select your country.",
-        }));
-        return valid;
       }
 
       default:
@@ -179,14 +145,8 @@ const HairdresserSetup = () => {
 
   const validateFields = () => {
     const newErrors = {
-      fullName: !validateField("fullName", fields.fullName),
       salonName: !validateField("salonName", fields.salonName),
-      salonPhoneNumber: !validateField(
-        "salonPhoneNumber",
-        fields.salonPhoneNumber
-      ),
-      country: !validateField("country", fields.country),
-      profilePicture: false,
+      salonPhoneNumber: !validateField("phone_number", fields.salonPhoneNumber),
     };
 
     setErrors(newErrors);
@@ -197,57 +157,53 @@ const HairdresserSetup = () => {
     setFields((prev) => ({ ...prev, [field]: value }));
 
     if (attemptedSubmit) {
-      setErrors((prev) => ({
-        ...prev,
-        [field]: !validateField(field, value),
-      }));
-
-      // Re-validate phone number when country changes
-      if (field === "country" && fields.salonPhoneNumber) {
+      if (field === "salonName") {
         setErrors((prev) => ({
           ...prev,
-          salonPhoneNumber: !validatePhoneNumber(
-            fields.salonPhoneNumber,
-            value
-          ),
+          salonName: !validateField("salonName", value),
+        }));
+      }
+      if (field === "salonPhoneNumber") {
+        setErrors((prev) => ({
+          ...prev,
+          salonPhoneNumber: !validateField("phone_number", value),
         }));
       }
     }
   };
 
-  const getInputStyle = (fieldName: string) => {
-    if (!attemptedSubmit) return styles.textInput;
-
+  const getFieldShellStyle = (fieldName: keyof typeof errors) => {
+    if (!attemptedSubmit) return styles.fieldShell;
     return [
-      styles.textInput,
-      errors[fieldName] ? styles.errorInput : styles.validInput,
+      styles.fieldShell,
+      errors[fieldName] ? styles.fieldShellError : styles.fieldShellValid,
     ];
   };
 
-  const getDropdownStyle = (fieldName: string) => {
-    if (!attemptedSubmit) return {};
-    return errors[fieldName] ? styles.errorInput : styles.validInput;
-  };
+  const textInputInner = styles.textInputInner;
 
   const { mutateAsync: updateProfile } = useUpdateSupabaseProfile();
+
+  const formatSalonPhoneE164 = (): string => {
+    const raw = fields.salonPhoneNumber.trim();
+    const clean = raw.replace(/^\+\d+\s?/, "").trim();
+    if (profileCountry) {
+      const parsed = parsePhoneNumberFromString(clean, profileCountry as never);
+      if (parsed?.isValid()) return parsed.format("E.164");
+    }
+    const withPlus = raw.startsWith("+") ? raw : `+${clean}`;
+    const parsed = parsePhoneNumberFromString(withPlus);
+    if (parsed?.isValid()) return parsed.format("E.164");
+    return raw;
+  };
 
   const updateUserProfile = async () => {
     if (!userId) throw new Error("User not found");
 
-    // Format phone number with selected country
-    const cleanPhone = fields.salonPhoneNumber.replace(/^\+\d+\s?/, "").trim();
-    const parsed = parsePhoneNumberFromString(cleanPhone, fields.country);
-    const avatar_url = await uploadImage();
-
     await updateProfile({
       id: userId,
-      full_name: fields.fullName,
-      avatar_url,
-      salon_phone_number: parsed
-        ? parsed.format("E.164")
-        : fields.salonPhoneNumber,
-      salon_name: fields.salonName,
-      country: fields.country,
+      salon_phone_number: formatSalonPhoneE164(),
+      salon_name: fields.salonName.trim(),
       user_type,
       about_me: fields.aboutMe,
       setup_status: true,
@@ -259,7 +215,6 @@ const HairdresserSetup = () => {
     setAttemptedSubmit(true);
 
     if (!validateFields()) {
-      console.log("Validation failed. Errors:", errors);
       return;
     }
     try {
@@ -270,12 +225,16 @@ const HairdresserSetup = () => {
       posthog.capture("Profile Completed", { role: "HAIRDRESSER" });
       if (userId) {
         const { data: user } = await supabase.auth.getUser();
+        const display =
+          [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+          profile?.full_name ||
+          "";
 
         posthog.identify(userId, {
           email: user?.user?.email ?? null,
           role: "HAIRDRESSER",
-          name: fields.fullName,
-          country: fields.country,
+          name: display,
+          country: profile?.country ?? null,
         });
       }
 
@@ -292,36 +251,6 @@ const HairdresserSetup = () => {
     }
   };
 
-  const uploadImage = async () => {
-    if (!profilePicture?.startsWith("file://")) return profilePicture;
-    try {
-      const path = await uploadAvatarToStorage(profilePicture);
-      return path;
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      return null;
-    }
-  };
-
-  const [uploadText, setUploadText] = useState("Upload Profile Picture");
-
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images",
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setProfilePicture(result.assets[0].uri);
-      setErrors((prev) => ({ ...prev, profilePicture: false }));
-      setUploadText("Upload new profile picture");
-    }
-  };
-
-  const isLocalUri = profilePicture?.startsWith("file://");
-
   if (!userId) {
     return (
       <SafeAreaView style={styles.container}>
@@ -332,30 +261,13 @@ const HairdresserSetup = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TopNav title="Hairdresser Account" />
+      <TopNav title={accountTitle} titleStyle={Typography.h3} />
       <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.inputContainer}>
-          <ResponsiveText size={16} weight="SemiBold" style={styles.label}>
-            Full Name
-          </ResponsiveText>
-          <MyTextinput
-            placeholder="Enter your full name"
-            value={fields.fullName}
-            handleChangeText={(value) => handleFieldChange("fullName", value)}
-            title=""
-            checkmark={attemptedSubmit && !errors.fullName}
-            style={getInputStyle("fullName")}
-          />
-          {attemptedSubmit && errors.fullName && (
-            <ResponsiveText size={12} style={styles.errorText}>
-              {errorMessages.fullName}
-            </ResponsiveText>
-          )}
-        </View>
+        <ResponsiveText style={styles.aboutYouSubhead}>About you</ResponsiveText>
 
         <View style={styles.inputContainer}>
           <ResponsiveText size={16} weight="SemiBold" style={styles.label}>
-            Salon Name
+            Salon name
           </ResponsiveText>
           <MyTextinput
             placeholder="Enter salon name"
@@ -363,72 +275,53 @@ const HairdresserSetup = () => {
             handleChangeText={(value) => handleFieldChange("salonName", value)}
             title=""
             checkmark={attemptedSubmit && !errors.salonName}
-            style={getInputStyle("salonName")}
+            containerStyle={getFieldShellStyle("salonName")}
+            style={textInputInner}
+            placeholderTextColor={PLACEHOLDER_GRAY}
           />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <ResponsiveText
-            size={16}
-            weight="SemiBold"
-            style={[styles.label, { marginBottom: scale(8) }]}
-          >
-            Country
-          </ResponsiveText>
-          <Dropdown
-            onSelect={(value: string) => {
-              if (fields.country !== value) {
-                handleFieldChange("country", value);
-              }
-            }}
-            listMode={Platform.OS === "android" ? "MODAL" : "SCROLLVIEW"}
-            zIndex={3}
-            zIndexInverse={0}
-            item={countryItems}
-            placeholder="Select your country"
-            containerStyle={getDropdownStyle("country")}
-          />
-          {attemptedSubmit && errors.country && (
+          {attemptedSubmit && errors.salonName && (
             <ResponsiveText size={12} style={styles.errorText}>
-              Please select your country.
+              {errorMessages.salonName}
             </ResponsiveText>
           )}
         </View>
 
         <View style={styles.inputContainer}>
           <ResponsiveText size={16} weight="SemiBold" style={styles.label}>
-            Salon Phone Number{" "}
-            {fields.country && (
+            Salon phone number{" "}
+            {profileCountry ? (
               <ResponsiveText size={14} style={styles.countryCodeText}>
-                ({getCountryCode(fields.country)})
+                ({getCountryCode(profileCountry)})
               </ResponsiveText>
-            )}
+            ) : null}
           </ResponsiveText>
           <MyTextinput
             placeholder={
-              fields.country
+              profileCountry
                 ? "Enter salon phone number"
-                : "Select country first"
+                : "Include country code, e.g. +47…"
             }
             value={fields.salonPhoneNumber}
             handleChangeText={(value) =>
               handleFieldChange("salonPhoneNumber", value)
             }
             title=""
+            keyboardType="phone-pad"
             checkmark={attemptedSubmit && !errors.salonPhoneNumber}
-            style={getInputStyle("salonPhoneNumber")}
-            editable={!!fields.country}
+            containerStyle={getFieldShellStyle("salonPhoneNumber")}
+            style={textInputInner}
+            placeholderTextColor={PLACEHOLDER_GRAY}
           />
           {attemptedSubmit && errors.salonPhoneNumber && (
             <ResponsiveText size={12} style={styles.errorText}>
-              Please enter a valid phone number for {fields.country}.
+              {errorMessages.phone_number}
             </ResponsiveText>
           )}
         </View>
 
         <View style={styles.inputContainer}>
           <ResponsiveText size={16} weight="SemiBold" style={styles.label}>
-            About Me
+            About me
           </ResponsiveText>
           <TextInput
             placeholder="Let your clients know what's awesome about you and your skills"
@@ -436,45 +329,20 @@ const HairdresserSetup = () => {
             multiline
             style={styles.textArea}
             onChangeText={(value) => handleFieldChange("aboutMe", value)}
+            placeholderTextColor={PLACEHOLDER_GRAY}
           />
         </View>
         <Spacer vertical={10} />
 
-        <Pressable style={styles.pickerContainer} onPress={pickImage}>
-          <ResponsiveText size={18} weight="SemiBold" style={styles.pickerText}>
-            {uploadText}
-          </ResponsiveText>
-          {profilePicture ? (
-            isLocalUri ? (
-              <Image
-                source={{ uri: profilePicture }}
-                resizeMode="cover"
-                style={styles.pickerCircle}
-              />
-            ) : (
-              <RemoteImage
-                highResPath={profilePicture}
-                resizeMode="cover"
-                style={styles.pickerCircle}
-              />
-            )
-          ) : (
-            <View
-              style={[
-                styles.pickerCircle,
-                attemptedSubmit && errors.profilePicture && styles.errorInput,
-              ]}
-            >
-              <UploadSimple size={scale(32)} color={Colors.dark.dark} />
-            </View>
-          )}
-        </Pressable>
-
         <View style={styles.btnContainer}>
           <MyButton
-            text={loading ? "Almost done..." : "Finish"}
+            text={loading ? "Almost done..." : "Save"}
             onPress={setUpDone}
             disabled={loading}
+            margin={false}
+            style={styles.saveButton}
+            textStyle={styles.saveButtonLabel}
+            textSize={18}
           />
         </View>
       </ScrollView>
@@ -484,79 +352,97 @@ const HairdresserSetup = () => {
 
 export default HairdresserSetup;
 
+const FIELD_BORDER = "rgba(33, 36, 39, 0.28)";
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.light,
+    backgroundColor: setupSageBackground,
   },
   scrollContainer: {
-    padding: scale(20),
+    paddingHorizontal: scale(20),
+    paddingBottom: scale(24),
+  },
+  aboutYouSubhead: {
+    ...Typography.bodyMedium,
+    textAlign: "center",
+    marginBottom: scalePercent(4),
+    marginTop: scale(4),
+    color: primaryBlack,
   },
   label: {
-    color: Colors.dark.dark,
-    marginTop: scale(5),
+    color: primaryBlack,
+    marginTop: scale(8),
+    marginBottom: scale(4),
     fontSize: responsiveFontSize(16, 12),
   },
-  textInput: {
-    height: responsiveScale(50, 42),
-    marginRight: scale(-20),
-    borderRadius: responsiveScale(20, 16),
-    backgroundColor: Colors.dark.yellowish,
-    marginBottom: responsiveScale(10, 6),
-    marginTop: responsiveScale(10, 2),
+  fieldShell: {
+    marginTop: 0,
+    marginBottom: responsiveScale(8, 6),
+    width: "100%",
+    height: responsiveScale(52, 46),
+    backgroundColor: INPUT_SURFACE,
+    borderRadius: responsiveScale(28, 24),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: FIELD_BORDER,
+    overflow: "hidden",
+  },
+  fieldShellError: {
+    borderColor: "#C62828",
+    borderWidth: 1,
+  },
+  fieldShellValid: {
+    borderColor: "#2E7D32",
+    borderWidth: 1,
+  },
+  textInputInner: {
+    backgroundColor: "transparent",
+    marginTop: 0,
+    marginBottom: 0,
+    marginRight: 0,
+    height: responsiveScale(52, 46),
+    borderRadius: 0,
   },
   countryCodeText: {
-    color: Colors.dark.dark,
-    opacity: 0.7,
+    color: primaryBlack,
+    opacity: 0.72,
   },
   textArea: {
-    marginTop: scalePercent(2),
-    backgroundColor: Colors.dark.yellowish,
-    padding: responsiveScale(15, 12),
-    borderRadius: responsiveScale(22, 18),
-    height: responsiveScale(105, 85),
+    marginTop: scale(4),
+    backgroundColor: INPUT_SURFACE,
+    padding: responsiveScale(16, 14),
+    borderRadius: responsiveScale(28, 24),
+    height: responsiveScale(120, 96),
     textAlignVertical: "top",
     fontFamily: "Inter-Regular",
     fontSize: responsiveFontSize(16, 14),
-    lineHeight: responsiveScale(20, 18),
+    lineHeight: responsiveScale(22, 19),
+    color: primaryBlack,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: FIELD_BORDER,
   },
-  errorInput: {
-    borderColor: "red",
-    borderWidth: scale(1),
+  saveButton: {
+    backgroundColor: primaryBlack,
+    paddingVertical: responsiveScale(16, 14),
+    paddingHorizontal: responsiveScale(40, 32),
+    borderRadius: responsiveScale(999),
+    alignSelf: "center",
+    minWidth: scalePercent(isTablet() ? 40 : 72),
   },
-  validInput: {
-    borderColor: "green",
-    borderWidth: scale(1),
-  },
-  pickerContainer: {
-    alignItems: "center",
-  },
-  pickerText: {
-    color: Colors.dark.dark,
-    textAlign: "center",
-    marginTop: verticalScale(-6),
-  },
-  pickerCircle: {
-    marginTop: scale(20),
-    width: responsiveScale(130, 100),
-    height: responsiveScale(130, 100),
-    borderRadius: responsiveScale(75, 55),
-    backgroundColor: Colors.light.yellowish,
-    borderColor: Colors.dark.warmGreen,
-    borderWidth: scale(2),
-    justifyContent: "center",
-    alignItems: "center",
+  saveButtonLabel: {
+    color: "#FFFFFF",
   },
   btnContainer: {
-    width: scalePercent(isTablet() ? 30 : 45),
-    alignSelf: "center",
-    marginVertical: responsiveScale(20, 16),
+    width: "100%",
+    alignItems: "center",
+    marginTop: responsiveScale(8, 6),
+    marginBottom: responsiveScale(24, 18),
   },
   errorText: {
-    color: "red",
-    marginTop: verticalScale(10),
+    color: "#C62828",
+    marginTop: verticalScale(6),
   },
   inputContainer: {
-    marginBottom: responsiveScale(7, 50),
+    marginBottom: responsiveScale(10, 8),
   },
 });

@@ -7,6 +7,9 @@ export const primaryBlack = '#212427';
 export const primaryWhite = '#F1F9F4';
 export const secondaryGreen = '#D8EDE2';
 
+/** Full-screen sage for professional onboarding (design mockup). */
+export const setupSageBackground = '#C5DCC9';
+
 const yellowish = '#E1E8DF';
 const warmGreen = '#8FA8A1'; // Note the corrected format for hex color
 const dark = primaryBlack;
