@@ -1,105 +1,104 @@
 import { Image, ImageProps } from "expo-image";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { PixelRatio } from "react-native";
 import { fetchSignedStorageUrl } from "../lib/storageSignedUrl";
 
-// Image size presets for common use cases
 export type ImageSizePreset =
-  | "thumbnail"      // 100x100 - tiny blur placeholder
-  | "avatar-small"   // 75x75 - avatars in lists
-  | "avatar-medium"  // 250x250 - avatars in profiles
-  | "inspiration-grid" // 300x300 - inspiration thumbnails (cropped)
-  | "carousel"       // 800px width - haircode carousel (maintain ratio)
-  | "fullscreen"     // 1200px width - fullscreen view (maintain ratio)
-  | "fullscreen-hq"  // 1600px width - high quality fullscreen (maintain ratio)
-  | "preview"        // 1600px width - quick preview before original
-  | "original";      // Original full resolution - no resizing
+  | "thumbnail"
+  | "avatar-small"
+  | "avatar-medium"
+  | "inspiration-grid"
+  | "carousel"
+  | "fullscreen"
+  | "fullscreen-hq"
+  | "preview"
+  | "original";
+
+/** Logical pixel widths used as decode hints (× PixelRatio for sharpness / memory). */
+const PRESET_DECODE_WIDTH: Record<Exclude<ImageSizePreset, "original">, number> = {
+  thumbnail: 120,
+  "avatar-small": 100,
+  "avatar-medium": 280,
+  "inspiration-grid": 720,
+  carousel: 960,
+  fullscreen: 1200,
+  "fullscreen-hq": 1600,
+  preview: 1200,
+};
 
 type OptimizedImageProps = {
-  // Image source options
-  path?: string | null;           // Path in Supabase storage
-  bucket?: string;                // Supabase bucket name (default: "inspirations")
-  directUrl?: string | null;      // Direct URL (bypasses Supabase transform)
+  path?: string | null;
+  bucket?: string;
+  directUrl?: string | null;
 
-  // Size options
-  sizePreset?: ImageSizePreset;   // Use predefined size
-  width?: number;                 // Custom width
-  height?: number;                // Custom height
+  sizePreset?: ImageSizePreset;
+  width?: number;
+  height?: number;
 
-  // Progressive loading
-  enableProgressiveLoading?: boolean; // Load thumbnail first (default: true)
-  twoStageLoading?: boolean;          // Load preview → original (for detail views)
+  /**
+   * Shown via expo-image `placeholder` while the main `source` loads/decodes
+   * (e.g. thumbnail while full-res `directUrl` or signed `path` is fetched).
+   */
+  placeholderUri?: string | null;
 
-  // Fallback
-  fallback?: string;              // Fallback image URL
-  placeholder?: string;           // Blurhash placeholder
+  enableProgressiveLoading?: boolean;
+  twoStageLoading?: boolean;
+
+  fallback?: string;
 } & Omit<ImageProps, "source" | "placeholder">;
 
-/**
- * OptimizedImage Component
- *
- * Replacement for RemoteImage with:
- * - Progressive loading (thumbnail → full size)
- * - Dimension-optimized images via Supabase Transform API
- * - expo-image with built-in caching
- * - Blurhash placeholder support
- *
- * Usage:
- * ```tsx
- * // With size preset
- * <OptimizedImage
- *   path="user_avatar.jpg"
- *   bucket="avatars"
- *   sizePreset="avatar-medium"
- * />
- *
- * // With custom dimensions
- * <OptimizedImage
- *   path="haircode_123.jpg"
- *   bucket="haircode_images"
- *   width={800}
- * />
- *
- * // With direct URL (legacy support)
- * <OptimizedImage directUrl="https://..." />
- * ```
- */
+function decodeWidthPx(
+  sizePreset?: ImageSizePreset,
+  customWidth?: number
+): number | undefined {
+  if (customWidth != null) {
+    return Math.max(1, Math.round(customWidth * PixelRatio.get()));
+  }
+  if (sizePreset == null || sizePreset === "original") return undefined;
+  const logical =
+    PRESET_DECODE_WIDTH[sizePreset as Exclude<ImageSizePreset, "original">];
+  return Math.max(1, Math.round(logical * PixelRatio.get()));
+}
+
 const OptimizedImage = ({
   path,
   bucket = "inspirations",
   directUrl,
-  sizePreset: _sizePreset,
-  width: _customWidth,
+  sizePreset,
+  width: customWidth,
   height: _customHeight,
+  placeholderUri,
   enableProgressiveLoading: _enableProgressiveLoading = true,
   twoStageLoading: _twoStageLoading = false,
   fallback,
-  placeholder,
   style,
   contentFit = "cover",
-  transition = 300,
+  transition = 200,
+  priority = "normal",
   ...imageProps
 }: OptimizedImageProps) => {
-  const [currentSource, setCurrentSource] = useState<string | null>(null);
+  const [resolvedPathUrl, setResolvedPathUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     if (directUrl) {
-      setCurrentSource(directUrl);
+      setResolvedPathUrl(null);
       return () => {
         cancelled = true;
       };
     }
 
+    setResolvedPathUrl(null);
+
     if (!path) {
-      setCurrentSource(fallback || null);
       return () => {
         cancelled = true;
       };
     }
 
     if (path.startsWith("http")) {
-      setCurrentSource(path);
+      setResolvedPathUrl(path);
       return () => {
         cancelled = true;
       };
@@ -108,27 +107,56 @@ const OptimizedImage = ({
     void (async () => {
       const signed = await fetchSignedStorageUrl(bucket, path);
       if (!cancelled) {
-        setCurrentSource(signed ?? fallback ?? null);
+        setResolvedPathUrl(signed ?? null);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [path, bucket, directUrl, fallback]);
+  }, [path, bucket, directUrl]);
 
-  if (!currentSource && !fallback && !placeholder) {
+  const mainUri = directUrl ?? resolvedPathUrl;
+  const decodeW = useMemo(
+    () => decodeWidthPx(sizePreset, customWidth),
+    [sizePreset, customWidth]
+  );
+
+  const source = useMemo(() => {
+    if (mainUri) {
+      return decodeW != null
+        ? [{ uri: mainUri, width: decodeW }]
+        : { uri: mainUri };
+    }
+    if (placeholderUri) {
+      return { uri: placeholderUri };
+    }
+    if (fallback) {
+      return { uri: fallback };
+    }
+    return null;
+  }, [mainUri, decodeW, placeholderUri, fallback]);
+
+  const expoPlaceholder = useMemo(() => {
+    if (placeholderUri && mainUri && placeholderUri !== mainUri) {
+      return { uri: placeholderUri };
+    }
+    return undefined;
+  }, [placeholderUri, mainUri]);
+
+  if (!source) {
     return null;
   }
 
   return (
     <Image
-      source={{ uri: currentSource || fallback }}
-      placeholder={placeholder}
+      source={source}
+      placeholder={expoPlaceholder}
       style={style}
       contentFit={contentFit}
       transition={transition}
-      cachePolicy="memory-disk" // Enable disk caching
+      priority={priority}
+      cachePolicy="memory-disk"
       {...imageProps}
     />
   );

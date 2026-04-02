@@ -44,6 +44,35 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
+/** One retry after Supabase refresh — fixes expired JWT ("exp" check failed on backend). */
+async function fetchWithSessionRefresh(
+  path: string,
+  init: RequestInit
+): Promise<Response> {
+  const url = `${API_URL}${path}`;
+  const auth = await getAuthHeaders();
+  const merged: Record<string, string> = {
+    ...auth,
+    ...(init.headers as Record<string, string> | undefined),
+  };
+  let res = await fetch(url, { ...init, headers: merged });
+  if (res.status !== 401) {
+    return res;
+  }
+
+  const { error } = await supabase.auth.refreshSession();
+  if (error) {
+    return res;
+  }
+
+  const auth2 = await getAuthHeaders();
+  const merged2: Record<string, string> = {
+    ...auth2,
+    ...(init.headers as Record<string, string> | undefined),
+  };
+  return fetch(url, { ...init, headers: merged2 });
+}
+
 async function handleResponse(res: Response) {
   const text = await res.text();
   let data: unknown;
@@ -60,10 +89,16 @@ async function handleResponse(res: Response) {
         console.warn("Error in 401 handler:", e);
       }
     }
-    const msg =
+    let msg =
       typeof (data as { error?: string })?.error === "string"
         ? (data as { error: string }).error
-        : res.statusText || "Request failed";
+        : res.statusText?.trim() || "";
+    if (!msg) {
+      msg =
+        res.status === 401
+          ? "Session expired. Please sign in again."
+          : "Request failed";
+    }
     throw Object.assign(new Error(msg), { status: res.status });
   }
   return data;
@@ -71,36 +106,29 @@ async function handleResponse(res: Response) {
 
 export const api = {
   async get<T = unknown>(path: string): Promise<T> {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}${path}`, { headers });
+    const res = await fetchWithSessionRefresh(path, { method: "GET" });
     return handleResponse(res) as Promise<T>;
   },
 
   async post<T = unknown>(path: string, body?: unknown): Promise<T> {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetchWithSessionRefresh(path, {
       method: "POST",
-      headers,
       body: body ? JSON.stringify(body) : undefined,
     });
     return handleResponse(res) as Promise<T>;
   },
 
   async put<T = unknown>(path: string, body?: unknown): Promise<T> {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetchWithSessionRefresh(path, {
       method: "PUT",
-      headers,
       body: body ? JSON.stringify(body) : undefined,
     });
     return handleResponse(res) as Promise<T>;
   },
 
   async delete<T = unknown>(path: string, body?: unknown): Promise<T> {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${API_URL}${path}`, {
+    const res = await fetchWithSessionRefresh(path, {
       method: "DELETE",
-      headers,
       body: body ? JSON.stringify(body) : undefined,
     });
     return handleResponse(res) as Promise<T>;
@@ -115,11 +143,26 @@ export const api = {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    const res = await fetch(`${API_URL}${path}`, {
+    let res = await fetch(`${API_URL}${path}`, {
       method: "POST",
       headers,
       body: formData,
     });
+    if (res.status === 401) {
+      const { error } = await supabase.auth.refreshSession();
+      if (!error) {
+        const token2 = await getBearerToken();
+        const h2: Record<string, string> = {};
+        if (token2) {
+          h2.Authorization = `Bearer ${token2}`;
+        }
+        res = await fetch(`${API_URL}${path}`, {
+          method: "POST",
+          headers: h2,
+          body: formData,
+        });
+      }
+    }
     return handleResponse(res) as Promise<T>;
   },
 };

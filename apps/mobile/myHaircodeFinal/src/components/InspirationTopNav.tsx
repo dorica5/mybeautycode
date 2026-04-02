@@ -14,14 +14,20 @@ type TopNavProps = {
   titleStyle?: object;
   loading?: boolean;
   goHome?: () => void | undefined;
+  /** When set, runs instead of `goHome` / `router.back()` (e.g. close a modal). */
+  onBack?: () => void;
 };
 
-const InspirationTopNav = ({ title, goHome }: TopNavProps) => {
+const InspirationTopNav = ({ title, goHome, onBack }: TopNavProps) => {
   return (
     <View style={styles.wrapper}>
       <Pressable
         style={styles.backRow}
         onPress={() => {
+          if (onBack) {
+            onBack();
+            return;
+          }
           if (goHome == undefined) {
             router.back();
           } else {

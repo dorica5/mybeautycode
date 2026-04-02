@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   Modal,
   View,
@@ -35,36 +35,21 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   fromDelete,
   onDelete,
 }) => {
-  useEffect(() => {
-    console.log("CustomAlert Visibility:", visible);
-    if (visible) {
-      console.log("CustomAlert should be showing now!");
-      console.log("Title:", title);
-      console.log("Message:", message);
-    }
-  }, [visible, title, message]);
-
-  // Add this debug log to see if the component is rendering
-  console.log("CustomAlert render - visible:", visible, "title:", title);
-
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
       onRequestClose={onClose}
-      statusBarTranslucent={true} // Add this to ensure it shows above everything
-      presentationStyle="overFullScreen" // Add this for better compatibility
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
     >
       <View style={styles.overlay}>
         <View style={styles.alertContainer}>
           
           <TouchableOpacity
             style={{ position: "absolute", top: responsiveScale(20), right: responsiveScale(20), zIndex: 1000 }}
-            onPress={() => {
-              console.log("Close button pressed");
-              onClose();
-            }}
+            onPress={onClose}
           >
             <XCircle size={responsiveScale(28)} color={Colors.dark.dark} />
           </TouchableOpacity>
@@ -103,10 +88,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
           {!fromDelete && (
             <TouchableOpacity 
               style={styles.closeButton} 
-              onPress={() => {
-                console.log("Got it button pressed");
-                onClose();
-              }}
+              onPress={onClose}
             >
               <ResponsiveText size={16} tabletSize={14} weight="SemiBold" style={styles.closeButtonText}>
                 Got it!

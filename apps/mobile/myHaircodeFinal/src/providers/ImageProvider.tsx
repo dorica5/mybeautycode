@@ -22,11 +22,34 @@ export interface InspirationRow {
 }
 
 export interface InspirationImage extends InspirationRow {
-  /** Full-resolution signed URL (same object as DB `image_url` path). */
+  /**
+   * Storage object path in `inspirations` (not a full URL). Used for delete/share and signing full-size when needed.
+   */
   image_url: string;
-  full_url: string;
-  /** Grid/list: smaller file when `low_res_image_url` exists in DB. */
+  /** Signed URL for grid thumbnail (low-res object or fallback path). */
   thumbnail_url: string;
+  /** @deprecated Use `image_url` path + sign when needed; kept empty for compatibility. */
+  full_url?: string;
+}
+
+export type DeleteInspirationArg =
+  | string[]
+  | { imageUrls?: string[]; ids?: string[] };
+
+function normalizeDeleteInspirationArg(
+  input?: DeleteInspirationArg
+): { imageUrls?: string[]; ids?: string[] } {
+  if (!input) return {};
+  if (Array.isArray(input)) {
+    const imageUrls = input.filter((s) => typeof s === "string" && s.trim());
+    return imageUrls.length ? { imageUrls } : {};
+  }
+  const ids = input.ids?.filter((s) => typeof s === "string" && s.trim());
+  const imageUrls = input.imageUrls?.filter((s) => typeof s === "string" && s.trim());
+  return {
+    ...(ids?.length ? { ids } : {}),
+    ...(imageUrls?.length ? { imageUrls } : {}),
+  };
 }
 
 interface ImageContextValue {
@@ -37,7 +60,7 @@ interface ImageContextValue {
     silent?: boolean,
     professionCode?: string
   ) => Promise<InspirationImage[]>;
-  deleteInspirationImages: (imageUrls?: string[]) => Promise<void>;
+  deleteInspirationImages: (payload?: DeleteInspirationArg) => Promise<void>;
   setInspirationImages: React.Dispatch<React.SetStateAction<InspirationImage[]>>;
 }
 
@@ -72,20 +95,14 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
         const high = img.image_url as string;
         return low && String(low).trim() ? String(low) : high;
       });
-      const fullPaths = withPath.map((img) => img.image_url as string);
-      const [thumbSigned, fullSigned] = await Promise.all([
-        fetchSignedStorageUrls(
-          thumbPaths.map((path) => ({ bucket: "inspirations", path }))
-        ),
-        fetchSignedStorageUrls(
-          fullPaths.map((path) => ({ bucket: "inspirations", path }))
-        ),
-      ]);
+      /** Only sign thumbnails for the grid — halves sign-batch work and avoids downloading full-res in lists. */
+      const thumbSigned = await fetchSignedStorageUrls(
+        thumbPaths.map((path) => ({ bucket: "inspirations", path }))
+      );
       return withPath.map((image, i) => ({
         ...image,
         thumbnail_url: thumbSigned[i] ?? "",
-        image_url: fullSigned[i] ?? "",
-        full_url: fullSigned[i] ?? "",
+        full_url: "",
       }));
     } catch (error) {
       console.error("Error fetching images:", error);
@@ -112,25 +129,34 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
     [fetchImagesFromDB]
   );
 
-const deleteInspirationImages = useCallback(
-  async (imageUrls?: string[]): Promise<void> => {
-    if (!imageUrls || imageUrls.length === 0) return;
-    setImagesLoading(true);
+  const deleteInspirationImages = useCallback(
+    async (payload?: DeleteInspirationArg): Promise<void> => {
+      const { imageUrls, ids } = normalizeDeleteInspirationArg(payload);
+      if ((!imageUrls || !imageUrls.length) && (!ids || !ids.length)) return;
+      setImagesLoading(true);
 
-    try {
-      setInspirationImages((prev) =>
-        prev.filter((item) => !imageUrls.includes(item.image_url))
-      );
-      await api.delete("/api/inspirations", { imageUrls });
-    } catch (error) {
-      console.error("Error deleting images:", error);
-      await refreshInspirationImages(true);
-    } finally {
-      setImagesLoading(false);
-    }
-  },
-  [refreshInspirationImages]
-);
+      try {
+        setInspirationImages((prev) =>
+          prev.filter((item) => {
+            if (ids?.includes(String(item.id))) return false;
+            if (imageUrls?.includes(item.image_url)) return false;
+            return true;
+          })
+        );
+        const body: { imageUrls?: string[]; ids?: string[] } = {};
+        if (imageUrls?.length) body.imageUrls = imageUrls;
+        if (ids?.length) body.ids = ids;
+        await api.post("/api/inspirations/delete", body);
+      } catch (error) {
+        console.error("Error deleting images:", error);
+        await refreshInspirationImages(true);
+        throw error;
+      } finally {
+        setImagesLoading(false);
+      }
+    },
+    [refreshInspirationImages]
+  );
 
   const fetchAvatarImage = useCallback(async () => {
     if (!profile?.avatar_url) {

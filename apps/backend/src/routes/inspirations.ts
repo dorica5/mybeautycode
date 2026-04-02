@@ -8,4 +8,5 @@ inspirationRoutes.use(authMiddleware);
 
 inspirationRoutes.get("/", inspirationController.listByOwner);
 inspirationRoutes.post("/", inspirationController.create);
+inspirationRoutes.post("/delete", inspirationController.deleteBulk);
 inspirationRoutes.delete("/", inspirationController.deleteByImageUrls);
