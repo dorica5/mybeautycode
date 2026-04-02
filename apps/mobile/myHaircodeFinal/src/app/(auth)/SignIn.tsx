@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   },
   logoBlock: {
     alignItems: "center",
-    marginBottom: responsiveMargin(20),
+    marginBottom: responsiveMargin(86),
     overflow: "hidden",
   },
   formBlock: {

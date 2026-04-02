@@ -15,6 +15,14 @@ import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+/** Top inset under safe area matching Sign in / Sign up: scroll `topPad` margin after inset + back row. */
+const splashLogoTopPadding =
+  responsiveMargin(8) +
+  responsiveMargin(4) +
+  responsiveScale(28) +
+  responsiveMargin(4) +
+  responsiveMargin(8);
+
 const Splash = () => {
   const logoSize = useBeautyCodeLogoSize();
   const signUp = () => router.push("./SignUp" as Href);
@@ -24,7 +32,7 @@ const Splash = () => {
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
       <View style={styles.container}>
-        {/* Upper half: large logo only, anchored toward vertical center */}
+        {/* Upper half: logo aligned with Sign in / Sign up */}
         <View style={styles.upperHalf}>
           <Logo width={logoSize.width} height={logoSize.height} />
         </View>
@@ -87,13 +95,13 @@ const styles = StyleSheet.create({
     backgroundColor: primaryGreen,
     paddingHorizontal: responsivePadding(24),
   },
-  /** Top half: logo centered, extra bottom padding nudges it slightly above true vertical center. */
+  /** Logo only: same vertical offset as Sign in / Sign up (safe top + 8 + back row). */
   upperHalf: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
-    paddingTop: responsiveMargin(6),
-    paddingBottom: responsiveMargin(90),
+    paddingTop: splashLogoTopPadding,
+    paddingBottom: responsiveMargin(16),
   },
   /** ~50% height: “Welcome…” starts at screen midpoint. */
   lowerHalf: {
@@ -101,11 +109,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "100%",
   },
-  /** Welcome → body → Sign in; shifted up without moving the footer row. */
+  /** Welcome → body → Sign in; pulled up; footer stays on bottom via lowerSpacer. */
   mainTextBlock: {
     alignItems: "center",
     width: "100%",
-    marginTop: -responsiveMargin(80),
+    marginTop: -responsiveMargin(178),
   },
   lowerSpacer: {
     flex: 1,
@@ -116,10 +124,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   headline: {
-    marginBottom: responsiveMargin(32),
+    marginBottom: responsiveMargin(48),
   },
   body: {
-    marginBottom: responsiveMargin(38),
+    marginBottom: responsiveMargin(48),
     maxWidth: 340,
   },
   signInButton: {
