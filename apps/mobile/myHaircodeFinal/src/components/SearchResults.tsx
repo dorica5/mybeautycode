@@ -96,7 +96,7 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
       ? hasRelationship
         ? `/haircodes/${item.client_id}`
         : `/(hairdresser)/clientProfile/${item.client_id}`
-      : `/(client)/userList/hairdresserProfile/${item.hairdresser_id}`;
+      : `/(client)/(tabs)/userList/hairdresserProfile/${item.hairdresser_id}`;
 
   return (
     <Link

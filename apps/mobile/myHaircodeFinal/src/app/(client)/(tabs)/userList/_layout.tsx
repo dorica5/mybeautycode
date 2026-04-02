@@ -7,7 +7,10 @@ const _layout = () => {
   
   return (
     <Stack>
+      <Stack.Screen name="index" options={screenOptions} />
       <Stack.Screen name="[query]" options={screenOptions} />
+      <Stack.Screen name="filter-before-map" options={screenOptions} />
+      <Stack.Screen name="map" options={screenOptions} />
       <Stack.Screen
         name="hairdresserProfile/[id]"
         options={screenOptions}

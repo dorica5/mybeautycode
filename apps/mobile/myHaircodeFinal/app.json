@@ -50,6 +50,12 @@
       "expo-font",
       "expo-secure-store",
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "myHaircode needs your location to show nearby salons on the map."
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/appstore.png",

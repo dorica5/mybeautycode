@@ -1,8 +1,25 @@
 import "dotenv/config";
 
 export default ({ config }) => {
+  const androidMapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY || "";
+  const iosMapsKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_KEY || "";
+
   const newConfig = {
     ...config,
+    android: {
+      ...config.android,
+      config: {
+        ...config.android?.config,
+        ...(androidMapsKey ? { googleMaps: { apiKey: androidMapsKey } } : {}),
+      },
+    },
+    ios: {
+      ...config.ios,
+      config: {
+        ...config.ios?.config,
+        ...(iosMapsKey ? { googleMapsApiKey: iosMapsKey } : {}),
+      },
+    },
     extra: {
       SUPABASE_URL: process.env.SUPABASE_URL || "",
       SUPABASE_ANON: process.env.SUPABASE_ANON || "",
