@@ -67,6 +67,9 @@ export function PrimaryOutlineTextField({
           value={value}
           onChangeText={onChangeText}
           placeholderTextColor={`${primaryBlack}99`}
+          cursorColor={primaryBlack}
+          selectionColor={primaryBlack}
+          underlineColorAndroid="transparent"
           secureTextEntry={password && !showSecret}
           accessibilityLabel={label}
           multiline={multiline}
