@@ -351,9 +351,9 @@ export default function GeneralSetup() {
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scroll,
-            { paddingBottom: scrollBottomPad },
+            { paddingBottom: scrollBottomPad, flexGrow: 1 },
           ]}
-          keyboardShouldPersistTaps="always"
+          keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
