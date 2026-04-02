@@ -33,7 +33,10 @@ interface ImageContextValue {
   inspirationImages: InspirationImage[];
   avatarImage: string | null;
   imagesLoading: boolean;
-  refreshInspirationImages: (silent?: boolean) => Promise<InspirationImage[]>;
+  refreshInspirationImages: (
+    silent?: boolean,
+    professionCode?: string
+  ) => Promise<InspirationImage[]>;
   deleteInspirationImages: (imageUrls?: string[]) => Promise<void>;
   setInspirationImages: React.Dispatch<React.SetStateAction<InspirationImage[]>>;
 }
@@ -42,7 +45,7 @@ const ImageContext = createContext<ImageContextValue>({
   inspirationImages: [],
   avatarImage: null,
   imagesLoading: true,
-  refreshInspirationImages: async () => [],
+  refreshInspirationImages: async () => [] as InspirationImage[],
   deleteInspirationImages: async () => {},
   setInspirationImages: () => {},
 });
@@ -53,12 +56,15 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
   const [imagesLoading, setImagesLoading] = useState(true);
   const { profile, session } = useAuth();
 
-  const fetchImagesFromDB = useCallback(async (): Promise<InspirationImage[]> => {
+  const fetchImagesFromDB = useCallback(
+    async (professionCode: string): Promise<InspirationImage[]> => {
     if (!profile?.id) return [];
 
     try {
       const data = await api.get<InspirationRow[]>(
-        `/api/inspirations?owner_id=${encodeURIComponent(profile.id)}`
+        `/api/inspirations?owner_id=${encodeURIComponent(
+          profile.id
+        )}&profession=${encodeURIComponent(professionCode)}`
       );
       const withPath = (data ?? []).filter((img) => !!img.image_url);
       const thumbPaths = withPath.map((img) => {
@@ -85,13 +91,15 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error fetching images:", error);
       return [];
     }
-  }, [profile?.id]);
+  },
+  [profile?.id]
+  );
 
   const refreshInspirationImages = useCallback(
-    async (silent = false): Promise<InspirationImage[]> => {
+    async (silent = false, professionCode: string = "hair"): Promise<InspirationImage[]> => {
       if (!silent) setImagesLoading(true);
       try {
-        const images = await fetchImagesFromDB();
+        const images = await fetchImagesFromDB(professionCode);
         setInspirationImages(images);
         return images;
       } catch (error) {

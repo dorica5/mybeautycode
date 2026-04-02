@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -10,9 +10,9 @@ import {
   Alert,
   Image,
   ActivityIndicator,
-  ScrollView,
   Image as RNImage,
 } from "react-native";
+import { randomUUID } from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InspirationTopNav from "@/src/components/InspirationTopNav";
@@ -25,38 +25,54 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { uploadToStorage } from "@/src/lib/uploadHelpers";
 import { useMark } from "@/src/providers/MarkProvider";
 import { Href, router, useFocusEffect } from "expo-router";
-import { useImageContext } from "@/src/providers/ImageProvider";
+import {
+  useImageContext,
+  type InspirationImage,
+} from "@/src/providers/ImageProvider";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import ImageCropModal from "@/src/components/ImageCropModal";
 import { fetchSignedStorageUrl } from "@/src/lib/storageSignedUrl";
 import Carousel from "react-native-reanimated-carousel";
 import CustomAlert from "@/src/components/CustomAlert";
-import { Colors } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import {
   responsiveScale,
   scalePercent,
-  responsivePadding,
-  responsiveMargin,
   responsiveFontSize,
   responsiveBorderRadius,
-  isTablet,
 } from "@/src/utils/responsive";
 import { usePostHog } from "posthog-react-native";
 
+const NUM_COLUMNS = 2;
+
+type InspirationProfession = "hair" | "nails" | "brows";
+
+const CATEGORY_TABS: { code: InspirationProfession; label: string }[] = [
+  { code: "hair", label: "Hair" },
+  { code: "nails", label: "Nails" },
+  { code: "brows", label: "Brows" },
+];
+
 const MyInspiration = () => {
-  const [numColumns, setNumColumns] = useState(3);
-  const [flatListKey, setFlatListKey] = useState("flatlist-0");
+  const [inspirationCategory, setInspirationCategory] =
+    useState<InspirationProfession>("hair");
+  const inspirationCategoryRef = useRef<InspirationProfession>("hair");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [startingIndex, setStartingIndex] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
   const [deleteAlertVisible, setDeleteAlertVisible] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [currentImageAspectRatio, setCurrentImageAspectRatio] = useState(1.3); // Default slightly taller than square
   const width = Dimensions.get("window").width;
   const screenHeight = Dimensions.get("window").height;
   const minCarouselRatio = (screenHeight * 0.57) / width; // Ensures ~57% of screen height minimum
-  const size = width / numColumns;
+  const horizontalPadding = scalePercent(5);
+  const columnGap = responsiveScale(12);
+  const gridInnerWidth = width - horizontalPadding * 2;
+  const cellSize = (gridInnerWidth - columnGap) / NUM_COLUMNS;
+
+  useEffect(() => {
+    inspirationCategoryRef.current = inspirationCategory;
+  }, [inspirationCategory]);
 
   const {
     setMarked,
@@ -86,12 +102,14 @@ const MyInspiration = () => {
   const [pendingImages, setPendingImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [currentCropIndex, setCurrentCropIndex] = useState(0);
 
-  const {
-    inspirationImages,
-    imagesLoading,
-    refreshInspirationImages,
-    deleteInspirationImages,
-  } = useImageContext();
+  const { refreshInspirationImages, deleteInspirationImages } = useImageContext();
+
+  /** Cached server lists per profession — instant tab switches without clearing the grid. */
+  const inspirationCacheRef = useRef<
+    Partial<Record<InspirationProfession, InspirationImage[]>>
+  >({});
+  const [fetchingCategory, setFetchingCategory] =
+    useState<InspirationProfession | null>(null);
 
   useEffect(() => {
     return () => {
@@ -99,41 +117,62 @@ const MyInspiration = () => {
     };
   }, [resetState]);
 
-  useEffect(() => {
-    const updateNumColumns = () => {
-      const screenWidth = Dimensions.get("window").width;
-      const newNumColumns = Math.floor(screenWidth / 150);
-      if (newNumColumns !== numColumns) {
-        setNumColumns(newNumColumns);
-        setFlatListKey(`flatlist-${newNumColumns}-${Date.now()}`);
-      }
-    };
+  const selectCategory = useCallback(
+    (code: InspirationProfession) => {
+      if (code === inspirationCategory) return;
+      inspirationCategoryRef.current = code;
+      setInspirationCategory(code);
 
-    updateNumColumns();
-    const subscription = Dimensions.addEventListener(
-      "change",
-      updateNumColumns
-    );
-    return () => subscription?.remove();
-  }, [numColumns]);
+      const cached = inspirationCacheRef.current[code];
+      setImageGallery(cached ?? []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      if (!hasInitiallyLoaded && uploadingImages.length === 0) {
-        refreshImagesOnFocus();
+      if (cached === undefined) {
+        setFetchingCategory(code);
+      } else {
+        setFetchingCategory(null);
       }
-      return () => {};
-    }, [hasInitiallyLoaded, uploadingImages])
+
+      void (async () => {
+        const fresh = await refreshInspirationImages(true, code);
+        inspirationCacheRef.current[code] = fresh;
+        if (inspirationCategoryRef.current === code) {
+          setImageGallery(fresh);
+        }
+        setFetchingCategory((prev) => (prev === code ? null : prev));
+      })();
+    },
+    [refreshInspirationImages, setImageGallery, inspirationCategory]
   );
 
-  const refreshImagesOnFocus = useCallback(async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    await refreshInspirationImages();
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 300);
-  }, [refreshInspirationImages, isRefreshing]);
+  useFocusEffect(
+    useCallback(() => {
+      if (uploadingImages.length > 0) return;
+
+      const cat = inspirationCategoryRef.current;
+      const cached = inspirationCacheRef.current[cat];
+      setImageGallery(cached ?? []);
+
+      let cancelled = false;
+
+      if (cached === undefined) {
+        setFetchingCategory(cat);
+      }
+
+      void (async () => {
+        const fresh = await refreshInspirationImages(true, cat);
+        inspirationCacheRef.current[cat] = fresh;
+        if (cancelled) return;
+        if (inspirationCategoryRef.current === cat) {
+          setImageGallery(fresh);
+        }
+        setFetchingCategory((prev) => (prev === cat ? null : prev));
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [refreshInspirationImages, setImageGallery, uploadingImages.length])
+  );
 
   useEffect(() => {
     if (selectedImages.length === 0 || buttonText === "Mark images") {
@@ -142,30 +181,6 @@ const MyInspiration = () => {
       setMarked(true);
     }
   }, [selectedImages, buttonText, setMarked]);
-
-  useEffect(() => {
-    if (isRefreshing || hasInitiallyLoaded) return;
-
-    if (!Array.isArray(inspirationImages)) {
-      setImageGallery([]);
-      setHasInitiallyLoaded(true);
-      return;
-    }
-
-    if (inspirationImages.length > 0) {
-      setImageGallery(inspirationImages);
-    } else {
-      setImageGallery([]);
-    }
-
-    setHasInitiallyLoaded(true);
-  }, [
-    inspirationImages,
-    isRefreshing,
-    hasInitiallyLoaded,
-    imagesLoading,
-    setImageGallery,
-  ]);
 
   useEffect(() => {
     if (buttonText === "Mark images") {
@@ -182,6 +197,8 @@ const MyInspiration = () => {
         (img) => !selectedImages.includes(img.image_url)
       );
       setImageGallery(updatedGallery);
+      inspirationCacheRef.current[inspirationCategoryRef.current] =
+        updatedGallery;
       setButtonText("Mark images");
       setMarked(false);
       setSelectedImages([]);
@@ -232,6 +249,7 @@ const MyInspiration = () => {
         image_url: highResPath,
         low_res_image_url: lowResPath,
         high_middle_res_url: lowResPath,
+        profession_code: inspirationCategoryRef.current,
       });
 
       setUploadProgress((prev) => ({ ...prev, [tempId]: 100 }));
@@ -356,7 +374,9 @@ const MyInspiration = () => {
     if (successfulUploads.length > 0) {
       setTimeout(async () => {
         // Refresh from database
-        const freshImages = await refreshInspirationImages();
+        const cat = inspirationCategoryRef.current;
+        const freshImages = await refreshInspirationImages(true, cat);
+        inspirationCacheRef.current[cat] = freshImages;
 
         // Update local gallery with fresh data
         setImageGallery(freshImages);
@@ -435,52 +455,62 @@ const MyInspiration = () => {
     }
   };
 
-  if (
-    imagesLoading &&
-    imageGallery.length === 0 &&
-    uploadingImages.length === 0
-  ) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
-      </SafeAreaView>
-    );
-  }
-
   const safeGallery = Array.isArray(imageGallery) ? imageGallery : [];
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor="#fff" />
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.topNav}>
           <InspirationTopNav title="My inspiration" goHome={goHome} />
         </View>
 
-        <View style={styles.rowContainer}>
-          <Pressable
-            style={[
-              styles.plus,
-              { opacity: buttonText === "Mark images" ? 1 : 0.2 },
-            ]}
-            onPress={buttonText === "Mark images" ? pickImage : null}
-          >
-            <Plus size={responsiveScale(32)} />
-          </Pressable>
-
-          <View style={styles.markCancel}>
-            {safeGallery.length > 0 && (
-              <MarkCancelButton
-                onButtonChangetext={setButtonText}
-                onDelete={() => {
-                  if (selectedImages.length > 0) {
-                    setDeleteAlertVisible(true);
-                  }
-                }}
-              />
-            )}
-          </View>
+        <View style={styles.filtersRow}>
+          {CATEGORY_TABS.map((tab) => {
+            const active = inspirationCategory === tab.code;
+            return (
+              <Pressable
+                key={tab.code}
+                style={[styles.filterPill, active && styles.filterPillActive]}
+                onPress={() => selectCategory(tab.code)}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    active && styles.filterPillTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+
+        <Pressable
+          style={[
+            styles.addImageButton,
+            buttonText !== "Mark images" && styles.addImageButtonDisabled,
+          ]}
+          onPress={buttonText === "Mark images" ? pickImage : undefined}
+          disabled={buttonText !== "Mark images"}
+        >
+          <Plus size={responsiveScale(22)} color={primaryBlack} weight="bold" />
+          <Text style={styles.addImageButtonText}>Add image</Text>
+        </Pressable>
+
+        {safeGallery.length > 0 && (
+          <View style={styles.markCancelRow}>
+            <MarkCancelButton
+              onButtonChangetext={setButtonText}
+              onDelete={() => {
+                if (selectedImages.length > 0) {
+                  setDeleteAlertVisible(true);
+                }
+              }}
+            />
+          </View>
+        )}
 
         <CustomAlert
           visible={deleteAlertVisible}
@@ -566,7 +596,7 @@ const MyInspiration = () => {
 
         <View style={styles.galleryContainer}>
           <FlatList
-            key={flatListKey}
+            key="inspiration-grid"
             data={safeGallery}
             extraData={[uploadingImages, uploadProgress, selectedImages]}
             renderItem={({ item }) => {
@@ -583,7 +613,8 @@ const MyInspiration = () => {
                   onPress={() => handleImagePress(item)}
                   style={[
                     styles.imageContainer,
-                    item.isTemp && styles.tempImageContainer, // Add this style
+                    { width: cellSize },
+                    item.isTemp && styles.tempImageContainer,
                   ]}
                 >
                   {item.localUriAvailable && item.localUri ? (
@@ -591,9 +622,10 @@ const MyInspiration = () => {
                       source={{ uri }}
                       style={[
                         styles.image,
+                        styles.imageRounded,
                         {
-                          width: size,
-                          height: size,
+                          width: cellSize,
+                          height: cellSize,
                           opacity: selectedImages.includes(item.image_url)
                             ? 0.5
                             : 1,
@@ -607,9 +639,10 @@ const MyInspiration = () => {
                       sizePreset="inspiration-grid"
                       style={[
                         styles.image,
+                        styles.imageRounded,
                         {
-                          width: size,
-                          height: size,
+                          width: cellSize,
+                          height: cellSize,
                           opacity: selectedImages.includes(item.image_url)
                             ? 0.5
                             : 1,
@@ -635,15 +668,18 @@ const MyInspiration = () => {
             keyExtractor={(item, index) =>
               item?.id ? String(item.id) : `insp-${index}`
             }
-            numColumns={numColumns}
-            columnWrapperStyle={styles.row}
+            numColumns={NUM_COLUMNS}
+            columnWrapperStyle={[
+              styles.row,
+              { paddingHorizontal: horizontalPadding, gap: columnGap },
+            ]}
             contentContainerStyle={styles.contentContainer}
             ListEmptyComponent={
               <View style={styles.noInspirationContainer}>
                 <Text style={styles.noInspirationText}>
-                  {imagesLoading
-                    ? "Loading..."
-                    : "No inspiration has been added yet"}
+                  {fetchingCategory === inspirationCategory
+                    ? "Loading…"
+                    : "No images yet. Tap Add image to add inspiration for this category."}
                 </Text>
               </View>
             }
@@ -665,37 +701,100 @@ const MyInspiration = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  topNav: { margin: scalePercent(5) },
-  row: { flex: 1, justifyContent: "flex-start", gap: 2 },
-  rowContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginHorizontal: scalePercent(5),
-    marginBottom: scalePercent(3),
+  container: { flex: 1, backgroundColor: primaryGreen },
+  topNav: {
+    paddingHorizontal: scalePercent(5),
+    marginBottom: responsiveScale(4),
   },
+  filtersRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: responsiveScale(10),
+    paddingHorizontal: scalePercent(5),
+    marginTop: responsiveScale(8),
+  },
+  filterPill: {
+    paddingVertical: responsiveScale(10),
+    paddingHorizontal: responsiveScale(20),
+    borderRadius: responsiveBorderRadius(999),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
+    backgroundColor: "transparent",
+  },
+  filterPillActive: {
+    backgroundColor: primaryBlack,
+    borderColor: primaryBlack,
+  },
+  filterPillText: {
+    fontFamily: "Inter-Medium",
+    fontSize: responsiveFontSize(16, 14),
+    color: primaryBlack,
+  },
+  filterPillTextActive: {
+    color: primaryWhite,
+  },
+  addImageButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "center",
+    gap: responsiveScale(8),
+    marginTop: responsiveScale(18),
+    paddingVertical: responsiveScale(12),
+    paddingHorizontal: responsiveScale(22),
+    borderRadius: responsiveBorderRadius(999),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
+    backgroundColor: "transparent",
+  },
+  addImageButtonDisabled: {
+    opacity: 0.35,
+  },
+  addImageButtonText: {
+    fontFamily: "Inter-Medium",
+    fontSize: responsiveFontSize(16, 14),
+    color: primaryBlack,
+  },
+  markCancelRow: {
+    alignItems: "flex-end",
+    paddingHorizontal: scalePercent(5),
+    marginTop: responsiveScale(10),
+    minHeight: responsiveScale(36),
+  },
+  row: {},
   galleryContainer: {
     flex: 1,
     position: "relative",
-    marginTop: 0,
+    marginTop: responsiveScale(16),
     marginHorizontal: 0,
   },
-  imageContainer: { position: "relative", aspectRatio: 1 },
+  imageContainer: {
+    position: "relative",
+    borderRadius: responsiveBorderRadius(18),
+    overflow: "hidden",
+  },
   image: { resizeMode: "cover" },
-  contentContainer: { flexGrow: 1, paddingTop: 2 },
+  imageRounded: {
+    borderRadius: responsiveBorderRadius(18),
+  },
+  contentContainer: {
+    flexGrow: 1,
+    paddingBottom: responsiveScale(100),
+  },
   noInspirationText: {
-    fontFamily: "Inter-Bold",
-    fontSize: responsiveFontSize(18, 16),
-    color: Colors.dark.warmGreen,
+    fontFamily: "Inter-Medium",
+    fontSize: responsiveFontSize(17, 15),
+    color: primaryBlack,
     textAlign: "center",
+    lineHeight: responsiveFontSize(24, 22),
+    paddingHorizontal: scalePercent(8),
   },
   noInspirationContainer: {
-    marginTop: scalePercent(10),
+    marginTop: scalePercent(12),
     justifyContent: "center",
     alignItems: "center",
     flex: 1,
-    height: responsiveScale(300),
+    minHeight: responsiveScale(280),
   },
   modalOverlay: {
     flex: 1,
@@ -703,7 +802,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   modalContainer: {
     width: "100%",
     height: "100%",
@@ -726,12 +824,6 @@ const styles = StyleSheet.create({
   enlargedImage: {
     width: "100%",
     height: "100%",
-  },
-  plus: { flex: 1, alignItems: "center", marginLeft: scalePercent(34) },
-  markCancel: {
-    padding: responsivePadding(10),
-    flex: 1,
-    alignItems: "flex-end",
   },
   tempImageContainer: {
     position: "relative",

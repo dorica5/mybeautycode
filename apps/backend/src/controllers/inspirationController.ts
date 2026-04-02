@@ -8,7 +8,11 @@ export const inspirationController = {
       return res.status(400).json({ error: "owner_id or auth required" });
     }
     try {
-      const data = await inspirationService.listByOwner(String(ownerId));
+      const profession =
+        typeof req.query.profession === "string" && req.query.profession.trim()
+          ? req.query.profession.trim()
+          : "hair";
+      const data = await inspirationService.listByOwner(String(ownerId), profession);
       res.json(data);
     } catch (err) {
       console.error("inspiration listByOwner error:", err);
@@ -27,6 +31,8 @@ export const inspirationController = {
         low_res_image_url: body.low_res_image_url,
         low_middle_res_url: body.low_middle_res_url,
         high_middle_res_url: body.high_middle_res_url,
+        profession_id: body.profession_id,
+        profession_code: body.profession_code,
       });
       res.json(data);
     } catch (err) {

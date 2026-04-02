@@ -32,6 +32,7 @@ export const inspirationService = {
     client_id?: string;
     shared_by?: string;
     profession_id?: string;
+    profession_code?: string;
     image_url: string;
     low_res_image_url?: string;
     low_middle_res_url?: string;
@@ -42,7 +43,9 @@ export const inspirationService = {
 
     const professionId = data.profession_id
       ? data.profession_id
-      : await professionService.getProfessionIdByCode("hair");
+      : await professionService.getProfessionIdByCode(
+          data.profession_code?.trim() || "hair"
+        );
 
     return prisma.inspiration.create({
       data: {
