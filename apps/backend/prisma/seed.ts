@@ -5,10 +5,9 @@ const prisma = new PrismaClient();
 async function main() {
   const professions = [
     { code: "hair", sortOrder: 1 },
-    { code: "brows", sortOrder: 2 },
-    { code: "lashes", sortOrder: 3 },
-    { code: "nails", sortOrder: 4 },
-    { code: "esthetician", sortOrder: 5 },
+    { code: "brows_lashes", sortOrder: 2 },
+    { code: "nails", sortOrder: 3 },
+    { code: "esthetician", sortOrder: 4 },
   ];
 
   for (const p of professions) {

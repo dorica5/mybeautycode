@@ -23,13 +23,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 type StrengthState = { strength: string; feedback: string };
 
-/** One or more human-readable rule failures (sign up). */
 function signUpRuleMessages(
   email: string,
   isEmailValid: boolean,
@@ -59,7 +59,10 @@ function signUpRuleMessages(
 
 const SignUp = () => {
   const passwordRef = useRef<TextInput>(null);
+  const { height: windowHeight } = useWindowDimensions();
   const logoSize = useBeautyCodeLogoSize();
+  const insets = useSafeAreaInsets();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordStrength, setPasswordStrength] = useState({
@@ -158,10 +161,6 @@ const SignUp = () => {
         return;
       }
 
-      /**
-       * When the email is already registered, Supabase returns 200 + a user stub with
-       * `identities: []` (enumeration protection). Treat as duplicate, not success.
-       */
       const identities = user.identities ?? [];
       if (identities.length === 0) {
         setErrorMessage(
@@ -182,12 +181,9 @@ const SignUp = () => {
       }
 
       if (!data.session) {
-        // Email confirmation on: no session until the user verifies — go to check-email screen
         router.replace("/CheckMail");
         return;
       }
-
-      // Session returned (e.g. confirmations off): AuthProvider picks up via onAuthStateChange
     } catch (err) {
       setErrorMessage("An unexpected error occurred. Please try again.");
       console.error("SignUp error:", err);
@@ -196,107 +192,123 @@ const SignUp = () => {
     }
   }
 
+  const bottomPad = Math.max(insets.bottom, responsiveMargin(16)) + responsiveMargin(24);
+  const topPad = insets.top + responsiveMargin(8);
+  const minInnerHeight = windowHeight - topPad - bottomPad;
+
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.safe} edges={["left", "right"]}>
       <StatusBar style="dark" />
-      <View style={styles.container}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={() => router.back()}
-          style={styles.backRow}
-          hitSlop={12}
+      <KeyboardAwareScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: bottomPad, paddingTop: topPad },
+        ]}
+        enableOnAndroid
+        enableAutomaticScroll
+        keyboardOpeningTime={0}
+        extraScrollHeight={responsiveScale(140)}
+        extraHeight={responsiveScale(72)}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        enableResetScrollToCoords={false}
+      >
+        <View
+          style={[
+            styles.inner,
+            {
+              paddingHorizontal: responsivePadding(24),
+              minHeight: minInnerHeight,
+            },
+          ]}
         >
-          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-        </Pressable>
+          <View style={styles.topSection}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              onPress={() => router.back()}
+              style={styles.backRow}
+              hitSlop={12}
+            >
+              <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+            </Pressable>
 
-        <View style={styles.upperHalf}>
-          <Logo width={logoSize.width} height={logoSize.height} />
-        </View>
+            <View style={styles.logoBlock}>
+              <Logo width={logoSize.width} height={logoSize.height} />
+            </View>
 
-        <View style={styles.lowerHalf}>
-          <KeyboardAwareScrollView
-            style={styles.keyboard}
-            contentContainerStyle={styles.scrollContent}
-            enableOnAndroid
-            enableAutomaticScroll
-            extraScrollHeight={responsiveScale(160)}
-            extraHeight={responsiveScale(100)}
-            keyboardOpeningTime={0}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            showsVerticalScrollIndicator={false}
-          >
             <View style={styles.formBlock}>
+            <Text
+              accessibilityRole="header"
+              style={[Typography.h4, styles.textOnGreen, styles.title]}
+            >
+              Sign up
+            </Text>
+
+            <PrimaryOutlineTextField
+              label="Email"
+              value={email}
+              onChangeText={handleEmailChange}
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              autoCorrect={false}
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              containerStyle={styles.emailFieldSpacing}
+            />
+
+            <PrimaryOutlineTextField
+              inputRef={passwordRef}
+              label="Your password"
+              value={password}
+              onChangeText={handlePasswordChange}
+              password
+              placeholder="Your password"
+              autoCapitalize="none"
+              autoComplete="password"
+              returnKeyType="done"
+              containerStyle={styles.passwordFieldSpacing}
+            />
+
+            {errorMessage ? (
+              <Text style={styles.errorMessage}>{errorMessage}</Text>
+            ) : null}
+
+            <PaddedLabelButton
+              title={loading ? "Creating account…" : "Create account"}
+              horizontalPadding={32}
+              verticalPadding={16}
+              disabled={loading}
+              onPress={signUpWithEmail}
+              style={styles.primaryButton}
+              textStyle={styles.primaryButtonLabel}
+            />
+            </View>
+          </View>
+
+          <View style={styles.footerRow}>
+            <Text style={[Typography.label, styles.textOnGreen]}>
+              Already have an account?{" "}
+            </Text>
+            <Pressable onPress={goToSignIn} hitSlop={8}>
               <Text
-                accessibilityRole="header"
-                style={[Typography.h4, styles.textOnGreen, styles.title]}
+                style={[
+                  Typography.label,
+                  styles.textOnGreen,
+                  styles.footerLink,
+                ]}
               >
-                Sign up
+                Sign in
               </Text>
-
-              <PrimaryOutlineTextField
-                label="Email"
-                value={email}
-                onChangeText={handleEmailChange}
-                placeholder="Email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                autoCorrect={false}
-                returnKeyType="next"
-                blurOnSubmit={false}
-                onSubmitEditing={() => passwordRef.current?.focus()}
-                containerStyle={styles.emailFieldSpacing}
-              />
-
-              <PrimaryOutlineTextField
-                inputRef={passwordRef}
-                label="Your password"
-                value={password}
-                onChangeText={handlePasswordChange}
-                password
-                placeholder="Your password"
-                autoCapitalize="none"
-                autoComplete="password"
-                returnKeyType="done"
-                containerStyle={styles.passwordFieldSpacing}
-              />
-
-              {errorMessage ? (
-                <Text style={styles.errorMessage}>{errorMessage}</Text>
-              ) : null}
-
-              <PaddedLabelButton
-                title={loading ? "Creating account…" : "Create account"}
-                horizontalPadding={32}
-                verticalPadding={16}
-                disabled={loading}
-                onPress={signUpWithEmail}
-                style={styles.primaryButton}
-                textStyle={styles.primaryButtonLabel}
-              />
-            </View>
-
-            <View style={styles.footerRow}>
-              <Text style={[Typography.label, styles.textOnGreen]}>
-                Already have an account?{" "}
-              </Text>
-              <Pressable onPress={goToSignIn} hitSlop={8}>
-                <Text
-                  style={[
-                    Typography.label,
-                    styles.textOnGreen,
-                    styles.footerLink,
-                  ]}
-                >
-                  Sign in
-                </Text>
-              </Pressable>
-            </View>
-          </KeyboardAwareScrollView>
+            </Pressable>
+          </View>
         </View>
-      </View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 };
@@ -308,42 +320,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: primaryGreen,
   },
-  container: {
+  scroll: {
     flex: 1,
     backgroundColor: primaryGreen,
-    paddingHorizontal: responsivePadding(24),
-  },
-  backRow: {
-    position: "absolute",
-    left: responsiveMargin(16),
-    top: responsiveMargin(8),
-    zIndex: 2,
-    paddingVertical: responsiveMargin(4),
-  },
-  upperHalf: {
-    flex: 1,
-    minHeight: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: responsiveMargin(4),
-    paddingBottom: responsiveMargin(32),
-  },
-  lowerHalf: {
-    flex: 2,
-    minHeight: 0,
-    alignItems: "center",
-    width: "100%",
-  },
-  keyboard: {
-    flex: 1,
-    minHeight: 0,
-    width: "100%",
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "space-between",
-    paddingTop: 0,
-    paddingBottom: responsiveMargin(40),
+  },
+  inner: {
+    flexGrow: 1,
+  },
+  topSection: {
+    width: "100%",
+  },
+  backRow: {
+    alignSelf: "flex-start",
+    paddingVertical: responsiveMargin(4),
+    marginBottom: responsiveMargin(8),
+    zIndex: 2,
+  },
+  logoBlock: {
+    alignItems: "center",
+    marginBottom: responsiveMargin(86),
+    overflow: "hidden",
   },
   formBlock: {
     alignItems: "center",
@@ -354,17 +353,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   title: {
-    marginBottom: responsiveMargin(28),
+    marginBottom: responsiveMargin(22),
   },
   emailFieldSpacing: {
-    marginBottom: responsiveMargin(30),
+    marginBottom: responsiveMargin(22),
   },
   passwordFieldSpacing: {
-    marginBottom: responsiveMargin(28),
+    marginBottom: responsiveMargin(20),
   },
   primaryButton: {
     alignSelf: "center",
-    marginTop: responsiveMargin(28),
+    marginTop: responsiveMargin(22),
     backgroundColor: primaryBlack,
     borderRadius: responsiveScale(999),
   },
@@ -384,7 +383,8 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: responsiveMargin(8),
+    marginTop: "auto",
+    paddingTop: responsiveMargin(16),
   },
   footerLink: {
     fontFamily: "Outfit_700Bold",

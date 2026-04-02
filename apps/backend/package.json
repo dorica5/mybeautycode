@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "main": "dist/index.js",
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
+  },
   "scripts": {
     "postinstall": "prisma generate",
     "build": "tsc",

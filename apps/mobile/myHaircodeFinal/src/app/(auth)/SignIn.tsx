@@ -23,13 +23,20 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const SignIn = () => {
   const passwordRef = useRef<TextInput>(null);
+  const { height: windowHeight } = useWindowDimensions();
   const logoSize = useBeautyCodeLogoSize();
+  const insets = useSafeAreaInsets();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,22 +72,22 @@ const SignIn = () => {
         return;
       }
 
-      let profile: { user_type?: string } | null = null;
+      let profile: { user_type?: string; setup_status?: boolean } | null =
+        null;
       try {
-        profile = await api.get<{ user_type?: string }>("/api/auth/me");
+        profile = await api.get<{
+          user_type?: string;
+          setup_status?: boolean;
+        }>("/api/auth/me");
       } catch (meErr: unknown) {
         const err = meErr as Error & { status?: number };
         const status = err.status;
         const msg = (err.message ?? "").toLowerCase();
-        const recoverableMe =
+        const needsProfileOnly =
           status === 404 ||
-          status === 500 ||
-          status === 502 ||
-          status === 503 ||
           msg.includes("profile not found") ||
-          msg.includes("failed to fetch profile") ||
-          msg.includes("not found");
-        if (recoverableMe) {
+          (msg.includes("not found") && status !== 500);
+        if (needsProfileOnly) {
           posthog.capture("Login", {
             user_id: data.user.id,
             role: "pending_setup",
@@ -115,37 +122,53 @@ const SignIn = () => {
     }
   }
 
+  const bottomPad = Math.max(insets.bottom, responsiveMargin(16)) + responsiveMargin(24);
+  const topPad = insets.top + responsiveMargin(8);
+  const minInnerHeight = windowHeight - topPad - bottomPad;
+
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.safe} edges={["left", "right"]}>
       <StatusBar style="dark" />
-      <View style={styles.container}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={() => router.back()}
-          style={styles.backRow}
-          hitSlop={12}
+      <KeyboardAwareScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: bottomPad, paddingTop: topPad },
+        ]}
+        enableOnAndroid
+        enableAutomaticScroll
+        keyboardOpeningTime={0}
+        extraScrollHeight={responsiveScale(140)}
+        extraHeight={responsiveScale(72)}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        enableResetScrollToCoords={false}
+      >
+        <View
+          style={[
+            styles.inner,
+            {
+              paddingHorizontal: responsivePadding(24),
+              minHeight: minInnerHeight,
+            },
+          ]}
         >
-          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-        </Pressable>
+          <View style={styles.topSection}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              onPress={() => router.back()}
+              style={styles.backRow}
+              hitSlop={12}
+            >
+              <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+            </Pressable>
 
-        <View style={styles.upperHalf}>
-          <Logo width={logoSize.width} height={logoSize.height} />
-        </View>
+            <View style={styles.logoBlock}>
+              <Logo width={logoSize.width} height={logoSize.height} />
+            </View>
 
-        <View style={styles.lowerHalf}>
-          <KeyboardAwareScrollView
-            style={styles.keyboard}
-            contentContainerStyle={styles.scrollContent}
-            enableOnAndroid
-            enableAutomaticScroll
-            extraScrollHeight={responsiveScale(160)}
-            extraHeight={responsiveScale(100)}
-            keyboardOpeningTime={0}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            showsVerticalScrollIndicator={false}
-          >
             <View style={styles.formBlock}>
               <Text
                 accessibilityRole="header"
@@ -155,20 +178,20 @@ const SignIn = () => {
               </Text>
 
               <PrimaryOutlineTextField
-                label="Email"
-                value={email}
-                onChangeText={(t) => {
-                  setErrorMessage("");
-                  setEmail(t);
-                }}
-                placeholder="Email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                autoCorrect={false}
-                returnKeyType="next"
-                blurOnSubmit={false}
-                onSubmitEditing={() => passwordRef.current?.focus()}
+              label="Email"
+              value={email}
+              onChangeText={(t) => {
+                setErrorMessage("");
+                setEmail(t);
+              }}
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              autoCorrect={false}
+              returnKeyType="next"
+              blurOnSubmit={false}
+              onSubmitEditing={() => passwordRef.current?.focus()}
                 containerStyle={styles.emailFieldSpacing}
               />
 
@@ -202,26 +225,26 @@ const SignIn = () => {
                 textStyle={styles.signInButtonLabel}
               />
             </View>
+          </View>
 
-            <View style={styles.footerCol}>
-              <Text style={[Typography.label, styles.textOnGreen]}>
-                Don&apos;t remember your password?
+          <View style={styles.footerCol}>
+            <Text style={[Typography.label, styles.textOnGreen]}>
+              Don&apos;t remember your password?
+            </Text>
+            <Pressable onPress={resetPassword} hitSlop={8}>
+              <Text
+                style={[
+                  Typography.label,
+                  styles.textOnGreen,
+                  styles.resetLink,
+                ]}
+              >
+                Reset password
               </Text>
-              <Pressable onPress={resetPassword} hitSlop={8}>
-                <Text
-                  style={[
-                    Typography.label,
-                    styles.textOnGreen,
-                    styles.resetLink,
-                  ]}
-                >
-                  Reset password
-                </Text>
-              </Pressable>
-            </View>
-          </KeyboardAwareScrollView>
+            </Pressable>
+          </View>
         </View>
-      </View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 };
@@ -233,47 +256,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: primaryGreen,
   },
-  container: {
+  scroll: {
     flex: 1,
     backgroundColor: primaryGreen,
-    paddingHorizontal: responsivePadding(24),
   },
-  backRow: {
-    position: "absolute",
-    left: responsiveMargin(16),
-    top: responsiveMargin(8),
-    zIndex: 2,
-    paddingVertical: responsiveMargin(4),
-  },
-  /**
-   * Shorter band than Splash’s 1:1 split so “Sign in” + fields sit higher.
-   * 1:2 ≈ 33% / 67% (tighter than 2:3) — no overlap over the logo.
-   */
-  upperHalf: {
-    flex: 1,
-    minHeight: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: responsiveMargin(4),
-    paddingBottom: responsiveMargin(32),
-  },
-  lowerHalf: {
-    flex: 2,
-    minHeight: 0,
-    alignItems: "center",
-    width: "100%",
-  },
-  keyboard: {
-    flex: 1,
-    minHeight: 0,
-    width: "100%",
-  },
-  /** No negative margins: they pull content above ScrollView’s clip and hide it behind “empty” green. */
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "space-between",
-    paddingTop: 0,
-    paddingBottom: responsiveMargin(40),
+  },
+  inner: {
+    flexGrow: 1,
+  },
+  topSection: {
+    width: "100%",
+  },
+  backRow: {
+    alignSelf: "flex-start",
+    paddingVertical: responsiveMargin(4),
+    marginBottom: responsiveMargin(8),
+    zIndex: 2,
+  },
+  logoBlock: {
+    alignItems: "center",
+    marginBottom: responsiveMargin(86),
+    overflow: "hidden",
   },
   formBlock: {
     alignItems: "center",
@@ -284,17 +289,17 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   title: {
-    marginBottom: responsiveMargin(28),
+    marginBottom: responsiveMargin(22),
   },
   emailFieldSpacing: {
-    marginBottom: responsiveMargin(30),
+    marginBottom: responsiveMargin(22),
   },
   passwordFieldSpacing: {
-    marginBottom: responsiveMargin(28),
+    marginBottom: responsiveMargin(20),
   },
   signInButton: {
     alignSelf: "center",
-    marginTop: responsiveMargin(28),
+    marginTop: responsiveMargin(22),
     backgroundColor: primaryBlack,
     borderRadius: responsiveScale(999),
   },
@@ -312,7 +317,8 @@ const styles = StyleSheet.create({
   footerCol: {
     alignItems: "center",
     gap: responsiveMargin(6),
-    paddingBottom: responsiveMargin(8),
+    marginTop: "auto",
+    paddingTop: responsiveMargin(16),
   },
   resetLink: {
     fontFamily: "Outfit_700Bold",

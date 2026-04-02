@@ -2,6 +2,9 @@ import React from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { CaretLeft } from "phosphor-react-native";
 import { router } from "expo-router";
+import { primaryBlack } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
+import { responsiveScale } from "@/src/utils/responsive";
 
 type TopNavProps = {
   title: string;
@@ -11,42 +14,58 @@ type TopNavProps = {
   titleStyle?: object;
   loading?: boolean;
   goHome?: () => void | undefined;
+  /** When set, runs instead of `goHome` / `router.back()` (e.g. close a modal). */
+  onBack?: () => void;
 };
 
-const TopNav = ({ title, saveAction, titleStyle, goHome }: TopNavProps) => {
+const InspirationTopNav = ({ title, goHome, onBack }: TopNavProps) => {
   return (
-    <View style={styles.topNav}>
+    <View style={styles.wrapper}>
       <Pressable
+        style={styles.backRow}
         onPress={() => {
+          if (onBack) {
+            onBack();
+            return;
+          }
           if (goHome == undefined) {
             router.back();
           } else {
             goHome();
           }
         }}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
       >
-        <CaretLeft size={32} />
+        <CaretLeft size={responsiveScale(26)} color={primaryBlack} weight="bold" />
+        <Text style={styles.backLabel}>Back</Text>
       </Pressable>
-      <Text style={[styles.title, titleStyle]}>{title}</Text>
+      <Text style={[Typography.h3, styles.titleCentered]}>{title}</Text>
     </View>
   );
 };
 
-export default TopNav;
+export default InspirationTopNav;
 
 const styles = StyleSheet.create({
-  topNav: {
+  wrapper: {
+    width: "100%",
+  },
+  backRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: "1%",
+    gap: responsiveScale(4),
+    alignSelf: "flex-start",
+    paddingVertical: responsiveScale(4),
   },
-  title: {
-    fontSize: 20,
-    fontFamily: "Inter-SemiBold",
-    marginLeft: "23%",
+  backLabel: {
+    fontFamily: "Inter-Medium",
+    fontSize: responsiveScale(16),
+    color: primaryBlack,
   },
-  save: {
-    fontSize: 20,
-    fontFamily: "Inter-SemiBold",
+  titleCentered: {
+    textAlign: "center",
+    width: "100%",
+    marginTop: responsiveScale(20),
   },
 });

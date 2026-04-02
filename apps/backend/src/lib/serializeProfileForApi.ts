@@ -5,13 +5,24 @@ export type ProfileWithProfessional = Profile & {
   professionalProfile?: { id: string } | null;
 };
 
+function toIsoString(value: Date | null | undefined): string | null {
+  if (value == null) return null;
+  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return null;
+  try {
+    return value.toISOString();
+  } catch {
+    return null;
+  }
+}
+
 /** Snake_case JSON for mobile `Profile` + derived `user_type`. */
 export function serializeProfileForApi(profile: ProfileWithProfessional) {
+  const prof = profile.professionalProfile;
   return {
     id: profile.id,
     email: profile.email ?? null,
-    created_at: profile.createdAt?.toISOString?.() ?? null,
-    updated_at: profile.updatedAt?.toISOString?.() ?? null,
+    created_at: toIsoString(profile.createdAt),
+    updated_at: toIsoString(profile.updatedAt ?? undefined),
     first_name: profile.firstName ?? null,
     last_name: profile.lastName ?? null,
     username: profile.username ?? null,
@@ -21,8 +32,7 @@ export function serializeProfileForApi(profile: ProfileWithProfessional) {
     phone_number: profile.phoneNumber ?? null,
     /** Always a boolean so clients never treat `null` as ambiguous on reload. */
     setup_status: profile.setupStatus === true,
-    signup_date: profile.signupDate?.toISOString?.() ?? null,
-    user_type:
-      profile.professionalProfile != null ? "HAIRDRESSER" : "CLIENT",
+    signup_date: toIsoString(profile.signupDate ?? undefined),
+    user_type: prof != null ? "HAIRDRESSER" : "CLIENT",
   };
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -10,14 +10,16 @@ import {
   Alert,
   Image,
   ActivityIndicator,
-  ScrollView,
   Image as RNImage,
+  Platform,
+  ScrollView,
 } from "react-native";
+import { randomUUID } from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InspirationTopNav from "@/src/components/InspirationTopNav";
 import MarkCancelButton from "@/src/components/MarkCancelButton";
-import { Plus, XCircle } from "phosphor-react-native";
+import { Plus, X } from "phosphor-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useSaveInspirationToDatabase } from "@/src/api/inspirations";
@@ -25,38 +27,96 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { uploadToStorage } from "@/src/lib/uploadHelpers";
 import { useMark } from "@/src/providers/MarkProvider";
 import { Href, router, useFocusEffect } from "expo-router";
-import { useImageContext } from "@/src/providers/ImageProvider";
+import {
+  useImageContext,
+  type InspirationImage,
+} from "@/src/providers/ImageProvider";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import ImageCropModal from "@/src/components/ImageCropModal";
-import { fetchSignedStorageUrl } from "@/src/lib/storageSignedUrl";
+import {
+  fetchSignedStorageUrl,
+  fetchSignedStorageUrls,
+} from "@/src/lib/storageSignedUrl";
 import Carousel from "react-native-reanimated-carousel";
 import CustomAlert from "@/src/components/CustomAlert";
-import { Colors } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import {
   responsiveScale,
   scalePercent,
-  responsivePadding,
-  responsiveMargin,
   responsiveFontSize,
   responsiveBorderRadius,
-  isTablet,
 } from "@/src/utils/responsive";
 import { usePostHog } from "posthog-react-native";
 
+const NUM_COLUMNS = 2;
+
+type InspirationProfession = "hair" | "nails" | "brows";
+
+const CATEGORY_TABS: { code: InspirationProfession; label: string }[] = [
+  { code: "hair", label: "Hair" },
+  { code: "nails", label: "Nails" },
+  { code: "brows", label: "Brows" },
+];
+
+/** Align with backend inspirationService.deleteByImageUrls so Prisma + storage paths match. */
+function toInspirationDeletePath(url: string): string {
+  const raw = String(url ?? "")
+    .trim()
+    .split("?")[0];
+  if (!raw) return "";
+  if (raw.includes("/inspirations/")) {
+    const p = raw.split("/inspirations/")[1];
+    return decodeURIComponent(p?.split("?")[0] ?? "") || raw;
+  }
+  const publicMarker = "/object/public/inspirations/";
+  if (raw.includes(publicMarker)) {
+    const tail = raw.split(publicMarker)[1] ?? "";
+    return decodeURIComponent(tail.split("?")[0] ?? "") || raw;
+  }
+  if (raw.includes("/") && !raw.startsWith("http")) {
+    return raw;
+  }
+  return raw.split("/").pop() ?? raw;
+}
+
 const MyInspiration = () => {
-  const [numColumns, setNumColumns] = useState(3);
-  const [flatListKey, setFlatListKey] = useState("flatlist-0");
+  const [inspirationCategory, setInspirationCategory] =
+    useState<InspirationProfession>("hair");
+  const inspirationCategoryRef = useRef<InspirationProfession>("hair");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [startingIndex, setStartingIndex] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
   const [deleteAlertVisible, setDeleteAlertVisible] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+  const [detailDeleteAlertVisible, setDetailDeleteAlertVisible] =
+    useState(false);
+  /** Storage path for the image currently focused in the detail carousel (for reliable delete). */
+  const [detailDeleteTargetPath, setDetailDeleteTargetPath] = useState<
+    string | null
+  >(null);
+  /** DB row id — primary key for delete API (avoids path / client mismatch). */
+  const [detailDeleteTargetId, setDetailDeleteTargetId] = useState<string | null>(
+    null
+  );
   const [currentImageAspectRatio, setCurrentImageAspectRatio] = useState(1.3); // Default slightly taller than square
+  /** Full-screen signed URLs for the carousel (batch-fetched when modal opens). */
+  const [carouselFullUrls, setCarouselFullUrls] = useState<Record<string, string>>(
+    {}
+  );
   const width = Dimensions.get("window").width;
   const screenHeight = Dimensions.get("window").height;
   const minCarouselRatio = (screenHeight * 0.57) / width; // Ensures ~57% of screen height minimum
-  const size = width / numColumns;
+  const horizontalPadding = scalePercent(5);
+  const columnGap = responsiveScale(12);
+  const gridInnerWidth = width - horizontalPadding * 2;
+  const cellSize = (gridInnerWidth - columnGap) / NUM_COLUMNS;
+  const detailCarouselViewportHeight = Math.min(
+    screenHeight * 0.62,
+    responsiveScale(520)
+  );
+
+  useEffect(() => {
+    inspirationCategoryRef.current = inspirationCategory;
+  }, [inspirationCategory]);
 
   const {
     setMarked,
@@ -70,6 +130,55 @@ const MyInspiration = () => {
     setImageGallery,
     resetState,
   } = useMark();
+
+  const carouselBatchKey = useMemo(() => {
+    const g = Array.isArray(imageGallery) ? imageGallery : [];
+    return g
+      .filter((item) => item?.id && !item.localUri && !item.isTemp)
+      .map((item) => `${item.id}:${item.image_url}`)
+      .join("|");
+  }, [imageGallery]);
+
+  useEffect(() => {
+    if (!modalVisible) {
+      setCarouselFullUrls({});
+      return;
+    }
+
+    const safeGallery = Array.isArray(imageGallery) ? imageGallery : [];
+    const items = safeGallery.filter(
+      (g): g is InspirationImage & { id: string } =>
+        !!g &&
+        !g.localUri &&
+        !g.isTemp &&
+        typeof g.id === "string" &&
+        !!g.image_url &&
+        !String(g.image_url).startsWith("http") &&
+        !String(g.image_url).startsWith("temp_")
+    );
+    if (items.length === 0) {
+      setCarouselFullUrls({});
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const urls = await fetchSignedStorageUrls(
+        items.map((g) => ({ bucket: "inspirations", path: g.image_url }))
+      );
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      items.forEach((g, i) => {
+        const u = urls[i];
+        if (u) map[g.id] = u;
+      });
+      setCarouselFullUrls(map);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [modalVisible, carouselBatchKey, imageGallery]);
 
   const { mutateAsync: saveInspirationMutation } = useSaveInspirationToDatabase();
   const { profile } = useAuth();
@@ -86,12 +195,14 @@ const MyInspiration = () => {
   const [pendingImages, setPendingImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [currentCropIndex, setCurrentCropIndex] = useState(0);
 
-  const {
-    inspirationImages,
-    imagesLoading,
-    refreshInspirationImages,
-    deleteInspirationImages,
-  } = useImageContext();
+  const { refreshInspirationImages, deleteInspirationImages } = useImageContext();
+
+  /** Cached server lists per profession — instant tab switches without clearing the grid. */
+  const inspirationCacheRef = useRef<
+    Partial<Record<InspirationProfession, InspirationImage[]>>
+  >({});
+  const [fetchingCategory, setFetchingCategory] =
+    useState<InspirationProfession | null>(null);
 
   useEffect(() => {
     return () => {
@@ -99,41 +210,62 @@ const MyInspiration = () => {
     };
   }, [resetState]);
 
-  useEffect(() => {
-    const updateNumColumns = () => {
-      const screenWidth = Dimensions.get("window").width;
-      const newNumColumns = Math.floor(screenWidth / 150);
-      if (newNumColumns !== numColumns) {
-        setNumColumns(newNumColumns);
-        setFlatListKey(`flatlist-${newNumColumns}-${Date.now()}`);
-      }
-    };
+  const selectCategory = useCallback(
+    (code: InspirationProfession) => {
+      if (code === inspirationCategory) return;
+      inspirationCategoryRef.current = code;
+      setInspirationCategory(code);
 
-    updateNumColumns();
-    const subscription = Dimensions.addEventListener(
-      "change",
-      updateNumColumns
-    );
-    return () => subscription?.remove();
-  }, [numColumns]);
+      const cached = inspirationCacheRef.current[code];
+      setImageGallery(cached ?? []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      if (!hasInitiallyLoaded && uploadingImages.length === 0) {
-        refreshImagesOnFocus();
+      if (cached === undefined) {
+        setFetchingCategory(code);
+      } else {
+        setFetchingCategory(null);
       }
-      return () => {};
-    }, [hasInitiallyLoaded, uploadingImages])
+
+      void (async () => {
+        const fresh = await refreshInspirationImages(true, code);
+        inspirationCacheRef.current[code] = fresh;
+        if (inspirationCategoryRef.current === code) {
+          setImageGallery(fresh);
+        }
+        setFetchingCategory((prev) => (prev === code ? null : prev));
+      })();
+    },
+    [refreshInspirationImages, setImageGallery, inspirationCategory]
   );
 
-  const refreshImagesOnFocus = useCallback(async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    await refreshInspirationImages();
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 300);
-  }, [refreshInspirationImages, isRefreshing]);
+  useFocusEffect(
+    useCallback(() => {
+      if (uploadingImages.length > 0) return;
+
+      const cat = inspirationCategoryRef.current;
+      const cached = inspirationCacheRef.current[cat];
+      setImageGallery(cached ?? []);
+
+      let cancelled = false;
+
+      if (cached === undefined) {
+        setFetchingCategory(cat);
+      }
+
+      void (async () => {
+        const fresh = await refreshInspirationImages(true, cat);
+        inspirationCacheRef.current[cat] = fresh;
+        if (cancelled) return;
+        if (inspirationCategoryRef.current === cat) {
+          setImageGallery(fresh);
+        }
+        setFetchingCategory((prev) => (prev === cat ? null : prev));
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [refreshInspirationImages, setImageGallery, uploadingImages.length])
+  );
 
   useEffect(() => {
     if (selectedImages.length === 0 || buttonText === "Mark images") {
@@ -144,35 +276,49 @@ const MyInspiration = () => {
   }, [selectedImages, buttonText, setMarked]);
 
   useEffect(() => {
-    if (isRefreshing || hasInitiallyLoaded) return;
-
-    if (!Array.isArray(inspirationImages)) {
-      setImageGallery([]);
-      setHasInitiallyLoaded(true);
-      return;
-    }
-
-    if (inspirationImages.length > 0) {
-      setImageGallery(inspirationImages);
-    } else {
-      setImageGallery([]);
-    }
-
-    setHasInitiallyLoaded(true);
-  }, [
-    inspirationImages,
-    isRefreshing,
-    hasInitiallyLoaded,
-    imagesLoading,
-    setImageGallery,
-  ]);
-
-  useEffect(() => {
     if (buttonText === "Mark images") {
       setSelectedImages([]);
       setMarked(false);
     }
   }, [buttonText, setSelectedImages, setMarked]);
+
+  const closeImageDetailModal = useCallback(() => {
+    setModalVisible(false);
+    setSelectedImage(null);
+    setDetailDeleteAlertVisible(false);
+    setDetailDeleteTargetPath(null);
+    setDetailDeleteTargetId(null);
+  }, [setSelectedImage]);
+
+  const performDetailDelete = useCallback(async () => {
+    const id = detailDeleteTargetId?.trim() || null;
+    const path = toInspirationDeletePath(detailDeleteTargetPath ?? "");
+    if (!id && (!path || path.startsWith("temp_"))) {
+      setDetailDeleteAlertVisible(false);
+      return;
+    }
+    try {
+      setDetailDeleteAlertVisible(false);
+      await deleteInspirationImages(
+        id ? { ids: [id] } : { imageUrls: [path] }
+      );
+      const cat = inspirationCategoryRef.current;
+      const fresh = await refreshInspirationImages(true, cat);
+      inspirationCacheRef.current[cat] = fresh;
+      setImageGallery(fresh);
+      closeImageDetailModal();
+    } catch (error) {
+      console.error("Detail delete error:", error);
+      Alert.alert("Error", "Failed to delete image");
+    }
+  }, [
+    detailDeleteTargetId,
+    detailDeleteTargetPath,
+    deleteInspirationImages,
+    refreshInspirationImages,
+    setImageGallery,
+    closeImageDetailModal,
+  ]);
 
   const performDelete = async () => {
     try {
@@ -182,6 +328,8 @@ const MyInspiration = () => {
         (img) => !selectedImages.includes(img.image_url)
       );
       setImageGallery(updatedGallery);
+      inspirationCacheRef.current[inspirationCategoryRef.current] =
+        updatedGallery;
       setButtonText("Mark images");
       setMarked(false);
       setSelectedImages([]);
@@ -203,12 +351,16 @@ const MyInspiration = () => {
     );
   };
 
-  const processImageUpload = async (asset, tempId) => {
+  const processImageUpload = async (
+    asset,
+    tempId,
+    professionCode: InspirationProfession
+  ) => {
     try {
       setUploadProgress((prev) => ({ ...prev, [tempId]: 10 }));
 
       const [lowResImage, highResImage] = await Promise.all([
-        resizeImage(asset.uri, 200, 0.6),
+        resizeImage(asset.uri, 540, 0.72),
         resizeImage(asset.uri, 1200, 0.85),
       ]);
 
@@ -232,6 +384,7 @@ const MyInspiration = () => {
         image_url: highResPath,
         low_res_image_url: lowResPath,
         high_middle_res_url: lowResPath,
+        profession_code: professionCode,
       });
 
       setUploadProgress((prev) => ({ ...prev, [tempId]: 100 }));
@@ -323,6 +476,9 @@ const MyInspiration = () => {
   const uploadCroppedImages = async (assets: { uri: string }[]) => {
     if (assets.length === 0) return;
 
+    /** Locked when the batch starts so parallel uploads + tab switches can't mix professions. */
+    const professionLocked = inspirationCategoryRef.current;
+
     const uploadBatch = Date.now().toString();
     const tempIds = assets.map(
       () => `temp_${uploadBatch}_${randomUUID()}`
@@ -345,7 +501,7 @@ const MyInspiration = () => {
     setUploadingImages((prev) => [...prev, ...tempIds]);
 
     const uploadPromises = assets.map((asset, index) =>
-      processImageUpload(asset, tempIds[index])
+      processImageUpload(asset, tempIds[index], professionLocked)
     );
 
     const uploadResults = await Promise.all(uploadPromises);
@@ -355,13 +511,16 @@ const MyInspiration = () => {
     );
     if (successfulUploads.length > 0) {
       setTimeout(async () => {
-        // Refresh from database
-        const freshImages = await refreshInspirationImages();
+        const freshImages = await refreshInspirationImages(
+          true,
+          professionLocked
+        );
+        inspirationCacheRef.current[professionLocked] = freshImages;
 
-        // Update local gallery with fresh data
-        setImageGallery(freshImages);
+        if (inspirationCategoryRef.current === professionLocked) {
+          setImageGallery(freshImages);
+        }
 
-        // Clean up uploading state
         successfulUploads.forEach((result) => {
           setUploadingImages((prev) =>
             prev.filter((id) => id !== result.tempId)
@@ -415,12 +574,21 @@ const MyInspiration = () => {
       const index = imageGallery.findIndex(
         (img) => img.image_url === item.image_url
       );
-      setStartingIndex(index >= 0 ? index : 0);
+      const start = index >= 0 ? index : 0;
+      setStartingIndex(start);
+      setCurrentIndex(start);
       setSelectedImage(item);
+      setDetailDeleteTargetPath(
+        typeof item.image_url === "string" ? item.image_url : null
+      );
+      setDetailDeleteTargetId(
+        item.id != null && !item.isTemp ? String(item.id) : null
+      );
       setModalVisible(true);
 
       // Calculate aspect ratio for selected image
-      const uri = item.localUri || item.full_url || item.image_url;
+      const uri =
+        item.localUri || item.thumbnail_url || item.image_url;
       if (uri) {
         void calculateImageAspectRatio(uri);
       }
@@ -435,52 +603,62 @@ const MyInspiration = () => {
     }
   };
 
-  if (
-    imagesLoading &&
-    imageGallery.length === 0 &&
-    uploadingImages.length === 0
-  ) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
-      </SafeAreaView>
-    );
-  }
-
   const safeGallery = Array.isArray(imageGallery) ? imageGallery : [];
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor="#fff" />
+      <StatusBar style="dark" />
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.topNav}>
           <InspirationTopNav title="My inspiration" goHome={goHome} />
         </View>
 
-        <View style={styles.rowContainer}>
-          <Pressable
-            style={[
-              styles.plus,
-              { opacity: buttonText === "Mark images" ? 1 : 0.2 },
-            ]}
-            onPress={buttonText === "Mark images" ? pickImage : null}
-          >
-            <Plus size={responsiveScale(32)} />
-          </Pressable>
-
-          <View style={styles.markCancel}>
-            {safeGallery.length > 0 && (
-              <MarkCancelButton
-                onButtonChangetext={setButtonText}
-                onDelete={() => {
-                  if (selectedImages.length > 0) {
-                    setDeleteAlertVisible(true);
-                  }
-                }}
-              />
-            )}
-          </View>
+        <View style={styles.filtersRow}>
+          {CATEGORY_TABS.map((tab) => {
+            const active = inspirationCategory === tab.code;
+            return (
+              <Pressable
+                key={tab.code}
+                style={[styles.filterPill, active && styles.filterPillActive]}
+                onPress={() => selectCategory(tab.code)}
+              >
+                <Text
+                  style={[
+                    styles.filterPillText,
+                    active && styles.filterPillTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+
+        <Pressable
+          style={[
+            styles.addImageButton,
+            buttonText !== "Mark images" && styles.addImageButtonDisabled,
+          ]}
+          onPress={buttonText === "Mark images" ? pickImage : undefined}
+          disabled={buttonText !== "Mark images"}
+        >
+          <Plus size={responsiveScale(22)} color={primaryBlack} weight="bold" />
+          <Text style={styles.addImageButtonText}>Add image</Text>
+        </Pressable>
+
+        {safeGallery.length > 0 && (
+          <View style={styles.markCancelRow}>
+            <MarkCancelButton
+              onButtonChangetext={setButtonText}
+              onDelete={() => {
+                if (selectedImages.length > 0) {
+                  setDeleteAlertVisible(true);
+                }
+              }}
+            />
+          </View>
+        )}
 
         <CustomAlert
           visible={deleteAlertVisible}
@@ -495,105 +673,272 @@ const MyInspiration = () => {
         />
 
         <Modal
-          animationType="fade"
+          animationType="slide"
           transparent
           visible={modalVisible}
-          onRequestClose={() => {
-            setModalVisible(false);
-            setSelectedImage(null);
-          }}
+          onRequestClose={closeImageDetailModal}
+          {...(Platform.OS === "ios"
+            ? { presentationStyle: "overFullScreen" as const }
+            : {})}
+          statusBarTranslucent
         >
-          <Pressable
-            style={styles.modalOverlay}
-            onPress={() => {
-              setModalVisible(false);
-              setSelectedImage(null);
-            }}
-          >
-            <View style={styles.modalContainer}>
-              <View style={styles.modalContent}>
-                <Pressable
-                  style={styles.closeButton}
-                  onPress={() => {
-                    setModalVisible(false);
-                    setSelectedImage(null);
-                  }}
-                >
-                  <XCircle
-                    size={responsiveScale(30)}
-                    color="#fff"
-                  />
-                </Pressable>
+          <View style={styles.detailModalRoot}>
+            <SafeAreaView style={styles.detailModalSafe} edges={["top", "bottom"]}>
+              <StatusBar style="dark" />
+              <View style={styles.detailModalHeader}>
+                <InspirationTopNav
+                  title="My inspiration"
+                  onBack={closeImageDetailModal}
+                />
+              </View>
 
-                {modalVisible && selectedImage && safeGallery.length > 0 && (
-                  <Carousel
-                    loop
+              {modalVisible && safeGallery.length > 0 ? (
+                <View style={styles.detailCarouselSection}>
+                  <View
+                    style={[
+                      styles.detailCarouselClip,
+                      { height: detailCarouselViewportHeight, width },
+                    ]}
+                  >
+                    <Carousel
+                    key={`${startingIndex}-${String(selectedImage?.image_url ?? "")}`}
+                    loop={false}
                     width={width}
-                    height={screenHeight * 0.6}
+                    height={detailCarouselViewportHeight}
                     autoPlay={false}
                     data={safeGallery}
                     onSnapToItem={(index) => {
                       setCurrentIndex(index);
+                      const snapped = safeGallery[index];
+                      setDetailDeleteTargetPath(
+                        typeof snapped?.image_url === "string"
+                          ? snapped.image_url
+                          : null
+                      );
+                      setDetailDeleteTargetId(
+                        snapped?.id != null && !snapped.isTemp
+                          ? String(snapped.id)
+                          : null
+                      );
+                      const uri =
+                        snapped?.localUri ||
+                        snapped?.thumbnail_url ||
+                        snapped?.image_url;
+                      if (uri) {
+                        void calculateImageAspectRatio(
+                          typeof uri === "string" ? uri : String(uri)
+                        );
+                      }
                     }}
                     defaultIndex={startingIndex}
                     renderItem={({ item }) => {
                       if (!item) return null;
-                      const uri =
-                        item.localUri || item.full_url || item.image_url;
-                      if (!uri) return null;
+                      const detailW = width - horizontalPadding * 2;
+                      const focused =
+                        item.image_url ===
+                        safeGallery[currentIndex]?.image_url;
+                      const aspect = focused ? currentImageAspectRatio : 1.2;
+                      const imageBlockHeight = Math.min(
+                        detailW * Math.max(aspect, 1.05),
+                        screenHeight * 1.35
+                      );
+                      const scrollContentMinH = Math.max(
+                        imageBlockHeight + responsiveScale(32),
+                        detailCarouselViewportHeight + 1
+                      );
 
-                      const isLocalUri = uri.startsWith("file://") || uri.startsWith("content://");
-                      const isFullUrl = uri.startsWith("http");
+                      let inner: React.ReactNode = null;
+                      if (item.localUri) {
+                        inner = (
+                          <OptimizedImage
+                            directUrl={item.localUri}
+                            sizePreset="fullscreen"
+                            width={Math.ceil(detailW)}
+                            style={[
+                              styles.detailOptimizedImage,
+                              { height: imageBlockHeight },
+                            ]}
+                            contentFit="contain"
+                            contentPosition="top"
+                            priority="high"
+                          />
+                        );
+                      } else {
+                        const idStr =
+                          item.id != null ? String(item.id) : "";
+                        const fullSigned =
+                          idStr && carouselFullUrls[idStr]
+                            ? carouselFullUrls[idStr]
+                            : undefined;
+                        const thumb =
+                          typeof item.thumbnail_url === "string"
+                            ? item.thumbnail_url.trim()
+                            : "";
+                        const rawPath =
+                          item.image_url &&
+                          !String(item.image_url).startsWith("http") &&
+                          !String(item.image_url).startsWith("temp_")
+                            ? String(item.image_url)
+                            : undefined;
+                        const displayUrl = fullSigned || thumb || undefined;
+                        if (!displayUrl && !rawPath) return null;
+                        inner = (
+                          <OptimizedImage
+                            directUrl={displayUrl || undefined}
+                            path={
+                              !displayUrl && rawPath ? rawPath : undefined
+                            }
+                            placeholderUri={
+                              fullSigned &&
+                              thumb &&
+                              fullSigned !== thumb
+                                ? thumb
+                                : undefined
+                            }
+                            bucket="inspirations"
+                            sizePreset="fullscreen"
+                            width={Math.ceil(detailW)}
+                            style={[
+                              styles.detailOptimizedImage,
+                              { height: imageBlockHeight },
+                            ]}
+                            contentFit="contain"
+                            contentPosition="top"
+                            priority="high"
+                          />
+                        );
+                      }
 
                       return (
-                        <OptimizedImage
-                          {...(isLocalUri || isFullUrl
-                            ? { directUrl: uri }
-                            : { path: uri, bucket: "inspirations", twoStageLoading: true }
-                          )}
-                          style={styles.enlargedImage}
-                          contentFit="cover"
-                          contentPosition="top"
-                        />
+                        <View
+                          style={[
+                            styles.detailSlide,
+                            { width, height: "100%" },
+                          ]}
+                        >
+                          <ScrollView
+                            style={[
+                              styles.detailSlideScroll,
+                              { width, height: detailCarouselViewportHeight },
+                            ]}
+                            contentContainerStyle={{
+                              alignItems: "center",
+                              paddingVertical: responsiveScale(8),
+                              minHeight: scrollContentMinH,
+                            }}
+                            showsVerticalScrollIndicator
+                            nestedScrollEnabled
+                            bounces
+                          >
+                            <View
+                              style={[
+                                styles.detailImageCard,
+                                {
+                                  width: detailW,
+                                  height: imageBlockHeight,
+                                },
+                              ]}
+                            >
+                              {inner}
+                            </View>
+                          </ScrollView>
+                        </View>
                       );
                     }}
                   />
-                )}
+                  </View>
+                </View>
+              ) : null}
+
+              <View style={styles.detailFooter}>
+                <Pressable
+                  style={styles.detailDeletePill}
+                  onPress={() => {
+                    const item = safeGallery[currentIndex];
+                    if (!item) return;
+                    if (item.isTemp) {
+                      Alert.alert(
+                        "Please wait",
+                        "This image is still uploading."
+                      );
+                      return;
+                    }
+                    const p =
+                      typeof item.image_url === "string"
+                        ? item.image_url
+                        : "";
+                    setDetailDeleteTargetPath(p || null);
+                    setDetailDeleteTargetId(
+                      item.id != null && !item.isTemp ? String(item.id) : null
+                    );
+                    setDetailDeleteAlertVisible(true);
+                  }}
+                >
+                  <X size={responsiveScale(22)} color={primaryBlack} weight="bold" />
+                  <Text style={styles.detailDeleteLabel}>Delete</Text>
+                </Pressable>
               </View>
-            </View>
-          </Pressable>
+            </SafeAreaView>
+
+            <CustomAlert
+              visible={detailDeleteAlertVisible}
+              title="Delete inspiration"
+              message="Delete this image? This cannot be undone."
+              onClose={() => setDetailDeleteAlertVisible(false)}
+              fromDelete={true}
+              onDelete={() => {
+                void performDetailDelete();
+              }}
+            />
+          </View>
         </Modal>
 
         <View style={styles.galleryContainer}>
           <FlatList
-            key={flatListKey}
+            key="inspiration-grid"
             data={safeGallery}
-            extraData={[uploadingImages, uploadProgress, selectedImages]}
+            extraData={[
+              uploadingImages,
+              uploadProgress,
+              selectedImages,
+              carouselFullUrls,
+            ]}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={7}
+            removeClippedSubviews={Platform.OS === "android"}
             renderItem={({ item }) => {
               if (!item) return null;
-              const uri =
-                item.localUri ||
-                item.thumbnail_url ||
-                item.full_url ||
-                item.image_url;
-              if (!uri) return null;
+              const thumb =
+                typeof item.thumbnail_url === "string"
+                  ? item.thumbnail_url.trim()
+                  : "";
+              const rawPath =
+                item.image_url &&
+                !String(item.image_url).startsWith("http") &&
+                !String(item.image_url).startsWith("temp_")
+                  ? String(item.image_url)
+                  : undefined;
+              if (!item.localUri && !thumb && !rawPath) return null;
 
               return (
                 <Pressable
                   onPress={() => handleImagePress(item)}
                   style={[
                     styles.imageContainer,
-                    item.isTemp && styles.tempImageContainer, // Add this style
+                    { width: cellSize },
+                    item.isTemp && styles.tempImageContainer,
                   ]}
                 >
                   {item.localUriAvailable && item.localUri ? (
                     <Image
-                      source={{ uri }}
+                      source={{ uri: item.localUri }}
                       style={[
                         styles.image,
+                        styles.imageRounded,
                         {
-                          width: size,
-                          height: size,
+                          width: cellSize,
+                          height: cellSize,
                           opacity: selectedImages.includes(item.image_url)
                             ? 0.5
                             : 1,
@@ -602,20 +947,29 @@ const MyInspiration = () => {
                     />
                   ) : (
                     <OptimizedImage
-                      directUrl={uri}
+                      directUrl={thumb || undefined}
+                      path={!thumb && rawPath ? rawPath : undefined}
                       bucket="inspirations"
                       sizePreset="inspiration-grid"
+                      width={Math.ceil(cellSize)}
+                      recyclingKey={
+                        item.id != null
+                          ? String(item.id)
+                          : String(item.image_url)
+                      }
                       style={[
                         styles.image,
+                        styles.imageRounded,
                         {
-                          width: size,
-                          height: size,
+                          width: cellSize,
+                          height: cellSize,
                           opacity: selectedImages.includes(item.image_url)
                             ? 0.5
                             : 1,
                         },
                       ]}
                       contentFit="cover"
+                      priority="low"
                     />
                   )}
 
@@ -635,15 +989,19 @@ const MyInspiration = () => {
             keyExtractor={(item, index) =>
               item?.id ? String(item.id) : `insp-${index}`
             }
-            numColumns={numColumns}
-            columnWrapperStyle={styles.row}
+            numColumns={NUM_COLUMNS}
+            columnWrapperStyle={{
+              paddingHorizontal: horizontalPadding,
+              gap: columnGap,
+              marginBottom: columnGap,
+            }}
             contentContainerStyle={styles.contentContainer}
             ListEmptyComponent={
               <View style={styles.noInspirationContainer}>
                 <Text style={styles.noInspirationText}>
-                  {imagesLoading
-                    ? "Loading..."
-                    : "No inspiration has been added yet"}
+                  {fetchingCategory === inspirationCategory
+                    ? "Loading…"
+                    : "No images yet. Tap Add image to add inspiration for this category."}
                 </Text>
               </View>
             }
@@ -665,73 +1023,160 @@ const MyInspiration = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  topNav: { margin: scalePercent(5) },
-  row: { flex: 1, justifyContent: "flex-start", gap: 2 },
-  rowContainer: {
+  container: { flex: 1, backgroundColor: primaryGreen },
+  topNav: {
+    paddingHorizontal: scalePercent(5),
+    marginBottom: responsiveScale(4),
+  },
+  filtersRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: responsiveScale(10),
+    paddingHorizontal: scalePercent(5),
+    marginTop: responsiveScale(8),
+  },
+  filterPill: {
+    paddingVertical: responsiveScale(10),
+    paddingHorizontal: responsiveScale(20),
+    borderRadius: responsiveBorderRadius(999),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
+    backgroundColor: "transparent",
+  },
+  filterPillActive: {
+    backgroundColor: primaryBlack,
+    borderColor: primaryBlack,
+  },
+  filterPillText: {
+    fontFamily: "Inter-Medium",
+    fontSize: responsiveFontSize(16, 14),
+    color: primaryBlack,
+  },
+  filterPillTextActive: {
+    color: primaryWhite,
+  },
+  addImageButton: {
+    flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: scalePercent(5),
-    marginBottom: scalePercent(3),
+    alignSelf: "center",
+    gap: responsiveScale(8),
+    marginTop: responsiveScale(18),
+    paddingVertical: responsiveScale(12),
+    paddingHorizontal: responsiveScale(22),
+    borderRadius: responsiveBorderRadius(999),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
+    backgroundColor: "transparent",
+  },
+  addImageButtonDisabled: {
+    opacity: 0.35,
+  },
+  addImageButtonText: {
+    fontFamily: "Inter-Medium",
+    fontSize: responsiveFontSize(16, 14),
+    color: primaryBlack,
+  },
+  markCancelRow: {
+    alignItems: "flex-end",
+    paddingHorizontal: scalePercent(5),
+    marginTop: responsiveScale(10),
+    minHeight: responsiveScale(36),
   },
   galleryContainer: {
     flex: 1,
     position: "relative",
-    marginTop: 0,
+    marginTop: responsiveScale(16),
     marginHorizontal: 0,
   },
-  imageContainer: { position: "relative", aspectRatio: 1 },
+  imageContainer: {
+    position: "relative",
+    borderRadius: responsiveBorderRadius(18),
+    overflow: "hidden",
+  },
   image: { resizeMode: "cover" },
-  contentContainer: { flexGrow: 1, paddingTop: 2 },
+  imageRounded: {
+    borderRadius: responsiveBorderRadius(18),
+  },
+  contentContainer: {
+    flexGrow: 1,
+    paddingBottom: responsiveScale(28),
+  },
   noInspirationText: {
-    fontFamily: "Inter-Bold",
-    fontSize: responsiveFontSize(18, 16),
-    color: Colors.dark.warmGreen,
+    fontFamily: "Inter-Medium",
+    fontSize: responsiveFontSize(17, 15),
+    color: primaryBlack,
     textAlign: "center",
+    lineHeight: responsiveFontSize(24, 22),
+    paddingHorizontal: scalePercent(8),
   },
   noInspirationContainer: {
-    marginTop: scalePercent(10),
+    marginTop: scalePercent(12),
     justifyContent: "center",
     alignItems: "center",
     flex: 1,
-    height: responsiveScale(300),
+    minHeight: responsiveScale(280),
   },
-  modalOverlay: {
+  detailModalRoot: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: primaryGreen,
   },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  modalContainer: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
+  detailModalSafe: {
+    flex: 1,
+    backgroundColor: primaryGreen,
   },
-  modalContent: {
-    width: "100%",
-    backgroundColor: "#000",
-    borderRadius: responsiveBorderRadius(10),
+  detailModalHeader: {
+    paddingHorizontal: scalePercent(5),
+  },
+  detailCarouselSection: {
+    flexGrow: 1,
+    flexShrink: 1,
+    justifyContent: "center",
+    minHeight: responsiveScale(200),
     overflow: "hidden",
-    position: "relative",
   },
-  closeButton: {
-    position: "absolute",
-    top: responsiveScale(10),
-    right: responsiveScale(10),
-    zIndex: 1,
+  detailCarouselClip: {
+    alignSelf: "center",
+    overflow: "hidden",
   },
-  enlargedImage: {
+  detailSlide: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  detailSlideScroll: {
+    flexGrow: 0,
+  },
+  detailImageCard: {
+    borderRadius: responsiveBorderRadius(24),
+    overflow: "hidden",
+    backgroundColor: "rgba(0,0,0,0.06)",
+  },
+  detailOptimizedImage: {
     width: "100%",
     height: "100%",
   },
-  plus: { flex: 1, alignItems: "center", marginLeft: scalePercent(34) },
-  markCancel: {
-    padding: responsivePadding(10),
-    flex: 1,
-    alignItems: "flex-end",
+  detailFooter: {
+    paddingBottom: responsiveScale(24),
+    paddingTop: responsiveScale(12),
+    alignItems: "center",
+    zIndex: 20,
+    elevation: 20,
+  },
+  detailDeletePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveScale(10),
+    paddingVertical: responsiveScale(14),
+    paddingHorizontal: responsiveScale(28),
+    borderRadius: responsiveBorderRadius(999),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
+    backgroundColor: "transparent",
+  },
+  detailDeleteLabel: {
+    fontFamily: "Inter-Medium",
+    fontSize: responsiveFontSize(16, 14),
+    color: primaryBlack,
   },
   tempImageContainer: {
     position: "relative",

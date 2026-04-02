@@ -5,9 +5,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// DATABASE_URL: app runtime (pooler :6543 OK). DIRECT_URL: prisma migrate (direct :5432).
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // =============================================================================
@@ -151,11 +153,11 @@ model ProfessionalProfile {
   @@map("professional_profiles")
 }
 
-/// Lookup table: hair, brows, lashes, nails, esthetician, etc.
+/// Lookup table: hair, brows_lashes, nails, esthetician, etc.
 model Profession {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  code        String   @unique @db.Text // e.g. "hair", "brows", "nails"
+  code        String   @unique @db.Text // e.g. "hair", "brows_lashes", "nails"
   sortOrder   Int      @default(0) @map("sort_order")
 
   professionalProfessions ProfessionalProfession[]

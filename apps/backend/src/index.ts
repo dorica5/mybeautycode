@@ -4,6 +4,7 @@ import cors from "cors";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
+import { prisma } from "./lib/prisma";
 import { setupSocket } from "./lib/socket";
 import { authRoutes } from "./routes/auth";
 import { profileRoutes } from "./routes/profiles";
@@ -34,6 +35,23 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+/** Fails fast with a clear message when Prisma cannot reach Postgres (paused project, wrong URL, firewall). */
+app.get("/health/db", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", database: "connected" });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    res.status(503).json({
+      status: "error",
+      database: "unreachable",
+      message,
+      hint:
+        "Open Supabase → resume project if paused. Confirm DATABASE_URL. If db.xxx:5432 fails, use the pooler URI on port 6543 (Connect → Prisma). See apps/backend/.env.example.",
+    });
+  }
 });
 
 app.use("/api/auth", authRoutes);
