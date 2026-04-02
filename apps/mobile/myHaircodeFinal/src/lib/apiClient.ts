@@ -60,11 +60,11 @@ async function handleResponse(res: Response) {
         console.warn("Error in 401 handler:", e);
       }
     }
-    const err = new Error(
-      (data as { error?: string })?.error ?? res.statusText ?? "Request failed"
-    );
-    (err as Error & { status?: number }).status = res.status;
-    throw err;
+    const msg =
+      typeof (data as { error?: string })?.error === "string"
+        ? (data as { error: string }).error
+        : res.statusText || "Request failed";
+    throw Object.assign(new Error(msg), { status: res.status });
   }
   return data;
 }

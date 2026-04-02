@@ -31,13 +31,15 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   getCountryCallingCode,
   parsePhoneNumberFromString,
@@ -47,6 +49,34 @@ const NAME_RE = /^[a-zA-ZÀ-ÿæøåÆØÅ.\s'’-]{2,50}$/;
 /** Lowercase handle: letter first, then letters / digits / underscore; length 3–30. */
 const USERNAME_RE = /^[a-z][a-z0-9_]{2,29}$/;
 const USERNAME_MAX_LEN = 30;
+
+type ApiErrorShape = Error & { status?: number };
+
+function readApiError(e: unknown): { status?: number; message: string } {
+  const err = e as ApiErrorShape;
+  const status =
+    typeof err.status === "number" && !Number.isNaN(err.status)
+      ? err.status
+      : undefined;
+  const message = (err?.message ?? "").trim() || "Something went wrong.";
+  return { status, message };
+}
+
+function isUsernameConflictCopy(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes("username") &&
+    (m.includes("taken") || m.includes("already") || m.includes("exists"))
+  );
+}
+
+function isPhoneConflictCopy(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes("phone") &&
+    (m.includes("taken") || m.includes("use") || m.includes("already"))
+  );
+}
 
 type MeProfile = {
   first_name?: string | null;
@@ -62,6 +92,7 @@ function sanitizeUsernameInput(raw: string): string {
 }
 
 export default function GeneralSetup() {
+  const insets = useSafeAreaInsets();
   const { profilePicture, setProfilePicture } = useSetup();
   const { mutateAsync: updateProfile } = useUpdateSupabaseProfile();
   const localAvatarPickRef = useRef(false);
@@ -224,36 +255,44 @@ export default function GeneralSetup() {
 
       router.replace("/(client)/(tabs)/home");
     } catch (e: unknown) {
-      console.error("GeneralSetup save:", e);
-      const err = e as Error & { status?: number };
-      if (err.status === 409) {
-        const msg =
-          err.message ||
-          "This value is already taken. Try another.";
-        const isPhone = msg.toLowerCase().includes("phone");
+      const { status, message } = readApiError(e);
+
+      if (status === 409) {
+        const isPhone = isPhoneConflictCopy(message);
         setErrors((prev) => ({
           ...prev,
-          userName: isPhone ? prev.userName : msg,
-          phone: isPhone ? msg : prev.phone,
+          userName: isPhone ? prev.userName : message,
+          phone: isPhone ? message : prev.phone,
         }));
         return;
       }
-      if (err.status === 400 && err.message?.toLowerCase().includes("username")) {
+
+      if (status === 400 && message.toLowerCase().includes("username")) {
         setErrors((prev) => ({
           ...prev,
-          userName: err.message,
+          userName: message,
         }));
         return;
       }
-      if (err.status === 403) {
+
+      if (isUsernameConflictCopy(message)) {
+        setErrors((prev) => ({ ...prev, userName: message }));
+        return;
+      }
+      if (isPhoneConflictCopy(message)) {
+        setErrors((prev) => ({ ...prev, phone: message }));
+        return;
+      }
+
+      if (status === 403) {
         Alert.alert("Could not save", "You can only update your own profile.");
         return;
       }
+
+      console.error("GeneralSetup save:", e);
       Alert.alert(
         "Could not save",
-        err.message && err.message !== "Request failed"
-          ? err.message
-          : "Please try again."
+        message && message !== "Request failed" ? message : "Please try again.",
       );
     } finally {
       setSaving(false);
@@ -285,6 +324,10 @@ export default function GeneralSetup() {
 
   const ringSize = responsiveScale(156, 180);
 
+  /** Room below the form so the last fields can scroll above the keyboard without aggressive auto-scroll. */
+  const scrollBottomPad =
+    Math.max(insets.bottom, responsiveMargin(16)) + responsiveScale(160);
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
@@ -299,16 +342,23 @@ export default function GeneralSetup() {
         <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
       </Pressable>
 
-      <KeyboardAwareScrollView
+      <KeyboardAvoidingView
         style={styles.keyboard}
-        contentContainerStyle={styles.scroll}
-        enableOnAndroid
-        enableAutomaticScroll
-        extraScrollHeight={responsiveScale(120)}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        showsVerticalScrollIndicator={false}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
       >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingBottom: scrollBottomPad },
+          ]}
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          bounces
+        >
         <Text style={[Typography.h3, styles.centerHeading]} accessibilityRole="header">
           Create account
         </Text>
@@ -444,7 +494,8 @@ export default function GeneralSetup() {
             <ActivityIndicator style={styles.spinner} color={primaryBlack} />
           ) : null}
         </View>
-      </KeyboardAwareScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -467,9 +518,11 @@ const styles = StyleSheet.create({
   keyboard: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   scroll: {
     paddingHorizontal: responsivePadding(24),
-    paddingBottom: responsivePadding(40),
   },
   centerHeading: {
     color: primaryBlack,
