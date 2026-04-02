@@ -5,6 +5,7 @@ import { Tabs, router, usePathname } from "expo-router";
 import { House, Bell, Images, User } from "phosphor-react-native";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { fetchNotifications } from "@/src/providers/useNotifcations";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 
 const _layout = () => {
   const { profile } = useAuth();
@@ -49,14 +50,21 @@ const _layout = () => {
         headerShown: false,
         lazy: true,
         unmountOnBlur: false,
+        tabBarActiveTintColor: primaryBlack,
+        tabBarInactiveTintColor: "#5d7168",
+        tabBarStyle: {
+          backgroundColor: primaryGreen,
+          borderTopColor: "rgba(33, 36, 39, 0.12)",
+          borderTopWidth: 1,
+        },
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
           href: "/home",
-          tabBarIcon: ({ focused }) => (
-            <House size={32} weight={focused ? "fill" : "regular"} />
+          tabBarIcon: ({ focused, color }) => (
+            <House size={32} color={color} weight={focused ? "fill" : "regular"} />
           ),
         }}
         listeners={{
@@ -66,9 +74,9 @@ const _layout = () => {
       <Tabs.Screen
         name="notifications"
         options={{
-          tabBarIcon: ({ focused }) => (
+          tabBarIcon: ({ focused, color }) => (
             <View>
-              <Bell size={32} weight={focused ? "fill" : "regular"} />
+              <Bell size={32} color={color} weight={focused ? "fill" : "regular"} />
               {unreadCount > 0 && (
                 <View style={styles.notificationBadge}>
                   <Text style={styles.notificationText}>{unreadCount}</Text>
@@ -85,8 +93,8 @@ const _layout = () => {
         name="myInspiration"
         options={{
           href: "/inspiration",
-          tabBarIcon: ({ focused }) => (
-            <Images size={32} weight={focused ? "fill" : "regular"} />
+          tabBarIcon: ({ focused, color }) => (
+            <Images size={32} color={color} weight={focused ? "fill" : "regular"} />
           ),
         }}
         listeners={{
@@ -96,8 +104,8 @@ const _layout = () => {
       <Tabs.Screen
         name="profile"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <User size={32} weight={focused ? "fill" : "regular"} />
+          tabBarIcon: ({ focused, color }) => (
+            <User size={32} color={color} weight={focused ? "fill" : "regular"} />
           ),
         }}
         listeners={{

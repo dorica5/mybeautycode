@@ -4,7 +4,7 @@ import { supabase } from "./supabase";
 const API_URL =
   Constants?.expoConfig?.extra?.EXPO_PUBLIC_API_URL ??
   process.env.EXPO_PUBLIC_API_URL ??
-  "http://localhost:3000";
+  "http://localhost:3001";
 
 type GetSession = () => Promise<{ access_token?: string } | null>;
 
@@ -25,12 +25,28 @@ export function setApiOn401(fn: () => void | Promise<void>) {
  * fall back to Supabase for the bearer token.
  */
 async function getBearerToken(): Promise<string | undefined> {
-  if (getSessionFn) {
-    const s = await getSessionFn();
-    if (s?.access_token) return s.access_token;
-  }
   const { data } = await supabase.auth.getSession();
-  return data.session?.access_token;
+  const session = data.session;
+
+  if (!session?.access_token) {
+    if (getSessionFn) {
+      const s = await getSessionFn();
+      return s?.access_token;
+    }
+    return undefined;
+  }
+
+  /** Refresh before expiry so the first request does not get 401 (autoRefreshToken can race behind API calls). */
+  const exp = session.expires_at ?? 0;
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (exp > 0 && exp <= nowSec + 90) {
+    const { data: refreshed, error } = await supabase.auth.refreshSession();
+    if (!error && refreshed.session?.access_token) {
+      return refreshed.session.access_token;
+    }
+  }
+
+  return session.access_token;
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
@@ -60,14 +76,15 @@ async function fetchWithSessionRefresh(
     return res;
   }
 
-  const { error } = await supabase.auth.refreshSession();
-  if (error) {
+  const { data: refreshed, error } = await supabase.auth.refreshSession();
+  const newToken = refreshed?.session?.access_token;
+  if (error || !newToken) {
     return res;
   }
 
-  const auth2 = await getAuthHeaders();
   const merged2: Record<string, string> = {
-    ...auth2,
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${newToken}`,
     ...(init.headers as Record<string, string> | undefined),
   };
   return fetch(url, { ...init, headers: merged2 });
@@ -97,7 +114,9 @@ async function handleResponse(res: Response) {
       msg =
         res.status === 401
           ? "Session expired. Please sign in again."
-          : "Request failed";
+          : res.status > 0
+            ? `Request failed (HTTP ${res.status})`
+            : "Request failed";
     }
     throw Object.assign(new Error(msg), { status: res.status });
   }
@@ -149,16 +168,12 @@ export const api = {
       body: formData,
     });
     if (res.status === 401) {
-      const { error } = await supabase.auth.refreshSession();
-      if (!error) {
-        const token2 = await getBearerToken();
-        const h2: Record<string, string> = {};
-        if (token2) {
-          h2.Authorization = `Bearer ${token2}`;
-        }
+      const { data: refreshed, error } = await supabase.auth.refreshSession();
+      const token2 = refreshed?.session?.access_token;
+      if (!error && token2) {
         res = await fetch(`${API_URL}${path}`, {
           method: "POST",
-          headers: h2,
+          headers: { Authorization: `Bearer ${token2}` },
           body: formData,
         });
       }

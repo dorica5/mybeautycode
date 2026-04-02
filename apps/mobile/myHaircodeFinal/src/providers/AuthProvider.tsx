@@ -77,7 +77,11 @@ export function profileSetupIsComplete(
   );
 }
 
-/** Completed setup: leave onboarding/auth entry routes so users are not stuck on Welcome / Sign-in. */
+/**
+ * Completed setup: leave onboarding/auth entry routes so users are not stuck on Welcome / Sign-in.
+ * Do not list "second setup" routes (become-a-professional): those users already have `setup_status`
+ * as clients and must stay on ChooseProfession / HairdresserSetup until they submit or go back.
+ */
 function shouldCompletedUserLeaveForHome(pathname: string): boolean {
   const p = pathname ?? "";
   if (
@@ -93,7 +97,6 @@ function shouldCompletedUserLeaveForHome(pathname: string): boolean {
     "GeneralSetup",
     "ChooseRole",
     "ClientSetup",
-    "HairdresserSetup",
     "TermsAndPrivacy",
     "/Splash",
     "/SignUp",
@@ -494,6 +497,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/Setup",
           "/GeneralSetup",
           "/ChooseRole",
+          "/ChooseProfession",
           "/ClientSetup",
           "/HairdresserSetup",
           "/LoadingScreen",
@@ -501,6 +505,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/(setup)/Setup",
           "/(setup)/GeneralSetup",
           "/(setup)/ChooseRole",
+          "/(setup)/ChooseProfession",
           "/(setup)/ClientSetup",
           "/(setup)/HairdresserSetup",
           "/(setup)/LoadingScreen",
@@ -537,6 +542,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/Setup",
           "/GeneralSetup",
           "/ChooseRole",
+          "/ChooseProfession",
           "/ClientSetup",
           "/HairdresserSetup",
           "/LoadingScreen",
@@ -544,6 +550,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/(setup)/Setup",
           "/(setup)/GeneralSetup",
           "/(setup)/ChooseRole",
+          "/(setup)/ChooseProfession",
           "/(setup)/ClientSetup",
           "/(setup)/HairdresserSetup",
           "/(setup)/LoadingScreen",

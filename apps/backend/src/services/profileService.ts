@@ -63,6 +63,24 @@ export const profileService = {
     const professionalData: Record<string, unknown> = {};
     const body = { ...data };
 
+    const professionCodeRaw =
+      body.profession_code ?? body.professionCode ?? null;
+    const professionCode =
+      typeof professionCodeRaw === "string" && professionCodeRaw.trim()
+        ? professionCodeRaw.trim()
+        : null;
+    delete body.profession_code;
+    delete body.professionCode;
+
+    /** Only persist profession when finishing professional onboarding in one request (with setup complete). */
+    const completingSetup =
+      data.setup_status === true || data.setupStatus === true;
+    const shouldApplyProfession = Boolean(professionCode && completingSetup);
+
+    if (shouldApplyProfession) {
+      await professionService.getProfessionIdByCode(professionCode!);
+    }
+
     const legacyFull = body.full_name ?? body.fullName;
     if (
       typeof legacyFull === "string" &&
@@ -128,10 +146,20 @@ export const profileService = {
     }
 
     try {
-      return await prisma.profile.update({
+      const updated = await prisma.profile.update({
         where: { id },
         data: filtered as never,
       });
+
+      if (shouldApplyProfession) {
+        const profProfileId =
+          await professionService.getOrCreateProfessionalProfileId(id);
+        await professionService.replaceProfessionsForProfile(profProfileId, [
+          professionCode!,
+        ]);
+      }
+
+      return updated;
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         if (e.code === "P2002") {

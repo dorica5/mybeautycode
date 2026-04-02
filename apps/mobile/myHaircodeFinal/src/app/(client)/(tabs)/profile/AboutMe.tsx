@@ -109,7 +109,7 @@ const HairProfile = () => {
       <StatusBar style="dark" backgroundColor="#fff" />
       <View style={{ flex: 1, backgroundColor: "#fff" }}>
         <SafeAreaView style={styles.container} edges={["top"]}>
-          <TopNav title="Hair profile" />
+          <TopNav title="About me" />
 
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}

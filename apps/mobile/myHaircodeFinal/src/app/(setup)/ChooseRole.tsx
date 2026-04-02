@@ -29,7 +29,7 @@ const ChooseRole = () => {
 
   const goToNext = () => {
     if (selectedRole === "hairdresser") {
-      router.push("./HairdresserSetup");
+      router.push("./ChooseProfession");
     } else if (selectedRole === "client") {
       router.push("./ClientSetup");
     }

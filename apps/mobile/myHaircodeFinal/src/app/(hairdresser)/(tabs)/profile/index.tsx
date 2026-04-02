@@ -18,9 +18,10 @@ import {
   FileText,
   ChatCircleText,
 } from "phosphor-react-native";
-import { Colors } from "@/src/constants/Colors";
+import { Colors, primaryBlack, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
 import Profile from "@/src/components/Profile";
-import MyButton from "@/src/components/MyButton";
+import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import SignOutButton from "@/src/components/SignOutButton";
 import { useImageContext } from "@/src/providers/ImageProvider";
@@ -140,16 +141,17 @@ const ProfileScreen = () => {
               />
 
               <View style={styles.ViewPublicProfileButton}>
-                <MyButton
-                  text="View public profile"
-                  textSize={18}
-                  textTabletSize={14}
+                <PaddedLabelButton
+                  title="View public profile"
+                  horizontalPadding={32}
+                  verticalPadding={16}
                   onPress={() =>
                     router.push(
                       "/(hairdresser)/(tabs)/profile/hairdresser_profile"
                     )
                   }
-                  style={styles.btn}
+                  style={styles.viewPublicProfileButton}
+                  textStyle={styles.viewPublicProfileButtonLabel}
                 />
               </View>
 
@@ -170,8 +172,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  btn: {
-    marginHorizontal: responsiveScale(20),
+  viewPublicProfileButton: {
+    alignSelf: "center",
+    backgroundColor: primaryBlack,
+    borderRadius: responsiveScale(999),
+  },
+  viewPublicProfileButtonLabel: {
+    color: primaryWhite,
+    textAlign: "center",
   },
   mainView: {},
   textStyle: {
@@ -191,10 +199,8 @@ const styles = StyleSheet.create({
     marginTop: scalePercent(5),
   },
   subtitle: {
+    ...Typography.label,
     margin: scalePercent(5),
-    fontFamily: "Inter-Regular",
-    fontSize: responsiveFontSize(14, 12),
-    color: Colors.dark.dark,
   },
   ViewPublicProfileButton: {
     marginTop: scalePercent(10),

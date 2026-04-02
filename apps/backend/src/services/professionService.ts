@@ -24,6 +24,27 @@ export const professionService = {
     return profession.id;
   },
 
+  /** Replace all profession links for a professional profile (e.g. after onboarding choice). */
+  async replaceProfessionsForProfile(
+    professionalProfileId: string,
+    codes: string[],
+  ): Promise<void> {
+    if (codes.length === 0) return;
+    const professionIds = await Promise.all(
+      codes.map((code) => this.getProfessionIdByCode(code)),
+    );
+    await prisma.professionalProfession.deleteMany({
+      where: { professionalProfileId },
+    });
+    await prisma.professionalProfession.createMany({
+      data: professionIds.map((professionId) => ({
+        professionalProfileId,
+        professionId,
+        isActive: true,
+      })),
+    });
+  },
+
   /** Get or create professional profile for a profile ID. Returns professionalProfileId. */
   async getOrCreateProfessionalProfileId(profileId: string): Promise<string> {
     let prof = await prisma.professionalProfile.findUnique({

@@ -68,7 +68,7 @@ app.use("/api/support", supportRoutes);
 
 app.set("io", io);
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 httpServer.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);

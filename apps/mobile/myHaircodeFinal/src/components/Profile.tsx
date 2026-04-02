@@ -1,15 +1,17 @@
-import { StyleSheet, View, Pressable } from "react-native";
+import { StyleSheet, View, Pressable, Text } from "react-native";
 import React from "react";
 import { IconProps, CaretRight, Trash } from "phosphor-react-native";
 import { Colors } from "../constants/Colors";
-import { scale, scalePercent, verticalScale } from "../utils/responsive";
-import { ResponsiveText } from "./ResponsiveText";
+import { Typography } from "../constants/Typography";
+import { scale, scalePercent, responsiveScale } from "../utils/responsive";
 
 type ProfileProps = {
   bottom?: boolean;
   top?: boolean;
   title: string;
   Icon: React.ComponentType<IconProps>;
+  /** Mint-style tiles on client profile; default uses yellowish (hairdresser). */
+  tileStyle?: "default" | "light";
 } & React.ComponentPropsWithoutRef<typeof Pressable>;
 
 const Profile = ({
@@ -17,9 +19,15 @@ const Profile = ({
   top = false,
   title,
   Icon,
+  tileStyle = "default",
   ...pressableProps
 }: ProfileProps) => {
   const iconColor = Icon === Trash ? "#F00" : "#000";
+  const idleBg =
+    tileStyle === "light" ? Colors.dark.primaryWhite : Colors.dark.yellowish;
+  const pressedBg =
+    tileStyle === "light" ? Colors.dark.secondaryGreen : Colors.dark.warmGreen;
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -29,18 +37,16 @@ const Profile = ({
           borderTopRightRadius: top ? scale(20) : 0,
           borderBottomLeftRadius: bottom ? scale(20) : 0,
           borderBottomRightRadius: bottom ? scale(20) : 0,
-          backgroundColor: pressed
-            ? Colors.dark.warmGreen
-            : Colors.dark.yellowish,
+          backgroundColor: pressed ? pressedBg : idleBg,
         },
       ]}
       {...pressableProps}
     >
       <View style={styles.subContainer}>
-        {Icon && <Icon size={scale(32)} color={iconColor} />}
-        <ResponsiveText size={16} weight="SemiBold" style={styles.title}> {title}</ResponsiveText>
+        {Icon && <Icon size={24} color={iconColor} />}
+        <Text style={[Typography.bodyLarge, styles.title]}>{title}</Text>
       </View>
-      <CaretRight size={scale(32)} />
+      <CaretRight size={24} color={iconColor} />
     </Pressable>
   );
 };
@@ -51,10 +57,9 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginVertical: verticalScale(2),
     marginHorizontal: scalePercent(5),
-    padding: scalePercent(3),
-    marginTop: scale(1),
+    marginBottom: responsiveScale(6,6),
+    padding: scalePercent(5),
   },
   subContainer: {
     flexDirection: "row",

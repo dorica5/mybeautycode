@@ -85,7 +85,7 @@ const DeleteHairdressers = () => {
         <View style={{ flex: 1, backgroundColor: "#fff" }}>
     <SafeAreaView style={styles.container}>
 
-      <TopNav title="Manage hairdressers" />
+      <TopNav title="Manage professionals" />
 
       <View style={styles.content}>
         <FlatList
@@ -101,10 +101,10 @@ const DeleteHairdressers = () => {
           ListEmptyComponent={
             <View style={styles.noHairdresserContainer}>
               <ResponsiveText size={18} weight="Bold" style={styles.noHairdresserText}>
-                No hairdresser added yet
+                No professional added yet
               </ResponsiveText>
               
-              <MyButton text="Add hairdresser" onPress={() => {router.replace("/(client)/(tabs)/userList" as Href)}} />
+              <MyButton text="Add professional" onPress={() => {router.replace("/(client)/(tabs)/userList" as Href)}} />
             </View>
          
           }
@@ -120,7 +120,7 @@ const DeleteHairdressers = () => {
         styles.deleteButton,
         { opacity: getCheckedItems().length > 0 ? 1 : 0.5 },
       ]}
-      text="Delete hairdresser(s)"
+      text="Delete professional(s)"
       onPress={() => {
         if (getCheckedItems().length > 0) {
           setModalVisible(true);
@@ -135,7 +135,7 @@ const DeleteHairdressers = () => {
 <CustomAlert
   visible={alertVisible}
   title="Error"
-  message="Failed to delete hairdresser(s)."
+  message="Failed to delete professional(s)."
   onClose={() => setAlertVisible(false)}
 />
 
@@ -152,8 +152,8 @@ const DeleteHairdressers = () => {
           <XCircle style={styles.closeButton} />
         </Pressable>
         <ResponsiveText style={styles.modalMessage} size={16} weight="SemiBold">
-          Are you sure you want to delete this hairdresser? The hairdresser can no 
-          longer see your haircodes.
+          Are you sure you want to remove this professional? They will no longer
+          see your haircodes.
         </ResponsiveText>
   
         <MyButton

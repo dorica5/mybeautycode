@@ -8,7 +8,7 @@ require("dotenv").config();
 require("dotenv").config({ path: require("path").join(__dirname, "../../mobile/myHaircodeFinal/.env") });
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON = process.env.SUPABASE_ANON || process.env.SUPABASE_SERVICE_ROLE_KEY;
-const API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL || "http://localhost:3000";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL || "http://localhost:3001";
 
 if (!SUPABASE_URL || !SUPABASE_ANON) {
   console.error("Missing SUPABASE_URL or SUPABASE_ANON/SERVICE_ROLE_KEY");

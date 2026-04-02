@@ -16,7 +16,8 @@ import { useSetup } from "@/src/providers/SetUpProvider";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
-import { router } from "expo-router";
+import { supabase } from "@/src/lib/supabase";
+import { router, useLocalSearchParams } from "expo-router";
 import { UploadSimple } from "phosphor-react-native";
 import * as ImagePicker from "expo-image-picker";
 import RemoteImage from "@/src/components/RemoteImage";
@@ -40,7 +41,18 @@ import {
 } from "libphonenumber-js";
 import { usePostHog } from "posthog-react-native";
 
+const PROFESSION_CODES = ["hair", "brows_lashes", "nails"] as const;
+
 const HairdresserSetup = () => {
+  const { profession_code } = useLocalSearchParams<{
+    profession_code?: string;
+  }>();
+  const professionCode =
+    typeof profession_code === "string" &&
+    (PROFESSION_CODES as readonly string[]).includes(profession_code)
+      ? profession_code
+      : "hair";
+
   const { profilePicture, setProfilePicture } = useSetup();
 
   const { setLoadingSetup } = useAuth();
@@ -239,6 +251,7 @@ const HairdresserSetup = () => {
       user_type,
       about_me: fields.aboutMe,
       setup_status: true,
+      profession_code: professionCode,
     });
   };
 
