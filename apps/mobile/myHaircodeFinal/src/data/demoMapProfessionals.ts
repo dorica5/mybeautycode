@@ -34,4 +34,19 @@ export const DEMO_MAP_PROFESSIONALS: MapProfessionalPin[] = [
     latitude: 60.401,
     longitude: 5.318,
   },
+  /** Same salon / address — cluster shows count; tap opens list (demo). */
+  {
+    id: "demo-studio-a",
+    displayName: "Julie Riise",
+    address: "Shared Studio, Vågsallmenningen, Bergen",
+    latitude: 60.3924,
+    longitude: 5.3242,
+  },
+  {
+    id: "demo-studio-b",
+    displayName: "Mia Hansen",
+    address: "Shared Studio, Vågsallmenningen, Bergen",
+    latitude: 60.3924,
+    longitude: 5.3242,
+  },
 ];

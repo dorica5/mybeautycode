@@ -60,10 +60,10 @@ const FilterBeforeMapScreen = () => {
         onPress={() => router.back()}
         style={styles.backRow}
         accessibilityRole="button"
-        accessibilityLabel="Tilbake"
+        accessibilityLabel="Back"
       >
         <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-        <Text style={styles.backLabel}>Tilbake</Text>
+        <Text style={styles.backLabel}>Back</Text>
       </Pressable>
 
       <View style={styles.content}>
@@ -87,7 +87,14 @@ const FilterBeforeMapScreen = () => {
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
               >
-                <Text style={styles.optionLabel}>{label}</Text>
+                <Text
+                  style={[
+                    styles.optionLabel,
+                    on && styles.optionLabelSelected,
+                  ]}
+                >
+                  {label}
+                </Text>
               </Pressable>
             );
           })}
@@ -162,12 +169,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   optionSelected: {
-    backgroundColor: primaryWhite,
-    borderWidth: 2,
+    backgroundColor: primaryBlack,
+    borderColor: primaryBlack,
+    borderWidth: 1,
   },
   optionLabel: {
     ...Typography.agBodyRegular18,
     textAlign: "center",
+    color: primaryBlack,
+  },
+  optionLabelSelected: {
+    color: primaryWhite,
   },
   nextBtn: {
     marginTop: responsiveScale(46),

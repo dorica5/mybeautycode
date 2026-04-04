@@ -39,6 +39,7 @@ import Constants from "expo-constants";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import SearchInput from "@/src/components/SearchInput";
 import { ProfessionalMapPinBubble } from "@/src/components/ProfessionalMapPinBubble";
+import { ClusterMapBubble } from "@/src/components/ClusterMapBubble";
 import { Typography } from "@/src/constants/Typography";
 import { SALON_MAP_DARK_STYLE } from "@/src/constants/mapDarkStyle";
 import {
@@ -56,6 +57,14 @@ import {
   responsivePadding,
   responsiveMargin,
 } from "@/src/utils/responsive";
+import {
+  clusterProfessionals,
+  shouldClusterByZoom,
+  withDisplayOffsets,
+  sameAddressForAll,
+  sameProfessionalSets,
+  type MapCluster,
+} from "@/src/utils/mapClustering";
 
 const ORGANIC_LOGO_VIEWBOX_W = 390;
 const ORGANIC_LOGO_VIEWBOX_H = 226;
@@ -150,6 +159,11 @@ const MapLocationScreen = () => {
   const [showUserOnMap, setShowUserOnMap] = useState(false);
   const [selectedMapProfessional, setSelectedMapProfessional] =
     useState<MapProfessionalPin | null>(null);
+  const [selectedClusterMembers, setSelectedClusterMembers] = useState<
+    MapProfessionalPin[] | null
+  >(null);
+  /** Tracks zoom for cluster vs pin mode (`onRegionChangeComplete`). */
+  const [liveMapRegion, setLiveMapRegion] = useState<Region | null>(null);
 
   /**
    * MapView `onPress` often fires together with Marker `onPress`. Without this,
@@ -164,6 +178,8 @@ const MapLocationScreen = () => {
 
   const closeMapModal = useCallback(() => {
     setSelectedMapProfessional(null);
+    setSelectedClusterMembers(null);
+    setLiveMapRegion(null);
     setMapModalVisible(false);
   }, []);
 
@@ -173,6 +189,8 @@ const MapLocationScreen = () => {
     setMapRegion(null);
     setShowUserOnMap(false);
     setSelectedMapProfessional(null);
+    setSelectedClusterMembers(null);
+    setLiveMapRegion(null);
 
     let region: Region = BERGEN_REGION;
     let showUser = false;
@@ -212,22 +230,59 @@ const MapLocationScreen = () => {
     Alert.alert("Search", `Would search for: ${q}`);
   }, [locationQuery]);
 
+  const sheetBottomReserve = useMemo(() => {
+    if (selectedMapProfessional) return responsiveScale(168);
+    const list = selectedClusterMembers;
+    if (list?.length) {
+      const header = responsiveScale(88);
+      const row = responsiveScale(56);
+      const footer = responsiveScale(36);
+      return Math.min(
+        responsiveScale(400),
+        header + list.length * row + footer
+      );
+    }
+    return 0;
+  }, [selectedMapProfessional, selectedClusterMembers]);
+
   /** Keep Google legal / logo above the mint bottom sheet when a pin is selected. */
   const mapChromeBottomPad = useMemo(() => {
     const base = responsiveScale(18);
-    const sheetReserve = responsiveScale(168);
-    return selectedMapProfessional ? base + sheetReserve : base;
-  }, [selectedMapProfessional]);
+    return base + sheetBottomReserve;
+  }, [sheetBottomReserve]);
 
   const mapLegalBottomPad = useMemo(() => {
     const base = responsiveScale(14);
-    const sheetReserve = responsiveScale(168);
-    return selectedMapProfessional ? base + sheetReserve : base;
-  }, [selectedMapProfessional]);
+    return base + sheetBottomReserve;
+  }, [sheetBottomReserve]);
 
   const clearPinSelection = useCallback(() => {
     setSelectedMapProfessional(null);
+    setSelectedClusterMembers(null);
   }, []);
+
+  const effectiveMapRegion = liveMapRegion ?? mapRegion;
+  const useClusterView = useMemo(
+    () =>
+      effectiveMapRegion
+        ? shouldClusterByZoom(effectiveMapRegion.latitudeDelta)
+        : false,
+    [effectiveMapRegion]
+  );
+
+  const mapClusters = useMemo((): MapCluster[] => {
+    if (!SHOW_DEMO_PROFESSIONAL_MARKERS || !effectiveMapRegion) return [];
+    return clusterProfessionals(
+      DEMO_MAP_PROFESSIONALS,
+      effectiveMapRegion.latitudeDelta,
+      effectiveMapRegion.longitudeDelta
+    );
+  }, [effectiveMapRegion]);
+
+  const professionalsWithDisplayCoords = useMemo(
+    () => withDisplayOffsets(DEMO_MAP_PROFESSIONALS),
+    []
+  );
 
   const handleMapPress = useCallback(
     (e: MapPressEvent) => {
@@ -244,6 +299,7 @@ const MapLocationScreen = () => {
 
   const handleMarkerPress = useCallback((pro: MapProfessionalPin) => {
     markerPressConsumesMapPressRef.current = true;
+    setSelectedClusterMembers(null);
     setSelectedMapProfessional((current) =>
       current?.id === pro.id ? null : pro
     );
@@ -252,6 +308,37 @@ const MapLocationScreen = () => {
         markerPressConsumesMapPressRef.current = false;
       });
     });
+  }, []);
+
+  const handleClusterMarkerPress = useCallback(
+    (members: MapProfessionalPin[]) => {
+      markerPressConsumesMapPressRef.current = true;
+      if (members.length <= 1) {
+        const only = members[0];
+        if (only) {
+          setSelectedClusterMembers(null);
+          setSelectedMapProfessional((current) =>
+            current?.id === only.id ? null : only
+          );
+        }
+      } else {
+        setSelectedMapProfessional(null);
+        setSelectedClusterMembers((current) =>
+          sameProfessionalSets(current, members) ? null : members
+        );
+      }
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          markerPressConsumesMapPressRef.current = false;
+        });
+      });
+    },
+    []
+  );
+
+  const pickProfessionalFromCluster = useCallback((pro: MapProfessionalPin) => {
+    setSelectedClusterMembers(null);
+    setSelectedMapProfessional(pro);
   }, []);
 
   const spiralWidth = responsiveScale(200);
@@ -301,10 +388,10 @@ const MapLocationScreen = () => {
                 onPress={closeMapModal}
                 style={styles.backRow}
                 accessibilityRole="button"
-                accessibilityLabel="Tilbake"
+                accessibilityLabel="Back"
               >
                 <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-                <Text style={styles.backLabel}>Tilbake</Text>
+                <Text style={styles.backLabel}>Back</Text>
               </Pressable>
               <View style={styles.mapModalTitleGutter}>
                 <Text
@@ -339,6 +426,7 @@ const MapLocationScreen = () => {
                     pitchEnabled={false}
                     toolbarEnabled={false}
                     onPress={handleMapPress}
+                    onRegionChangeComplete={(r) => setLiveMapRegion(r)}
                     mapPadding={{
                       top: responsiveScale(10),
                       right: responsiveScale(14),
@@ -353,26 +441,70 @@ const MapLocationScreen = () => {
                     }}
                   >
                     {SHOW_DEMO_PROFESSIONAL_MARKERS &&
-                      DEMO_MAP_PROFESSIONALS.map((pro) => {
-                        const selected =
-                          selectedMapProfessional?.id === pro.id;
-                        return (
-                          <Marker
-                            key={`${pro.id}-${selectedMapProfessional?.id ?? "none"}`}
-                            coordinate={{
-                              latitude: pro.latitude,
-                              longitude: pro.longitude,
-                            }}
-                            anchor={{ x: 0.5, y: 0.5 }}
-                            tracksViewChanges={false}
-                            stopPropagation
-                            accessibilityLabel={`${pro.displayName}, ${pro.address}`}
-                            onPress={() => handleMarkerPress(pro)}
-                          >
-                            <ProfessionalMapPinBubble selected={selected} />
-                          </Marker>
-                        );
-                      })}
+                      (useClusterView
+                        ? mapClusters.map((cluster) => {
+                            const multi = cluster.members.length > 1;
+                            const clusterSelected = sameProfessionalSets(
+                              selectedClusterMembers,
+                              cluster.members
+                            );
+                            const only = cluster.members[0];
+                            return (
+                              <Marker
+                                key={`${cluster.id}-${clusterSelected ? "o" : "c"}-${selectedMapProfessional?.id ?? "n"}`}
+                                coordinate={{
+                                  latitude: cluster.latitude,
+                                  longitude: cluster.longitude,
+                                }}
+                                anchor={{ x: 0.5, y: 0.5 }}
+                                tracksViewChanges={false}
+                                stopPropagation
+                                accessibilityLabel={
+                                  multi
+                                    ? `${cluster.members.length} professionals`
+                                    : `${only.displayName}, ${only.address}`
+                                }
+                                onPress={() =>
+                                  handleClusterMarkerPress(cluster.members)
+                                }
+                              >
+                                {multi ? (
+                                  <ClusterMapBubble
+                                    count={cluster.members.length}
+                                    selected={clusterSelected}
+                                  />
+                                ) : (
+                                  only && (
+                                    <ProfessionalMapPinBubble
+                                      selected={
+                                        selectedMapProfessional?.id === only.id
+                                      }
+                                    />
+                                  )
+                                )}
+                              </Marker>
+                            );
+                          })
+                        : professionalsWithDisplayCoords.map((pro) => {
+                            const selected =
+                              selectedMapProfessional?.id === pro.id;
+                            return (
+                              <Marker
+                                key={`${pro.id}-${selected ? "s" : "u"}`}
+                                coordinate={{
+                                  latitude: pro.displayLatitude,
+                                  longitude: pro.displayLongitude,
+                                }}
+                                anchor={{ x: 0.5, y: 0.5 }}
+                                tracksViewChanges={false}
+                                stopPropagation
+                                accessibilityLabel={`${pro.displayName}, ${pro.address}`}
+                                onPress={() => handleMarkerPress(pro)}
+                              >
+                                <ProfessionalMapPinBubble selected={selected} />
+                              </Marker>
+                            );
+                          }))}
                   </MapView>
                   {selectedMapProfessional ? (
                     <View
@@ -415,6 +547,55 @@ const MapLocationScreen = () => {
                         </Pressable>
                       </View>
                     </View>
+                  ) : selectedClusterMembers &&
+                    selectedClusterMembers.length > 1 ? (
+                    <View
+                      style={styles.pinDetailSheet}
+                      pointerEvents="box-none"
+                    >
+                      <View style={styles.pinDetailCard}>
+                        <Pressable
+                          onPress={clearPinSelection}
+                          style={styles.pinDetailClose}
+                          accessibilityRole="button"
+                          accessibilityLabel="Lukk"
+                          hitSlop={12}
+                        >
+                          <X
+                            size={responsiveScale(20)}
+                            color={primaryBlack}
+                            weight="bold"
+                          />
+                        </Pressable>
+                        <Text style={styles.pinDetailLine}>
+                          {sameAddressForAll(selectedClusterMembers)
+                            ? `${selectedClusterMembers.length} på samme adresse`
+                            : `${selectedClusterMembers.length} behandlere i dette området`}
+                        </Text>
+                        <ScrollView
+                          style={styles.clusterListScroll}
+                          keyboardShouldPersistTaps="handled"
+                          showsVerticalScrollIndicator={false}
+                        >
+                          {selectedClusterMembers.map((pro) => (
+                            <Pressable
+                              key={pro.id}
+                              style={styles.clusterRow}
+                              onPress={() => pickProfessionalFromCluster(pro)}
+                              accessibilityRole="button"
+                              accessibilityLabel={`${pro.displayName}, ${pro.address}`}
+                            >
+                              <Text style={styles.clusterRowName}>
+                                {pro.displayName}
+                              </Text>
+                              <Text style={styles.clusterRowAddress}>
+                                {pro.address}
+                              </Text>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    </View>
                   ) : null}
                 </View>
               </View>
@@ -438,10 +619,10 @@ const MapLocationScreen = () => {
               onPress={() => router.back()}
               style={styles.backRow}
               accessibilityRole="button"
-              accessibilityLabel="Tilbake"
+              accessibilityLabel="Back"
             >
               <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-              <Text style={styles.backLabel}>Tilbake</Text>
+              <Text style={styles.backLabel}>Back</Text>
             </Pressable>
 
             <ScrollView
@@ -594,6 +775,27 @@ const styles = StyleSheet.create({
     ...Typography.outfitRegular16,
     color: primaryWhite,
     textAlign: "center",
+  },
+  clusterListScroll: {
+    maxHeight: responsiveScale(220),
+    width: "100%",
+    alignSelf: "stretch",
+  },
+  clusterRow: {
+    paddingVertical: responsivePadding(12),
+    paddingHorizontal: responsivePadding(4),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: `${primaryBlack}28`,
+  },
+  clusterRowName: {
+    ...Typography.agLabel16,
+    color: primaryBlack,
+  },
+  clusterRowAddress: {
+    ...Typography.outfitRegular16,
+    marginTop: responsiveMargin(4),
+    color: primaryBlack,
+    opacity: 0.78,
   },
   mapView: {
     ...StyleSheet.absoluteFillObject,

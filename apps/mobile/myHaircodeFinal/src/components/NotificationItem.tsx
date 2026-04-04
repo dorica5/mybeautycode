@@ -2,16 +2,36 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { router } from "expo-router";
-import RemoteImage from "./RemoteImage";
-import { Colors } from "../constants/Colors";
+import { Colors, primaryBlack, primaryWhite } from "../constants/Colors";
 import { api } from "@/src/lib/apiClient";
 import { markNotificationAsRead } from "@/src/providers/useNotifcations";
-import { UserCircle } from "phosphor-react-native";
+import { UserCircle, Users } from "phosphor-react-native";
 import { responsiveScale, responsiveFontSize, scalePercent, responsiveBorderRadius } from "../utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "./avatarSpinner";
 
-export const NotificationItem = ({ notification }) => {
+const CLIENT_CARD_DARK = "#262626";
+
+export type NotificationCardTone = "light" | "dark";
+
+export type NotificationItemProps = {
+  notification: Record<string, unknown> & {
+    id: string;
+    read?: boolean;
+    message?: string;
+    type?: string;
+    sender_id?: string;
+    sender?: { avatar_url?: string; full_name?: string };
+    data?: Record<string, unknown>;
+  };
+  /** Client notifications list: mint screen card styles (Today = light, else dark). */
+  cardTone?: NotificationCardTone;
+};
+
+export const NotificationItem = ({
+  notification,
+  cardTone,
+}: NotificationItemProps) => {
   const [isRead, setIsRead] = useState(notification.read);
   const senderAvatar = notification.sender?.avatar_url;
 
@@ -173,40 +193,124 @@ export const NotificationItem = ({ notification }) => {
     }
   };
 
+  const iconColor =
+    cardTone === "dark" ? primaryWhite : primaryBlack;
+
+  const avatarOrIcon = senderAvatar ? (
+    <AvatarWithSpinner
+      uri={senderAvatar}
+      size={responsiveScale(40)}
+      style={[
+        styles.profileImage,
+        cardTone === "dark" && styles.profileImageOnDark,
+      ]}
+    />
+  ) : (
+    <View
+      style={[
+        styles.profileImage,
+        styles.iconPlaceholder,
+        cardTone === "dark" && styles.iconPlaceholderDark,
+      ]}
+    >
+      {cardTone ? (
+        <Users size={responsiveScale(26)} color={iconColor} weight="duotone" />
+      ) : (
+        <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} />
+      )}
+    </View>
+  );
+
+  const inner = (
+    <TouchableOpacity
+      style={[
+        cardTone === "light" && styles.clientCardLight,
+        cardTone === "dark" && styles.clientCardDark,
+        !cardTone && styles.container,
+        !cardTone && !isRead && styles.unread,
+      ]}
+      onPress={handlePress}
+      activeOpacity={0.85}
+    >
+      <View
+        style={[
+          styles.contentContainer,
+          cardTone && styles.contentContainerClient,
+        ]}
+      >
+        <View style={[styles.row, cardTone && styles.rowClient]}>
+          {avatarOrIcon}
+          <Text
+            style={[
+              styles.message,
+              { fontSize: responsiveFontSize(14, 12) },
+              cardTone === "light" && styles.messageLight,
+              cardTone === "dark" && styles.messageDark,
+            ]}
+          >
+            {notification.message}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  if (cardTone) {
+    return inner;
+  }
+
   return (
     <>
       <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <TouchableOpacity
-          style={[styles.container, !isRead && styles.unread]}
-          onPress={handlePress}
-        >
-          <View style={styles.contentContainer}>
-            <View style={styles.row}>
-              {senderAvatar ? (
-                <AvatarWithSpinner uri={senderAvatar} size={responsiveScale(40)} style={styles.profileImage} />
-                
-              ) : (
-                <View
-                  style={[
-                    styles.profileImage,
-                    { justifyContent: "center", alignItems: "center" },
-                  ]}
-                >
-                  <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} />
-                </View>
-              )}
-
-              <Text style={[styles.message, {fontSize: responsiveFontSize(14, 12)}]}>{notification.message}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </View>
+      <View style={{ flex: 1, backgroundColor: "#fff" }}>{inner}</View>
     </>
   );
 };
 
 const styles = StyleSheet.create({
+  clientCardLight: {
+    marginBottom: responsiveScale(10),
+    paddingVertical: responsiveScale(14),
+    paddingHorizontal: responsiveScale(16),
+    borderRadius: responsiveBorderRadius(18),
+    backgroundColor: "#FFFFFF",
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
+  },
+  clientCardDark: {
+    marginBottom: responsiveScale(10),
+    paddingVertical: responsiveScale(14),
+    paddingHorizontal: responsiveScale(16),
+    borderRadius: responsiveBorderRadius(18),
+    backgroundColor: CLIENT_CARD_DARK,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: CLIENT_CARD_DARK,
+  },
+  contentContainerClient: {
+    gap: 0,
+    borderRadius: 0,
+  },
+  rowClient: {
+    alignItems: "center",
+  },
+  iconPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  iconPlaceholderDark: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  profileImageOnDark: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  messageLight: {
+    color: primaryBlack,
+  },
+  messageDark: {
+    color: primaryWhite,
+  },
   container: {
     paddingVertical: scalePercent(2),
     paddingHorizontal: scalePercent(5),

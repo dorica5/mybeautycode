@@ -58,13 +58,13 @@ const Reset = () => {
         <View style={styles.container}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Tilbake"
+            accessibilityLabel="Back"
             onPress={() => router.back()}
             style={styles.backRow}
             hitSlop={12}
           >
             <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={[Typography.bodyMedium, styles.backLabel]}>Tilbake</Text>
+            <Text style={[Typography.bodyMedium, styles.backLabel]}>Back</Text>
           </Pressable>
 
           <KeyboardAvoidingView
