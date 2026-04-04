@@ -131,6 +131,8 @@ type AuthData = {
   loadingSetup: boolean;
   isSigningOut: boolean;
   userStatus: UserStatus | null;
+  /** Mirrors AsyncStorage last visit; `undefined` while loading for dual-role users. */
+  lastAppSurfacePref: LastAppSurface | null | undefined;
   setProfile: (profile: any) => void;
   signOut: () => void;
   clearProfile: () => void;
@@ -145,6 +147,7 @@ export const AuthContext = createContext<AuthData>({
   isSignUp: false,
   isSigningOut: false,
   userStatus: null,
+  lastAppSurfacePref: undefined,
   setProfile: () => {},
   signOut: () => {},
   clearProfile: () => {},
@@ -839,6 +842,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         isSignUp,
         isSigningOut: isSigningOut.current,
         userStatus,
+        lastAppSurfacePref,
         setProfile,
         signOut,
         clearProfile,

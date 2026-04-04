@@ -196,7 +196,7 @@ const MyInspiration = () => {
   }, [modalVisible, carouselBatchKey, imageGallery]);
 
   const { mutateAsync: saveInspirationMutation } = useSaveInspirationToDatabase();
-  const { profile } = useAuth();
+  const { profile, lastAppSurfacePref } = useAuth();
   const owner_id = profile?.id;
   const posthog = usePostHog()
 
@@ -620,10 +620,26 @@ const MyInspiration = () => {
   };
 
   const goHome = () => {
-    if (profile.user_type === "CLIENT") {
-      router.replace("/(client)/home" as Href);
-    } else if (profile.user_type === "HAIRDRESSER") {
-      router.replace("/(hairdresser)/home" as Href);
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+    const clientHome = "/(client)/(tabs)/home" as Href;
+    const proHome = "/(hairdresser)/(tabs)/home" as Href;
+    const isHairdresserCapable =
+      profile?.user_type === "HAIRDRESSER" ||
+      Boolean(
+        (profile as { professional_profile_id?: string | null } | null)
+          ?.professional_profile_id
+      );
+    if (!isHairdresserCapable) {
+      router.replace(clientHome);
+      return;
+    }
+    if (lastAppSurfacePref === "client") {
+      router.replace(clientHome);
+    } else {
+      router.replace(proHome);
     }
   };
 
