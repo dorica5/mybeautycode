@@ -1,9 +1,9 @@
 import { KeyboardAvoidingView, Platform } from "react-native";
 
-import { useFocusEffect } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   TouchableWithoutFeedback,
   Keyboard,
@@ -23,7 +23,6 @@ import {
   responsivePadding,
   responsiveMargin,
   responsiveFontSize,
-  isTablet,
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { Typography } from "@/src/constants/Typography";
@@ -44,16 +43,11 @@ import {
 
 const HomeScreen = () => {
   const { profile } = useAuth();
-  useFocusEffect(
-    useCallback(() => {
-      console.log("IN PROFESSIONAL HOME");
-    }, [])
-  );
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
-  const [showSearchUI, setShowSearchUI] = useState(false);
-  const [displayedResults, setDisplayedResults] = useState([]);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [clientSearchFieldFocused, setClientSearchFieldFocused] =
+    useState(false);
 
   const {
     data: searchResults = [],
@@ -61,43 +55,39 @@ const HomeScreen = () => {
   } = useListAllClientSearch(debouncedQuery, profile?.id);
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-      if (searchQuery) {
-        setShowSearchUI(true);
-      } else {
-        setShowSearchUI(false);
-        setDisplayedResults([]);
-      }
-    }, 200);
-
-    return () => {
-      clearTimeout(handler);
-    };
+    const handler = setTimeout(() => setDebouncedQuery(searchQuery), 200);
+    return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  useEffect(() => {
-    if (!isLoading && debouncedQuery && searchResults) {
-      const resultsChanged =
-        JSON.stringify(displayedResults) !== JSON.stringify(searchResults);
-      if (resultsChanged) {
-        setDisplayedResults(searchResults);
-      }
-    }
-  }, [isLoading, searchResults, debouncedQuery, displayedResults]);
-
-  const handleSearch = (query: string) => {
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-  };
+  }, []);
 
-  const formatDate = (createdAt: string) => {
+  /** Only toggles list visibility; clearing text is done on outside tap so row taps still navigate. */
+  const handleClientSearchBlur = useCallback(() => {
+    setClientSearchFieldFocused(false);
+  }, []);
+
+  const dismissClientSearchOverlay = useCallback(() => {
+    Keyboard.dismiss();
+    setClientSearchFieldFocused(false);
+    setSearchQuery("");
+    setDebouncedQuery("");
+  }, []);
+
+  const showClientSearchResults =
+    clientSearchFieldFocused && debouncedQuery.trim().length > 0;
+
+  const clientListData = (showClientSearchResults ? searchResults : []) as never[];
+
+  const formatDate = useCallback((createdAt: string) => {
     const date = new Date(createdAt);
     return date.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     });
-  };
+  }, []);
 
   const { data: latestHaircodes = [] } = useLatestHaircodes(profile?.id);
 
@@ -109,6 +99,32 @@ const HomeScreen = () => {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       return createdAt >= sevenDaysAgo;
     }) ?? [];
+
+  const openHaircode = useCallback(
+    (item: (typeof filteredHaircodes)[number]) => {
+      router.push({
+        pathname: "/haircodes/single_haircode",
+        params: {
+          haircodeId: item.id,
+          hairdresserName: profile?.full_name,
+          hairdresser_profile_pic: profile?.avatar_url,
+          salon_name: profile?.salon_name,
+          salonPhoneNumber: profile?.salon_phone_number,
+          about_me: profile?.about_me,
+          booking_site: profile?.booking_site,
+          social_media: profile?.social_media,
+          description: item.service_description,
+          services: item.services,
+          createdAt: formatDate(item.created_at),
+          full_name: item.client_profile?.full_name,
+          number: item.client_profile?.phone_number,
+          price: item.price,
+          duration: item.duration,
+        },
+      });
+    },
+    [router, profile, formatDate]
+  );
 
   const [professionLine, setProfessionLine] = useState("Professional account");
 
@@ -151,7 +167,7 @@ const HomeScreen = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1, backgroundColor: primaryGreen }}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <TouchableWithoutFeedback onPress={dismissClientSearchOverlay}>
           <SafeAreaView
             style={styles.safe}
             edges={["top", "right", "left"]}
@@ -170,34 +186,55 @@ const HomeScreen = () => {
                 >
                   {professionLine}
                 </Text>
+              </View>
 
-                <Text style={[Typography.agLabel16, styles.searchLabel]}>
+              <View style={styles.contentContainer}>
+                <Text style={[Typography.agLabel16, styles.searchLabelOnGreen]}>
                   Search for clients
                 </Text>
                 <SearchInput
                   onSearch={handleSearch}
-                  initialQuery={searchQuery}
+                  initialQuery=""
+                  value={searchQuery}
                   placeholder="Search for clients"
                   variant="whitePill"
-                  style={styles.searchPill}
+                  whitePillFill={primaryWhite}
+                  whitePillStretch
+                  style={styles.searchPillOnGreen}
+                  onFocus={() => setClientSearchFieldFocused(true)}
+                  onBlur={handleClientSearchBlur}
                 />
-              </View>
 
-              <View style={styles.contentContainer}>
-                {showSearchUI ? (
-                  <View style={{ flex: 1 }}>
+                {!showClientSearchResults ? (
+                  <View style={styles.idlePromptCard}>
+                    <Text
+                      style={[
+                        Typography.outfitRegular16,
+                        styles.idlePromptText,
+                      ]}
+                    >
+                      Search for a client to get started
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={[styles.resultsCard, styles.resultsCardFlex]}>
                     <FlatList
-                      data={displayedResults}
-                      keyExtractor={(item, index) => `${item.id}_${index}`}
+                      data={clientListData}
+                      keyExtractor={(item, index) => {
+                        const row = item as {
+                          client_id?: string;
+                          id?: string;
+                        };
+                        return `${row.client_id ?? row.id ?? "row"}_${index}`;
+                      }}
                       keyboardShouldPersistTaps="handled"
                       removeClippedSubviews={false}
-                      maintainVisibleContentPosition={{
-                        minIndexForVisible: 0,
-                      }}
-                      maxToRenderPerBatch={5}
+                      style={styles.searchResultsList}
+                      contentContainerStyle={styles.searchResultsListContent}
+                      maxToRenderPerBatch={10}
                       updateCellsBatchingPeriod={50}
                       windowSize={10}
-                      initialNumToRender={10}
+                      initialNumToRender={12}
                       renderItem={({ item }) => (
                         <SearchResults
                           item={item}
@@ -206,77 +243,48 @@ const HomeScreen = () => {
                         />
                       )}
                       ListEmptyComponent={
-                        debouncedQuery ? (
+                        isLoading ? (
+                          <View style={styles.loadingClients}>
+                            <ActivityIndicator color={primaryBlack} />
+                          </View>
+                        ) : (
                           <View style={styles.emptyContainer}>
                             <Text style={styles.noResultsText}>
-                              No results found for "{debouncedQuery}"
+                              No results found for "{debouncedQuery.trim()}"
                             </Text>
                             <Text style={styles.helperText}>
                               Seems like your client hasn’t joined myHaircode
-                              yet. You can invite them to download the app so
-                              their hair history appears here next time you
-                              search.
+                              yet. You can invite them to download the app.
                             </Text>
+                          </View>
+                        )
+                      }
+                      ListFooterComponent={
+                        filteredHaircodes.length > 0 ? (
+                          <View style={styles.haircodesFooter}>
+                            <Text
+                              style={[
+                                styles.sectionLabel,
+                                styles.sectionLabelInFooter,
+                              ]}
+                            >
+                              Latest haircodes
+                            </Text>
+                            {filteredHaircodes.map((item) => (
+                              <HaircodeCard
+                                key={item.id}
+                                name={item.client_profile?.full_name}
+                                date={formatDate(item.created_at)}
+                                profilePicture={item.client_profile?.avatar_url}
+                                salon_name=""
+                                onPress={() => openHaircode(item)}
+                              />
+                            ))}
                           </View>
                         ) : null
                       }
                     />
                   </View>
-                ) : (
-                  <>
-                    {filteredHaircodes.length > 0 ? (
-                      <>
-                        <Text style={styles.sectionLabel}>Latest haircodes</Text>
-                        <FlatList
-                          data={filteredHaircodes}
-                          keyExtractor={(item) => item.id}
-                          renderItem={({ item }) => (
-                            <HaircodeCard
-                              name={item.client_profile?.full_name}
-                              date={formatDate(item.created_at)}
-                              profilePicture={item.client_profile?.avatar_url}
-                              salon_name=""
-                              onPress={() => {
-                                router.push({
-                                  pathname: "/haircodes/single_haircode",
-                                  params: {
-                                    haircodeId: item.id,
-                                    hairdresserName: profile?.full_name,
-                                    hairdresser_profile_pic:
-                                      profile?.avatar_url,
-                                    salon_name: profile?.salon_name,
-                                    salonPhoneNumber:
-                                      profile?.salon_phone_number,
-                                    about_me: profile?.about_me,
-                                    booking_site: profile?.booking_site,
-                                    social_media: profile?.social_media,
-                                    description: item.service_description,
-                                    services: item.services,
-                                    createdAt: formatDate(item.created_at),
-                                    full_name: item.client_profile?.full_name,
-                                    number: item.client_profile?.phone_number,
-                                    price: item.price,
-                                    duration: item.duration,
-                                  },
-                                });
-                              }}
-                            />
-                          )}
-                          keyboardShouldPersistTaps="handled"
-                          contentContainerStyle={styles.flatListContent}
-                          ListEmptyComponent={null}
-                        />
-                      </>
-                    ) : (
-                      <View style={styles.emptyStateCard}>
-                        <Text
-                          style={[Typography.bodyLarge, styles.emptyStateCopy]}
-                        >
-                          Search for a client to get started
-                        </Text>
-                      </View>
-                    )}
-                  </>
                 )}
               </View>
             </View>
@@ -296,7 +304,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: responsivePadding(24),
-    paddingTop: responsiveMargin(20),
+    paddingTop: responsiveMargin(36),
     paddingBottom: responsiveMargin(8),
   },
   /** Anton 36 — `Typography.h3` */
@@ -309,20 +317,74 @@ const styles = StyleSheet.create({
   accountSubtitle: {
     color: primaryBlack,
     textAlign: "center",
-    marginBottom: responsiveMargin(20),
+    marginBottom: responsiveMargin(16),
   },
-  searchLabel: {
+  searchLabelOnGreen: {
     color: primaryBlack,
     marginBottom: responsiveMargin(10),
     alignSelf: "flex-start",
   },
-  searchPill: {
-    alignSelf: "center",
-    marginBottom: responsiveMargin(12),
+  searchPillOnGreen: {
+    marginBottom: responsiveMargin(14),
+  },
+  idlePromptCard: {
+    alignSelf: "stretch",
+    backgroundColor: primaryWhite,
+    borderRadius: responsiveScale(22),
+    borderWidth: 1,
+    borderColor: `${primaryBlack}12`,
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: responsiveScale(132),
+    paddingVertical: responsivePadding(36),
+    paddingHorizontal: responsivePadding(24),
+    marginBottom: responsiveMargin(8),
+  },
+  idlePromptText: {
+    textAlign: "center",
+    maxWidth: responsiveScale(280),
+  },
+  resultsCard: {
+    backgroundColor: primaryWhite,
+    borderRadius: responsiveScale(22),
+    borderWidth: 1,
+    borderColor: `${primaryBlack}12`,
+    paddingHorizontal: responsivePadding(20),
+    paddingTop: responsivePadding(12),
+    paddingBottom: responsivePadding(12),
+    marginBottom: responsiveMargin(8),
+  },
+  resultsCardFlex: {
+    flex: 1,
+    minHeight: 0,
+  },
+  searchResultsList: {
+    flex: 1,
+    minHeight: 0,
+    marginTop: responsiveMargin(4),
+  },
+  searchResultsListContent: {
+    paddingBottom: responsivePadding(12),
+    flexGrow: 1,
+  },
+  loadingClients: {
+    paddingVertical: responsivePadding(24),
+    alignItems: "center",
+  },
+  haircodesFooter: {
+    marginTop: responsiveMargin(16),
+    paddingTop: responsivePadding(12),
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: `${primaryBlack}18`,
+  },
+  sectionLabelInFooter: {
+    paddingHorizontal: 0,
+    marginBottom: responsiveMargin(8),
   },
   contentContainer: {
     flex: 1,
-    minHeight: responsiveScale(300),
+    minHeight: 0,
+    paddingHorizontal: responsivePadding(20),
   },
   sectionLabel: {
     fontSize: responsiveFontSize(15, 14),
@@ -338,10 +400,6 @@ const styles = StyleSheet.create({
     fontFamily: "Regular",
     color: "grey",
   },
-  flatListContent: {
-    marginBottom: responsiveMargin(40),
-    paddingHorizontal: isTablet() ? responsivePadding(20) : 0,
-  },
   emptyContainer: {
     alignItems: "center",
     paddingHorizontal: responsivePadding(20),
@@ -353,22 +411,5 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(14, 11),
     fontFamily: "Inter-Regular",
     lineHeight: responsiveScale(20, 16),
-  },
-  emptyStateCard: {
-    marginHorizontal: responsivePadding(40),
-    marginTop: responsiveMargin(8),
-    backgroundColor: primaryWhite,
-    borderRadius: responsiveScale(20),
-    paddingVertical: responsivePadding(40, 32),
-    paddingHorizontal: responsivePadding(20),
-    borderWidth: 1,
-    borderColor: `${primaryBlack}18`,
-    maxWidth: 288,
-    alignSelf: "center",
-    width: "100%",
-  },
-  emptyStateCopy: {
-    color: primaryBlack,
-    textAlign: "center",
   },
 });

@@ -23,7 +23,7 @@ import {
 } from "react-native-safe-area-context";
 import InspirationTopNav from "@/src/components/InspirationTopNav";
 import MarkCancelButton from "@/src/components/MarkCancelButton";
-import { Plus, X } from "phosphor-react-native";
+import { Images, Plus, X } from "phosphor-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useSaveInspirationToDatabase } from "@/src/api/inspirations";
@@ -43,7 +43,13 @@ import {
 } from "@/src/lib/storageSignedUrl";
 import Carousel from "react-native-reanimated-carousel";
 import CustomAlert from "@/src/components/CustomAlert";
-import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import {
+  primaryBlack,
+  primaryGreen,
+  primaryWhite,
+  secondaryGreen,
+} from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
 import {
   responsiveScale,
   scalePercent,
@@ -927,6 +933,7 @@ const MyInspiration = () => {
         <View style={styles.galleryContainer}>
           <FlatList
             key="inspiration-grid"
+            style={styles.galleryList}
             data={safeGallery}
             extraData={[
               uploadingImages,
@@ -1028,12 +1035,42 @@ const MyInspiration = () => {
             }}
             contentContainerStyle={styles.contentContainer}
             ListEmptyComponent={
-              <View style={styles.noInspirationContainer}>
-                <Text style={styles.noInspirationText}>
-                  {fetchingCategory === inspirationCategory
-                    ? "Loading…"
-                    : "No images yet. Tap Add image to add inspiration for this category."}
-                </Text>
+              <View
+                style={[
+                  styles.emptyStateWrapper,
+                  { minHeight: Math.max(screenHeight * 0.44, responsiveScale(300)) },
+                ]}
+              >
+                <View style={styles.emptyStateCard}>
+                  {fetchingCategory === inspirationCategory ? (
+                    <>
+                      <ActivityIndicator size="large" color={primaryBlack} />
+                      <Text style={styles.emptyStateLoading}>Loading…</Text>
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.emptyStateIconCircle}>
+                        <Images
+                          size={responsiveScale(36)}
+                          color={primaryBlack}
+                          weight="duotone"
+                        />
+                      </View>
+                      <Text style={styles.emptyStateTitle}>
+                        No inspiration yet
+                      </Text>
+                      <Text style={styles.emptyStateSubtitle}>
+                        Build your{" "}
+                        {
+                          CATEGORY_TABS.find((t) => t.code === inspirationCategory)
+                            ?.label
+                        }{" "}
+                        moodboard here. Use Add image above to save photos you
+                        love.
+                      </Text>
+                    </>
+                  )}
+                </View>
               </View>
             }
           />
@@ -1120,6 +1157,9 @@ const styles = StyleSheet.create({
     marginTop: responsiveScale(16),
     marginHorizontal: 0,
   },
+  galleryList: {
+    flex: 1,
+  },
   imageContainer: {
     position: "relative",
     borderRadius: responsiveBorderRadius(18),
@@ -1133,20 +1173,60 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: responsiveScale(28),
   },
-  noInspirationText: {
-    fontFamily: "Inter-Medium",
-    fontSize: responsiveFontSize(17, 15),
-    color: primaryBlack,
-    textAlign: "center",
-    lineHeight: responsiveFontSize(24, 22),
-    paddingHorizontal: scalePercent(8),
-  },
-  noInspirationContainer: {
-    marginTop: scalePercent(12),
+  emptyStateWrapper: {
+    flexGrow: 1,
+    width: "100%",
     justifyContent: "center",
     alignItems: "center",
-    flex: 1,
-    minHeight: responsiveScale(280),
+    paddingHorizontal: scalePercent(5),
+    paddingVertical: responsiveScale(24),
+  },
+  emptyStateCard: {
+    width: "100%",
+    maxWidth: responsiveScale(340),
+    alignItems: "center",
+    backgroundColor: primaryWhite,
+    borderRadius: responsiveBorderRadius(22),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: `${primaryBlack}22`,
+    paddingVertical: responsiveScale(32),
+    paddingHorizontal: responsiveScale(26),
+    /** Soft depth on green shell */
+    shadowColor: primaryBlack,
+    shadowOffset: { width: 0, height: responsiveScale(8) },
+    shadowOpacity: 0.06,
+    shadowRadius: responsiveScale(20),
+    elevation: 3,
+  },
+  emptyStateIconCircle: {
+    width: responsiveScale(72),
+    height: responsiveScale(72),
+    borderRadius: responsiveScale(36),
+    backgroundColor: secondaryGreen,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: `${primaryBlack}18`,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: responsiveScale(20),
+  },
+  emptyStateTitle: {
+    ...Typography.anton16,
+    textAlign: "center",
+    marginBottom: responsiveScale(12),
+    letterSpacing: 0.2,
+  },
+  emptyStateSubtitle: {
+    ...Typography.bodySmall,
+    textAlign: "center",
+    color: `${primaryBlack}cc`,
+    lineHeight: responsiveFontSize(22, 20),
+    maxWidth: responsiveScale(280),
+  },
+  emptyStateLoading: {
+    ...Typography.bodyMedium,
+    textAlign: "center",
+    marginTop: responsiveScale(16),
+    color: `${primaryBlack}99`,
   },
   detailModalRoot: {
     flex: 1,

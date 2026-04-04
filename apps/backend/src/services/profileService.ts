@@ -8,6 +8,7 @@ const nameSearch = (searchQuery: string) => ({
   OR: [
     { firstName: { contains: searchQuery, mode: "insensitive" as const } },
     { lastName: { contains: searchQuery, mode: "insensitive" as const } },
+    { username: { contains: searchQuery, mode: "insensitive" as const } },
   ],
 });
 
@@ -229,10 +230,25 @@ export const profileService = {
     }));
   },
 
+  /**
+   * Directory of profiles a professional can connect with: optional name filter (`q`).
+   * Empty `q` returns up to `take` profiles (sorted by name). Not limited to existing links.
+   * Excludes self, blocked users, incomplete setup.
+   * `has_relationship` is true when an active `client_professional_links` row exists.
+   */
   async searchClientsWithRelationship(
     searchQuery: string,
     professionalProfileId: string
   ) {
+    const q = searchQuery.trim();
+
+    const profProfile = await prisma.professionalProfile.findUnique({
+      where: { id: professionalProfileId },
+      select: { profileId: true },
+    });
+    const myProfileId = profProfile?.profileId;
+    if (!myProfileId) return [];
+
     const rels = await prisma.clientProfessionalLink.findMany({
       where: {
         professionalProfileId,
@@ -240,28 +256,23 @@ export const profileService = {
       },
       select: { clientUserId: true },
     });
-    const clientIds = rels.map((r) => r.clientUserId);
-    if (clientIds.length === 0) return [];
-
-    const profProfile = await prisma.professionalProfile.findUnique({
-      where: { id: professionalProfileId },
-      select: { profileId: true },
-    });
-    const profileId = profProfile?.profileId;
-    if (!profileId) return [];
+    const linkedClientIds = new Set(rels.map((r) => r.clientUserId));
 
     const blocked = await prisma.blockedUser.findMany({
-      where: { blockerId: profileId },
+      where: { blockerId: myProfileId },
       select: { blockedId: true },
     });
-    const blockedIds = new Set(blocked.map((b) => b.blockedId));
-    const validClientIds = clientIds.filter((id) => !blockedIds.has(id));
-    if (validClientIds.length === 0) return [];
+    const blockedIds = blocked.map((b) => b.blockedId);
 
     const profiles = await prisma.profile.findMany({
       where: {
-        id: { in: validClientIds },
-        ...nameSearch(searchQuery),
+        AND: [
+          { id: { not: myProfileId } },
+          ...(blockedIds.length > 0 ? [{ id: { notIn: blockedIds } }] : []),
+          /** Match profiles not explicitly incomplete (`false`); allows null in older rows. */
+          { NOT: { setupStatus: false } },
+          ...(q ? [nameSearch(q)] : []),
+        ],
       },
       select: {
         id: true,
@@ -270,6 +281,8 @@ export const profileService = {
         avatarUrl: true,
         phoneNumber: true,
       },
+      take: 50,
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     });
 
     return profiles.map((p) => ({
@@ -277,7 +290,7 @@ export const profileService = {
       full_name: profileDisplayName(p),
       avatar_url: p.avatarUrl,
       phone_number: p.phoneNumber,
-      has_relationship: true,
+      has_relationship: linkedClientIds.has(p.id),
     }));
   },
 

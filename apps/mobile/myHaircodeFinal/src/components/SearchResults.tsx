@@ -3,12 +3,15 @@ import React from "react";
 import { Link } from "expo-router";
 import { ResponsiveText } from "./ResponsiveText";
 import { AvatarWithSpinner } from "./avatarSpinner";
-import { 
-  responsiveScale, 
-  responsivePadding, 
+import { AddClientRowIcon } from "./AddClientRowIcon";
+import { FONT_FAMILY, Typography } from "@/src/constants/Typography";
+import { primaryBlack } from "@/src/constants/Colors";
+import {
+  responsiveScale,
+  responsivePadding,
   responsiveMargin,
   responsiveFontSize,
-  scalePercent 
+  scalePercent,
 } from "../utils/responsive";
 
 type SearchResultProps = {
@@ -27,52 +30,62 @@ type SearchResultProps = {
 };
 
 const SearchResults = ({ item, context, query }: SearchResultProps) => {
-  const highlightMatch = (text: string, query: string) => {
-    if (!query || !query.trim()) return <Text style={styles.resultText}>{text}</Text>;
+  const isProClientRow = context === "hairdresser";
+  const baseNameStyle = isProClientRow
+    ? Typography.bodySmall
+    : styles.resultText;
+  const boldNameStyle = isProClientRow
+    ? [Typography.bodySmall, { fontFamily: FONT_FAMILY.outfitMedium }]
+    : null;
 
-    const queryTrimmed = query.toLowerCase().trim();
-    
-    // Handle multi-word queries (like "emma d" or "emma darcy")
-    if (queryTrimmed.includes(' ')) {
+  const highlightMatch = (text: string, q: string) => {
+    if (!q || !q.trim()) {
+      return <Text style={baseNameStyle}>{text}</Text>;
+    }
+
+    const queryTrimmed = q.toLowerCase().trim();
+
+    const boldSpan = (match: string) =>
+      isProClientRow ? (
+        <Text style={boldNameStyle}>{match}</Text>
+      ) : (
+        <ResponsiveText weight="Bold" size={18} tabletSize={16}>
+          {match}
+        </ResponsiveText>
+      );
+
+    if (queryTrimmed.includes(" ")) {
       const textLower = text.toLowerCase();
       if (textLower.startsWith(queryTrimmed)) {
         const match = text.slice(0, queryTrimmed.length);
         const after = text.slice(queryTrimmed.length);
-        
         return (
-          <Text style={styles.resultText}>
-            <ResponsiveText weight="Bold" size={18} tabletSize={16}>{match}</ResponsiveText>
+          <Text style={baseNameStyle}>
+            {boldSpan(match)}
             {after}
           </Text>
         );
       }
-      return <Text style={styles.resultText}>{text}</Text>;
+      return <Text style={baseNameStyle}>{text}</Text>;
     }
-    
-    // Single word: find which name part starts with the query
+
     const nameParts = text.split(/\s+/);
-    let matchedPartIndex = -1;
     let matchStartIndex = -1;
     let matchEndIndex = -1;
-    
     let currentIndex = 0;
     for (let i = 0; i < nameParts.length; i++) {
       const part = nameParts[i];
       const partLower = part.toLowerCase();
-      
       if (partLower.startsWith(queryTrimmed)) {
-        matchedPartIndex = i;
         matchStartIndex = currentIndex;
         matchEndIndex = currentIndex + queryTrimmed.length;
         break;
       }
-      
-      // Add 1 for the space between parts
       currentIndex += part.length + 1;
     }
 
-    if (matchedPartIndex === -1) {
-      return <Text style={styles.resultText}>{text}</Text>;
+    if (matchStartIndex === -1) {
+      return <Text style={baseNameStyle}>{text}</Text>;
     }
 
     const before = text.slice(0, matchStartIndex);
@@ -80,9 +93,9 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
     const after = text.slice(matchEndIndex);
 
     return (
-      <Text style={styles.resultText}>
+      <Text style={baseNameStyle}>
         {before}
-        <ResponsiveText weight="Bold" size={18} tabletSize={16}>{match}</ResponsiveText>
+        {boldSpan(match)}
         {after}
       </Text>
     );
@@ -96,6 +109,35 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
         : `/(hairdresser)/clientProfile/${item.client_id}`
       : `/(client)/(tabs)/userList/professionalProfile/${item.hairdresser_id}`;
 
+  const displayName =
+    item.full_name?.trim() ||
+    item.phone_number ||
+    "Client";
+
+  const rowContent = (
+    <>
+      <AvatarWithSpinner
+        uri={item.avatar_url}
+        size={isProClientRow ? responsiveScale(48) : responsiveScale(50)}
+        style={[
+          styles.profilePicture,
+          isProClientRow && styles.profilePicturePro,
+        ]}
+      />
+      <View style={isProClientRow ? styles.nameColumn : undefined}>
+        {highlightMatch(displayName, query ?? "")}
+      </View>
+      {isProClientRow && (
+        <View style={styles.plusWrap} pointerEvents="none">
+          <AddClientRowIcon
+            size={responsiveScale(24)}
+            color={primaryBlack}
+          />
+        </View>
+      )}
+    </>
+  );
+
   return (
     <Link
       href={{
@@ -107,16 +149,16 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
           client_id: item.client_id,
         },
       }}
-      style={styles.resultItem}
+      style={isProClientRow ? styles.resultItemPro : styles.resultItem}
       asChild
     >
-      <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.5 : 1 }]}>
-        <AvatarWithSpinner
-          uri={item.avatar_url}
-          size={responsiveScale(50)}
-          style={styles.profilePicture}
-        />
-        {highlightMatch(item.full_name, query)}
+      <Pressable
+        style={({ pressed }) => [
+          isProClientRow ? styles.pressablePro : null,
+          { opacity: pressed ? 0.5 : 1 },
+        ]}
+      >
+        {rowContent}
       </Pressable>
     </Link>
   );
@@ -134,13 +176,38 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     marginHorizontal: responsivePadding(16),
     width: scalePercent(93),
-    alignSelf: 'center',
+    alignSelf: "center",
+  },
+  resultItemPro: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    paddingVertical: responsivePadding(12),
+    paddingHorizontal: 0,
+  },
+  pressablePro: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
   },
   profilePicture: {
     width: responsiveScale(50),
     height: responsiveScale(50),
     borderRadius: responsiveScale(25),
     marginRight: responsiveMargin(20),
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  profilePicturePro: {
+    marginRight: responsiveMargin(14),
+  },
+  nameColumn: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
+  },
+  plusWrap: {
+    marginLeft: responsiveMargin(8),
     justifyContent: "center",
     alignItems: "center",
   },

@@ -99,17 +99,18 @@ export const profileController = {
   },
 
   async searchClientsWithRelationship(req: Request, res: Response) {
-    const { q } = req.query;
+    const qRaw = req.query.q;
+    const q = typeof qRaw === "string" ? qRaw : "";
     const hairdresserId = req.userId;
-    if (!q || !hairdresserId) {
-      return res.status(400).json({ error: "q required" });
+    if (!hairdresserId) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
     try {
       const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
         hairdresserId!
       );
       const results = await profileService.searchClientsWithRelationship(
-        String(q),
+        q,
         professionalProfileId
       );
       res.json(results);

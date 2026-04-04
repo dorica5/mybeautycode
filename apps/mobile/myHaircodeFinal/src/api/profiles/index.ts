@@ -56,15 +56,16 @@ export const useListClientSearch = (
 
 export const useListAllClientSearch = (
   searchQuery: string,
-  hairdresser_id: string
+  hairdresser_id: string | undefined
 ) => {
+  const q = searchQuery.trim();
   return useQuery({
-    queryKey: ["clientSearch", searchQuery, "all"],
+    queryKey: ["clientSearch", q, "all", hairdresser_id],
     queryFn: () =>
       api.get<unknown[]>(
-        `/api/profiles/search/clients-with-relationship?q=${encodeURIComponent(searchQuery)}`
+        `/api/profiles/search/clients-with-relationship?q=${encodeURIComponent(q)}`
       ),
-    enabled: !!searchQuery,
+    enabled: !!hairdresser_id && q.length > 0,
   });
 };
 

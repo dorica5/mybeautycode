@@ -27,12 +27,23 @@ type SearchInputProps = {
   placeholder: string;
   style?: any;
   clearSearch?: () => void;
+  /**
+   * Controlled value. When set, the parent owns the text: navigation-focus clearing
+   * and `initialQuery` syncing are skipped (use for pro client directory + blur reset).
+   */
+  value?: string;
+  onFocus?: () => void;
+  onBlur?: () => void;
   /** When set, search field uses white pill styling (e.g. client find-professionals screen). */
   variant?: "default" | "whitePill";
-  /** Override whitePill width (base dp). Default 343. */
+  /** Override whitePill width (base dp). Default 343. Ignored when `whitePillStretch`. */
   whitePillWidth?: number;
   /** Override whitePill height (base dp). Default 46. */
   whitePillHeight?: number;
+  /** Mint off-white default; set to `#fff` for solid white pill. */
+  whitePillFill?: string;
+  /** Use full width of parent (e.g. inside a card). */
+  whitePillStretch?: boolean;
 };
 
 const SearchInput = ({
@@ -41,25 +52,34 @@ const SearchInput = ({
   placeholder,
   style,
   clearSearch,
+  value: valueProp,
+  onFocus: onFocusProp,
+  onBlur: onBlurProp,
   variant = "default",
   whitePillWidth,
   whitePillHeight,
+  whitePillFill,
+  whitePillStretch,
 }: SearchInputProps) => {
-  const [query, setQuery] = useState("");
-  const isFocused = useIsFocused();
+  const [internalQuery, setInternalQuery] = useState(initialQuery ?? "");
+  const isControlled = valueProp !== undefined;
+  const query = isControlled ? valueProp : internalQuery;
+  const routeFocused = useIsFocused();
 
   const pillW = whitePillWidth ?? SEARCH_BAR_WIDTH;
   const pillH = whitePillHeight ?? SEARCH_BAR_HEIGHT;
 
   useEffect(() => {
-    onSearch(query);
-  }, [query, onSearch]);
+    if (!isControlled) {
+      onSearch(internalQuery);
+    }
+  }, [internalQuery, onSearch, isControlled]);
 
   useEffect(() => {
-    if (isFocused) {
-      setQuery("");
+    if (!isControlled && routeFocused) {
+      setInternalQuery("");
     }
-  }, [isFocused]);
+  }, [routeFocused, isControlled]);
 
   const handleSearch = () => {
     if (!query) {
@@ -72,13 +92,19 @@ const SearchInput = ({
   };
 
   const clearQuery = useCallback(() => {
-    setQuery("");
+    if (isControlled) {
+      onSearch("");
+    } else {
+      setInternalQuery("");
+    }
     clearSearch?.();
-  }, [clearSearch]);
+  }, [clearSearch, isControlled, onSearch]);
 
   useEffect(() => {
-    setQuery(initialQuery);
-  }, [initialQuery]);
+    if (!isControlled) {
+      setInternalQuery(initialQuery);
+    }
+  }, [initialQuery, isControlled]);
 
   return (
     <View
@@ -87,10 +113,12 @@ const SearchInput = ({
         variant === "whitePill" && [
           styles.containerWhitePill,
           {
-            width: responsiveScale(pillW),
+            width: whitePillStretch ? ("100%" as const) : responsiveScale(pillW),
+            alignSelf: whitePillStretch ? ("stretch" as const) : "center",
             height: responsiveScale(pillH),
             minHeight: responsiveScale(pillH),
             borderRadius: responsiveScale(pillH / 2),
+            backgroundColor: whitePillFill ?? SEARCH_BAR_FILL,
           },
         ],
         style,
@@ -117,7 +145,15 @@ const SearchInput = ({
         ]}
         placeholder={placeholder}
         placeholderTextColor={variant === "whitePill" ? `${SEARCH_BAR_STROKE}99` : "#687076"}
-        onChangeText={(e) => setQuery(e)}
+        onChangeText={(e) => {
+          if (isControlled) {
+            onSearch(e);
+          } else {
+            setInternalQuery(e);
+          }
+        }}
+        onFocus={onFocusProp}
+        onBlur={onBlurProp}
         onSubmitEditing={handleSearch}
       />
 
@@ -183,7 +219,6 @@ const styles = StyleSheet.create({
   },
   /** Brand capsule: mint fill, dark stroke — width/height/radius set in component. */
   containerWhitePill: {
-    backgroundColor: SEARCH_BAR_FILL,
     marginHorizontal: 0,
     marginVertical: 0,
     alignSelf: "center",
