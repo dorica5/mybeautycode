@@ -11,6 +11,11 @@ import {
   useState,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  getLastAppSurface,
+  setLastAppSurface,
+  type LastAppSurface,
+} from "../lib/lastVisitPreference";
 import { router, usePathname } from "expo-router";
 import { Alert } from "react-native";
 import { Profile } from "../constants/types";
@@ -80,7 +85,7 @@ export function profileSetupIsComplete(
 /**
  * Completed setup: leave onboarding/auth entry routes so users are not stuck on Welcome / Sign-in.
  * Do not list "second setup" routes (become-a-professional): those users already have `setup_status`
- * as clients and must stay on ChooseProfession / HairdresserSetup until they submit or go back.
+ * as clients and must stay on ChooseProfession / ProfessionalSetup until they submit or go back.
  */
 function shouldCompletedUserLeaveForHome(pathname: string): boolean {
   const p = pathname ?? "";
@@ -96,6 +101,8 @@ function shouldCompletedUserLeaveForHome(pathname: string): boolean {
     "/Setup",
     "GeneralSetup",
     "ChooseRole",
+    "ChooseProfession",
+    "ProfessionalSetup",
     "ClientSetup",
     "TermsAndPrivacy",
     "/Splash",
@@ -162,7 +169,12 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const isSigningOut = useRef(false);
   const isChangingPassword = useRef(false);
   const pathname = usePathname();
-  const postHog = usePostHog()
+  const postHog = usePostHog();
+
+  /** `undefined` until AsyncStorage read finishes for this user (professional dual-stack routing). */
+  const [lastAppSurfacePref, setLastAppSurfacePref] = useState<
+    LastAppSurface | null | undefined
+  >(undefined);
 
   const [isNavigating, setIsNavigating] = useState(false);
   const onOnboarding = pathname.includes("Onboarding");
@@ -174,6 +186,31 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       isChangingPassword.current = false;
     }
   }, [pathname]);
+
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) {
+      setLastAppSurfacePref(undefined);
+      return;
+    }
+    let cancelled = false;
+    getLastAppSurface(uid).then((v) => {
+      if (!cancelled) setLastAppSurfacePref(v);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (!uid) return;
+    if (pathname.includes("(client)/(tabs)")) {
+      void setLastAppSurface(uid, "client");
+    } else if (pathname.includes("(hairdresser)/(tabs)")) {
+      void setLastAppSurface(uid, "professional");
+    }
+  }, [pathname, session?.user?.id]);
 
   const clearProfile = async () => {
     console.log("Clearing session and profile...");
@@ -499,7 +536,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/ChooseRole",
           "/ChooseProfession",
           "/ClientSetup",
-          "/HairdresserSetup",
+          "/ProfessionalSetup",
           "/LoadingScreen",
           "/TermsAndPrivacy",
           "/(setup)/Setup",
@@ -507,7 +544,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/(setup)/ChooseRole",
           "/(setup)/ChooseProfession",
           "/(setup)/ClientSetup",
-          "/(setup)/HairdresserSetup",
+          "/(setup)/ProfessionalSetup",
           "/(setup)/LoadingScreen",
           "/(setup)/TermsAndPrivacy",
         ];
@@ -544,7 +581,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/ChooseRole",
           "/ChooseProfession",
           "/ClientSetup",
-          "/HairdresserSetup",
+          "/ProfessionalSetup",
           "/LoadingScreen",
           "/TermsAndPrivacy",
           "/(setup)/Setup",
@@ -552,7 +589,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/(setup)/ChooseRole",
           "/(setup)/ChooseProfession",
           "/(setup)/ClientSetup",
-          "/(setup)/HairdresserSetup",
+          "/(setup)/ProfessionalSetup",
           "/(setup)/LoadingScreen",
           "/(setup)/TermsAndPrivacy",
         ];
@@ -574,12 +611,29 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       if (profile && setupComplete) {
         const userTypeRaw =
           profile.user_type ?? (profile as { userType?: string })?.userType;
-        const userType =
-          userTypeRaw === "HAIRDRESSER" ? "HAIRDRESSER" : "CLIENT";
-        const home =
-          userType === "HAIRDRESSER"
-            ? "/(hairdresser)/(tabs)/home"
-            : "/(client)/(tabs)/home";
+        const isHairdresser =
+          userTypeRaw === "HAIRDRESSER" ||
+          Boolean(
+            (profile as { professional_profile_id?: string | null })
+              .professional_profile_id
+          );
+
+        const clientHome = "/(client)/(tabs)/home";
+        const proHome = "/(hairdresser)/(tabs)/home";
+
+        let home: string;
+        if (!isHairdresser) {
+          home = clientHome;
+        } else if (lastAppSurfacePref === undefined) {
+          console.log(
+            "Blocking navigation: waiting for last-visited app surface preference"
+          );
+          return;
+        } else if (lastAppSurfacePref === "client") {
+          home = clientHome;
+        } else {
+          home = proHome;
+        }
 
         const leaveBootstrap = shouldCompletedUserLeaveForHome(pathname);
         const shouldGoHome =
@@ -590,6 +644,8 @@ export default function AuthProvider({ children }: PropsWithChildren) {
             home,
             leaveBootstrap,
             pathname,
+            isHairdresser,
+            lastAppSurfacePref,
           });
           setIsNavigating(true);
           setTimeout(() => {
@@ -650,6 +706,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     isNavigating,
     firstLaunchLoading,
     isFirstLaunch,
+    lastAppSurfacePref,
   ]);
 
   useEffect(() => {
@@ -757,7 +814,18 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   useSyncSignupDate();
 
   const isAuthed = !!session;
-  const shouldHoldTree = loading || firstLaunchLoading || (isAuthed && loadingProfile);
+  const setupCompleteForNav = profileSetupIsComplete(profile);
+  const isHairdresserCapable =
+    !!profile &&
+    setupCompleteForNav &&
+    (profile.user_type === "HAIRDRESSER" ||
+      Boolean(profile.professional_profile_id));
+
+  const shouldHoldTree =
+    loading ||
+    firstLaunchLoading ||
+    (isAuthed && loadingProfile) ||
+    (isAuthed && isHairdresserCapable && lastAppSurfacePref === undefined);
 
   return (
     <AuthContext.Provider

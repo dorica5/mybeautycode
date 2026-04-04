@@ -1,8 +1,6 @@
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import React from "react";
 import { Link } from "expo-router";
-import { UserCircle } from "phosphor-react-native";
-import { Colors } from "../constants/Colors";
 import { ResponsiveText } from "./ResponsiveText";
 import { AvatarWithSpinner } from "./avatarSpinner";
 import { 
@@ -96,7 +94,7 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
       ? hasRelationship
         ? `/haircodes/${item.client_id}`
         : `/(hairdresser)/clientProfile/${item.client_id}`
-      : `/(client)/(tabs)/userList/hairdresserProfile/${item.hairdresser_id}`;
+      : `/(client)/(tabs)/userList/professionalProfile/${item.hairdresser_id}`;
 
   return (
     <Link
@@ -113,14 +111,11 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
       asChild
     >
       <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.5 : 1 }]}>
-        {item.avatar_url ? (
-          <AvatarWithSpinner uri={item.avatar_url} size={responsiveScale(50)} style={styles.profilePicture} />
-          
-        ) : (
-          <View style={[styles.profilePicture, styles.defaultCircle]}>
-            <UserCircle size={responsiveScale(28)} color={Colors.dark.dark} />
-          </View>
-        )}
+        <AvatarWithSpinner
+          uri={item.avatar_url}
+          size={responsiveScale(50)}
+          style={styles.profilePicture}
+        />
         {highlightMatch(item.full_name, query)}
       </Pressable>
     </Link>
@@ -148,9 +143,6 @@ const styles = StyleSheet.create({
     marginRight: responsiveMargin(20),
     justifyContent: "center",
     alignItems: "center",
-  },
-  defaultCircle: {
-    backgroundColor: Colors.dark.yellowish,
   },
   resultText: {
     fontSize: responsiveFontSize(20, 18),

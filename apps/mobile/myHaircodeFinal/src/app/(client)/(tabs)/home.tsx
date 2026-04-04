@@ -1,17 +1,11 @@
 import React from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  Text,
-  Image,
-} from "react-native";
+import { View, StyleSheet, ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
-import OrganicPattern from "../../../../assets/images/Organic-pattern-5.svg";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
+import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { BrandHomeNavLink } from "@/src/components/BrandHomeNavLink";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import {
@@ -57,28 +51,15 @@ const HomeScreen = () => {
             },
           ]}
         >
-          {avatarImage ? (
-            <Image
-              source={{ uri: avatarImage }}
-              style={{
-                width: avatarSize,
-                height: avatarSize,
-                borderRadius: avatarSize / 2,
-              }}
-            />
-          ) : (
-            <View
-              style={{
-                width: avatarSize,
-                height: avatarSize,
-                borderRadius: avatarSize / 2,
-                overflow: "hidden",
-                backgroundColor: primaryWhite,
-              }}
-            >
-              <OrganicPattern width={avatarSize} height={avatarSize} />
-            </View>
-          )}
+          <AvatarWithSpinner
+            uri={avatarImage}
+            size={avatarSize}
+            style={{
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 2,
+            }}
+          />
         </View>
 
         <Text style={[Typography.h3, styles.name]} accessibilityRole="header">

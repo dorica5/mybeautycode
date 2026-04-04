@@ -1,13 +1,13 @@
 import {  Pressable, StyleSheet, View } from 'react-native'
 import React from 'react'
 import { CheckBox } from 'react-native-elements';
-import { CheckCircle, Circle, UserCircle } from 'phosphor-react-native';
+import { CheckCircle, Circle } from 'phosphor-react-native';
 import { Colors } from '../constants/Colors';
 import { responsiveFontSize, responsiveScale, scale, scalePercent } from '../utils/responsive';
 import { ResponsiveText } from './ResponsiveText';
 import { AvatarWithSpinner } from './avatarSpinner';
 
-const HairdresserList = ({ item, isChecked, onCheck }) => {
+const ProfessionalList = ({ item, isChecked, onCheck }) => {
   if (!item) return null; 
 
   return (
@@ -16,21 +16,11 @@ const HairdresserList = ({ item, isChecked, onCheck }) => {
       onPress={() => onCheck(item.id, !isChecked)}
     >
       <View style={styles.imageAndNameContainer}>
-        {item?.avatar_url ? (
-          <AvatarWithSpinner
-            uri={item.avatar_url}
-            size={responsiveScale(50, 40)}
-            style={styles.avatar}
-          />
-        ) : (
-          <View style={styles.defaultImage}>
-            <UserCircle
-              size={responsiveScale(32, 24)}
-              color={Colors.dark.dark}
-              weight="regular"
-            />
-          </View>
-        )}
+        <AvatarWithSpinner
+          uri={item?.avatar_url}
+          size={responsiveScale(50, 40)}
+          style={[styles.avatar, !item?.avatar_url && styles.defaultImage]}
+        />
 
         <ResponsiveText
           size={responsiveFontSize(18, 8)}
@@ -64,7 +54,7 @@ const HairdresserList = ({ item, isChecked, onCheck }) => {
 };
 
 
-export default HairdresserList
+export default ProfessionalList
 
 const styles = StyleSheet.create({
   container: {

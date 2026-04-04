@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { profileWithProfessionalForApiInclude } from "../lib/profileIncludes";
 import { profileDisplayName } from "../lib/profileDisplay";
 import { professionService } from "./professionService";
 
@@ -26,6 +27,7 @@ const PROFESSIONAL_FIELDS = [
   "displayName",
   "businessName",
   "businessNumber",
+  "businessAddress",
   "aboutMe",
   "socialMedia",
   "bookingSite",
@@ -44,16 +46,20 @@ const SNAKE_TO_CAMEL: Record<string, string> = {
   display_name: "displayName",
   business_name: "businessName",
   business_number: "businessNumber",
+  business_address: "businessAddress",
   about_me: "aboutMe",
   social_media: "socialMedia",
   booking_site: "bookingSite",
+  /** Legacy mobile payloads → professional_profiles columns */
+  salon_name: "businessName",
+  salon_phone_number: "businessNumber",
 };
 
 export const profileService = {
   async getById(id: string) {
     const profile = await prisma.profile.findUnique({
       where: { id },
-      include: { professionalProfile: true },
+      include: profileWithProfessionalForApiInclude,
     });
     return profile;
   },
@@ -154,7 +160,7 @@ export const profileService = {
       if (shouldApplyProfession) {
         const profProfileId =
           await professionService.getOrCreateProfessionalProfileId(id);
-        await professionService.replaceProfessionsForProfile(profProfileId, [
+        await professionService.ensureProfessionsForProfile(profProfileId, [
           professionCode!,
         ]);
       }

@@ -1,6 +1,12 @@
 import { Request, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
-import { serializeProfileForApi } from "../lib/serializeProfileForApi";
+import { profileWithProfessionalForApiInclude } from "../lib/profileIncludes";
+import { fetchProfessionCodesForProfile } from "../lib/professionCodesFromDb";
+import {
+  needsProfessionCodesSqlFallback,
+  serializeProfileForApi,
+} from "../lib/serializeProfileForApi";
 import { profileService } from "../services/profileService";
 import { professionService } from "../services/professionService";
 
@@ -12,7 +18,14 @@ export const profileController = {
       if (!profile) {
         return res.status(404).json({ error: "Profile not found" });
       }
-      res.json(profile);
+      let professionCodesSqlFallback: string[] | undefined;
+      if (
+        profile.professionalProfile &&
+        needsProfessionCodesSqlFallback(profile.professionalProfile)
+      ) {
+        professionCodesSqlFallback = await fetchProfessionCodesForProfile(id);
+      }
+      res.json(serializeProfileForApi(profile, { professionCodesSqlFallback }));
     } catch (err) {
       console.error("profile getById error:", err);
       res.status(500).json({ error: "Failed to fetch profile" });
@@ -29,12 +42,19 @@ export const profileController = {
       await profileService.update(id, req.body);
       const fresh = await prisma.profile.findUnique({
         where: { id },
-        include: { professionalProfile: { select: { id: true } } },
+        include: profileWithProfessionalForApiInclude,
       });
       if (!fresh) {
         return res.status(404).json({ error: "Profile not found" });
       }
-      res.json(serializeProfileForApi(fresh));
+      let professionCodesSqlFallback: string[] | undefined;
+      if (
+        fresh.professionalProfile &&
+        needsProfessionCodesSqlFallback(fresh.professionalProfile)
+      ) {
+        professionCodesSqlFallback = await fetchProfessionCodesForProfile(id);
+      }
+      res.json(serializeProfileForApi(fresh, { professionCodesSqlFallback }));
     } catch (err: unknown) {
       const e = err as Error & { statusCode?: number };
       if (e.statusCode === 409) {
@@ -43,8 +63,18 @@ export const profileController = {
       if (e.statusCode === 400) {
         return res.status(400).json({ error: e.message });
       }
+      if (err instanceof Prisma.PrismaClientKnownRequestError) {
+        console.error("profile update Prisma:", err.code, err.message);
+        return res.status(500).json({
+          error: `Database error (${err.code}). Run prisma migrations against this database (e.g. business_address on professional_profiles). ${err.message}`,
+        });
+      }
       console.error("profile update error:", err);
-      res.status(500).json({ error: "Failed to update profile" });
+      const msg =
+        process.env.NODE_ENV !== "production" && err instanceof Error
+          ? err.message
+          : "Failed to update profile";
+      res.status(500).json({ error: msg });
     }
   },
 

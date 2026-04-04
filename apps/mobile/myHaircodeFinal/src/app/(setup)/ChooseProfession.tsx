@@ -26,14 +26,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  CHOOSE_PROFESSION_OPTIONS,
+  type ProfessionChoiceCode,
+} from "@/src/constants/professionCodes";
 
-export type ProfessionChoiceCode = "hair" | "brows_lashes" | "nails";
-
-const OPTIONS: { code: ProfessionChoiceCode; label: string }[] = [
-  { code: "hair", label: "I'm a hairdresser" },
-  { code: "brows_lashes", label: "I'm a brow stylist" },
-  { code: "nails", label: "I'm a nail technician" },
-];
+export type { ProfessionChoiceCode };
 
 const ChooseProfession = () => {
   const { width: windowWidth } = useWindowDimensions();
@@ -41,12 +39,14 @@ const ChooseProfession = () => {
   const [selected, setSelected] = useState<ProfessionChoiceCode | null>(null);
   /** Full device width so the pattern spans edge-to-edge under status bar. */
   const patternWidth = windowWidth;
-  const heroHeight = patternWidth / 2.15;
+  const heroHeight = patternWidth / 1.77;
+  /** Nudge visible slice downward (move graphic up inside clip) so framing sits lower in the artwork. */
+  const heroPatternVerticalNudge = heroHeight * 0.34;
 
   const goNext = () => {
     if (!selected) return;
     router.push({
-      pathname: "/(setup)/HairdresserSetup",
+      pathname: "/(setup)/ProfessionalSetup",
       params: { profession_code: selected },
     });
   };
@@ -84,7 +84,14 @@ const ChooseProfession = () => {
           ]}
         >
           <View style={[styles.hero, { height: heroHeight }]}>
-            <OrganicPattern width={patternWidth} height={heroHeight} />
+            <OrganicPattern
+              width={patternWidth}
+              height={heroHeight}
+              preserveAspectRatio="xMidYMid slice"
+              style={{
+                transform: [{ translateY: -heroPatternVerticalNudge }],
+              }}
+            />
           </View>
         </View>
 
@@ -94,7 +101,7 @@ const ChooseProfession = () => {
           </Text>
 
           <View style={styles.cards}>
-            {OPTIONS.map((opt) => {
+            {CHOOSE_PROFESSION_OPTIONS.map((opt) => {
               const isSel = selected === opt.code;
               return (
                 <Pressable
@@ -158,7 +165,7 @@ const styles = StyleSheet.create({
   },
   heroBleed: {
     marginTop: responsiveMargin(8),
-    marginBottom: responsiveMargin(20),
+    marginBottom: responsiveMargin(-30),
     overflow: "hidden",
   },
   hero: {

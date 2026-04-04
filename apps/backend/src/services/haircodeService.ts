@@ -39,6 +39,7 @@ export const haircodeService = {
               avatar_url: p?.avatarUrl,
               business_name: pp.businessName,
               business_number: pp.businessNumber,
+              business_address: pp.businessAddress,
               about_me: pp.aboutMe,
               booking_site: pp.bookingSite,
               social_media: pp.socialMedia,

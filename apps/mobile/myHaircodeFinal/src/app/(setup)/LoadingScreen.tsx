@@ -45,7 +45,7 @@ const LoadingScreen = () => {
       from?.includes("/(setup)") ||
       pathname.includes("/(setup)") ||
       from?.includes("ClientSetup") ||
-      from?.includes("HairdresserSetup");
+      from?.includes("ProfessionalSetup");
 
     setIsSetUp(isSetupMode);
 

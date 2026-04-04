@@ -8,7 +8,6 @@ import {
   Pressable,
   ScrollView,
 } from "react-native";
-import { UserCircle } from "phosphor-react-native";
 import { useAuth } from "@/src/providers/AuthProvider";
 import RemoteImage from "@/src/components/RemoteImage";
 import OpenUrl from "@/src/components/OpenUrl";
@@ -27,7 +26,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 
-const HairdresserProfile = () => {
+const ProfessionalProfile = () => {
   const { profile } = useAuth();
   const bookingSiteUri = profile.booking_site;
   const socialMediaUri = profile.social_media;
@@ -57,17 +56,11 @@ const HairdresserProfile = () => {
 
             <ProfileRectangle full_name={profile.full_name} />
             <View>
-              {profile ? (
-                avatarImage ? (
-                  <AvatarWithSpinner uri={avatarImage} size={scalePercent(25)} style={styles.profilePic} />
-                ) : (
-                  <View style={styles.profilePicPlaceholder}>
-                    <UserCircle size={responsiveScale(90)} color={Colors.dark.dark} />
-                  </View>
-                )
-              ) : (
-                <UserCircle size={responsiveScale(90)} color={Colors.dark.dark} />
-              )}
+              <AvatarWithSpinner
+                uri={profile ? avatarImage : undefined}
+                size={scalePercent(25)}
+                style={styles.profilePic}
+              />
             </View>
 
             <View style={styles.stack}>
@@ -99,7 +92,7 @@ const HairdresserProfile = () => {
   );
 };
 
-export default HairdresserProfile;
+export default ProfessionalProfile;
 
 const styles = StyleSheet.create({
   container: {

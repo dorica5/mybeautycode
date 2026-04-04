@@ -22,7 +22,6 @@ import {
   VideoCamera,
   Info,
   XCircle,
-  UserCircle,
 } from "phosphor-react-native";
 import { Colors } from "@/src/constants/Colors";
 import { router, useLocalSearchParams } from "expo-router";
@@ -483,17 +482,11 @@ const NewHaircode = () => {
         bounces={true}
       >
         <View style={styles.hairdresserRow}>
-          {profile.avatar_url ? (
-            <AvatarWithSpinner 
-              uri={profile.avatar_url} 
-              size={responsiveScale(50)} 
-              style={styles.profileImage} 
-            />
-          ) : (
-            <View style={styles.defaultImage}>
-              <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} weight="regular" />
-            </View>
-          )}
+          <AvatarWithSpinner
+            uri={profile.avatar_url}
+            size={responsiveScale(50)}
+            style={[styles.profileImage, !profile.avatar_url && styles.defaultImage]}
+          />
 
           <Text style={styles.hairdresserText}>
             {profile.full_name}, {profile.salon_name}

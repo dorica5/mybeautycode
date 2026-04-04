@@ -16,7 +16,7 @@ const _layout = () => {
       <Stack.Screen name="ProfilePicture" />
       <Stack.Screen name="AboutMe" />
       <Stack.Screen name="client_profile" />
-      <Stack.Screen name="ManageHairdressers" />
+      <Stack.Screen name="ManageProfessionals" />
     </Stack>
   );
 };

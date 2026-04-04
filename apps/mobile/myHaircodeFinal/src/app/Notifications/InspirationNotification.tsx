@@ -20,7 +20,7 @@ import {
   rejectSharedInspirations,
 } from "@/src/api/shared-inspirations";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { UserCircle, XCircle } from "phosphor-react-native";
+import { XCircle } from "phosphor-react-native";
 import { useAuth } from "@/src/providers/AuthProvider";
 import TopNav from "@/src/components/TopNav";
 import { useImageContext } from "@/src/providers/ImageProvider";
@@ -252,31 +252,17 @@ const InspirationNotification = () => {
                             params: { id: senderId, relationship: "true" },
                           })
                         : router.push({
-                            pathname: `../(client)/(tabs)/userList/hairdresserProfile/${senderId}`,
+                            pathname: `../(client)/(tabs)/userList/professionalProfile/${senderId}`,
                             params: { id: senderId, relationship: "true" },
                           })
                   : null
               }
             >
-              {profile_pic ? (
-                <AvatarWithSpinner 
-                  uri={profile_pic} 
-                  size={responsiveScale(55, 70)} 
-                  style={styles.profileImage} 
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.profileImage,
-                    { justifyContent: "center", alignItems: "center" },
-                  ]}
-                >
-                  <UserCircle 
-                    size={responsiveScale(32, 40)} 
-                    color={Colors.dark.dark} 
-                  />
-                </View>
-              )}
+              <AvatarWithSpinner
+                uri={profile_pic}
+                size={responsiveScale(55, 70)}
+                style={styles.profileImage}
+              />
               <ResponsiveText 
                 size={16} 
                 tabletSize={14} 

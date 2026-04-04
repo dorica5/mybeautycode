@@ -139,8 +139,9 @@ model ProfessionalProfile {
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime? @map("updated_at") @db.Timestamptz
   displayName      String?  @map("display_name") @db.Text
-  businessName    String?  @map("business_name") @db.Text
-  businessNumber  String?  @map("business_number") @db.Text
+  businessName      String?  @map("business_name") @db.Text
+  businessNumber    String?  @map("business_number") @db.Text
+  businessAddress   String?  @map("business_address") @db.Text
   aboutMe          String?  @map("about_me") @db.Text
   socialMedia      String?  @map("social_media") @db.Text
   bookingSite      String?  @map("booking_site") @db.Text

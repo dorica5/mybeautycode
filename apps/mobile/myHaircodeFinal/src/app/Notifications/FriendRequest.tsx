@@ -12,8 +12,6 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { Colors } from "@/src/constants/Colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import TopNav from "@/src/components/TopNav";
-import RemoteImage from "@/src/components/RemoteImage";
-import { UserCircle } from "phosphor-react-native";
 import { isBlocked } from "@/src/api/moderation";
 import { responsiveScale, responsiveFontSize, scalePercent } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
@@ -120,19 +118,11 @@ export const FriendRequest = () => {
                     : null
                 }
               >
-                {profile_pic ? (
-                  <AvatarWithSpinner uri={profile_pic} size={responsiveScale(55)} style={styles.profileImage} />
-                 
-                ) : (
-                  <View
-                    style={[
-                      styles.profileImage,
-                      { justifyContent: "center", alignItems: "center" },
-                    ]}
-                  >
-                    <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} />
-                  </View>
-                )}
+                <AvatarWithSpinner
+                  uri={profile_pic}
+                  size={responsiveScale(55)}
+                  style={styles.profileImage}
+                />
                 <Text style={[styles.name, {fontSize: responsiveFontSize(16, 14)}]}>{senderName}</Text>
               </Pressable>
               <Text style={[styles.message, {fontSize: responsiveFontSize(16, 12)}]}>
@@ -158,7 +148,7 @@ export const FriendRequest = () => {
                 !isBlockedUser
                   ? () =>
                       router.push({
-                        pathname: `../(client)/(tabs)/userList/hairdresserProfile/${senderId}`,
+                        pathname: `../(client)/(tabs)/userList/professionalProfile/${senderId}`,
                         params: {
                           id: senderId,
                           relationship: isHandled ? "true" : "false",
@@ -167,22 +157,11 @@ export const FriendRequest = () => {
                   : null
               }
             >
-              {profile_pic ? (
-                <RemoteImage
-                  highResPath={profile_pic || "default_avatar_url"}
-                  storage="avatars"
-                  style={styles.profileImage}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.profileImage,
-                    { justifyContent: "center", alignItems: "center" },
-                  ]}
-                >
-                  <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} />
-                </View>
-              )}
+              <AvatarWithSpinner
+                uri={profile_pic}
+                size={responsiveScale(55)}
+                style={styles.profileImage}
+              />
               <Text style={[styles.name, {fontSize: responsiveFontSize(16, 14)}]}>{senderName}</Text>
             </Pressable>
 

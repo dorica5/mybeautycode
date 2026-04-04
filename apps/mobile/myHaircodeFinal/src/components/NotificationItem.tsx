@@ -6,7 +6,6 @@ import RemoteImage from "./RemoteImage";
 import { Colors } from "../constants/Colors";
 import { api } from "@/src/lib/apiClient";
 import { markNotificationAsRead } from "@/src/providers/useNotifcations";
-import { UserCircle } from "phosphor-react-native";
 import { responsiveScale, responsiveFontSize, scalePercent, responsiveBorderRadius } from "../utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "./avatarSpinner";
@@ -183,19 +182,11 @@ export const NotificationItem = ({ notification }) => {
         >
           <View style={styles.contentContainer}>
             <View style={styles.row}>
-              {senderAvatar ? (
-                <AvatarWithSpinner uri={senderAvatar} size={responsiveScale(40)} style={styles.profileImage} />
-                
-              ) : (
-                <View
-                  style={[
-                    styles.profileImage,
-                    { justifyContent: "center", alignItems: "center" },
-                  ]}
-                >
-                  <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} />
-                </View>
-              )}
+              <AvatarWithSpinner
+                uri={senderAvatar}
+                size={responsiveScale(40)}
+                style={styles.profileImage}
+              />
 
               <Text style={[styles.message, {fontSize: responsiveFontSize(14, 12)}]}>{notification.message}</Text>
             </View>

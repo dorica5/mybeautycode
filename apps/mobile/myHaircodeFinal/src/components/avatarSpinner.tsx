@@ -7,9 +7,9 @@ import {
   StyleProp,
   ViewStyle,
 } from "react-native";
-import { UserCircle } from "phosphor-react-native";
 import OptimizedImage from "@/src/components/OptimizedImage";
-import { Colors } from "@/src/constants/Colors";
+import { DefaultAvatarMark } from "@/src/components/DefaultAvatarMark";
+import { Colors, primaryWhite } from "@/src/constants/Colors";
 import { scale } from "@/src/utils/responsive";
 
 interface AvatarWithSpinnerProps {
@@ -48,6 +48,7 @@ export const AvatarWithSpinner: React.FC<AvatarWithSpinnerProps> = ({
     <View
       style={[
         styles.container,
+        !uri && styles.containerPlaceholder,
         style,
         circleStyles,
       ]}
@@ -78,7 +79,7 @@ export const AvatarWithSpinner: React.FC<AvatarWithSpinnerProps> = ({
           )}
         </>
       ) : (
-        <UserCircle size={size * 0.6} color={Colors.dark.dark} />
+        <DefaultAvatarMark size={dimension} />
       )}
     </View>
   );
@@ -90,6 +91,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden", // keeps image inside circle
+  },
+  containerPlaceholder: {
+    backgroundColor: primaryWhite,
   },
   spinnerOverlay: {
     ...StyleSheet.absoluteFillObject,

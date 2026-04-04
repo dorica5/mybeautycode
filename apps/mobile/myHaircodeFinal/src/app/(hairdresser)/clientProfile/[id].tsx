@@ -7,7 +7,7 @@ import {
   ScrollView,
   Alert,
 } from "react-native";
-import { CaretLeft, UserCircle } from "phosphor-react-native";
+import { CaretLeft } from "phosphor-react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
@@ -164,17 +164,11 @@ const UserProfile = () => {
             />
 
             <View>
-              {data ? (
-                data.avatar_url ? (
-                  <AvatarWithSpinner uri={data.avatar_url} size={scalePercent(25)} style={styles.profilePic} />
-                ) : (
-                  <View style={styles.profilePicPlaceholder}>
-                    <UserCircle size={scalePercent(25) * 0.6} color={Colors.dark.dark} />
-                  </View>
-                )
-              ) : (
-                <UserCircle size={scalePercent(25) * 0.6} color={Colors.dark.dark} />
-              )}
+              <AvatarWithSpinner
+                uri={data?.avatar_url}
+                size={scalePercent(25)}
+                style={styles.profilePic}
+              />
             </View>
 
             {isRelated && !isBlockedUser && (

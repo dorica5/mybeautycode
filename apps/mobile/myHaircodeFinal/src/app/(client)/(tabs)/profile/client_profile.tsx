@@ -1,6 +1,5 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { StyleSheet, View, Text, ScrollView, Pressable } from "react-native";
-import { UserCircle } from "phosphor-react-native";
 import { useAuth } from "@/src/providers/AuthProvider";
 import RemoteImage from "@/src/components/RemoteImage";
 import { useImageContext } from "@/src/providers/ImageProvider";
@@ -41,27 +40,11 @@ const HairdresserProfile = () => {
               phone_number={profile.phone_number}
             />
             <View>
-              {profile ? (
-                avatarImage ? (
-                  <AvatarWithSpinner
-                    uri={avatarImage}
-                    size={scalePercent(25)}
-                    style={styles.profilePic}
-                  />
-                ) : (
-                  <View style={styles.profilePicPlaceholder}>
-                    <UserCircle
-                      size={responsiveScale(90)}
-                      color={Colors.dark.dark}
-                    />
-                  </View>
-                )
-              ) : (
-                <UserCircle
-                  size={responsiveScale(90)}
-                  color={Colors.dark.dark}
-                />
-              )}
+              <AvatarWithSpinner
+                uri={profile ? avatarImage : undefined}
+                size={scalePercent(25)}
+                style={styles.profilePicAnchored}
+              />
             </View>
 
             <View style={styles.stack}>
@@ -135,20 +118,8 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingBottom: responsiveScale(100),
   },
-  profilePic: {
-    backgroundColor: Colors.dark.yellowish,
+  profilePicAnchored: {
     position: "absolute",
-    alignSelf: "center",
-    marginTop: responsiveScale(40),
-  },
-  profilePicPlaceholder: {
-    backgroundColor: Colors.dark.yellowish,
-    position: "absolute",
-    width: scalePercent(25),
-    height: scalePercent(25),
-    borderRadius: scalePercent(25) / 2,
-    justifyContent: "center",
-    alignItems: "center",
     alignSelf: "center",
     marginTop: responsiveScale(40),
   },

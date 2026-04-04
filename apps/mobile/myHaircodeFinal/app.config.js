@@ -25,6 +25,12 @@ export default ({ config }) => {
       SUPABASE_ANON: process.env.SUPABASE_ANON || "",
       SUPABASE_FUNCTION_URL: process.env.SUPABASE_FUNCTION_URL || "",
       EXPO_PUBLIC_API_URL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:3001",
+      /** Places API (or Maps key with Places enabled) for address autocomplete on setup. */
+      googlePlacesApiKey:
+        process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY ||
+        process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY ||
+        process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_KEY ||
+        "",
       eas: {
         projectId: "88667b8c-f786-4a66-aa68-d9b4ee0c7c8e",
       },

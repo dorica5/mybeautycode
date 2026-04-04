@@ -72,6 +72,8 @@ export const Typography = {
   h3: antonHeading(36, 120),
   /** Anton 24 regular — e.g. username under display name on client home. */
   anton24: antonHeading(24, 120),
+  /** Anton 16 regular — e.g. profession line under “My visits” (professional home). */
+  anton16: antonHeading(16, 120),
   h4: outfitText(24, "300", 120),
   bodyLarge: outfitText(20, "300", 130),
   bodyMedium: outfitText(18, "300", 140),

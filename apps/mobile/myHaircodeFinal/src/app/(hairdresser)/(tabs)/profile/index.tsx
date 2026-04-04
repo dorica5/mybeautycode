@@ -55,13 +55,11 @@ const ProfileScreen = () => {
           >
             <View style={styles.mainView}>
               <Text style={styles.textStyle}>My profile</Text>
-              {avatarImage ? (
-                <AvatarWithSpinner uri={avatarImage} size={scalePercent(25)} style={styles.profilePic} />
-              ) : (
-                <View style={styles.profilePic}>
-                  <UserCircle size={scalePercent(25) * 0.6} color={Colors.dark.dark} />
-                </View>
-              )}
+              <AvatarWithSpinner
+                uri={avatarImage}
+                size={scalePercent(25)}
+                style={styles.profilePic}
+              />
               <Text style={styles.subtitle}>PUBLIC PROFILE</Text>
               <Profile
                 title="Full name"
@@ -147,7 +145,7 @@ const ProfileScreen = () => {
                   verticalPadding={16}
                   onPress={() =>
                     router.push(
-                      "/(hairdresser)/(tabs)/profile/hairdresser_profile"
+                      "/(hairdresser)/(tabs)/profile/professional_profile"
                     )
                   }
                   style={styles.viewPublicProfileButton}

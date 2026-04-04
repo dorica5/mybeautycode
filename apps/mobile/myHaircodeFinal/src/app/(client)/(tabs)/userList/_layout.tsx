@@ -12,7 +12,7 @@ const _layout = () => {
       <Stack.Screen name="filter-before-map" options={screenOptions} />
       <Stack.Screen name="map" options={screenOptions} />
       <Stack.Screen
-        name="hairdresserProfile/[id]"
+        name="professionalProfile/[id]"
         options={screenOptions}
       />
     </Stack>

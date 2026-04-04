@@ -13,7 +13,6 @@ import {
   Plus,
   Eye,
   Images,
-  UserCircle,
   DotsThree,
 } from "phosphor-react-native";
 import RapportUserModal from "@/src/components/RapportUserModal";
@@ -278,13 +277,11 @@ const HaircodeList = () => {
         <ProfileRectangle full_name={data?.full_name} />
 
         <View>
-          {data?.avatar_url ? (
-            <AvatarWithSpinner uri={data?.avatar_url} size={scalePercent(25)} style={styles.profilePic} />
-          ) : (
-            <View style={styles.profilePic}>
-              <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} />
-            </View>
-          )}
+          <AvatarWithSpinner
+            uri={data?.avatar_url}
+            size={scalePercent(25)}
+            style={styles.profilePic}
+          />
         </View>
 
         <View style={styles.stack}>

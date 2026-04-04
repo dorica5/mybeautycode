@@ -14,7 +14,6 @@ import {
   DotsThree,
   PencilSimple,
   Trash,
-  UserCircle,
 } from "phosphor-react-native";
 import { Colors } from "@/src/constants/Colors";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
@@ -362,7 +361,7 @@ const SingleHaircode = () => {
             style={styles.hairdresserRow}
             onPress={() =>
               router.push({
-                pathname: "./other_hairdresser_profile",
+                pathname: "./other_professional_profile",
                 params: {
                   hairdresserName: hairdresserName,
                   salon_name: salon_name,
@@ -375,21 +374,14 @@ const SingleHaircode = () => {
               })
             }
           >
-            {hairdresser_profile_pic ? (
-              <AvatarWithSpinner 
-                uri={hairdresser_profile_pic} 
-                size={responsiveScale(50)} 
-                style={styles.profile_image} 
-              />
-            ) : (
-              <View style={styles.defaultImage}>
-                <UserCircle
-                  size={responsiveScale(32)}
-                  color={Colors.dark.dark}
-                  weight="regular"
-                />
-              </View>
-            )}
+            <AvatarWithSpinner
+              uri={hairdresser_profile_pic}
+              size={responsiveScale(50)}
+              style={[
+                styles.profile_image,
+                !hairdresser_profile_pic && styles.defaultImage,
+              ]}
+            />
             <Text style={styles.hairdresserName}>
               {hairdresserName}, {salon_name}
             </Text>

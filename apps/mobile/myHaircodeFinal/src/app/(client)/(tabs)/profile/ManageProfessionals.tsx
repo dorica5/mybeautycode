@@ -11,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/src/constants/Colors";
 import MyButton from "@/src/components/MyButton";
 import TopNav from "@/src/components/TopNav";
-import HairdresserList from "@/src/components/HairdresserList";
+import ProfessionalList from "@/src/components/ProfessionalList";
 import { useManageHairdresser, useRemoveRelationships } from "@/src/api/profiles";
 import { useAuth } from "@/src/providers/AuthProvider";
 import CustomAlert from "@/src/components/CustomAlert";
@@ -22,7 +22,7 @@ import { responsiveFontSize, responsiveScale, scale, scalePercent, verticalScale
 import { StatusBar } from "expo-status-bar";
 
 
-const DeleteHairdressers = () => {
+const ManageProfessionals = () => {
   const { profile } = useAuth();
   const { data } = useManageHairdresser(profile?.id);
   const removeRelationships = useRemoveRelationships(profile?.id ?? "");
@@ -91,7 +91,7 @@ const DeleteHairdressers = () => {
         <FlatList
           data={dataState}
           renderItem={({ item }) => (
-            <HairdresserList
+            <ProfessionalList
               item={item}
               isChecked={checkedItems[item.id] || false}
               onCheck={handleCheck}
@@ -177,7 +177,7 @@ const DeleteHairdressers = () => {
   );
 };
 
-export default DeleteHairdressers;
+export default ManageProfessionals;
 
 const styles = StyleSheet.create({
   container: {

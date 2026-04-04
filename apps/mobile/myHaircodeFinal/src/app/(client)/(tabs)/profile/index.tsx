@@ -9,7 +9,6 @@ import {
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { At } from "phosphor-react-native";
-import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import {
   ProfileMenuNameIcon,
   ProfileMenuPhoneIcon,
@@ -37,6 +36,7 @@ import { useImageContext } from "@/src/providers/ImageProvider";
 import { responsiveScale, scalePercent } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { DefaultAvatarMark } from "@/src/components/DefaultAvatarMark";
 import { usePostHog } from "posthog-react-native";
 
 const ProfileScreen = () => {
@@ -74,10 +74,7 @@ const ProfileScreen = () => {
                 <View
                   style={[styles.profilePic, styles.profilePicPlaceholder]}
                 >
-                  <OrganicPattern
-                    width={profileAvatarSize}
-                    height={profileAvatarSize}
-                  />
+                  <DefaultAvatarMark size={profileAvatarSize} />
                 </View>
               )}
 
@@ -162,7 +159,7 @@ const ProfileScreen = () => {
                 top={true}
                 tileStyle="light"
                 onPress={() =>
-                  router.push("/(client)/(tabs)/profile/ManageHairdressers")
+                  router.push("/(client)/(tabs)/profile/ManageProfessionals")
                 }
               />
               <Profile

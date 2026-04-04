@@ -14,7 +14,7 @@ const _layout = () => {
       <Stack.Screen name="PhoneNumber" />
       <Stack.Screen name="ProfilePicture" />
       <Stack.Screen name="AboutMe" />
-      <Stack.Screen name="hairdresser_profile" />
+      <Stack.Screen name="professional_profile" />
       <Stack.Screen name="salon_name" />
     </Stack>
   );

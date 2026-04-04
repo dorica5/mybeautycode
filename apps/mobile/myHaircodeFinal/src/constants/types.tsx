@@ -29,8 +29,17 @@ export type Profile = {
   avatar_url: string | null;
   phone_number: string | null;
   user_type: string | null;
+  /** Legacy API mirror of `business_number`. */
   salon_phone_number: string | null;
   salon_name: string | null;
+  /** professional_profiles.display_name */
+  display_name?: string | null;
+  business_name?: string | null;
+  business_number?: string | null;
+  business_address?: string | null;
+  professional_profile_id?: string | null;
+  /** From API: profession rows linked to this professional profile, sorted by `sort_order`. */
+  profession_codes?: string[];
   about_me: string | null;
   social_media: string | null;
   booking_site: string | null;

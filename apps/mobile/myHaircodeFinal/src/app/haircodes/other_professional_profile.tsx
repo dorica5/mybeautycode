@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 
-import { UserCircle, CaretLeft, DotsThree } from "phosphor-react-native";
+import { CaretLeft, DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import OpenUrl from "@/src/components/OpenUrl";
 import { Colors } from "@/src/constants/Colors";
@@ -42,7 +42,7 @@ import { useRemoveRelationships } from "@/src/api/profiles";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 
-const OtherHairdresserProfile = () => {
+const OtherProfessionalProfile = () => {
   const {
     hairdresserName,
     salon_name,
@@ -266,14 +266,11 @@ const OtherHairdresserProfile = () => {
         <ProfileRectangle full_name={hairdresserName} />
 
         <View style={styles.profileContainer}>
-          {hairdresser_profile_pic ? (
-            <AvatarWithSpinner uri={hairdresser_profile_pic} size={scalePercent(25)} style={styles.profilePic} />
-
-          ) : (
-            <View style={styles.profilePlaceholder}>
-              <UserCircle size={responsiveScale(90)} color={Colors.dark.dark} />
-            </View>
-          )}
+          <AvatarWithSpinner
+            uri={hairdresser_profile_pic}
+            size={scalePercent(25)}
+            style={styles.profilePic}
+          />
         </View>
 
         {/* Show only unblock button if user is blocked */}
@@ -468,7 +465,7 @@ const OtherHairdresserProfile = () => {
   );
 };
 
-export default OtherHairdresserProfile;
+export default OtherProfessionalProfile;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },

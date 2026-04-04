@@ -2,7 +2,12 @@ import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { authService } from "../services/authService";
-import { serializeProfileForApi } from "../lib/serializeProfileForApi";
+import { profileWithProfessionalForApiInclude } from "../lib/profileIncludes";
+import { fetchProfessionCodesForProfile } from "../lib/professionCodesFromDb";
+import {
+  needsProfessionCodesSqlFallback,
+  serializeProfileForApi,
+} from "../lib/serializeProfileForApi";
 
 export const authController = {
   async me(req: Request, res: Response) {
@@ -13,25 +18,25 @@ export const authController = {
     try {
       const profile = await prisma.profile.findUnique({
         where: { id: userId },
+        include: profileWithProfessionalForApiInclude,
       });
       if (!profile) {
         return res.status(404).json({ error: "Profile not found" });
       }
-      /** Separate query so a corrupt `professional_profiles` row cannot break `/me`. */
-      let professionalProfile: { id: string } | null = null;
-      try {
-        professionalProfile = await prisma.professionalProfile.findUnique({
-          where: { profileId: userId },
-          select: { id: true },
-        });
-      } catch (profErr) {
-        console.error("auth me professionalProfile lookup:", profErr);
+      let professionCodesSqlFallback: string[] | undefined;
+      if (
+        profile.professionalProfile &&
+        needsProfessionCodesSqlFallback(profile.professionalProfile)
+      ) {
+        professionCodesSqlFallback = await fetchProfessionCodesForProfile(
+          userId
+        );
       }
-      const payload = serializeProfileForApi({
-        ...profile,
-        professionalProfile,
-      });
-      return res.json(payload);
+      return res.json(
+        serializeProfileForApi(profile, {
+          professionCodesSqlFallback,
+        })
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const dbUnreachable =

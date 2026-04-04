@@ -10,7 +10,7 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
-import { CaretLeft, UserCircle, DotsThree } from "phosphor-react-native";
+import { CaretLeft, DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
@@ -41,7 +41,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 
-const HairdresserProfile = () => {
+const ProfessionalProfileScreen = () => {
   const { id: hairdresser_id } = useLocalSearchParams<{ id: string }>();
   const { session, profile } = useAuth();
   const client_id = session?.user.id;
@@ -118,7 +118,7 @@ const HairdresserProfile = () => {
         }),
       ]);
       router.replace({
-        pathname: "/(client)/userList/hairdresserProfile/[id]",
+        pathname: "/(client)/userList/professionalProfile/[id]",
         params: { id: hairdresser_id },
       });
     } catch (error) {
@@ -257,14 +257,11 @@ const HairdresserProfile = () => {
 
       <ProfileRectangle full_name={data?.full_name} />
       <View style={styles.profileContainer}>
-        {data?.avatar_url ? (
-          <AvatarWithSpinner uri={data?.avatar_url} size={scalePercent(25)} style={styles.profilePic} />
-          
-        ) : (
-          <View style={styles.profilePlaceholder}>
-            <UserCircle size={scalePercent(25) * 0.6} color={Colors.dark.dark} />
-          </View>
-        )}
+        <AvatarWithSpinner
+          uri={data?.avatar_url}
+          size={scalePercent(25)}
+          style={styles.profilePic}
+        />
       </View>
 
       {/* Show only unblock button if user is blocked */}
@@ -448,7 +445,7 @@ const HairdresserProfile = () => {
   );
 };
 
-export default HairdresserProfile;
+export default ProfessionalProfileScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },

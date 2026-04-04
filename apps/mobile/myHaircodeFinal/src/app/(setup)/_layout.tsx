@@ -11,7 +11,7 @@ const _layout = () => {
         <Stack.Screen name="GeneralSetup" />
         <Stack.Screen name="ChooseRole" />
         <Stack.Screen name="ChooseProfession" />
-        <Stack.Screen name="HairdresserSetup" />
+        <Stack.Screen name="ProfessionalSetup" />
         <Stack.Screen name="ClientSetup" />
         <Stack.Screen name="FullName" />
         <Stack.Screen name="LoadingScreen" />

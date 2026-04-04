@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { Colors } from "../constants/Colors";
 import RemoteImage from "./RemoteImage";
-import { UserCircle } from "phosphor-react-native";
 import {
   responsiveScale,
   responsivePadding,
@@ -33,21 +32,11 @@ const HaircodeCard = React.memo(
 
         <View style={styles.subcontainer}>
           <Text style={styles.dateText}>{date}</Text>
-          {profilePicture ? (
-            <AvatarWithSpinner
-              uri={profilePicture}
-              size={responsiveScale(75)}
-              style={styles.image}
-            />
-          ) : (
-            <View style={styles.defaultImage}>
-              <UserCircle
-                size={responsiveScale(45)}
-                color={Colors.dark.dark}
-                weight="regular"
-              />
-            </View>
-          )}
+          <AvatarWithSpinner
+            uri={profilePicture}
+            size={responsiveScale(75)}
+            style={[styles.image, !profilePicture && styles.defaultImage]}
+          />
         </View>
       </Pressable>
     );
