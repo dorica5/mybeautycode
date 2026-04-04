@@ -105,6 +105,23 @@ export function inspirationFilterTabToProfessionCode(
   return tab;
 }
 
+/** True when the logged-in user can use the professional (hairdresser) app surface. */
+export function profileHasProfessionalCapability(
+  profile:
+    | {
+        professional_profile_id?: string | null;
+        profession_codes?: string[] | null | undefined;
+      }
+    | null
+    | undefined
+): boolean {
+  if (!profile) return false;
+  return (
+    Boolean(profile.professional_profile_id) ||
+    (profile.profession_codes?.length ?? 0) > 0
+  );
+}
+
 export function professionHomeAccountLabel(
   activeCode: ProfessionChoiceCode | null,
   fallbackRawCode?: string | null

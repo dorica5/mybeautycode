@@ -1,9 +1,10 @@
 import React from "react";
 import { Href, Redirect, Stack, useSegments } from "expo-router";
 import { useAuth } from "../../providers/AuthProvider";
+import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
 
 const AuthLayout = () => {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, loading, lastAppSurfacePref } = useAuth();
   const segments = useSegments();
 
   console.log("🎯 AuthLayout - Current state:", {
@@ -26,8 +27,9 @@ const AuthLayout = () => {
     segments[1] !== "Delete" &&
     segments[1] !== "ChangePassword"
   ) {
+    const canPro = profileHasProfessionalCapability(profile);
     const home: Href =
-      profile.user_type === "HAIRDRESSER"
+      canPro && lastAppSurfacePref === "professional"
         ? "/(hairdresser)/(tabs)/home"
         : "/(client)/(tabs)/home";
     console.log("🔄 AuthLayout redirecting to main app", home);

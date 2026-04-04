@@ -16,7 +16,8 @@ import {
   setLastAppSurface,
   type LastAppSurface,
 } from "../lib/lastVisitPreference";
-import { router, usePathname } from "expo-router";
+import { profileHasProfessionalCapability } from "../constants/professionCodes";
+import { router, usePathname, useSegments } from "expo-router";
 import { Alert } from "react-native";
 import { Profile } from "../constants/types";
 import { useImageContext } from "./ImageProvider";
@@ -170,6 +171,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const isSigningOut = useRef(false);
   const isChangingPassword = useRef(false);
   const pathname = usePathname();
+  const segments = useSegments();
   const postHog = usePostHog();
 
   /** `undefined` until AsyncStorage read finishes for this user (professional dual-stack routing). */
@@ -196,22 +198,38 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     }
     let cancelled = false;
     getLastAppSurface(uid).then((v) => {
-      if (!cancelled) setLastAppSurfacePref(v);
+      if (cancelled) return;
+      /** Tab routes set surface synchronously; don’t let a stale AsyncStorage read overwrite it. */
+      setLastAppSurfacePref((prev) =>
+        prev === "client" || prev === "professional" ? prev : v
+      );
     });
     return () => {
       cancelled = true;
     };
   }, [session?.user?.id]);
 
+  /**
+   * Track client vs professional shell using route segments — not `pathname`.
+   * Hairdresser tabs navigate with short hrefs (`/home`, `/inspiration`) that omit
+   * `(hairdresser)/(tabs)`, so pathname checks never marked the pro surface.
+   * Global screens (e.g. `/inspiration`) do not match here and leave the last surface unchanged.
+   */
   useEffect(() => {
     const uid = session?.user?.id;
     if (!uid) return;
-    if (pathname.includes("(client)/(tabs)")) {
+    const root = segments[0];
+    const second = segments[1];
+    if (root === "(client)" && second === "(tabs)") {
+      setLastAppSurfacePref("client");
       void setLastAppSurface(uid, "client");
-    } else if (pathname.includes("(hairdresser)/(tabs)")) {
+      return;
+    }
+    if (root === "(hairdresser)" && second === "(tabs)") {
+      setLastAppSurfacePref("professional");
       void setLastAppSurface(uid, "professional");
     }
-  }, [pathname, session?.user?.id]);
+  }, [segments, session?.user?.id]);
 
   const clearProfile = async () => {
     console.log("Clearing session and profile...");
@@ -614,14 +632,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (profile && setupComplete) {
-        const userTypeRaw =
-          profile.user_type ?? (profile as { userType?: string })?.userType;
-        const isHairdresser =
-          userTypeRaw === "HAIRDRESSER" ||
-          Boolean(
-            (profile as { professional_profile_id?: string | null })
-              .professional_profile_id
-          );
+        const isHairdresser = profileHasProfessionalCapability(profile);
 
         const clientHome = "/(client)/(tabs)/home";
         const proHome = "/(hairdresser)/(tabs)/home";
@@ -823,8 +834,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const isHairdresserCapable =
     !!profile &&
     setupCompleteForNav &&
-    (profile.user_type === "HAIRDRESSER" ||
-      Boolean(profile.professional_profile_id));
+    profileHasProfessionalCapability(profile);
 
   const shouldHoldTree =
     loading ||

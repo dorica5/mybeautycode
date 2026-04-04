@@ -25,6 +25,7 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
 
 const ProfessionalProfile = () => {
   const { profile } = useAuth();
@@ -78,7 +79,7 @@ const ProfessionalProfile = () => {
                   <Text style={[styles.phoneNumber, {fontSize: responsiveFontSize(20, 16)}]}>{salonPhoneNumber}</Text>
                 </TouchableOpacity>
               </View>
-              {profile.user_type === "HAIRDRESSER" ? (
+              {profileHasProfessionalCapability(profile) ? (
                 <Text style={[styles.colorBrand, {fontSize: responsiveFontSize(16, 12)}]}> Color brand: {color_brand} </Text>
               ) : null}
 

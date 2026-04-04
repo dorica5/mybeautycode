@@ -60,7 +60,9 @@ import { usePostHog } from "posthog-react-native";
 import {
   type InspirationFilterTab,
   inspirationFilterTabToProfessionCode,
+  profileHasProfessionalCapability,
 } from "@/src/constants/professionCodes";
+import { setLastProfessionCode } from "@/src/lib/lastVisitPreference";
 
 const NUM_COLUMNS = 2;
 
@@ -619,28 +621,38 @@ const MyInspiration = () => {
     }
   };
 
+  /**
+   * Always `replace` to the correct shell — do not `router.back()`. Opening inspiration
+   * from the pro tab uses `replace("inspiration")`, so the stack would otherwise pop to
+   * the wrong surface (e.g. client). Respect `lastAppSurfacePref` (set by tabs / switch account only).
+   */
   const goHome = () => {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
     const clientHome = "/(client)/(tabs)/home" as Href;
     const proHome = "/(hairdresser)/(tabs)/home" as Href;
-    const isHairdresserCapable =
-      profile?.user_type === "HAIRDRESSER" ||
-      Boolean(
-        (profile as { professional_profile_id?: string | null } | null)
-          ?.professional_profile_id
-      );
-    if (!isHairdresserCapable) {
-      router.replace(clientHome);
-      return;
-    }
-    if (lastAppSurfacePref === "client") {
-      router.replace(clientHome);
-    } else {
+    const uid = profile?.id;
+    const proCapable = profileHasProfessionalCapability(profile ?? null);
+
+    void (async () => {
+      if (!proCapable) {
+        router.replace(clientHome);
+        return;
+      }
+      if (lastAppSurfacePref === "client") {
+        router.replace(clientHome);
+        return;
+      }
+      if (uid) {
+        try {
+          await setLastProfessionCode(
+            uid,
+            inspirationFilterTabToProfessionCode(inspirationCategory)
+          );
+        } catch (e) {
+          console.warn("goHome: setLastProfessionCode", e);
+        }
+      }
       router.replace(proHome);
-    }
+    })();
   };
 
   const safeGallery = Array.isArray(imageGallery) ? imageGallery : [];

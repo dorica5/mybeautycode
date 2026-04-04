@@ -33,7 +33,7 @@ const HomeScreen = () => {
 
   const hasProfessionalAccount =
     (profile?.profession_codes?.length ?? 0) > 0 ||
-    profile?.user_type === "HAIRDRESSER";
+    Boolean(profile?.professional_profile_id);
 
   const avatarSize = responsiveScale(120, 144);
 

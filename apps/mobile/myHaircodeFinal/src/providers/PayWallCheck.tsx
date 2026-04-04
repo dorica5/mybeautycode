@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import Purchases, { CustomerInfo } from "react-native-purchases";
 import { getCustomerInfoSafe, hasActiveEntitlement } from "@/src/lib/revenuecat";
+import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
 
 type Profile = {
   id: string;
   email?: string | null;
-  user_type: "CLIENT" | "HAIRDRESSER";
   signup_date?: string | null;
+  professional_profile_id?: string | null;
+  profession_codes?: string[] | null;
 };
 
 const BETA_TESTERS = new Set<string>([
@@ -27,8 +29,8 @@ export function usePaywallCheck(
   const [info, setInfo] = useState<CustomerInfo | null>(null);
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
 
-  const isHairdresser = profile?.user_type === "HAIRDRESSER";
-  const isClient = profile?.user_type === "CLIENT";
+  const isHairdresser = profileHasProfessionalCapability(profile ?? null);
+  const isClient = Boolean(profile) && !isHairdresser;
   const email = (profile?.email ?? "").trim().toLowerCase();
   const isBetaTester = useMemo(() => BETA_TESTERS.has(email), [email]);
 

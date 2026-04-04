@@ -33,6 +33,7 @@ import {
   PROFESSION_HEADLINE_ROLE,
   coerceProfessionCode,
   pickActiveProfessionCode,
+  profileHasProfessionalCapability,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { ProfileMenuSwitchAccountAddIcon } from "@/src/components/profileMenuIcons";
@@ -125,7 +126,7 @@ export default function SwitchAccountScreen() {
 
   const surface =
     lastSurface ??
-    (profile.user_type === "HAIRDRESSER" ? "professional" : "client");
+    (profileHasProfessionalCapability(profile) ? "professional" : "client");
 
   const isProSelected = (code: ProfessionChoiceCode | null) => {
     if (surface !== "professional") return false;
