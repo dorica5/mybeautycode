@@ -23,6 +23,7 @@ const InspirationTopNav = ({ title, goHome, onBack }: TopNavProps) => {
     <View style={styles.wrapper}>
       <Pressable
         style={styles.backRow}
+        hitSlop={{ top: 18, bottom: 18, left: 18, right: 18 }}
         onPress={() => {
           if (onBack) {
             onBack();

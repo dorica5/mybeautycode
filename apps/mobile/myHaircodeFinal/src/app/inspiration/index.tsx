@@ -13,10 +13,14 @@ import {
   Image as RNImage,
   Platform,
   ScrollView,
+  StatusBar as RNStatusBar,
 } from "react-native";
 import { randomUUID } from "expo-crypto";
 import { StatusBar } from "expo-status-bar";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import InspirationTopNav from "@/src/components/InspirationTopNav";
 import MarkCancelButton from "@/src/components/MarkCancelButton";
 import { Plus, X } from "phosphor-react-native";
@@ -47,10 +51,14 @@ import {
   responsiveBorderRadius,
 } from "@/src/utils/responsive";
 import { usePostHog } from "posthog-react-native";
+import {
+  type InspirationFilterTab,
+  inspirationFilterTabToProfessionCode,
+} from "@/src/constants/professionCodes";
 
 const NUM_COLUMNS = 2;
 
-type InspirationProfession = "hair" | "nails" | "brows";
+type InspirationProfession = InspirationFilterTab;
 
 const CATEGORY_TABS: { code: InspirationProfession; label: string }[] = [
   { code: "hair", label: "Hair" },
@@ -104,6 +112,7 @@ const MyInspiration = () => {
   );
   const width = Dimensions.get("window").width;
   const screenHeight = Dimensions.get("window").height;
+  const safeInsets = useSafeAreaInsets();
   const minCarouselRatio = (screenHeight * 0.57) / width; // Ensures ~57% of screen height minimum
   const horizontalPadding = scalePercent(5);
   const columnGap = responsiveScale(12);
@@ -226,7 +235,10 @@ const MyInspiration = () => {
       }
 
       void (async () => {
-        const fresh = await refreshInspirationImages(true, code);
+        const fresh = await refreshInspirationImages(
+          true,
+          inspirationFilterTabToProfessionCode(code)
+        );
         inspirationCacheRef.current[code] = fresh;
         if (inspirationCategoryRef.current === code) {
           setImageGallery(fresh);
@@ -252,7 +264,10 @@ const MyInspiration = () => {
       }
 
       void (async () => {
-        const fresh = await refreshInspirationImages(true, cat);
+        const fresh = await refreshInspirationImages(
+          true,
+          inspirationFilterTabToProfessionCode(cat)
+        );
         inspirationCacheRef.current[cat] = fresh;
         if (cancelled) return;
         if (inspirationCategoryRef.current === cat) {
@@ -303,7 +318,10 @@ const MyInspiration = () => {
         id ? { ids: [id] } : { imageUrls: [path] }
       );
       const cat = inspirationCategoryRef.current;
-      const fresh = await refreshInspirationImages(true, cat);
+      const fresh = await refreshInspirationImages(
+        true,
+        inspirationFilterTabToProfessionCode(cat)
+      );
       inspirationCacheRef.current[cat] = fresh;
       setImageGallery(fresh);
       closeImageDetailModal();
@@ -354,7 +372,7 @@ const MyInspiration = () => {
   const processImageUpload = async (
     asset,
     tempId,
-    professionCode: InspirationProfession
+    filterTab: InspirationProfession
   ) => {
     try {
       setUploadProgress((prev) => ({ ...prev, [tempId]: 10 }));
@@ -384,7 +402,7 @@ const MyInspiration = () => {
         image_url: highResPath,
         low_res_image_url: lowResPath,
         high_middle_res_url: lowResPath,
-        profession_code: professionCode,
+        profession_code: inspirationFilterTabToProfessionCode(filterTab),
       });
 
       setUploadProgress((prev) => ({ ...prev, [tempId]: 100 }));
@@ -513,7 +531,7 @@ const MyInspiration = () => {
       setTimeout(async () => {
         const freshImages = await refreshInspirationImages(
           true,
-          professionLocked
+          inspirationFilterTabToProfessionCode(professionLocked)
         );
         inspirationCacheRef.current[professionLocked] = freshImages;
 
@@ -683,9 +701,22 @@ const MyInspiration = () => {
           statusBarTranslucent
         >
           <View style={styles.detailModalRoot}>
-            <SafeAreaView style={styles.detailModalSafe} edges={["top", "bottom"]}>
+            <SafeAreaView style={styles.detailModalSafe} edges={["bottom"]}>
               <StatusBar style="dark" />
-              <View style={styles.detailModalHeader}>
+              <View
+                style={[
+                  styles.detailModalHeader,
+                  {
+                    paddingTop:
+                      Math.max(
+                        safeInsets.top,
+                        Platform.OS === "android"
+                          ? RNStatusBar.currentHeight ?? 0
+                          : 0
+                      ) + responsiveScale(14),
+                  },
+                ]}
+              >
                 <InspirationTopNav
                   title="My inspiration"
                   onBack={closeImageDetailModal}
@@ -1127,6 +1158,8 @@ const styles = StyleSheet.create({
   },
   detailModalHeader: {
     paddingHorizontal: scalePercent(5),
+    zIndex: 50,
+    elevation: 50,
   },
   detailCarouselSection: {
     flexGrow: 1,

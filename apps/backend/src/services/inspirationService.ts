@@ -9,6 +9,16 @@ const supabase = createClient(
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 
+/** UI / legacy strings → `professions.code` (e.g. merged brows + lashes). */
+function normalizeProfessionCodeForInspiration(
+  code: string | undefined
+): string {
+  const c = (code ?? "").trim().toLowerCase();
+  if (!c) return "hair";
+  if (c === "brows" || c === "lashes") return "brows_lashes";
+  return c;
+}
+
 function normalizeInspirationPathInput(url: string): string {
   const raw = String(url ?? "")
     .trim()
@@ -40,7 +50,7 @@ function expandStorageLookupKeys(paths: string[]): string[] {
 export const inspirationService = {
   async listByOwner(ownerId: string, professionCode?: string) {
     const professionId = await professionService.getProfessionIdByCode(
-      professionCode ?? "hair"
+      normalizeProfessionCodeForInspiration(professionCode)
     );
     const results = await prisma.inspiration.findMany({
       where: { ownerId, professionId },
@@ -75,7 +85,9 @@ export const inspirationService = {
         : "";
     const professionId = data.profession_id
       ? data.profession_id
-      : await professionService.getProfessionIdByCode(codeRaw || "hair");
+      : await professionService.getProfessionIdByCode(
+          normalizeProfessionCodeForInspiration(codeRaw || "hair")
+        );
 
     return prisma.inspiration.create({
       data: {

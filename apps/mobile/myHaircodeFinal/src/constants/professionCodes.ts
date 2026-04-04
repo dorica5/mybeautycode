@@ -52,6 +52,7 @@ export function coerceProfessionCode(
   const underscored = lower.replace(/\s+/g, "_");
   if (isProfessionCode(underscored)) return underscored;
   if (lower === "hairdresser" || underscored === "hair_dresser") return "hair";
+  if (lower === "brows" || lower === "lashes") return "brows_lashes";
   /** Ignore useless placeholders so callers can fall through to real data. */
   if (
     underscored === "professional" ||
@@ -94,6 +95,16 @@ export function pickActiveProfessionCode(
 }
 
 /** Subtitle for professional home from `profession_codes` / last-visited code. */
+/** My Inspiration filter chips — maps to `professions.code` for `/api/inspirations`. */
+export type InspirationFilterTab = "hair" | "nails" | "brows";
+
+export function inspirationFilterTabToProfessionCode(
+  tab: InspirationFilterTab
+): string {
+  if (tab === "brows") return "brows_lashes";
+  return tab;
+}
+
 export function professionHomeAccountLabel(
   activeCode: ProfessionChoiceCode | null,
   fallbackRawCode?: string | null
