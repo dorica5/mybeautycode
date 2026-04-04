@@ -8,6 +8,29 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { fetchNotifications } from "@/src/providers/useNotifcations";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 
+const TAB_BAR_LAVENDER = "#F5F5FF";
+
+const TAB_BAR_DEFAULT = {
+  backgroundColor: primaryGreen,
+  borderTopColor: "rgba(33, 36, 39, 0.12)",
+  borderTopWidth: 1,
+} as const;
+
+const TAB_BAR_NOTIFICATIONS = {
+  backgroundColor: TAB_BAR_LAVENDER,
+  borderTopColor: "rgba(33, 36, 39, 0.1)",
+  borderTopWidth: 1,
+} as const;
+
+function isClientNotificationsPath(path: string | undefined): boolean {
+  if (!path) return false;
+  return (
+    path === "/notifications" ||
+    path.includes("/(tabs)/notifications") ||
+    /\/notifications\/?$/.test(path)
+  );
+}
+
 const _layout = () => {
   const { profile } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -79,7 +102,6 @@ const _layout = () => {
   
   router.replace(href);
 }, [pathname]);
-  // Memoize screen options to prevent recreation
   const screenOptions = useMemo(
     () => ({
       tabBarShowLabel: false,
@@ -88,13 +110,11 @@ const _layout = () => {
       unmountOnBlur: false,
       tabBarActiveTintColor: primaryBlack,
       tabBarInactiveTintColor: "#5d7168",
-      tabBarStyle: {
-        backgroundColor: primaryGreen,
-        borderTopColor: "rgba(33, 36, 39, 0.12)",
-        borderTopWidth: 1,
-      },
+      tabBarStyle: isClientNotificationsPath(pathname)
+        ? TAB_BAR_NOTIFICATIONS
+        : TAB_BAR_DEFAULT,
     }),
-    []
+    [pathname]
   );
 
   return (

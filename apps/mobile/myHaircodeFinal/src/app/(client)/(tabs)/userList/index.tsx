@@ -138,10 +138,10 @@ const FindProfessionalsScreen = () => {
                 onPress={() => router.back()}
                 style={styles.backRow}
                 accessibilityRole="button"
-                accessibilityLabel="Tilbake"
+                accessibilityLabel="Back"
               >
                 <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-                <Text style={styles.backLabel}>Tilbake</Text>
+                <Text style={styles.backLabel}>Back</Text>
               </Pressable>
             ) : (
               <View style={styles.backPlaceholder} />
