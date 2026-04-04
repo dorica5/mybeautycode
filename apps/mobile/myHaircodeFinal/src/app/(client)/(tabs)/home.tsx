@@ -1,8 +1,8 @@
 import React from "react";
-import { View, StyleSheet, ScrollView, Text } from "react-native";
+import { View, StyleSheet, ScrollView, Text, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { router } from "expo-router";
+import { Href, router } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
@@ -30,6 +30,10 @@ const HomeScreen = () => {
     profile?.full_name ||
     "";
   const username = profile?.username?.trim() ?? "";
+
+  const hasProfessionalAccount =
+    (profile?.profession_codes?.length ?? 0) > 0 ||
+    profile?.user_type === "HAIRDRESSER";
 
   const avatarSize = responsiveScale(120, 144);
 
@@ -68,6 +72,23 @@ const HomeScreen = () => {
         {username ? (
           <Text style={[Typography.anton24, styles.username]}>{username}</Text>
         ) : null}
+
+        <Pressable
+          style={styles.accountPill}
+          onPress={() => {
+            if (hasProfessionalAccount) {
+              router.push("/(hairdresser)/(tabs)/profile/switch_account");
+            } else {
+              router.push("/(setup)/AddProfession" as Href);
+            }
+          }}
+        >
+          <Text style={styles.accountPillText}>
+            {hasProfessionalAccount
+              ? "Switch account"
+              : "Become a professional"}
+          </Text>
+        </Pressable>
 
         <View style={styles.searchCard}>
           <Text
@@ -131,7 +152,22 @@ const styles = StyleSheet.create({
   username: {
     color: primaryBlack,
     textAlign: "center",
-    marginBottom: responsiveMargin(isTablet() ? 28 : 36),
+    marginBottom: responsiveMargin(12),
+  },
+  accountPill: {
+    alignSelf: "center",
+    marginBottom: responsiveMargin(isTablet() ? 20 : 24),
+    paddingVertical: responsiveScale(12),
+    paddingHorizontal: responsiveScale(20),
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
+    backgroundColor: "transparent",
+  },
+  accountPillText: {
+    ...Typography.bodyLarge,
+    color: primaryBlack,
+    textAlign: "center",
   },
   searchCard: {
     width: "100%",

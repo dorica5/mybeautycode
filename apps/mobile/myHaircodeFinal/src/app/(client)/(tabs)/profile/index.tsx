@@ -16,6 +16,7 @@ import {
   ProfileMenuPictureIcon,
   ProfileMenuManageProfessionalsIcon,
   ProfileMenuChangePasswordIcon,
+  ProfileMenuAddAccountIcon,
   ProfileMenuDeleteAccountIcon,
   ProfileMenuTermsIcon,
   ProfileMenuFeedbackIcon,
@@ -51,6 +52,10 @@ const ProfileScreen = () => {
   if (!profile) {
     return null;
   }
+
+  const hasProfessionalAccount =
+    (profile.profession_codes?.length ?? 0) > 0 ||
+    profile.user_type === "HAIRDRESSER";
 
   const profileAvatarSize = scalePercent(25);
 
@@ -91,11 +96,19 @@ const ProfileScreen = () => {
 
               <Pressable
                 style={styles.becomeProPill}
-                onPress={() =>
-                  router.push("/(setup)/AddProfession" as Href)
-                }
+                onPress={() => {
+                  if (hasProfessionalAccount) {
+                    router.push("/(hairdresser)/(tabs)/profile/switch_account");
+                  } else {
+                    router.push("/(setup)/AddProfession" as Href);
+                  }
+                }}
               >
-                <Text style={styles.becomeProText}>Become a professional</Text>
+                <Text style={styles.becomeProText}>
+                  {hasProfessionalAccount
+                    ? "Switch account"
+                    : "Become a professional"}
+                </Text>
               </Pressable>
 
               <Text style={styles.sectionHeading}>Public profile</Text>
@@ -167,6 +180,14 @@ const ProfileScreen = () => {
                 Icon={ProfileMenuChangePasswordIcon}
                 tileStyle="light"
                 onPress={() => router.push("/(auth)/ChangePassword")}
+              />
+              <Profile
+                title="Add account"
+                Icon={ProfileMenuAddAccountIcon}
+                tileStyle="light"
+                onPress={() =>
+                  router.push("/(setup)/AddProfession" as Href)
+                }
               />
               <Profile
                 title="Delete account"

@@ -10,7 +10,6 @@ import {
   View,
   StyleSheet,
   Text,
-  Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import SearchInput from "@/src/components/SearchInput";
@@ -27,7 +26,6 @@ import {
   isTablet,
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
-import { CaretLeft } from "phosphor-react-native";
 import { Typography } from "@/src/constants/Typography";
 import {
   primaryBlack,
@@ -160,21 +158,6 @@ const HomeScreen = () => {
           >
             <View style={{ flex: 1 }}>
               <View style={styles.header}>
-                {router.canGoBack() ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Tilbake"
-                    onPress={() => router.back()}
-                    style={styles.backRow}
-                    hitSlop={12}
-                  >
-                    <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-                    <Text style={[Typography.bodyMedium, styles.backLabel]}>
-                      Tilbake
-                    </Text>
-                  </Pressable>
-                ) : null}
-
                 <Text
                   style={[Typography.h3, styles.visitsTitle]}
                   accessibilityRole="header"
@@ -316,19 +299,11 @@ const styles = StyleSheet.create({
     paddingTop: responsiveMargin(20),
     paddingBottom: responsiveMargin(8),
   },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-start",
-    gap: responsiveMargin(4),
-    marginBottom: responsiveMargin(8),
-  },
-  backLabel: { color: primaryBlack },
   /** Anton 36 — `Typography.h3` */
   visitsTitle: {
     color: primaryBlack,
     textAlign: "center",
-    marginTop: responsiveMargin(8),
+    marginTop: 0,
     marginBottom: responsiveMargin(6),
   },
   accountSubtitle: {

@@ -188,9 +188,13 @@ export default function SwitchAccountScreen() {
               )}
 
               <Pressable
-                onPress={() =>
-                  router.push("/(hairdresser)/(tabs)/profile/ProfilePicture")
-                }
+                onPress={() => {
+                  const path =
+                    surface === "client"
+                      ? "/(client)/(tabs)/profile/ProfilePicture"
+                      : "/(hairdresser)/(tabs)/profile/ProfilePicture";
+                  router.push(path as Href);
+                }}
                 style={styles.editImagePressable}
               >
                 <Text style={styles.editImageText}>Edit image</Text>
