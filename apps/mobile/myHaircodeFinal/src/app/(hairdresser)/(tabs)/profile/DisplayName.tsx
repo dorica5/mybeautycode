@@ -22,12 +22,12 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 
-const FullName = () => {
-  const { profile, setProfile } = useAuth();
-  const originalName = profile.full_name;
+const DisplayName = () => {
+  const { profile } = useAuth();
+  const originalName = profile.display_name ?? "";
   const id = profile.id;
 
-  const [full_name, setFull_Name] = useState(originalName);
+  const [display_name, setDisplay_name] = useState(originalName);
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
@@ -36,15 +36,12 @@ const FullName = () => {
   const { mutate: updateProfile } = useUpdateSupabaseProfile();
   const [errorMessage, setErrorMessage] = useState("");
 
-  const validateName = (name: string) => {
+  const validateDisplayName = (name: string) => {
     const trimmed = name.trim();
-
-    if (!trimmed) {
-      setErrorMessage("Please enter your full name.");
-      return false;
+    if (trimmed.length === 0) {
+      setErrorMessage("");
+      return true;
     }
-
-    // Allow letters, accents, dots, hyphens, apostrophes, and spaces
     const nameRegex = /^[a-zA-ZÀ-ÿæøåÆØÅ.\s'’-]{2,50}$/;
     if (!nameRegex.test(trimmed)) {
       setErrorMessage(
@@ -52,17 +49,16 @@ const FullName = () => {
       );
       return false;
     }
-
     setErrorMessage("");
     return true;
   };
 
-  const handleNameChange = (value: string) => {
-    setFull_Name(value);
+  const handleChange = (value: string) => {
+    setDisplay_name(value);
     setChanged(true);
 
     if (attemptedSubmit) {
-      setError(!validateName(value));
+      setError(!validateDisplayName(value));
     }
   };
 
@@ -75,7 +71,7 @@ const FullName = () => {
   const updateUserProfile = () => {
     setAttemptedSubmit(true);
 
-    if (!validateName(full_name)) {
+    if (!validateDisplayName(display_name)) {
       setError(true);
       return;
     }
@@ -86,35 +82,31 @@ const FullName = () => {
     }
 
     setLoading(true);
+    const trimmed = display_name.trim();
 
     updateProfile(
       {
         id,
-        full_name,
+        display_name: trimmed.length > 0 ? trimmed : null,
       },
       {
         onSuccess: () => {
-          setProfile((prev) => ({
-            ...prev,
-            full_name,
-          }));
-
           setChanged(false);
           setLoading(false);
           setError(false);
           Keyboard.dismiss();
         },
-        onError: (error) => {
+        onError: (err) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", error.message);
+          Alert.alert("Failed to update profile", err.message);
         },
       }
     );
   };
 
   useEffect(() => {
-    setChanged(full_name !== originalName);
-  }, [full_name, originalName]);
+    setChanged(display_name !== originalName);
+  }, [display_name, originalName]);
 
   return (
     <>
@@ -123,7 +115,7 @@ const FullName = () => {
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <SafeAreaView style={styles.container}>
             <TopNav
-              title="Full Name"
+              title="Display name"
               showSaveButton={true}
               saveChanged={changed}
               saveAction={updateUserProfile}
@@ -131,11 +123,12 @@ const FullName = () => {
             />
             <View style={getInputStyle()}>
               <TextInput
-                value={full_name}
-                placeholder="Name"
+                value={display_name}
+                placeholder="Display name (optional)"
                 placeholderTextColor={Colors.dark.dark}
-                onChangeText={handleNameChange}
+                onChangeText={handleChange}
                 style={{ fontSize: responsiveFontSize(16, 12) }}
+                autoCapitalize="words"
               />
             </View>
             {attemptedSubmit && error && (
@@ -148,7 +141,7 @@ const FullName = () => {
   );
 };
 
-export default FullName;
+export default DisplayName;
 
 const styles = StyleSheet.create({
   container: {

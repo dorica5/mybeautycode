@@ -4,39 +4,42 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { HouseLine } from "phosphor-react-native";
 import {
-  UserCircle,
-  User,
-  Phone,
-  HouseLine,
-  PencilSimple,
-  LockKey,
-  UserMinus,
-  FileText,
-  ChatCircleText,
-} from "phosphor-react-native";
-import { Colors, primaryBlack, primaryWhite } from "@/src/constants/Colors";
+  ProfileMenuNameIcon,
+  ProfileMenuPhoneIcon,
+  ProfileMenuAboutIcon,
+  ProfileMenuPictureIcon,
+  ProfileMenuChangePasswordIcon,
+  ProfileMenuAddAccountIcon,
+  ProfileMenuDeleteAccountIcon,
+  ProfileMenuTermsIcon,
+  ProfileMenuFeedbackIcon,
+} from "@/src/components/profileMenuIcons";
+import {
+  Colors,
+  primaryGreen,
+  primaryBlack,
+  primaryWhite,
+} from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import Profile from "@/src/components/Profile";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
+import { Href, router } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import SignOutButton from "@/src/components/SignOutButton";
 import { useImageContext } from "@/src/providers/ImageProvider";
-import {
-  responsiveScale,
-  scalePercent,
-  responsiveFontSize,
-} from "@/src/utils/responsive";
+import { responsiveScale, scalePercent } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
-import { router } from "expo-router";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { DefaultAvatarMark } from "@/src/components/DefaultAvatarMark";
 import { usePostHog } from "posthog-react-native";
-
 const ProfileScreen = () => {
-  const {  loading, signOut } = useAuth();
+  const { profile, loading, signOut } = useAuth();
   const { avatarImage } = useImageContext();
   const posthog = usePostHog();
 
@@ -44,97 +47,148 @@ const ProfileScreen = () => {
     return <ActivityIndicator />;
   }
 
+  if (!profile) {
+    return null;
+  }
+
+  const profileAvatarSize = scalePercent(25);
+
   return (
     <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      <StatusBar style="dark" />
+      <View style={styles.outer}>
         <SafeAreaView edges={["top"]} style={styles.container}>
           <ScrollView
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
           >
             <View style={styles.mainView}>
-              <Text style={styles.textStyle}>My profile</Text>
-              <AvatarWithSpinner
-                uri={avatarImage}
-                size={scalePercent(25)}
-                style={styles.profilePic}
-              />
-              <Text style={styles.subtitle}>PUBLIC PROFILE</Text>
-              <Profile
-                title="Full name"
-                Icon={User}
-                top={true}
+              {avatarImage ? (
+                <AvatarWithSpinner
+                  uri={avatarImage}
+                  size={profileAvatarSize}
+                  style={styles.profilePic}
+                />
+              ) : (
+                <View
+                  style={[styles.profilePic, styles.profilePicPlaceholder]}
+                >
+                  <DefaultAvatarMark size={profileAvatarSize} />
+                </View>
+              )}
+
+              <Pressable
                 onPress={() =>
-                  router.push("/(hairdresser)/(tabs)/profile/FullName")
+                  router.push("/(hairdresser)/(tabs)/profile/ProfilePicture")
+                }
+                style={styles.editImagePressable}
+              >
+                <Text style={styles.editImageText}>Edit image</Text>
+              </Pressable>
+
+              <Text style={styles.myProfileTitle}>My profile</Text>
+
+              <Pressable
+                style={styles.switchAccountPill}
+                onPress={() =>
+                  router.push("/(hairdresser)/(tabs)/profile/switch_account")
+                }
+              >
+                <Text style={styles.switchAccountText}>Switch account</Text>
+              </Pressable>
+
+              <Text style={styles.sectionHeading}>Public profile</Text>
+
+              <Profile
+                title="Display name"
+                Icon={ProfileMenuNameIcon}
+                top={true}
+                tileStyle="light"
+                onPress={() =>
+                  router.push("/(hairdresser)/(tabs)/profile/DisplayName")
                 }
               />
               <Profile
-                title="Salon phone number "
-                Icon={Phone}
+                title="Business phone number"
+                Icon={ProfileMenuPhoneIcon}
+                tileStyle="light"
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/PhoneNumber")
                 }
               />
               <Profile
-                title="Salon name "
+                title="Business name"
                 Icon={HouseLine}
+                tileStyle="light"
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/salon_name")
                 }
               />
               <Profile
                 title="About me"
-                Icon={PencilSimple}
+                Icon={ProfileMenuAboutIcon}
+                tileStyle="light"
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/AboutMe")
                 }
               />
               <Profile
                 title="Profile picture"
-                Icon={UserCircle}
+                Icon={ProfileMenuPictureIcon}
                 bottom={true}
+                tileStyle="light"
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/ProfilePicture")
                 }
               />
 
-              <Text style={[styles.subtitle, { marginTop: scalePercent(15) }]}>
-                PRIVACY SETTINGS
+              <Text style={[styles.sectionHeading, styles.sectionSpacing]}>
+                Privacy settings
               </Text>
+
               <Profile
                 title="Change password"
-                Icon={LockKey}
+                Icon={ProfileMenuChangePasswordIcon}
                 top={true}
-                onPress={() => router.push("/ChangePassword")}
+                tileStyle="light"
+                onPress={() => router.push("/(auth)/ChangePassword")}
+              />
+              <Profile
+                title="Add account"
+                Icon={ProfileMenuAddAccountIcon}
+                tileStyle="light"
+                onPress={() =>
+                  router.push("/(setup)/AddProfession" as Href)
+                }
               />
               <Profile
                 title="Delete account"
-                Icon={UserMinus}
+                Icon={ProfileMenuDeleteAccountIcon}
                 bottom={true}
-                onPress={() => router.push("/Delete")}
+                tileStyle="light"
+                onPress={() => router.push("/(auth)/Delete")}
               />
 
-              <Text style={[styles.subtitle, { marginTop: scalePercent(15) }]}>
-                TERMS AND PRIVACY
+              <Text style={[styles.sectionHeading, styles.sectionSpacing]}>
+                Terms and privacy
               </Text>
               <Profile
                 title="Terms and Privacy"
-                Icon={FileText}
+                Icon={ProfileMenuTermsIcon}
                 top={true}
                 bottom={true}
+                tileStyle="light"
                 onPress={() => router.push("/(setup)/TermsAndPrivacy")}
               />
               <Profile
                 title="Give us feedback"
-                Icon={ChatCircleText}
+                Icon={ProfileMenuFeedbackIcon}
                 top={true}
                 bottom={true}
+                tileStyle="light"
                 onPress={() => {
-                  router.push("/Screens/feedback")
-                  posthog.capture("Feedback Clicked", { role:"HAIRDRESSER" });
-
-
+                  router.push("/Screens/feedback");
+                  posthog.capture("Feedback Clicked", { role: "HAIRDRESSER" });
                 }}
               />
 
@@ -166,9 +220,18 @@ const ProfileScreen = () => {
   );
 };
 
+export default ProfileScreen;
+
 const styles = StyleSheet.create({
+  outer: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
   container: {
     flex: 1,
+  },
+  mainView: {
+    paddingBottom: scalePercent(8),
   },
   viewPublicProfileButton: {
     alignSelf: "center",
@@ -179,13 +242,6 @@ const styles = StyleSheet.create({
     color: primaryWhite,
     textAlign: "center",
   },
-  mainView: {},
-  textStyle: {
-    marginTop: scalePercent(10),
-    textAlign: "center",
-    fontFamily: "Inter-SemiBold",
-    fontSize: responsiveFontSize(24, 20),
-  },
   profilePic: {
     backgroundColor: Colors.dark.yellowish,
     width: scalePercent(25),
@@ -194,15 +250,54 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
-    marginTop: scalePercent(5),
+    marginTop: scalePercent(4),
   },
-  subtitle: {
+  profilePicPlaceholder: {
+    backgroundColor: primaryWhite,
+    overflow: "hidden",
+  },
+  editImagePressable: {
+    alignSelf: "center",
+    marginTop: scalePercent(2),
+    marginBottom: responsiveScale(10, 8),
+  },
+  editImageText: {
+    ...Typography.bodySmall,
+    textDecorationLine: "underline",
+    color: primaryBlack,
+  },
+  myProfileTitle: {
+    ...Typography.h3,
+    textAlign: "center",
+    marginTop: responsiveScale(20, 16),
+    color: primaryBlack,
+  },
+  switchAccountPill: {
+    alignSelf: "center",
+    marginTop: scalePercent(4),
+    paddingVertical: responsiveScale(12),
+    paddingHorizontal: responsiveScale(20),
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
+    backgroundColor: "transparent",
+  },
+  switchAccountText: {
+    ...Typography.bodyLarge,
+    color: primaryBlack,
+    textAlign: "center",
+  },
+  sectionHeading: {
     ...Typography.label,
-    margin: scalePercent(5),
+    marginTop: scalePercent(5),
+    marginHorizontal: scalePercent(5),
+    marginBottom: scalePercent(1),
+    color: primaryBlack,
+  },
+  sectionSpacing: {
+    marginTop: scalePercent(12),
   },
   ViewPublicProfileButton: {
     marginTop: scalePercent(10),
   },
 });
-
-export default ProfileScreen;

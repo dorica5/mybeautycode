@@ -11,7 +11,7 @@ export type ProfessionChoiceCode = (typeof PROFESSION_CHOICE_CODES)[number];
 export const PROFESSION_HEADLINE_ROLE: Record<ProfessionChoiceCode, string> = {
   hair: "Hairdresser",
   brows_lashes: "Brow stylist",
-  nails: "Nail technician",
+  nails: "Nail Technician",
   esthetician: "Esthetician",
 };
 
@@ -60,6 +60,18 @@ export function coerceProfessionCode(
     return null;
   }
   return null;
+}
+
+/** Professions the user has not linked yet (for “Add account” / add-profession flow). */
+export function professionOptionsNotYetLinked(
+  professionCodesFromProfile: string[] | null | undefined,
+): typeof CHOOSE_PROFESSION_OPTIONS {
+  const have = new Set<ProfessionChoiceCode>();
+  for (const c of professionCodesFromProfile ?? []) {
+    const n = coerceProfessionCode(c);
+    if (n) have.add(n);
+  }
+  return CHOOSE_PROFESSION_OPTIONS.filter((opt) => !have.has(opt.code));
 }
 
 /** Pick which profession to show: last visited if still linked, else first in API order. */

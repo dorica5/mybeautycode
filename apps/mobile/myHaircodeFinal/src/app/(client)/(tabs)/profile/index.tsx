@@ -92,7 +92,7 @@ const ProfileScreen = () => {
               <Pressable
                 style={styles.becomeProPill}
                 onPress={() =>
-                  router.push("/(setup)/ChooseProfession" as Href)
+                  router.push("/(setup)/AddProfession" as Href)
                 }
               >
                 <Text style={styles.becomeProText}>Become a professional</Text>

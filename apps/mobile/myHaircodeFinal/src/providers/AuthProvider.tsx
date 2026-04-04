@@ -83,9 +83,9 @@ export function profileSetupIsComplete(
 }
 
 /**
- * Completed setup: leave onboarding/auth entry routes so users are not stuck on Welcome / Sign-in.
- * Do not list "second setup" routes (become-a-professional): those users already have `setup_status`
- * as clients and must stay on ChooseProfession / ProfessionalSetup until they submit or go back.
+ * Completed setup: redirect off first-run onboarding/auth shells (so users aren’t stuck on Welcome / Sign-in).
+ * Do not include add-profession or professional setup — those users are already complete and must stay
+ * on ChooseProfession / AddProfession / ProfessionalSetup until they finish or go back.
  */
 function shouldCompletedUserLeaveForHome(pathname: string): boolean {
   const p = pathname ?? "";
@@ -101,8 +101,6 @@ function shouldCompletedUserLeaveForHome(pathname: string): boolean {
     "/Setup",
     "GeneralSetup",
     "ChooseRole",
-    "ChooseProfession",
-    "ProfessionalSetup",
     "ClientSetup",
     "TermsAndPrivacy",
     "/Splash",
@@ -535,6 +533,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/GeneralSetup",
           "/ChooseRole",
           "/ChooseProfession",
+          "/AddProfession",
           "/ClientSetup",
           "/ProfessionalSetup",
           "/LoadingScreen",
@@ -543,6 +542,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/(setup)/GeneralSetup",
           "/(setup)/ChooseRole",
           "/(setup)/ChooseProfession",
+          "/(setup)/AddProfession",
           "/(setup)/ClientSetup",
           "/(setup)/ProfessionalSetup",
           "/(setup)/LoadingScreen",
@@ -580,6 +580,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/GeneralSetup",
           "/ChooseRole",
           "/ChooseProfession",
+          "/AddProfession",
           "/ClientSetup",
           "/ProfessionalSetup",
           "/LoadingScreen",
@@ -588,6 +589,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           "/(setup)/GeneralSetup",
           "/(setup)/ChooseRole",
           "/(setup)/ChooseProfession",
+          "/(setup)/AddProfession",
           "/(setup)/ClientSetup",
           "/(setup)/ProfessionalSetup",
           "/(setup)/LoadingScreen",

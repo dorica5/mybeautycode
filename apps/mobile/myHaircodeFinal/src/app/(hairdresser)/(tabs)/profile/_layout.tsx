@@ -10,7 +10,8 @@ const _layout = () => {
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="FullName" />
+      <Stack.Screen name="switch_account" />
+      <Stack.Screen name="DisplayName" />
       <Stack.Screen name="PhoneNumber" />
       <Stack.Screen name="ProfilePicture" />
       <Stack.Screen name="AboutMe" />
