@@ -5,21 +5,11 @@ import {
 import React from "react";
 
 /**
- * Setup-style labeled input: **`primaryWhite`** fill, **1 px `primaryBlack`** border (pill or area).
- * No placeholder — labels carry the meaning. Use **`BrandCountryDropdown`** when a placeholder is needed.
+ * Setup-style input: **`primaryWhite`** fill, **1 px `primaryBlack`** border (pill or area).
+ * Valgfri `placeholder` når label ikke er nok (f.eks. telefon med landskode).
  */
-export type BrandOutlineFieldProps = Omit<
-  PrimaryOutlineTextFieldProps,
-  "placeholder"
->;
+export type BrandOutlineFieldProps = PrimaryOutlineTextFieldProps;
 
-export function BrandOutlineField({
-  ...props
-}: BrandOutlineFieldProps) {
-  return (
-    <PrimaryOutlineTextField
-      {...props}
-      placeholder={undefined}
-    />
-  );
+export function BrandOutlineField(props: BrandOutlineFieldProps) {
+  return <PrimaryOutlineTextField {...props} />;
 }

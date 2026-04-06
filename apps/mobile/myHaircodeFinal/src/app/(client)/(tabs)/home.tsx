@@ -77,9 +77,12 @@ const HomeScreen = () => {
           style={styles.accountPill}
           onPress={() => {
             if (hasProfessionalAccount) {
-              router.push("/(hairdresser)/(tabs)/profile/switch_account");
+              router.push({
+                pathname: "/(hairdresser)/(tabs)/profile/SwitchAccount",
+                params: { activeSurface: "client" },
+              } as Href);
             } else {
-              router.push("/(setup)/AddProfession" as Href);
+              router.push("/(setup)/ChooseProfession" as Href);
             }
           }}
         >

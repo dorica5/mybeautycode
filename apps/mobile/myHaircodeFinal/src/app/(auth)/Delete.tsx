@@ -1,15 +1,15 @@
 import { Alert, StyleSheet, Text, View } from "react-native";
 import React, { useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "@/src/constants/Colors";
 import MyButton from "@/src/components/MyButton";
 import TopNav from "@/src/components/TopNav";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { api } from "@/src/lib/apiClient";
 import { supabase } from "@/src/lib/supabase";
 import CustomAlert from "@/src/components/CustomAlert";
-import {  responsiveFontSize, scale, scalePercent } from "@/src/utils/responsive";
-import { StatusBar } from "expo-status-bar";
+import { responsiveFontSize, scalePercent } from "@/src/utils/responsive";
+import { MintProfileScreenShell } from "@/src/components/MintProfileScreenShell";
+import { primaryBlack } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
 
 const Delete = () => {
   const { profile, clearProfile } = useAuth();
@@ -45,67 +45,62 @@ const Delete = () => {
   };
 
   const confirmDelete = () => {
-    console.log("Deleting account...", alertVisible);
     setAlertVisible(true);
   };
 
   return (
-    <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <SafeAreaView style={styles.container}>
-          <TopNav title="Delete account" />
-          <View style={{ alignItems: "center" }}>
-            <Text style={[styles.aboutme, {fontSize: responsiveFontSize(16, 12)}]}>
-              Are you sure?
-            </Text>
-          </View>
-          <MyButton
-            style={styles.button}
-            text="Delete account"
-            textSize={18}
-            textTabletSize={14}
-            onPress={confirmDelete}
-            disabled={loading}
-          />
-          {alertVisible && (
-            <CustomAlert
-              visible={alertVisible}
-              title="Delete account"
-              message="Are you sure you want to delete your account? This action cannot be undone."
-              onClose={() => setAlertVisible(false)}
-              fromDelete={true}
-              onDelete={onDelete}
-            />
-          )}
-        </SafeAreaView>
+    <MintProfileScreenShell>
+      <TopNav title="Delete account" />
+      <View style={styles.body}>
+        <Text
+          style={[
+            Typography.outfitRegular16,
+            styles.prompt,
+            { fontSize: responsiveFontSize(16, 12) },
+          ]}
+        >
+          Are you sure?
+        </Text>
+        <MyButton
+          style={styles.button}
+          text="Delete account"
+          textSize={18}
+          textTabletSize={14}
+          onPress={confirmDelete}
+          disabled={loading}
+        />
+        <CustomAlert
+          visible={alertVisible}
+          title="Delete account"
+          message="Are you sure you want to delete your account? This action cannot be undone."
+          onClose={() => setAlertVisible(false)}
+          fromDelete={true}
+          onDelete={onDelete}
+        />
       </View>
-    </>
+    </MintProfileScreenShell>
   );
 };
 
 export default Delete;
 
 const styles = StyleSheet.create({
-  container: {
+  body: {
     flex: 1,
-    margin: scalePercent(5),
+    paddingHorizontal: scalePercent(5),
+    alignItems: "center",
   },
-  input: {
-    marginTop: scalePercent(10),
-    padding: scalePercent(5),
-    backgroundColor: Colors.dark.yellowish,
-    borderRadius: 20,
-  },
-  aboutme: {
+  prompt: {
     textAlign: "center",
-    width: scalePercent(70),
+    width: scalePercent(85),
+    maxWidth: 400,
     marginBottom: scalePercent(5),
-    marginTop: scalePercent(18),
-    fontFamily: "Inter-Regular",
+    marginTop: scalePercent(12),
+    color: primaryBlack,
   },
   button: {
     width: scalePercent(90),
+    maxWidth: 400,
     alignSelf: "center",
   },
 });

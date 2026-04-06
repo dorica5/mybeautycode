@@ -1,9 +1,11 @@
 import { KeyboardAvoidingView, Platform } from "react-native";
-
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
+import { useRouter } from "expo-router";
+import TopNav from "@/src/components/TopNav";
 import { useAuth } from "@/src/providers/AuthProvider";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   TouchableWithoutFeedback,
   Keyboard,
@@ -11,7 +13,6 @@ import {
   StyleSheet,
   Text,
 } from "react-native";
-import { useRouter } from "expo-router";
 import SearchInput from "@/src/components/SearchInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchResults from "@/src/components/SearchResults";
@@ -19,35 +20,23 @@ import { useListAllClientSearch } from "@/src/api/profiles";
 import { useLatestHaircodes } from "@/src/api/haircodes";
 import HaircodeCard from "@/src/components/HaircodeCard";
 import {
-  responsiveScale,
   responsivePadding,
   responsiveMargin,
   responsiveFontSize,
+  responsiveScale,
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
-import { Typography } from "@/src/constants/Typography";
-import {
-  primaryBlack,
-  primaryGreen,
-  primaryWhite,
-} from "@/src/constants/Colors";
-import {
-  coerceProfessionCode,
-  pickActiveProfessionCode,
-  professionHomeAccountLabel,
-} from "@/src/constants/professionCodes";
-import {
-  getLastProfessionCode,
-  setLastProfessionCode,
-} from "@/src/lib/lastVisitPreference";
+
+/** Som innhold under TopNav på mint profile-skjermer. */
+const CONTENT_PAD_H = responsivePadding(24);
 
 const HomeScreen = () => {
   const { profile } = useAuth();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [clientSearchFieldFocused, setClientSearchFieldFocused] =
-    useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  const [showSearchUI, setShowSearchUI] = useState(false);
+  const [displayedResults, setDisplayedResults] = useState([]);
 
   const {
     data: searchResults = [],
@@ -55,41 +44,47 @@ const HomeScreen = () => {
   } = useListAllClientSearch(debouncedQuery, profile?.id);
 
   useEffect(() => {
-    const handler = setTimeout(() => setDebouncedQuery(searchQuery), 200);
-    return () => clearTimeout(handler);
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+      if (searchQuery) {
+        setShowSearchUI(true);
+      } else {
+        setShowSearchUI(false);
+        setDisplayedResults([]);
+      }
+    }, 200);
+
+    return () => {
+      clearTimeout(handler);
+    };
   }, [searchQuery]);
 
-  const handleSearch = useCallback((query: string) => {
+  useEffect(() => {
+    if (!isLoading && debouncedQuery && searchResults) {
+      const resultsChanged =
+        JSON.stringify(displayedResults) !== JSON.stringify(searchResults);
+      if (resultsChanged) {
+        setDisplayedResults(searchResults);
+      }
+    }
+  }, [isLoading, searchResults, debouncedQuery, displayedResults]);
+
+  const handleSearch = (query: string) => {
     setSearchQuery(query);
-  }, []);
+  };
 
-  /** Only toggles list visibility; clearing text is done on outside tap so row taps still navigate. */
-  const handleClientSearchBlur = useCallback(() => {
-    setClientSearchFieldFocused(false);
-  }, []);
-
-  const dismissClientSearchOverlay = useCallback(() => {
-    Keyboard.dismiss();
-    setClientSearchFieldFocused(false);
-    setSearchQuery("");
-    setDebouncedQuery("");
-  }, []);
-
-  const showClientSearchResults =
-    clientSearchFieldFocused && debouncedQuery.trim().length > 0;
-
-  const clientListData = (showClientSearchResults ? searchResults : []) as never[];
-
-  const formatDate = useCallback((createdAt: string) => {
+  const formatDate = (createdAt: string) => {
     const date = new Date(createdAt);
     return date.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     });
-  }, []);
+  };
 
-  const { data: latestHaircodes = [] } = useLatestHaircodes(profile?.id);
+  const {
+    data: latestHaircodes = [],
+  } = useLatestHaircodes(profile?.id);
 
   const filteredHaircodes =
     latestHaircodes?.filter((item) => {
@@ -100,193 +95,136 @@ const HomeScreen = () => {
       return createdAt >= sevenDaysAgo;
     }) ?? [];
 
-  const openHaircode = useCallback(
-    (item: (typeof filteredHaircodes)[number]) => {
-      router.push({
-        pathname: "/haircodes/single_haircode",
-        params: {
-          haircodeId: item.id,
-          hairdresserName: profile?.full_name,
-          hairdresser_profile_pic: profile?.avatar_url,
-          salon_name: profile?.salon_name,
-          salonPhoneNumber: profile?.salon_phone_number,
-          about_me: profile?.about_me,
-          booking_site: profile?.booking_site,
-          social_media: profile?.social_media,
-          description: item.service_description,
-          services: item.services,
-          createdAt: formatDate(item.created_at),
-          full_name: item.client_profile?.full_name,
-          number: item.client_profile?.phone_number,
-          price: item.price,
-          duration: item.duration,
-        },
-      });
-    },
-    [router, profile, formatDate]
-  );
-
-  const [professionLine, setProfessionLine] = useState("Professional account");
-
-  const professionCodesFromProfile =
-    profile?.profession_codes ??
-    (profile as { professionCodes?: string[] })?.professionCodes;
-
-  const professionCodesKey = useMemo(
-    () => professionCodesFromProfile?.join(",") ?? "",
-    [professionCodesFromProfile]
-  );
-
-  useEffect(() => {
-    const uid = profile?.id;
-    if (!uid) return;
-    const codes = professionCodesFromProfile;
-    let cancelled = false;
-    (async () => {
-      const stored = await getLastProfessionCode(uid);
-      if (cancelled) return;
-      const picked = pickActiveProfessionCode(codes, stored);
-      const firstListRaw =
-        codes?.find((c) => coerceProfessionCode(c) != null) ?? codes?.[0];
-      setProfessionLine(professionHomeAccountLabel(picked, firstListRaw));
-      const codeToStore =
-        picked ??
-        coerceProfessionCode(firstListRaw ?? undefined) ??
-        coerceProfessionCode(stored ?? undefined);
-      if (codeToStore) await setLastProfessionCode(uid, codeToStore);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.id, professionCodesKey]);
+  const hasAnyHaircodes = (latestHaircodes?.length ?? 0) > 0;
+  const showEmptyVisitCard =
+    !showSearchUI && filteredHaircodes.length === 0 && !hasAnyHaircodes;
 
   return (
     <>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1, backgroundColor: primaryGreen }}
+        style={styles.keyboardRoot}
       >
-        <TouchableWithoutFeedback onPress={dismissClientSearchOverlay}>
-          <SafeAreaView
-            style={styles.safe}
-            edges={["top", "right", "left"]}
-          >
-            <View style={{ flex: 1 }}>
-              <View style={styles.header}>
-                <Text
-                  style={[Typography.h3, styles.visitsTitle]}
-                  accessibilityRole="header"
-                >
-                  My visits
-                </Text>
-                <Text
-                  style={[Typography.anton16, styles.accountSubtitle]}
-                  accessibilityLabel={professionLine}
-                >
-                  {professionLine}
-                </Text>
-              </View>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <SafeAreaView style={styles.safe} edges={["top", "right", "left"]}>
+            <TopNav
+              title="My clients"
+              titleLine2="Hairdresser account"
+              hideBack
+              titleLine2Style={Typography.anton16}
+            />
 
-              <View style={styles.contentContainer}>
-                <Text style={[Typography.agLabel16, styles.searchLabelOnGreen]}>
-                  Search for clients
-                </Text>
+            <View style={styles.contentPadded}>
+              <Text style={[Typography.agLabel16, styles.searchFieldLabel]}>
+                Search for clients
+              </Text>
+              <View style={styles.searchInputOuter}>
                 <SearchInput
                   onSearch={handleSearch}
-                  initialQuery=""
-                  value={searchQuery}
-                  placeholder="Search for clients"
+                  initialQuery={searchQuery}
+                  placeholder=""
                   variant="whitePill"
-                  whitePillFill={primaryWhite}
-                  whitePillStretch
-                  style={styles.searchPillOnGreen}
-                  onFocus={() => setClientSearchFieldFocused(true)}
-                  onBlur={handleClientSearchBlur}
+                  stretchWhitePill
+                  pillBackgroundColor={primaryWhite}
                 />
+              </View>
+            </View>
 
-                {!showClientSearchResults ? (
-                  <View style={styles.idlePromptCard}>
-                    <Text
-                      style={[
-                        Typography.outfitRegular16,
-                        styles.idlePromptText,
-                      ]}
-                    >
+            <View style={styles.contentFlex}>
+              {showSearchUI ? (
+                <View style={[styles.contentPadded, styles.flexFill]}>
+                  <FlatList
+                    data={displayedResults}
+                    keyExtractor={(item, index) => `${item.id}_${index}`}
+                    keyboardShouldPersistTaps="handled"
+                    removeClippedSubviews={false}
+                    maintainVisibleContentPosition={{
+                      minIndexForVisible: 0,
+                    }}
+                    maxToRenderPerBatch={5}
+                    updateCellsBatchingPeriod={50}
+                    windowSize={10}
+                    initialNumToRender={10}
+                    renderItem={({ item }) => (
+                      <SearchResults
+                        item={item}
+                        context="hairdresser"
+                        query={debouncedQuery}
+                      />
+                    )}
+                    ListEmptyComponent={
+                      debouncedQuery ? (
+                        <View style={styles.emptySearchWrap}>
+                          <Text style={styles.noResultsText}>
+                            No results found for "{debouncedQuery}"
+                          </Text>
+                          <Text style={styles.helperText}>
+                            Seems like your client hasn’t joined myHaircode yet.
+                            You can invite them to download the app so their
+                            hair history appears here next time you search.
+                          </Text>
+                        </View>
+                      ) : null
+                    }
+                  />
+                </View>
+              ) : showEmptyVisitCard ? (
+                <View style={[styles.contentPadded, styles.flexFill]}>
+                  <View style={styles.emptyVisitCard}>
+                    <Text style={styles.emptyVisitCardText}>
                       Search for a client to get started
                     </Text>
                   </View>
-                ) : (
-                  <View style={[styles.resultsCard, styles.resultsCardFlex]}>
-                    <FlatList
-                      data={clientListData}
-                      keyExtractor={(item, index) => {
-                        const row = item as {
-                          client_id?: string;
-                          id?: string;
-                        };
-                        return `${row.client_id ?? row.id ?? "row"}_${index}`;
-                      }}
-                      keyboardShouldPersistTaps="handled"
-                      removeClippedSubviews={false}
-                      style={styles.searchResultsList}
-                      contentContainerStyle={styles.searchResultsListContent}
-                      maxToRenderPerBatch={10}
-                      updateCellsBatchingPeriod={50}
-                      windowSize={10}
-                      initialNumToRender={12}
-                      renderItem={({ item }) => (
-                        <SearchResults
-                          item={item}
-                          context="hairdresser"
-                          query={debouncedQuery}
-                        />
-                      )}
-                      ListEmptyComponent={
-                        isLoading ? (
-                          <View style={styles.loadingClients}>
-                            <ActivityIndicator color={primaryBlack} />
-                          </View>
-                        ) : (
-                          <View style={styles.emptyContainer}>
-                            <Text style={styles.noResultsText}>
-                              No results found for "{debouncedQuery.trim()}"
-                            </Text>
-                            <Text style={styles.helperText}>
-                              Seems like your client hasn’t joined myHaircode
-                              yet. You can invite them to download the app.
-                            </Text>
-                          </View>
-                        )
-                      }
-                      ListFooterComponent={
-                        filteredHaircodes.length > 0 ? (
-                          <View style={styles.haircodesFooter}>
-                            <Text
-                              style={[
-                                styles.sectionLabel,
-                                styles.sectionLabelInFooter,
-                              ]}
-                            >
-                              Latest haircodes
-                            </Text>
-                            {filteredHaircodes.map((item) => (
-                              <HaircodeCard
-                                key={item.id}
-                                name={item.client_profile?.full_name}
-                                date={formatDate(item.created_at)}
-                                profilePicture={item.client_profile?.avatar_url}
-                                salon_name=""
-                                onPress={() => openHaircode(item)}
-                              />
-                            ))}
-                          </View>
-                        ) : null
-                      }
-                    />
-                  </View>
-                )}
-              </View>
+                </View>
+              ) : (
+                <View style={[styles.contentPadded, styles.flexFill]}>
+                  {latestHaircodes?.length > 0 && (
+                    <Text style={styles.latestHeading}>Latest haircodes</Text>
+                  )}
+                  <FlatList
+                    data={filteredHaircodes}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                      <HaircodeCard
+                        name={item.client_profile?.full_name}
+                        date={formatDate(item.created_at)}
+                        profilePicture={item.client_profile?.avatar_url}
+                        salon_name=""
+                        onPress={() => {
+                          router.push({
+                            pathname: "/haircodes/single_haircode",
+                            params: {
+                              haircodeId: item.id,
+                              hairdresserName: profile?.full_name,
+                              hairdresser_profile_pic: profile?.avatar_url,
+                              salon_name: profile?.salon_name,
+                              salonPhoneNumber: profile?.salon_phone_number,
+                              about_me: profile?.about_me,
+                              booking_site: profile?.booking_site,
+                              social_media: profile?.social_media,
+                              description: item.service_description,
+                              services: item.services,
+                              createdAt: formatDate(item.created_at),
+                              full_name: item.client_profile?.full_name,
+                              number: item.client_profile?.phone_number,
+                              price: item.price,
+                              duration: item.duration,
+                            },
+                          });
+                        }}
+                      />
+                    )}
+                    keyboardShouldPersistTaps="handled"
+                    contentContainerStyle={styles.flatListContent}
+                    ListEmptyComponent={() => (
+                      <Text style={styles.noResultsText}>
+                        No haircodes added yet
+                      </Text>
+                    )}
+                  />
+                </View>
+              )}
             </View>
           </SafeAreaView>
         </TouchableWithoutFeedback>
@@ -298,97 +236,52 @@ const HomeScreen = () => {
 export default HomeScreen;
 
 const styles = StyleSheet.create({
+  keyboardRoot: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
   safe: {
     flex: 1,
     backgroundColor: primaryGreen,
   },
-  header: {
-    paddingHorizontal: responsivePadding(24),
-    paddingTop: responsiveMargin(36),
-    paddingBottom: responsiveMargin(8),
+  contentPadded: {
+    paddingHorizontal: CONTENT_PAD_H,
   },
-  /** Anton 36 — `Typography.h3` */
-  visitsTitle: {
-    color: primaryBlack,
-    textAlign: "center",
-    marginTop: 0,
-    marginBottom: responsiveMargin(6),
-  },
-  accountSubtitle: {
-    color: primaryBlack,
-    textAlign: "center",
-    marginBottom: responsiveMargin(16),
-  },
-  searchLabelOnGreen: {
-    color: primaryBlack,
+  searchFieldLabel: {
+    marginTop: responsiveMargin(4),
     marginBottom: responsiveMargin(10),
     alignSelf: "flex-start",
   },
-  searchPillOnGreen: {
-    marginBottom: responsiveMargin(14),
+  searchInputOuter: {
+    width: "100%",
+    marginBottom: responsiveMargin(12),
   },
-  idlePromptCard: {
-    alignSelf: "stretch",
+  contentFlex: {
+    flex: 1,
+    minHeight: responsiveScale(200),
+  },
+  flexFill: {
+    flex: 1,
+  },
+  emptyVisitCard: {
+    height: responsiveScale(142),
+    marginBottom: responsiveMargin(24),
     backgroundColor: primaryWhite,
-    borderRadius: responsiveScale(22),
-    borderWidth: 1,
-    borderColor: `${primaryBlack}12`,
+    borderRadius: responsiveScale(20),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
     justifyContent: "center",
     alignItems: "center",
-    minHeight: responsiveScale(132),
-    paddingVertical: responsivePadding(36),
-    paddingHorizontal: responsivePadding(24),
-    marginBottom: responsiveMargin(8),
+    paddingHorizontal: responsivePadding(20),
+    paddingVertical: responsivePadding(12),
   },
-  idlePromptText: {
+  emptyVisitCardText: {
+    ...Typography.ag20,
     textAlign: "center",
-    maxWidth: responsiveScale(280),
+    color: primaryBlack,
   },
-  resultsCard: {
-    backgroundColor: primaryWhite,
-    borderRadius: responsiveScale(22),
-    borderWidth: 1,
-    borderColor: `${primaryBlack}12`,
-    paddingHorizontal: responsivePadding(20),
-    paddingTop: responsivePadding(12),
-    paddingBottom: responsivePadding(12),
-    marginBottom: responsiveMargin(8),
-  },
-  resultsCardFlex: {
-    flex: 1,
-    minHeight: 0,
-  },
-  searchResultsList: {
-    flex: 1,
-    minHeight: 0,
-    marginTop: responsiveMargin(4),
-  },
-  searchResultsListContent: {
-    paddingBottom: responsivePadding(12),
-    flexGrow: 1,
-  },
-  loadingClients: {
-    paddingVertical: responsivePadding(24),
-    alignItems: "center",
-  },
-  haircodesFooter: {
-    marginTop: responsiveMargin(16),
-    paddingTop: responsivePadding(12),
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: `${primaryBlack}18`,
-  },
-  sectionLabelInFooter: {
-    paddingHorizontal: 0,
-    marginBottom: responsiveMargin(8),
-  },
-  contentContainer: {
-    flex: 1,
-    minHeight: 0,
-    paddingHorizontal: responsivePadding(20),
-  },
-  sectionLabel: {
+  latestHeading: {
     fontSize: responsiveFontSize(15, 14),
-    paddingHorizontal: responsivePadding(20),
     fontFamily: "Inter-Semibold",
     marginBottom: responsiveMargin(10),
     color: primaryBlack,
@@ -397,17 +290,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: responsiveMargin(20),
     fontSize: responsiveFontSize(16, 14),
-    fontFamily: "Regular",
-    color: "grey",
+    fontFamily: "Inter-Regular",
+    color: primaryBlack,
+    opacity: 0.65,
   },
-  emptyContainer: {
+  flatListContent: {
+    marginBottom: responsiveMargin(40),
+    paddingBottom: responsiveMargin(16),
+  },
+  emptySearchWrap: {
     alignItems: "center",
-    paddingHorizontal: responsivePadding(20),
+    paddingHorizontal: responsivePadding(12),
   },
   helperText: {
     marginTop: responsiveMargin(10),
     textAlign: "center",
-    color: "grey",
+    color: primaryBlack,
+    opacity: 0.55,
     fontSize: responsiveFontSize(14, 11),
     fontFamily: "Inter-Regular",
     lineHeight: responsiveScale(20, 16),

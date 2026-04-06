@@ -8,22 +8,24 @@ import {
 } from "react-native";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { HouseLine } from "phosphor-react-native";
 import {
-  ProfileMenuNameIcon,
-  ProfileMenuPhoneIcon,
-  ProfileMenuAboutIcon,
-  ProfileMenuPictureIcon,
-  ProfileMenuChangePasswordIcon,
-  ProfileMenuAddAccountIcon,
-  ProfileMenuDeleteAccountIcon,
-  ProfileMenuTermsIcon,
-  ProfileMenuFeedbackIcon,
-} from "@/src/components/profileMenuIcons";
+  UserCircle,
+  User,
+  Phone,
+  HouseLine,
+  PencilSimple,
+  LockKey,
+  FileText,
+  ChatCircleText,
+  At,
+  PlusCircle,
+  MinusCircle,
+} from "phosphor-react-native";
+import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import {
   Colors,
-  primaryGreen,
   primaryBlack,
+  primaryGreen,
   primaryWhite,
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
@@ -36,8 +38,8 @@ import { useImageContext } from "@/src/providers/ImageProvider";
 import { responsiveScale, scalePercent } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
-import { DefaultAvatarMark } from "@/src/components/DefaultAvatarMark";
 import { usePostHog } from "posthog-react-native";
+
 const ProfileScreen = () => {
   const { profile, loading, signOut } = useAuth();
   const { avatarImage } = useImageContext();
@@ -73,7 +75,10 @@ const ProfileScreen = () => {
                 <View
                   style={[styles.profilePic, styles.profilePicPlaceholder]}
                 >
-                  <DefaultAvatarMark size={profileAvatarSize} />
+                  <OrganicPattern
+                    width={profileAvatarSize}
+                    height={profileAvatarSize}
+                  />
                 </View>
               )}
 
@@ -91,33 +96,49 @@ const ProfileScreen = () => {
               <Pressable
                 style={styles.switchAccountPill}
                 onPress={() =>
-                  router.push("/(hairdresser)/(tabs)/profile/switch_account")
+                  router.push({
+                    pathname:
+                      "/(hairdresser)/(tabs)/profile/SwitchAccount",
+                    params: { activeSurface: "professional" },
+                  } as Href)
                 }
               >
                 <Text style={styles.switchAccountText}>Switch account</Text>
               </Pressable>
 
-              <Text style={styles.sectionHeading}>Public profile</Text>
+              <Text
+                style={[styles.sectionHeading, styles.sectionHeadingAfterPill]}
+              >
+                Public profile
+              </Text>
 
               <Profile
                 title="Display name"
-                Icon={ProfileMenuNameIcon}
-                top={true}
+                Icon={User}
                 tileStyle="light"
+                top
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/DisplayName")
                 }
               />
               <Profile
-                title="Business phone number"
-                Icon={ProfileMenuPhoneIcon}
+                title="User name"
+                Icon={At}
+                tileStyle="light"
+                onPress={() =>
+                  router.push("/(hairdresser)/(tabs)/profile/Username")
+                }
+              />
+              <Profile
+                title="Salon phone number"
+                Icon={Phone}
                 tileStyle="light"
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/PhoneNumber")
                 }
               />
               <Profile
-                title="Business name"
+                title="Salon name"
                 Icon={HouseLine}
                 tileStyle="light"
                 onPress={() =>
@@ -125,8 +146,8 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="About me"
-                Icon={ProfileMenuAboutIcon}
+                title="About me / Get discovered"
+                Icon={PencilSimple}
                 tileStyle="light"
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/AboutMe")
@@ -134,61 +155,68 @@ const ProfileScreen = () => {
               />
               <Profile
                 title="Profile picture"
-                Icon={ProfileMenuPictureIcon}
-                bottom={true}
+                Icon={UserCircle}
                 tileStyle="light"
+                bottom
+                lightMarginBottom={46}
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/ProfilePicture")
                 }
               />
 
-              <Text style={[styles.sectionHeading, styles.sectionSpacing]}>
+              <Text
+                style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
+              >
                 Privacy settings
               </Text>
 
               <Profile
                 title="Change password"
-                Icon={ProfileMenuChangePasswordIcon}
-                top={true}
+                Icon={LockKey}
                 tileStyle="light"
+                top
                 onPress={() => router.push("/(auth)/ChangePassword")}
               />
               <Profile
                 title="Add account"
-                Icon={ProfileMenuAddAccountIcon}
+                Icon={PlusCircle}
                 tileStyle="light"
                 onPress={() =>
-                  router.push("/(setup)/AddProfession" as Href)
+                  router.push("/(setup)/ChooseProfession" as Href)
                 }
               />
               <Profile
                 title="Delete account"
-                Icon={ProfileMenuDeleteAccountIcon}
-                bottom={true}
+                Icon={MinusCircle}
                 tileStyle="light"
+                bottom
+                lightMarginBottom={46}
                 onPress={() => router.push("/(auth)/Delete")}
               />
 
-              <Text style={[styles.sectionHeading, styles.sectionSpacing]}>
+              <Text
+                style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
+              >
                 Terms and privacy
               </Text>
+
               <Profile
                 title="Terms and Privacy"
-                Icon={ProfileMenuTermsIcon}
-                top={true}
-                bottom={true}
+                Icon={FileText}
                 tileStyle="light"
+                top
                 onPress={() => router.push("/(setup)/TermsAndPrivacy")}
               />
               <Profile
                 title="Give us feedback"
-                Icon={ProfileMenuFeedbackIcon}
-                top={true}
-                bottom={true}
+                Icon={ChatCircleText}
                 tileStyle="light"
+                bottom
                 onPress={() => {
                   router.push("/Screens/feedback");
-                  posthog.capture("Feedback Clicked", { role: "HAIRDRESSER" });
+                  posthog.capture("Feedback Clicked", {
+                    role: "HAIRDRESSER",
+                  });
                 }}
               />
 
@@ -211,6 +239,7 @@ const ProfileScreen = () => {
                 text="Sign out"
                 onPress={signOut}
                 disabled={loading}
+                style={styles.signOutPill}
               />
             </View>
           </ScrollView>
@@ -239,6 +268,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveScale(999),
   },
   viewPublicProfileButtonLabel: {
+    ...Typography.outfitRegular16,
     color: primaryWhite,
     textAlign: "center",
   },
@@ -275,29 +305,43 @@ const styles = StyleSheet.create({
   switchAccountPill: {
     alignSelf: "center",
     marginTop: scalePercent(4),
-    paddingVertical: responsiveScale(12),
-    paddingHorizontal: responsiveScale(20),
-    borderRadius: 999,
+    marginBottom: 46,
+    width: 155,
+    height: 44,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: primaryBlack,
-    backgroundColor: "transparent",
+    backgroundColor: primaryGreen,
+    justifyContent: "center",
+    alignItems: "center",
   },
   switchAccountText: {
-    ...Typography.bodyLarge,
-    color: primaryBlack,
+    ...Typography.outfitRegular16,
     textAlign: "center",
+    color: primaryBlack,
   },
   sectionHeading: {
     ...Typography.label,
     marginTop: scalePercent(5),
     marginHorizontal: scalePercent(5),
-    marginBottom: scalePercent(1),
+    marginBottom: 16,
     color: primaryBlack,
   },
-  sectionSpacing: {
-    marginTop: scalePercent(12),
+  sectionHeadingAfterPill: {
+    marginTop: 0,
+  },
+  sectionHeadingAfterCard: {
+    marginTop: 0,
   },
   ViewPublicProfileButton: {
     marginTop: scalePercent(10),
+  },
+  signOutPill: {
+    borderColor: primaryBlack,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    backgroundColor: "transparent",
+    width: undefined,
+    minWidth: responsiveScale(160),
+    paddingHorizontal: responsiveScale(24),
   },
 });
