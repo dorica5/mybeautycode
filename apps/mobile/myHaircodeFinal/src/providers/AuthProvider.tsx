@@ -26,7 +26,6 @@ import { registerForPushNotificationAsync } from "./useNotifcations";
 import { useSyncSignupDate } from "./SignUpDate";
 import { useFirstLaunch } from "../hooks/useFirstLaunch";
 import { usePostHog } from "posthog-react-native";
-
 /** Dev-only: force onboarding when unauthenticated. Keep `false` so real signup/sign-in flows work. */
 const DEV_FORCE_SHOW_ONBOARDING = false;
 

@@ -2,20 +2,20 @@ import {
   Alert,
   Keyboard,
   StyleSheet,
-  TextInput,
-  View,
-  TouchableWithoutFeedback,
+  ScrollView,
+  KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "@/src/constants/Colors";
+import { BrandOutlineField } from "@/src/components/BrandOutlineField";
+import {
+  MintProfileScreenShell,
+  mintProfileScrollContent,
+} from "@/src/components/MintProfileScreenShell";
 import TopNav from "@/src/components/TopNav";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
-import { responsiveFontSize, scale, scalePercent } from "@/src/utils/responsive";
-import { StatusBar } from "expo-status-bar";
 
 const PhoneNumber = () => {
   const { profile, setProfile } = useAuth();
@@ -44,7 +44,7 @@ const PhoneNumber = () => {
       return;
     }
 
-    const formatted = parsed.format("E.164"); // +4712345678
+    const formatted = parsed.format("E.164");
     const country = parsed.country || "UNKNOWN";
 
     setLoading(true);
@@ -80,49 +80,47 @@ const PhoneNumber = () => {
   }, [phoneNumber, originalPhoneNumber]);
 
   return (
-    <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <SafeAreaView style={styles.container}>
-            <TopNav
-              title="Salon phone number"
-              showSaveButton={true}
-              saveChanged={changed}
-              saveAction={updateUserProfile}
-              loading={loading}
-            />
-            <View style={styles.input}>
-              <TextInput
-                value={phoneNumber}
-                placeholder="Enter salon phone number with country code"
-                placeholderTextColor={Colors.dark.dark}
-                keyboardType="phone-pad"
-                onChangeText={(e) => {
-                  setPhoneNumber(e);
-                  setChanged(true);
-                }}
-                style={{fontSize: responsiveFontSize(16, 12)}}
-              />
-            </View>
-          </SafeAreaView>
-        </TouchableWithoutFeedback>
-      </View>
-    </>
+    <MintProfileScreenShell>
+      <TopNav
+        title="Salon phone number"
+        showSaveButton
+        saveChanged={changed}
+        saveAction={updateUserProfile}
+        loading={loading}
+      />
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={mintProfileScrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+        >
+          <BrandOutlineField
+            accessibilityLabel="Salon phone number"
+            placeholder="e.g. +47…"
+            value={phoneNumber}
+            onChangeText={(t) => {
+              setPhoneNumber(t);
+              setChanged(true);
+            }}
+            keyboardType="phone-pad"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </MintProfileScreenShell>
   );
 };
 
 export default PhoneNumber;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    margin: scalePercent(5),
-  },
-  input: {
-    marginTop: scalePercent(10),
-    padding: Platform.OS === "android" ? scale(7) : scale(20),
-    backgroundColor: Colors.dark.yellowish,
-    borderRadius: 20,
-  },
+  keyboard: { flex: 1 },
+  scroll: { flex: 1 },
 });

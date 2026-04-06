@@ -4,7 +4,11 @@ import { CaretLeft } from "phosphor-react-native";
 import { router } from "expo-router";
 import { primaryBlack } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
-import { responsiveScale } from "@/src/utils/responsive";
+import {
+  responsiveMargin,
+  responsivePadding,
+  responsiveScale,
+} from "@/src/utils/responsive";
 
 type TopNavProps = {
   title: string;
@@ -36,10 +40,11 @@ const InspirationTopNav = ({ title, goHome, onBack }: TopNavProps) => {
           }
         }}
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel="Go back"
+        hitSlop={12}
       >
-        <CaretLeft size={responsiveScale(26)} color={primaryBlack} weight="bold" />
-        <Text style={styles.backLabel}>Back</Text>
+        <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+        <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
       </Pressable>
       <Text style={[Typography.h3, styles.titleCentered]}>{title}</Text>
     </View>
@@ -55,13 +60,12 @@ const styles = StyleSheet.create({
   backRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: responsiveScale(4),
     alignSelf: "flex-start",
-    paddingVertical: responsiveScale(4),
+    paddingHorizontal: responsivePadding(8),
+    paddingVertical: responsiveMargin(8),
+    gap: responsiveMargin(4),
   },
-  backLabel: {
-    fontFamily: "Inter-Medium",
-    fontSize: responsiveScale(16),
+  backText: {
     color: primaryBlack,
   },
   titleCentered: {

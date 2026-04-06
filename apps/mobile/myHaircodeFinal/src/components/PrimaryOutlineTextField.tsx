@@ -8,6 +8,7 @@ import {
 import React, { useState } from "react";
 import type { Ref } from "react";
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -22,7 +23,8 @@ export type PrimaryOutlineTextFieldProps = Omit<
   TextInputProps,
   "value" | "onChangeText"
 > & {
-  label: string;
+  /** Tom/utelatt: ingen label over feltet (bruk f.eks. `accessibilityLabel` + tittel i nav). */
+  label?: string;
   value: string;
   onChangeText: (text: string) => void;
   /** When true, toggles secure entry and shows eye affordance. */
@@ -44,7 +46,7 @@ export type PrimaryOutlineTextFieldProps = Omit<
  * Label (Typography.label) + pill field: primary white fill, 1px primary black border.
  */
 export function PrimaryOutlineTextField({
-  label,
+  label = "",
   value,
   onChangeText,
   password = false,
@@ -54,18 +56,22 @@ export function PrimaryOutlineTextField({
   minInputHeight,
   singleLineShape = "pill",
   style,
+  accessibilityLabel,
   ...inputProps
 }: PrimaryOutlineTextFieldProps) {
   const [showSecret, setShowSecret] = useState(false);
+  const showLabel = label.trim().length > 0;
 
   const singleLineRadius =
     singleLineShape === "rounded" ? responsiveScale(18) : responsiveScale(999);
 
   return (
     <View style={[styles.wrap, containerStyle]}>
-      <Text style={[Typography.label, styles.label]} accessibilityRole="text">
-        {label}
-      </Text>
+      {showLabel ? (
+        <Text style={[Typography.label, styles.label]} accessibilityRole="text">
+          {label}
+        </Text>
+      ) : null}
       <View
         style={[
           styles.fieldRow,
@@ -82,9 +88,12 @@ export function PrimaryOutlineTextField({
           selectionColor={primaryBlack}
           underlineColorAndroid="transparent"
           secureTextEntry={password && !showSecret}
-          accessibilityLabel={label}
+          accessibilityLabel={showLabel ? label : accessibilityLabel}
           multiline={multiline}
           textAlignVertical={multiline ? "top" : "center"}
+          {...(Platform.OS === "android" && !multiline
+            ? { includeFontPadding: false }
+            : {})}
           style={[
             styles.input,
             multiline
@@ -94,11 +103,12 @@ export function PrimaryOutlineTextField({
                     ? { minHeight: minInputHeight }
                     : null,
                 ]
-              : { borderRadius: singleLineRadius },
+              : [styles.inputSingleLine, { borderRadius: singleLineRadius }],
             password && value.length > 0 ? styles.inputWithEye : null,
             style,
           ]}
           {...inputProps}
+          textAlign="left"
           ref={inputRef}
         />
         {password && value.length > 0 ? (
@@ -143,18 +153,27 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   fieldRowArea: {
-    borderRadius: responsiveScale(18),
+    borderRadius: responsiveScale(20),
+  },
+  /** Single-line pill: fixed height so text can sit vertically centered. */
+  fieldRowSingle: {
+    minHeight: responsiveScale(52),
+    justifyContent: "center",
   },
   input: {
     ...Typography.bodyMedium,
     color: primaryBlack,
-    paddingVertical: responsivePadding(14),
     paddingHorizontal: responsivePadding(18),
+    borderRadius: responsiveScale(999),
+  },
+  inputSingleLine: {
+    paddingVertical: responsivePadding(14),
+    width: "100%",
   },
   inputArea: {
     minHeight: responsiveScale(120),
-    borderRadius: responsiveScale(18),
-    paddingTop: responsivePadding(14),
+    borderRadius: responsiveScale(20),
+    paddingVertical: responsivePadding(14),
   },
   inputWithEye: {
     paddingRight: responsivePadding(48),

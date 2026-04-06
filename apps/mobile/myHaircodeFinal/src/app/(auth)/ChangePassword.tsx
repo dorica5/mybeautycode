@@ -4,19 +4,23 @@ import {
   Text,
   View,
   Pressable,
-  Keyboard,
-  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from "react-native";
-import MyTextinput from "@/src/components/MyTextinput";
 import MyButton from "@/src/components/MyButton";
 import TopNav from "@/src/components/TopNav";
 import { supabase } from "@/src/lib/supabase";
-import { Colors } from "@/src/constants/Colors";
+import { Colors, primaryBlack } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
 import { Href, router } from "expo-router";
 import CustomAlert from "@/src/components/CustomAlert";
 import { ResponsiveText } from "@/src/components/ResponsiveText";
+import { PrimaryOutlineTextField } from "@/src/components/PrimaryOutlineTextField";
+import {
+  MintProfileScreenShell,
+  mintProfileScrollContent,
+} from "@/src/components/MintProfileScreenShell";
 import {
   moderateScale,
   responsiveFontSize,
@@ -24,8 +28,6 @@ import {
   scalePercent,
   verticalScale,
 } from "@/src/utils/responsive";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
 
 type ErrorMessages = {
   oldPassword?: string;
@@ -107,7 +109,6 @@ const ChangePassword = () => {
   const updatePassword = async () => {
     setAttemptedSubmit(true);
     setIsUpdating(true);
-    console.log("Updating password...");
     const errors: ErrorMessages = {};
 
     setErrorMessages({});
@@ -136,8 +137,6 @@ const ChangePassword = () => {
         setIsUpdating(false);
         return;
       }
-
-      const tempClient = supabase.auth.admin;
 
       const credentials = { email, password: oldPassword };
 
@@ -184,179 +183,167 @@ const ChangePassword = () => {
   };
 
   return (
-    <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <SafeAreaView style={styles.container}>
-          <KeyboardAvoidingView
-            style={styles.keyboardContainer}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-          >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <View>
-                <TopNav title="Change Password" />
-                <View style={styles.subContainer}>
-                  <MyTextinput
-                    placeholder="Enter old password"
-                    value={oldPassword}
-                    handleChangeText={(e) => setOldPassword(e)}
-                    title="Password"
-                    containerStyle={[
-                      styles.input,
-                      attemptedSubmit && errorMessages.oldPassword
-                        ? styles.inputInvalid
-                        : attemptedSubmit && oldPassword
-                        ? styles.inputValid
-                        : null,
-                    ]}
-                  />
-                  {errorMessages.oldPassword && (
-                    <ResponsiveText size={14} tabletSize={12} style={styles.errorMessage}>
-                      {errorMessages.oldPassword}
-                    </ResponsiveText>
-                  )}
+    <MintProfileScreenShell>
+      <TopNav title="Change password" />
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={mintProfileScrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+        >
+          <PrimaryOutlineTextField
+            label="Current password"
+            placeholder="Enter old password"
+            value={oldPassword}
+            onChangeText={setOldPassword}
+            password
+            autoCapitalize="none"
+            textContentType="password"
+          />
+          {errorMessages.oldPassword ? (
+            <ResponsiveText size={14} tabletSize={12} style={styles.errorMessage}>
+              {errorMessages.oldPassword}
+            </ResponsiveText>
+          ) : null}
 
-                  <View style={styles.textContainer}>
-                    <Text style={[styles.textStyle, {fontSize: responsiveFontSize(16, 12)}]}>
-                      Don't remember your password?
-                    </Text>
-                    <Pressable onPress={resetPassword}>
-                      <Text style={[styles.signInText, {fontSize: responsiveFontSize(16, 12)}]}>Reset</Text>
-                    </Pressable>
-                  </View>
+          <View style={styles.textContainer}>
+            <Text
+              style={[
+                Typography.bodyMedium,
+                styles.mintText,
+                { fontSize: responsiveFontSize(16, 12) },
+              ]}
+            >
+              Don&apos;t remember your password?
+            </Text>
+            <Pressable onPress={resetPassword}>
+              <Text
+                style={[
+                  Typography.bodyMedium,
+                  styles.resetLink,
+                  { fontSize: responsiveFontSize(16, 12) },
+                ]}
+              >
+                Reset
+              </Text>
+            </Pressable>
+          </View>
 
-                  <MyTextinput
-                    placeholder="Enter new password"
-                    value={newPassword}
-                    handleChangeText={handlePasswordChange}
-                    title="Password"
-                    containerStyle={[
-                      styles.input,
-                      attemptedSubmit && errorMessages.newPassword
-                        ? styles.inputInvalid
-                        : attemptedSubmit &&
-                          newPassword &&
-                          passwordStrength.strength !== "Weak"
-                        ? styles.inputValid
-                        : null,
-                    ]}
-                  />
-                  {newPassword !== "" && (
-                    <View style={styles.passwordStrengthContainer}>
-                      <View
-                        style={[
-                          styles.passwordStrengthBar,
-                          { backgroundColor: passwordStrength.color },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.passwordStrengthText,
-                          { 
-                            color: passwordStrength.color,
-                            fontSize: responsiveFontSize(14, 10)
-                          },
-                        ]}
-                      >
-                        {passwordStrength.strength} -{" "}
-                        {passwordStrength.feedback}
-                      </Text>
-                    </View>
-                  )}
-                  {errorMessages.newPassword && (
-                    <ResponsiveText size={14} tabletSize={12} style={styles.errorMessage}>
-                      {errorMessages.newPassword}
-                    </ResponsiveText>
-                  )}
+          <PrimaryOutlineTextField
+            label="New password"
+            placeholder="Enter new password"
+            value={newPassword}
+            onChangeText={handlePasswordChange}
+            password
+            autoCapitalize="none"
+            textContentType="newPassword"
+          />
+          {newPassword !== "" ? (
+            <View style={styles.passwordStrengthContainer}>
+              <View
+                style={[
+                  styles.passwordStrengthBar,
+                  { backgroundColor: passwordStrength.color },
+                ]}
+              />
+              <Text
+                style={[
+                  styles.passwordStrengthText,
+                  {
+                    color: passwordStrength.color,
+                    fontSize: responsiveFontSize(14, 10),
+                  },
+                ]}
+              >
+                {passwordStrength.strength} — {passwordStrength.feedback}
+              </Text>
+            </View>
+          ) : null}
+          {errorMessages.newPassword ? (
+            <ResponsiveText size={14} tabletSize={12} style={styles.errorMessage}>
+              {errorMessages.newPassword}
+            </ResponsiveText>
+          ) : null}
 
-                  <MyTextinput
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    handleChangeText={(e) => setConfirmPassword(e)}
-                    title="Confirm New Password"
-                    secureTextEntry
-                    containerStyle={[
-                      styles.input,
-                      attemptedSubmit && errorMessages.confirmPassword
-                        ? styles.inputInvalid
-                        : attemptedSubmit && confirmPassword
-                        ? styles.inputValid
-                        : null,
-                    ]}
-                  />
-                  {errorMessages.confirmPassword && (
-                    <ResponsiveText size={14} tabletSize={12} style={styles.errorMessage}>
-                      {errorMessages.confirmPassword}
-                    </ResponsiveText>
-                  )}
-                </View>
+          <PrimaryOutlineTextField
+            label="Confirm new password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            password
+            autoCapitalize="none"
+            textContentType="newPassword"
+          />
+          {errorMessages.confirmPassword ? (
+            <ResponsiveText size={14} tabletSize={12} style={styles.errorMessage}>
+              {errorMessages.confirmPassword}
+            </ResponsiveText>
+          ) : null}
 
-                <MyButton
-                  style={[
-                    styles.button,
-                    isFormValid()
-                      ? styles.buttonEnabled
-                      : styles.buttonDisabled,
-                  ]}
-                  text={isUpdating ? "Updating Password..." : "Update Password"}
-                  textSize={18}
-                  textTabletSize={14}
-                  onPress={updatePassword}
-                  disabled={!isFormValid() || isUpdating}
-                  textStyle={
-                    isFormValid() ? styles.textEnabled : styles.textDisabled
-                  }
-                />
+          <MyButton
+            style={[
+              styles.button,
+              isFormValid() ? styles.buttonEnabled : styles.buttonDisabled,
+            ]}
+            text={isUpdating ? "Updating password…" : "Update password"}
+            textSize={18}
+            textTabletSize={14}
+            onPress={updatePassword}
+            disabled={!isFormValid() || isUpdating}
+            textStyle={isFormValid() ? styles.textEnabled : styles.textDisabled}
+          />
 
-                <CustomAlert
-                  visible={alertVisible}
-                  title="Success"
-                  message="Your password has been updated successfully."
-                  onClose={() => {
-                    setAlertVisible(false);
-                    router.replace("/(hairdresser)/home" as Href);
-                  }}
-                />
-              </View>
-            </TouchableWithoutFeedback>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </View>
-    </>
+          <CustomAlert
+            visible={alertVisible}
+            title="Success"
+            message="Your password has been updated successfully."
+            onClose={() => {
+              setAlertVisible(false);
+              router.replace("/(hairdresser)/home" as Href);
+            }}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </MintProfileScreenShell>
   );
 };
 
 export default ChangePassword;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  subContainer: {
-    paddingVertical: scalePercent(4),
-  },
+  keyboard: { flex: 1 },
+  scroll: { flex: 1 },
   textContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: scalePercent(1),
-    marginBottom: scale(20),
+    flexWrap: "wrap",
+    marginTop: scale(4),
+    marginBottom: scale(16),
+    gap: scale(4),
   },
-  textStyle: {
-    fontFamily: "Inter-Regular",
-    lineHeight: moderateScale(24),
+  mintText: {
+    color: primaryBlack,
   },
-  signInText: {
+  resetLink: {
+    color: primaryBlack,
     fontFamily: "Inter-Bold",
     lineHeight: moderateScale(24),
-    marginLeft: scale(5),
+    textDecorationLine: "underline",
   },
   passwordStrengthContainer: {
     marginTop: scale(10),
     alignItems: "center",
   },
   passwordStrengthBar: {
-    width: scalePercent(72),
+    width: "100%",
+    maxWidth: scale(280),
     height: verticalScale(10),
     borderRadius: 5,
     marginBottom: scale(5),
@@ -365,31 +352,15 @@ const styles = StyleSheet.create({
     fontFamily: "Inter-Regular",
     textAlign: "center",
   },
-  input: {
-    backgroundColor: Colors.light.yellowish,
-    height: scalePercent(13),
-    borderWidth: scale(1),
-    borderColor: "transparent",
-  },
-  inputValid: {
-    borderColor: "green",
-    borderWidth: scale(1),
-  },
-  inputInvalid: {
-    borderColor: "red",
-    borderWidth: scale(1),
-  },
   errorMessage: {
-    color: "red",
+    color: "#C62828",
     marginTop: scale(5),
   },
-  keyboardContainer: {
-    flex: 1,
-    padding: scale(20),
-  },
   button: {
-    width: scalePercent(90),
+    width: "100%",
+    maxWidth: 400,
     alignSelf: "center",
+    marginTop: scale(8),
   },
   buttonEnabled: {
     backgroundColor: Colors.dark.yellowish,

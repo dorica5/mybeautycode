@@ -9,6 +9,7 @@ import {
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { At } from "phosphor-react-native";
+import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import {
   ProfileMenuNameIcon,
   ProfileMenuPhoneIcon,
@@ -16,7 +17,6 @@ import {
   ProfileMenuPictureIcon,
   ProfileMenuManageProfessionalsIcon,
   ProfileMenuChangePasswordIcon,
-  ProfileMenuAddAccountIcon,
   ProfileMenuDeleteAccountIcon,
   ProfileMenuTermsIcon,
   ProfileMenuFeedbackIcon,
@@ -34,10 +34,13 @@ import { Href, router } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import SignOutButton from "@/src/components/SignOutButton";
 import { useImageContext } from "@/src/providers/ImageProvider";
-import { responsiveScale, scalePercent } from "@/src/utils/responsive";
+import {
+  responsiveScale,
+  responsiveMargin,
+  scalePercent,
+} from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
-import { DefaultAvatarMark } from "@/src/components/DefaultAvatarMark";
 import { usePostHog } from "posthog-react-native";
 
 const ProfileScreen = () => {
@@ -53,11 +56,10 @@ const ProfileScreen = () => {
     return null;
   }
 
-  const hasProfessionalAccount =
-    (profile.profession_codes?.length ?? 0) > 0 ||
-    Boolean(profile.professional_profile_id);
-
   const profileAvatarSize = scalePercent(25);
+  const userTypeRaw =
+    profile.user_type ?? (profile as { userType?: string }).userType;
+  const hasProfessionalAccount = userTypeRaw === "HAIRDRESSER";
 
   return (
     <>
@@ -79,7 +81,10 @@ const ProfileScreen = () => {
                 <View
                   style={[styles.profilePic, styles.profilePicPlaceholder]}
                 >
-                  <DefaultAvatarMark size={profileAvatarSize} />
+                  <OrganicPattern
+                    width={profileAvatarSize}
+                    height={profileAvatarSize}
+                  />
                 </View>
               )}
 
@@ -96,13 +101,15 @@ const ProfileScreen = () => {
 
               <Pressable
                 style={styles.becomeProPill}
-                onPress={() => {
-                  if (hasProfessionalAccount) {
-                    router.push("/(hairdresser)/(tabs)/profile/switch_account");
-                  } else {
-                    router.push("/(setup)/AddProfession" as Href);
-                  }
-                }}
+                onPress={() =>
+                  hasProfessionalAccount
+                    ? router.push({
+                        pathname:
+                          "/(hairdresser)/(tabs)/profile/SwitchAccount",
+                        params: { activeSurface: "client" },
+                      } as Href)
+                    : router.push("/(setup)/ChooseProfession" as Href)
+                }
               >
                 <Text style={styles.becomeProText}>
                   {hasProfessionalAccount
@@ -111,13 +118,17 @@ const ProfileScreen = () => {
                 </Text>
               </Pressable>
 
-              <Text style={styles.sectionHeading}>Public profile</Text>
+              <Text
+                style={[styles.sectionHeading, styles.sectionHeadingAfterBecomePro]}
+              >
+                Public profile
+              </Text>
 
               <Profile
                 title="First name"
                 Icon={ProfileMenuNameIcon}
-                top={true}
                 tileStyle="light"
+                top
                 onPress={() =>
                   router.push("/(client)/(tabs)/profile/FirstName")
                 }
@@ -150,27 +161,32 @@ const ProfileScreen = () => {
                 title="About me"
                 Icon={ProfileMenuAboutIcon}
                 tileStyle="light"
-                onPress={() => router.push("/(client)/(tabs)/profile/AboutMe")}
+                onPress={() =>
+                  router.push("/(client)/(tabs)/profile/AboutMe")
+                }
               />
               <Profile
                 title="Profile picture"
                 Icon={ProfileMenuPictureIcon}
-                bottom={true}
                 tileStyle="light"
+                bottom
+                lightMarginBottom={46}
                 onPress={() =>
                   router.push("/(client)/(tabs)/profile/ProfilePicture")
                 }
               />
 
-              <Text style={[styles.sectionHeading, styles.sectionSpacing]}>
+              <Text
+                style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
+              >
                 Privacy settings
               </Text>
 
               <Profile
                 title="Manage professionals"
                 Icon={ProfileMenuManageProfessionalsIcon}
-                top={true}
                 tileStyle="light"
+                top
                 onPress={() =>
                   router.push("/(client)/(tabs)/profile/ManageProfessionals")
                 }
@@ -182,38 +198,31 @@ const ProfileScreen = () => {
                 onPress={() => router.push("/(auth)/ChangePassword")}
               />
               <Profile
-                title="Add account"
-                Icon={ProfileMenuAddAccountIcon}
-                tileStyle="light"
-                onPress={() =>
-                  router.push("/(setup)/AddProfession" as Href)
-                }
-              />
-              <Profile
                 title="Delete account"
                 Icon={ProfileMenuDeleteAccountIcon}
-                bottom={true}
                 tileStyle="light"
+                bottom
+                lightMarginBottom={46}
                 onPress={() => router.push("/(auth)/Delete")}
               />
 
-              <Text style={[styles.sectionHeading, styles.sectionSpacing]}>
+              <Text
+                style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
+              >
                 Terms and privacy
               </Text>
               <Profile
                 title="Terms and Privacy"
                 Icon={ProfileMenuTermsIcon}
-                top={true}
-                bottom={true}
                 tileStyle="light"
+                top
                 onPress={() => router.push("/(setup)/TermsAndPrivacy")}
               />
               <Profile
                 title="Give us feedback"
                 Icon={ProfileMenuFeedbackIcon}
-                top={true}
-                bottom={true}
                 tileStyle="light"
+                bottom
                 onPress={() => {
                   router.push("/Screens/feedback");
                   posthog.capture("Feedback Clicked", { role: "CLIENT" });
@@ -265,6 +274,7 @@ const styles = StyleSheet.create({
     borderRadius: responsiveScale(999),
   },
   viewPublicProfileButtonLabel: {
+    ...Typography.outfitRegular16,
     color: primaryWhite,
     textAlign: "center",
   },
@@ -301,27 +311,33 @@ const styles = StyleSheet.create({
   becomeProPill: {
     alignSelf: "center",
     marginTop: scalePercent(4),
-    paddingVertical: responsiveScale(12),
-    paddingHorizontal: responsiveScale(20),
-    borderRadius: 999,
+    marginBottom: responsiveScale(46),
+    width: responsiveScale(209),
+    height: responsiveScale(44),
+    borderRadius: responsiveScale(44) / 2,
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: primaryBlack,
     backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
   },
   becomeProText: {
-    ...Typography.bodyLarge,
-    color: primaryBlack,
+    ...Typography.outfitRegular16,
     textAlign: "center",
+    color: primaryBlack,
   },
   sectionHeading: {
     ...Typography.label,
     marginTop: scalePercent(5),
     marginHorizontal: scalePercent(5),
-    marginBottom: scalePercent(1),
+    marginBottom: responsiveMargin(16),
     color: primaryBlack,
   },
-  sectionSpacing: {
-    marginTop: scalePercent(12),
+  sectionHeadingAfterBecomePro: {
+    marginTop: 0,
+  },
+  sectionHeadingAfterCard: {
+    marginTop: 0,
   },
   ViewPublicProfileButton: {
     marginTop: scalePercent(10),

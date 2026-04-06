@@ -74,7 +74,7 @@ export const Typography = {
   anton26: antonHeading(26, 120),
   /** Anton 24 regular — e.g. username under display name on client home. */
   anton24: antonHeading(24, 120),
-  /** Anton 16 regular — e.g. profession line under “My visits” (professional home). */
+  /** Anton 16 regular — e.g. subtitle on pro home (My clients) or profession line under “My visits”. */
   anton16: antonHeading(16, 120),
   h4: outfitText(24, "300", 120),
   bodyLarge: outfitText(20, "300", 130),
@@ -90,6 +90,8 @@ export const Typography = {
   agBodyRegular18: outfitText(18, "300", 148),
   /** Outfit regular 16 — e.g. map location CTA. */
   outfitRegular16: outfitRegularText(16, 140),
+  /** AG 20 — Outfit medium, 130% line (e.g. pro home empty state). */
+  ag20: outfitText(20, "500", 130),
 } as const;
 
 export type TypographyKey = keyof typeof Typography;

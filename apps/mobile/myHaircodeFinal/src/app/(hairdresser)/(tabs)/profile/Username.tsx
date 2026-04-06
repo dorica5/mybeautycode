@@ -18,85 +18,106 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
+import { Profile } from "@/src/constants/types";
 
-const SalonName = () => {
+const USERNAME_RE = /^[a-z][a-z0-9_]{2,29}$/;
+const USERNAME_MAX_LEN = 30;
+
+function sanitize(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, USERNAME_MAX_LEN);
+}
+
+const Username = () => {
   const { profile, setProfile } = useAuth();
-  const originalName = profile.salon_name;
+  const original = profile.username ?? "";
   const id = profile.id;
 
-  const [salon_name, setSalon_Name] = useState(originalName);
+  const [username, setUsername] = useState(original);
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [error, setError] = useState(false);
-
-  const validateSalonName = (name: string) => {
-    return /^[a-zA-ZæøåÆØÅ\s'-]{2,50}$/.test(name.trim());
-  };
-
-  const handleSalonNameChange = (value: string) => {
-    setSalon_Name(value);
-    setChanged(true);
-
-    if (attemptedSubmit) {
-      setError(!validateSalonName(value));
-    }
-  };
+  const [errorMessage, setErrorMessage] = useState("");
 
   const { mutate: updateProfile } = useUpdateSupabaseProfile();
 
-  const updateUserProfile = () => {
-    setAttemptedSubmit(true);
+  const validate = (raw: string) => {
+    const v = sanitize(raw);
+    if (!v) {
+      setErrorMessage("Enter a username (3–30 characters, letter first).");
+      return false;
+    }
+    if (!USERNAME_RE.test(v)) {
+      setErrorMessage(
+        "Lowercase letters, digits, underscore only; must start with a letter."
+      );
+      return false;
+    }
+    setErrorMessage("");
+    return true;
+  };
 
-    if (!validateSalonName(salon_name)) {
+  const handleChange = (value: string) => {
+    setUsername(sanitize(value));
+    setChanged(true);
+    if (attemptedSubmit) {
+      setError(!validate(sanitize(value)));
+    }
+  };
+
+  const save = () => {
+    setAttemptedSubmit(true);
+    const v = sanitize(username);
+    if (!validate(v)) {
       setError(true);
       return;
     }
-
     if (!id) {
       Alert.alert("User not found");
       return;
     }
-
     setLoading(true);
-
     updateProfile(
-      {
-        id,
-        salon_name,
-      },
+      { id, username: v },
       {
         onSuccess: () => {
-          setProfile((prev) => ({
+          setProfile((prev: Profile) => ({
             ...prev,
-            salon_name,
+            username: v,
           }));
-
+          setUsername(v);
           setChanged(false);
           setLoading(false);
           setError(false);
           Keyboard.dismiss();
         },
-        onError: (error) => {
+        onError: (err) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", error.message);
+          const msg = (err?.message ?? "").toLowerCase();
+          if (msg.includes("username") && msg.includes("taken")) {
+            Alert.alert("Username taken", "Try another username.");
+          } else {
+            Alert.alert("Failed to update profile", err.message);
+          }
         },
       }
     );
   };
 
   useEffect(() => {
-    setChanged(salon_name !== originalName);
-  }, [salon_name, originalName]);
+    setChanged(sanitize(username) !== sanitize(original));
+  }, [username, original]);
 
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Salon name"
+        title="Username"
         showSaveButton
         saveChanged={changed}
-        saveAction={updateUserProfile}
+        saveAction={save}
         loading={loading}
       />
       <KeyboardAvoidingView
@@ -112,16 +133,15 @@ const SalonName = () => {
           showsVerticalScrollIndicator={false}
         >
           <BrandOutlineField
-            accessibilityLabel="Salon name"
-            placeholder="Salon name"
-            value={salon_name}
-            onChangeText={handleSalonNameChange}
-            autoCapitalize="words"
+            accessibilityLabel="Username"
+            placeholder="username"
+            value={username}
+            onChangeText={handleChange}
+            autoCapitalize="none"
+            autoCorrect={false}
           />
           {attemptedSubmit && error ? (
-            <Text style={styles.errorText}>
-              Please enter a valid name (2–50 letters)
-            </Text>
+            <Text style={styles.errorText}>{errorMessage}</Text>
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -129,7 +149,7 @@ const SalonName = () => {
   );
 };
 
-export default SalonName;
+export default Username;
 
 const styles = StyleSheet.create({
   keyboard: { flex: 1 },

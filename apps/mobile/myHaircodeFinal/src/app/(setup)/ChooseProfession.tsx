@@ -1,10 +1,8 @@
 import OrganicPattern from "../../../assets/images/Organic-pattern-5.svg";
-import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import {
   primaryBlack,
   primaryGreen,
   primaryWhite,
-  secondaryGreen,
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -115,7 +113,11 @@ const ChooseProfession = () => {
                   ]}
                 >
                   <Text
-                    style={[Typography.bodyLarge, styles.cardLabel]}
+                    style={[
+                      Typography.bodyLarge,
+                      styles.cardLabel,
+                      isSel && styles.cardLabelSelected,
+                    ]}
                   >
                     {opt.label}
                   </Text>
@@ -124,15 +126,32 @@ const ChooseProfession = () => {
             })}
           </View>
 
-          <PaddedLabelButton
-            title="Next"
-            horizontalPadding={32}
-            verticalPadding={16}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !selected }}
             disabled={!selected}
             onPress={goNext}
-            style={styles.nextButton}
-            textStyle={styles.nextButtonLabel}
-          />
+            android_ripple={
+              selected
+                ? { color: "rgba(255,255,255,0.25)" }
+                : { color: "rgba(0,0,0,0.08)" }
+            }
+            style={({ pressed }) => [
+              styles.nextButton,
+              selected && styles.nextButtonFilled,
+              pressed && selected && styles.nextButtonPressed,
+            ]}
+          >
+            <Text
+              style={[
+                Typography.label,
+                styles.nextButtonLabel,
+                selected ? styles.nextButtonTextOnBlack : styles.nextButtonTextOutline,
+              ]}
+            >
+              Next
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -192,20 +211,42 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cardSelected: {
-    backgroundColor: secondaryGreen,
+    backgroundColor: primaryBlack,
+    borderColor: primaryBlack,
   },
   cardLabel: {
     color: primaryBlack,
     textAlign: "center",
   },
+  cardLabelSelected: {
+    color: primaryWhite,
+  },
   nextButton: {
     alignSelf: "center",
     marginTop: "auto",
-    backgroundColor: primaryBlack,
+    paddingHorizontal: responsivePadding(32),
+    paddingVertical: responsivePadding(16),
+    backgroundColor: "transparent",
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
     borderRadius: responsiveScale(999),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  nextButtonFilled: {
+    backgroundColor: primaryBlack,
+    borderColor: primaryBlack,
+  },
+  nextButtonPressed: {
+    opacity: 0.92,
   },
   nextButtonLabel: {
-    color: primaryWhite,
     textAlign: "center",
+  },
+  nextButtonTextOutline: {
+    color: primaryBlack,
+  },
+  nextButtonTextOnBlack: {
+    color: primaryWhite,
   },
 });
