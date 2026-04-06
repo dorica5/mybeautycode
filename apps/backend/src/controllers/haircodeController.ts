@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { haircodeService } from "../services/haircodeService";
+import { serviceRecordAccessService } from "../services/serviceRecordAccessService";
 
 export const haircodeController = {
   async listClientGallery(req: Request, res: Response) {
@@ -8,9 +9,17 @@ export const haircodeController = {
       return res.status(400).json({ error: "clientId required" });
     }
     try {
+      await serviceRecordAccessService.assertCanAccessClientTimeline(
+        req.userId!,
+        String(clientId)
+      );
       const data = await haircodeService.listClientGallery(String(clientId));
       res.json(data);
-    } catch (err) {
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e.statusCode === 403) {
+        return res.status(403).json({ error: e.message ?? "Forbidden" });
+      }
       console.error("haircode listClientGallery error:", err);
       res.status(500).json({ error: "Failed to fetch gallery" });
     }
@@ -22,9 +31,17 @@ export const haircodeController = {
       return res.status(400).json({ error: "clientId required" });
     }
     try {
+      await serviceRecordAccessService.assertCanAccessClientTimeline(
+        req.userId!,
+        String(clientId)
+      );
       const data = await haircodeService.listClientHaircodes(String(clientId));
       res.json(data);
-    } catch (err) {
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e.statusCode === 403) {
+        return res.status(403).json({ error: e.message ?? "Forbidden" });
+      }
       console.error("haircode listClientHaircodes error:", err);
       res.status(500).json({ error: "Failed to fetch haircodes" });
     }
@@ -44,10 +61,18 @@ export const haircodeController = {
   async getWithMedia(req: Request, res: Response) {
     const { id } = req.params;
     try {
+      await serviceRecordAccessService.assertCanAccessServiceRecord(req.userId!, id);
       const data = await haircodeService.getWithMedia(id);
       if (!data) return res.status(404).json({ error: "Haircode not found" });
       res.json(data);
-    } catch (err) {
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e.statusCode === 403) {
+        return res.status(403).json({ error: e.message ?? "Forbidden" });
+      }
+      if (e.statusCode === 404) {
+        return res.status(404).json({ error: e.message ?? "Not found" });
+      }
       console.error("haircode getWithMedia error:", err);
       res.status(500).json({ error: "Failed to fetch haircode" });
     }
@@ -56,9 +81,17 @@ export const haircodeController = {
   async getMedia(req: Request, res: Response) {
     const { id } = req.params;
     try {
+      await serviceRecordAccessService.assertCanAccessServiceRecord(req.userId!, id);
       const data = await haircodeService.getMedia(id);
       res.json(data);
-    } catch (err) {
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e.statusCode === 403) {
+        return res.status(403).json({ error: e.message ?? "Forbidden" });
+      }
+      if (e.statusCode === 404) {
+        return res.status(404).json({ error: e.message ?? "Not found" });
+      }
       console.error("haircode getMedia error:", err);
       res.status(500).json({ error: "Failed to fetch media" });
     }
@@ -87,9 +120,14 @@ export const haircodeController = {
   async update(req: Request, res: Response) {
     const { id } = req.params;
     try {
+      await serviceRecordAccessService.assertProfessionalOwnsVisit(req.userId!, id);
       const data = await haircodeService.update(id, req.body);
       res.json(data);
-    } catch (err) {
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e.statusCode === 403) {
+        return res.status(403).json({ error: e.message ?? "Forbidden" });
+      }
       console.error("haircode update error:", err);
       res.status(500).json({ error: "Failed to update haircode" });
     }
@@ -131,9 +169,20 @@ export const haircodeController = {
         media_type: r.media_type,
       }));
     try {
+      const ids = [...new Set(records.map((r) => r.haircode_id))];
+      for (const sid of ids) {
+        await serviceRecordAccessService.assertProfessionalOwnsVisit(
+          req.userId!,
+          sid
+        );
+      }
       await haircodeService.insertMedia(records);
       res.json({ success: true });
-    } catch (err) {
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e.statusCode === 403) {
+        return res.status(403).json({ error: e.message ?? "Forbidden" });
+      }
       console.error("haircode insertMedia error:", err);
       res.status(500).json({ error: "Failed to insert media" });
     }
@@ -143,9 +192,17 @@ export const haircodeController = {
     const { haircodeId } = req.params;
     const { mediaUrls } = req.body as { mediaUrls: string[] };
     try {
+      await serviceRecordAccessService.assertProfessionalOwnsVisit(
+        req.userId!,
+        haircodeId
+      );
       await haircodeService.deleteMediaItems(haircodeId, mediaUrls);
       res.json({ success: true });
-    } catch (err) {
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e.statusCode === 403) {
+        return res.status(403).json({ error: e.message ?? "Forbidden" });
+      }
       console.error("haircode deleteMediaItems error:", err);
       res.status(500).json({ error: "Failed to delete media" });
     }

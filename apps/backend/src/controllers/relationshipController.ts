@@ -61,8 +61,10 @@ export const relationshipController = {
   },
 
   async checkExists(req: Request, res: Response) {
-    const hairdresserId = req.query.hairdresser_id as string;
-    const clientId = (req.query.client_id as string) ?? req.userId;
+    const hairdresserId = String(req.query.hairdresser_id ?? "").trim();
+    const clientId = String(
+      req.query.client_id ?? req.userId ?? ""
+    ).trim();
     const userId = req.userId!;
 
     if (req.query.link_ui === "1") {

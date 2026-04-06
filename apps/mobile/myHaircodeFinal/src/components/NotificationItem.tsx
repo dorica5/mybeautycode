@@ -134,6 +134,7 @@ export const NotificationItem = ({
 
       case "HAIRCODE_ADDED":
       case "HAIRCODE_EDITED":
+      case "service_record":
         if (!notification.data?.haircodeId) {
           console.warn(
             "Missing haircodeId in notification data:",

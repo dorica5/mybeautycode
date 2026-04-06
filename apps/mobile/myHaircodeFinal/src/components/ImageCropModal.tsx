@@ -22,8 +22,10 @@ import {
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
+/** Match preview carousel height so post-crop images frame like the crop UI. */
+export const IMAGE_CROP_VIEWPORT_HEIGHT_RATIO = 0.6;
 const CROP_AREA_WIDTH = SCREEN_WIDTH;
-const CROP_AREA_HEIGHT = SCREEN_HEIGHT * 0.6; // 60% of screen height (matches single_haircode)
+const CROP_AREA_HEIGHT = SCREEN_HEIGHT * IMAGE_CROP_VIEWPORT_HEIGHT_RATIO;
 
 // Overlay component that shows the crop area with darkened borders and corner indicators
 const CropOverlay = ({ cropSize }: { cropSize: { width: number; height: number } }) => {

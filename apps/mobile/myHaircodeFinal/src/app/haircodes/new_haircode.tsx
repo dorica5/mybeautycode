@@ -1,61 +1,77 @@
 import React, { useEffect, useRef, useState } from "react";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   View,
-  Image,
   Dimensions,
-  Keyboard,
   Alert,
-  FlatList,
   Platform,
   ScrollView,
-  TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import {
-  Camera,
-  CaretLeft,
-  VideoCamera,
-  Info,
-  XCircle,
-} from "phosphor-react-native";
-import { Colors } from "@/src/constants/Colors";
-import { router, useLocalSearchParams } from "expo-router";
-import MyButton from "@/src/components/MyButton";
+  pickActiveProfessionCode,
+  type ProfessionChoiceCode,
+  HAIR_VISIT_SERVICE_OPTIONS,
+  BROW_VISIT_SERVICE_OPTIONS,
+} from "@/src/constants/professionCodes";
+import { getLastProfessionCode } from "@/src/lib/lastVisitPreference";
+import {
+  NailVisitForm,
+  NAIL_SERVICE_OPTIONS,
+} from "@/src/components/visits/NailVisitForm";
+import { useLocalSearchParams } from "expo-router";
 import DraggableModal from "@/src/components/DraggableModal";
-import Carousel from "react-native-reanimated-carousel";
-import Dots from "react-native-dots-pagination";
+import { VisitPreviewModalContent } from "@/src/components/visits/VisitPreviewModalContent";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system/legacy";
 import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
 import { randomUUID } from "expo-crypto";
 import { api } from "@/src/lib/apiClient";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { ResizeMode, Video } from "expo-av";
-import { useClientSearch } from "@/src/api/profiles";
-import AddButton from "@/src/components/AddButton";
-import CustomAlert from "@/src/components/CustomAlert";
-import NoImageHaircode from "@/src/components/no_image_haircode";
 import { useSubmitHaircode } from "@/src/api/haircodes";
-import RemoteImage from "@/src/components/RemoteImage";
-import { sendPushNotification } from "@/src/providers/useNotifcations";
-import { ResponsiveText } from "@/src/components/ResponsiveText";
 import {
   responsiveScale,
   scalePercent,
   responsiveFontSize,
   responsivePadding,
   responsiveBorderRadius,
-  isTablet,
 } from "@/src/utils/responsive";
+import { formatVisitDateForCountry } from "@/src/utils/formatVisitDateForCountry";
 import { StatusBar } from "expo-status-bar";
-import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { usePostHog } from "posthog-react-native";
-import ImageCropModal from "@/src/components/ImageCropModal";
+import ImageCropModal, {
+  IMAGE_CROP_VIEWPORT_HEIGHT_RATIO,
+} from "@/src/components/ImageCropModal";
+
+function normalizeServicesFromParams(
+  services: string | string[] | undefined
+): string[] {
+  if (services == null || services === "") return [];
+  const raw = Array.isArray(services) ? services.join(", ") : String(services);
+  return raw
+    .split(", ")
+    .map((s) => {
+      const t = s.trim();
+      if (t === "Color service") return "Color";
+      return t;
+    })
+    .filter(Boolean);
+}
+
+function visitServiceOptionsForProfession(
+  code: ProfessionChoiceCode
+): readonly string[] {
+  switch (code) {
+    case "nails":
+      return NAIL_SERVICE_OPTIONS;
+    case "brows_lashes":
+      return BROW_VISIT_SERVICE_OPTIONS;
+    case "hair":
+    case "esthetician":
+      return HAIR_VISIT_SERVICE_OPTIONS;
+  }
+}
 
 const NewHaircode = () => {
   const params = useLocalSearchParams();
@@ -68,29 +84,46 @@ const NewHaircode = () => {
     params.description?.toString() || ""
   );
   const [price, setPrice] = useState(params.price?.toString() || "");
-  const [selectedOptions, setSelectedOptions] = useState<string[]>(
-    params.services ? params.services.toString().split(", ") : []
+  const [selectedOptions, setSelectedOptions] = useState<string[]>(() =>
+    normalizeServicesFromParams(params.services)
   );
 
   const [mediaToDelete, setMediaToDelete] = useState([]);
   const [capturedMedia, setCapturedMedia] = useState<any[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [originalMedia, setOriginalMedia] = useState([]);
   const [selectedOptionsString, setSelectedOptionsString] = useState<
     string | null
   >();
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
-  const [alertVisible, setAlertVisible] = useState(false);
-  const [alertVisible2, setAlertVisible2] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
 
-  const width = Dimensions.get("window").width;
   const screenHeight = Dimensions.get("window").height;
   const scrollViewRef = useRef<ScrollView>(null);
   const { mutate: submitHaircode, isPending } = useSubmitHaircode();
-  const posthog = usePostHog()
+  const posthog = usePostHog();
+
+  const [activeProfessionCode, setActiveProfessionCode] =
+    useState<ProfessionChoiceCode | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const userId = profile?.id;
+      if (!userId) return;
+      const last = await getLastProfessionCode(userId);
+      if (cancelled) return;
+      const picked = pickActiveProfessionCode(
+        profile?.profession_codes,
+        last
+      );
+      setActiveProfessionCode(picked ?? "hair");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, profile?.profession_codes]);
 
   const [durationMinutes, setDurationMinutes] = useState<number>(
     params.duration ? parseInt(params.duration.toString()) : 0
@@ -212,18 +245,6 @@ const NewHaircode = () => {
     setCapturedMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
-  useEffect(() => {
-    setSelectedOptionsString(selectedOptions.join(", "));
-  }, [selectedOptions]);
-
-  const getCurrentDateFormatted = () => {
-    const date = new Date();
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const year = date.getFullYear().toString().slice(-2);
-    return `${day}.${month}.${year}`;
-  };
-
   const handleOptionPress = (option: string) => {
     setSelectedOptions((prevSelectedOptions) =>
       prevSelectedOptions.includes(option)
@@ -333,25 +354,6 @@ const NewHaircode = () => {
     setPendingImages([]);
   };
 
-  const pickVideo = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 1,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setCapturedMedia((prevMedia) => [
-        ...prevMedia,
-        ...result.assets.map((asset) => ({
-          uri: asset.uri,
-          type: "video",
-        })),
-      ]);
-    }
-  };
-
   const handleSubmit = async () => {
     try {
       await submitHaircode({
@@ -379,510 +381,108 @@ const NewHaircode = () => {
     }
   };
 
-  const generateMediaList = () => {
-    const mediaList = [...capturedMedia];
-    while (mediaList.length < 4) {
-      mediaList.push({ type: "placeholder" });
-    }
-    return mediaList;
-  };
+  const previewHasMedia = capturedMedia.some((m) => Boolean(m?.uri));
+  /** Short text-only preview — tall sheet when there are images to swipe. */
+  const visitPreviewModalHeight = previewHasMedia
+    ? screenHeight * 0.95
+    : screenHeight * 0.6;
 
-  const dismissKeyboard = () => {
-    Keyboard.dismiss();
-    if (showTimePicker) {
-      setShowTimePicker(false);
-    }
-  };
-
-  const modalContent = (
-    <View style={{ flex: 1 }}>
-      {/* Fixed header section */}
-      <View style={styles.services}>
-        <Text style={styles.servicesText}>{selectedOptionsString}</Text>
-        <Text style={styles.servicesText}>{getCurrentDateFormatted()}</Text>
-      </View>
-
-      {/* Fixed carousel section */}
-      <View style={[styles.carouselWrapper, { height: screenHeight * 0.6 }]}>
-        <Carousel
-          loop
-          width={width}
-          height={screenHeight * 0.6}
-          autoPlay={false}
-          data={
-            capturedMedia.length > 0
-              ? capturedMedia
-              : selectedOptions.length > 0
-              ? selectedOptions
-              : ["HairDryer"]
-          }
-          onSnapToItem={(index) => setCurrentIndex(index)}
-          scrollAnimationDuration={100}
-          enabled={true}
-          renderItem={({ index }) => {
-            if (capturedMedia.length === 0) {
-              const service = selectedOptions[index] || "HairDryer";
-              const iconType =
-                service === "Haircut"
-                  ? "Scissors"
-                  : service === "Color service"
-                  ? "PaintBrush"
-                  : "HairDryer";
-
-              return (
-                <View style={styles.noMediaContainer}>
-                  <NoImageHaircode iconType={iconType} />
-                </View>
-              );
-            }
-
-            return capturedMedia[index]?.type === "image" ? (
-              <Image
-                source={{ uri: capturedMedia[index].uri }}
-                style={styles.modalImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <Video
-                source={{ uri: capturedMedia[index].uri }}
-                style={styles.modalImage}
-                useNativeControls
-                resizeMode={ResizeMode.CONTAIN}
-                isLooping
-              />
-            );
-          }}
-          style={styles.carouselContainer}
-        />
-      </View>
-
-      {/* Fixed dots section */}
-      <View style={styles.previewDots}>
-        <Dots
-          length={
-            capturedMedia.length > 0
-              ? capturedMedia.length
-              : selectedOptions.length > 0
-              ? selectedOptions.length
-              : 1
-          }
-          active={currentIndex}
-          activeDotWidth={10}
-          passiveDotWidth={8}
-          activeColor={Colors.dark.warmGreen}
-          passiveColor={"rgba(0,0,0,0.2)"}
-        />
-      </View>
-
-      {/* Scrollable content section - with flex: 1 to take remaining space */}
-      <ScrollView
-        showsVerticalScrollIndicator={true}
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: responsiveScale(80) }}
-        bounces={true}
-      >
-        <View style={styles.hairdresserRow}>
-          <AvatarWithSpinner
-            uri={profile.avatar_url}
-            size={responsiveScale(50)}
-            style={[styles.profileImage, !profile.avatar_url && styles.defaultImage]}
-          />
-
-          <Text style={styles.hairdresserText}>
-            {profile.full_name}, {profile.salon_name}
-          </Text>
-        </View>
-
-        {durationMinutes > 0 && (
-          <Text style={styles.priceTextPreview}>
-            Duration: {formatDurationDisplay(durationMinutes)}
-          </Text>
-        )}
-        <Text style={styles.priceTextPreview}>Price: {price}</Text>
-
-        <Text style={styles.description}>{newHaircode}</Text>
-
-        <View style={styles.doneButton}>
-          <MyButton 
-            text="Done" 
-            onPress={toggleModal} 
-            textSize={18}
-            textTabletSize={14}
-          />
-        </View>
-      </ScrollView>
-    </View>
+  const visitDateLabel = formatVisitDateForCountry(
+    new Date(),
+    profile?.country
   );
+  const visitPreviewBaseProps = {
+    onClose: toggleModal,
+    visitTitle: `Visit ${visitDateLabel}`,
+    dateText: visitDateLabel,
+    serviceText: selectedOptionsString ?? "",
+    commentText: newHaircode,
+    durationText:
+      durationMinutes > 0 ? formatDurationDisplay(durationMinutes) : "",
+    priceText: price.trim(),
+    profile,
+    capturedMedia,
+    carouselHeight: screenHeight * IMAGE_CROP_VIEWPORT_HEIGHT_RATIO,
+  };
+
+  const visitPreviewModal = (
+    <VisitPreviewModalContent
+      {...visitPreviewBaseProps}
+      professionCode={activeProfessionCode ?? "hair"}
+    />
+  );
+
+  if (activeProfessionCode === null) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: primaryGreen,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <ActivityIndicator size="large" color={primaryBlack} />
+      </View>
+    );
+  }
+
+  const visitServiceOptions =
+    visitServiceOptionsForProfession(activeProfessionCode);
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <SafeAreaView style={styles.container}>
-          <View style={styles.topNavContainer}>
-            <Pressable
-              onPress={() => router.back()}
-              style={styles.caretLeftContainer}
-            >
-              <CaretLeft size={responsiveScale(32)} />
-            </Pressable>
-
-            <View style={styles.topTextContainer}>
-              <Text style={styles.topText}>
-                {isEditing ? "Edit Haircode" : "New Haircode"}
-              </Text>
-            </View>
-
-            <Pressable onPress={toggleModal} style={styles.previewContainer}>
-              <Text style={styles.preview}>Preview</Text>
-            </Pressable>
-          </View>
-
-          <ScrollView
-            ref={scrollViewRef}
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            scrollEventThrottle={16}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingBottom: responsiveScale(40) }}
-          >
-            <Pressable onPress={dismissKeyboard} style={{ flex: 1 }}>
-              <View>
-                <Text style={styles.text}>What service has been done?</Text>
-              </View>
-
-              <Pressable
-                style={[
-                  styles.optionHaircut,
-                  selectedOptions.includes("Haircut") && styles.selectedOption,
-                ]}
-                onPress={() => handleOptionPress("Haircut")}
-              >
-                <Text style={styles.optionText}>Haircut</Text>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.options,
-                  selectedOptions.includes("Color service") &&
-                    styles.selectedOption,
-                ]}
-                onPress={() => handleOptionPress("Color service")}
-              >
-                <Text style={styles.optionText}>Color service</Text>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.options,
-                  selectedOptions.includes("Other") && styles.selectedOption,
-                ]}
-                onPress={() => handleOptionPress("Other")}
-              >
-                <Text style={styles.optionText}>Other</Text>
-              </Pressable>
-
-              <View>
-                <View style={styles.rowContainer}>
-                  <Text style={styles.text}>Describe the service</Text>
-
-                  <Pressable
-                    onPress={() => setAlertVisible(true)}
-                    style={styles.iconContainer}
-                  >
-                    <Info
-                      size={responsiveScale(20)}
-                      color="#687076"
-                      style={styles.infoIcon}
-                    />
-                  </Pressable>
-                  <CustomAlert
-                    visible={alertVisible}
-                    title="Service description"
-                    message="Description will only be visible to you and other hairdressers your client has approved."
-                    onClose={() => setAlertVisible(false)}
-                  />
-                </View>
-
-                <View style={{ alignItems: "flex-start" }}>
-                  <TextInput
-                    style={styles.inputDescribe}
-                    multiline
-                    numberOfLines={4}
-                    placeholder="Describe the service"
-                    placeholderTextColor="rgba(0, 0, 0, 0.5)"
-                    onChangeText={setNewHaircode}
-                    value={newHaircode}
-                  />
-                </View>
-              </View>
-
-              <View style={{ alignItems: "flex-start" }}>
-                <Text style={styles.text}>Time used</Text>
-              </View>
-
-              <View>
-                <TouchableOpacity
-                  style={[styles.inputPrice, styles.extraPadding, Platform.OS === "ios" ? styles.iosInput : styles.androidInput]}
-                  onPress={() => setShowTimePicker(true)}
-                >
-                  <ResponsiveText
-                    style={
-                      durationMinutes > 0
-                        ? styles.filledInput
-                        : styles.placeholder
-                    }
-                    size={14}
-                    tabletSize={10}
-                  >
-                    {durationMinutes > 0
-                      ? formatDurationDisplay(durationMinutes)
-                      : "Time used on the treatment"}
-                  </ResponsiveText>
-                </TouchableOpacity>
-
-                {showTimePicker && (
-                  <View style={styles.timePickerContainer}>
-                    <DateTimePicker
-                      value={createDateFromMinutes(durationMinutes)}
-                      mode="time"
-                      display={Platform.OS === "ios" ? "spinner" : "default"}
-                      is24Hour={true}
-                      onChange={onTimeChange}
-                      textColor="black"
-                      style={styles.timePicker}
-                    />
-                    {Platform.OS === "ios" && (
-                      <View style={styles.timePickerButtons}>
-                        <Pressable
-                          onPress={dismissTimePicker}
-                          style={styles.timePickerButton}
-                        >
-                          <Text style={styles.timePickerButtonText}>Done</Text>
-                        </Pressable>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.rowContainer}>
-                <Text style={styles.text}>Price</Text>
-
-                <Pressable
-                  onPress={() => setAlertVisible2(true)}
-                  style={styles.iconContainer}
-                >
-                  <Info
-                    size={responsiveScale(20)}
-                    color="#687076"
-                    style={styles.infoIcon}
-                  />
-                </Pressable>
-                <CustomAlert
-                  visible={alertVisible2}
-                  title="Price"
-                  message="Price will only be visible to you."
-                  onClose={() => setAlertVisible2(false)}
-                />
-              </View>
-
-              <View style={{ alignItems: "flex-start" }}>
-                <TextInput
-                  style={[
-                    styles.inputPrice,
-                    Platform.OS === "ios"
-                      ? styles.iosInput
-                      : styles.androidInput,
-                  ]}
-                  keyboardType="numeric"
-                  multiline={false}
-                  placeholderTextColor="rgba(0, 0, 0, 0.5)"
-                  placeholder="Price"
-                  onChangeText={setPrice}
-                  value={price}
-                />
-              </View>
-
-              <View style={{ alignItems: "flex-start" }}>
-                <Text style={styles.text}>Upload images</Text>
-              </View>
-
-              <View>
-                {capturedMedia.length > 1 ? (
-                  <FlatList
-                    data={generateMediaList()}
-                    keyExtractor={(item, index) => index.toString()}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    scrollEventThrottle={16}
-                    nestedScrollEnabled={true}
-                    renderItem={({ item, index }) => (
-                      <Pressable
-                        style={styles.camera}
-                        onPress={() =>
-                          item.type === "video_placeholder"
-                            ? pickVideo()
-                            : pickImage()
-                        }
-                      >
-                        {item.uri ? (
-                          item.type === "image" ? (
-                            <>
-                              <Image
-                                source={{ uri: item.uri }}
-                                style={styles.image}
-                                resizeMode="cover"
-                              />
-                              <Pressable
-                                onPress={() => removeMedia(index)}
-                                style={styles.deleteIconContainer}
-                              >
-                                <XCircle
-                                  size={responsiveScale(28)}
-                                  color={Colors.light.light}
-                                />
-                              </Pressable>
-                            </>
-                          ) : (
-                            <>
-                              <Video
-                                source={{ uri: item.uri }}
-                                style={styles.image}
-                                useNativeControls
-                                resizeMode={ResizeMode.CONTAIN}
-                                isLooping
-                              />
-                              <XCircle
-                                size={responsiveScale(32)}
-                                color={Colors.light.light}
-                                style={styles.iconBackground}
-                              />
-                              <Pressable
-                                onPress={() => removeMedia(index)}
-                                style={styles.deleteIconContainer}
-                              >
-                                <XCircle
-                                  size={responsiveScale(32)}
-                                  color={Colors.light.light}
-                                />
-                              </Pressable>
-                            </>
-                          )
-                        ) : item.type === "video_placeholder" ? (
-                          <VideoCamera size={responsiveScale(32)} />
-                        ) : (
-                          <Camera size={responsiveScale(32)} />
-                        )}
-                      </Pressable>
-                    )}
-                  />
-                ) : (
-                  <View style={styles.cameraButtonRow}>
-                    {[0, 1, 2, 3].map((index) => (
-                      <Pressable
-                        key={index}
-                        style={styles.camera}
-                        onPress={() => pickImage(index)}
-                      >
-                        {capturedMedia[index] ? (
-                          capturedMedia[index].type === "image" ? (
-                            <>
-                              <Image
-                                source={{ uri: capturedMedia[index].uri }}
-                                style={styles.image}
-                                resizeMode="cover"
-                              />
-                              <XCircle
-                                size={32}
-                                color={Colors.light.light}
-                                style={styles.iconBackground}
-                              />
-                              <Pressable
-                                onPress={() => removeMedia(index)}
-                                style={styles.deleteIconContainer}
-                              >
-                                <XCircle
-                                  size={responsiveScale(28)}
-                                  color={Colors.light.light}
-                                />
-                              </Pressable>
-                            </>
-                          ) : (
-                            <>
-                              <Video
-                                source={{ uri: capturedMedia[index].uri }}
-                                style={styles.image}
-                                useNativeControls
-                                resizeMode={ResizeMode.CONTAIN}
-                                isLooping
-                              />
-                              <XCircle
-                                size={responsiveScale(32)}
-                                color={Colors.light.light}
-                                style={styles.iconBackground}
-                              />
-                              <Pressable
-                                onPress={() => removeMedia(index)}
-                                style={styles.deleteIconContainer}
-                              >
-                                <XCircle
-                                  size={responsiveScale(28)}
-                                  color={Colors.light.light}
-                                />
-                              </Pressable>
-                            </>
-                          )
-                        ) : (
-                          <Camera size={responsiveScale(32)} />
-                        )}
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.bottomSpacer} />
-
-              <AddButton
-                style={styles.addHaircodeButton}
-                disabled={isPending || isUploadingMedia}
-                text={
-                  isPending
-                    ? isEditing
-                      ? "Updating..."
-                      : "Adding haircode..."
-                    : isEditing
-                    ? "Update haircode"
-                    : "Add haircode"
-                }
-                onPress={handleSubmit}
-              />
-            </Pressable>
-          </ScrollView>
-
-          <DraggableModal
-            isVisible={isModalVisible}
-            onClose={toggleModal}
-            modalHeight={screenHeight * 0.95}
-            renderContent={modalContent}
-            preview={true}
-          />
-
-          <ImageCropModal
-            visible={imageToCrop !== null}
-            imageUri={imageToCrop || ""}
-            onCancel={handleCropCancel}
-            onCropComplete={handleCropComplete}
-          />
-        </SafeAreaView>
-      </View>
+      <StatusBar style="dark" backgroundColor={primaryGreen} />
+      <SafeAreaView style={styles.nailSafeArea}>
+        <NailVisitForm
+          scrollRef={scrollViewRef}
+          serviceOptions={visitServiceOptions}
+          isEditing={isEditing}
+          selectedOptions={selectedOptions}
+          onToggleService={handleOptionPress}
+          newHaircode={newHaircode}
+          onChangeDescription={setNewHaircode}
+          durationMinutes={durationMinutes}
+          showTimePicker={showTimePicker}
+          onTimePickerOpen={() => setShowTimePicker(true)}
+          onTimePickerDismiss={dismissTimePicker}
+          onNativeTimeChange={onTimeChange}
+          formatDurationDisplay={formatDurationDisplay}
+          createDateFromMinutes={createDateFromMinutes}
+          price={price}
+          onChangePrice={setPrice}
+          capturedMedia={capturedMedia}
+          pickImage={pickImage}
+          removeMedia={removeMedia}
+          isPending={isPending}
+          isUploadingMedia={isUploadingMedia}
+          onSave={handleSubmit}
+          onPreviewPress={toggleModal}
+        />
+      </SafeAreaView>
+      <DraggableModal
+        isVisible={isModalVisible}
+        onClose={toggleModal}
+        modalHeight={visitPreviewModalHeight}
+        renderContent={visitPreviewModal}
+        sheetBackgroundColor={primaryGreen}
+      />
+      <ImageCropModal
+        visible={imageToCrop !== null}
+        imageUri={imageToCrop || ""}
+        onCancel={handleCropCancel}
+        onCropComplete={handleCropComplete}
+      />
     </>
   );
 };
 
 export default NewHaircode;
 const styles = StyleSheet.create({
+  nailSafeArea: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
   container: {
     flex: 1,
     margin: scalePercent(5),

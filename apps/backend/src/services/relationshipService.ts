@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
 import { professionService } from "./professionService";
@@ -122,17 +123,28 @@ export const relationshipService = {
   },
 
   async checkExists(professionalProfileIdOrProfileId: string, clientUserId: string) {
-    const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
-      professionalProfileIdOrProfileId
-    );
-    const existing = await prisma.clientProfessionalLink.findFirst({
-      where: {
-        professionalProfileId,
-        clientUserId,
-        status: "active",
-      },
-    });
-    return !!existing;
+    try {
+      const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
+        professionalProfileIdOrProfileId
+      );
+      const existing = await prisma.clientProfessionalLink.findFirst({
+        where: {
+          professionalProfileId,
+          clientUserId,
+          status: "active",
+        },
+      });
+      return !!existing;
+    } catch (e) {
+      // Corrupt non-UUID value in an existing link row makes Prisma throw on read (P2023).
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2023") {
+        console.error(
+          "relationship checkExists: invalid UUID in client_professional_links row; run data cleanup"
+        );
+        return false;
+      }
+      throw e;
+    }
   },
 
   async listByProfessional(professionalProfileId: string) {

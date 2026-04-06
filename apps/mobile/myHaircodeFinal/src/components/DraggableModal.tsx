@@ -20,6 +20,8 @@ interface DraggableModalProps {
   onClose: () => void;
   modalHeight: number;
   renderContent: React.ReactNode;
+  /** Fill handle + scroll area (short content still shows this color). */
+  sheetBackgroundColor?: string;
 }
 
 const DraggableModal: React.FC<DraggableModalProps> = ({
@@ -27,6 +29,7 @@ const DraggableModal: React.FC<DraggableModalProps> = ({
   onClose,
   modalHeight,
   renderContent,
+  sheetBackgroundColor = Colors.light.light,
 }) => {
   const translateY = useRef(new Animated.Value(screenHeight)).current;
   const [visible, setVisible] = useState(isVisible);
@@ -36,7 +39,7 @@ const DraggableModal: React.FC<DraggableModalProps> = ({
     if (isVisible) {
       setVisible(true);
       Animated.spring(translateY, {
-        toValue: screenHeight * 0.1, 
+        toValue: 0,
         useNativeDriver: true,
       }).start();
     } else {
@@ -75,7 +78,7 @@ const DraggableModal: React.FC<DraggableModalProps> = ({
           });
         } else {
           Animated.spring(translateY, {
-            toValue: screenHeight * 0.1,
+            toValue: 0,
             useNativeDriver: true,
           }).start();
         }
@@ -84,7 +87,7 @@ const DraggableModal: React.FC<DraggableModalProps> = ({
   ).current;
 
   const backdropColor = translateY.interpolate({
-    inputRange: [screenHeight * 0.1, screenHeight],
+    inputRange: [0, screenHeight],
     outputRange: ["rgba(0,0,0,0.6)", "rgba(0,0,0,0)"],
     extrapolate: "clamp",
   });
@@ -99,17 +102,31 @@ const DraggableModal: React.FC<DraggableModalProps> = ({
             styles.modalContent,
             {
               height: modalHeight,
+              backgroundColor: sheetBackgroundColor,
               transform: [{ translateY }],
             },
           ]}
         >
-          <View {...panResponder.panHandlers} style={styles.handleContainer}>
+          <View
+            {...panResponder.panHandlers}
+            style={[
+              styles.handleContainer,
+              { backgroundColor: sheetBackgroundColor },
+            ]}
+          >
             <View style={styles.handle} />
           </View>
 
           <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
+            style={[styles.scroll, { backgroundColor: sheetBackgroundColor }]}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                flexGrow: 1,
+                backgroundColor: sheetBackgroundColor,
+                justifyContent: "flex-start",
+              },
+            ]}
             showsVerticalScrollIndicator
             keyboardShouldPersistTaps="handled"
             scrollEventThrottle={16}
@@ -136,7 +153,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: Colors.light.light,
+    flexDirection: "column",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: "hidden",
@@ -144,7 +161,6 @@ const styles = StyleSheet.create({
   handleContainer: {
     paddingVertical: 16,
     alignItems: "center",
-    backgroundColor: Colors.light.light,
     zIndex: 1,
   },
   handle: {

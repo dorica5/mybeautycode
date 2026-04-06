@@ -15,6 +15,22 @@ export const PROFESSION_HEADLINE_ROLE: Record<ProfessionChoiceCode, string> = {
   esthetician: "Esthetician",
 };
 
+/** Service pills on “new visit” for hairdresser accounts (and esthetician until tailored). */
+export const HAIR_VISIT_SERVICE_OPTIONS = [
+  "Haircut",
+  "Color",
+  "Foiling technique",
+  "Other",
+] as const;
+
+/** Service pills on “new visit” for brow stylist accounts. */
+export const BROW_VISIT_SERVICE_OPTIONS = [
+  "Brow shaping",
+  "Brow tinting",
+  "Lash lift",
+  "Other",
+] as const;
+
 export const CHOOSE_PROFESSION_OPTIONS: {
   code: ProfessionChoiceCode;
   label: string;

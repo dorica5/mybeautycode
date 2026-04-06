@@ -1,11 +1,22 @@
+import { NotificationType } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
 
-const NOTIFICATION_TYPE_MAP: Record<string, string> = {
-  FRIEND_REQUEST: "link_request",
-  FRIEND_ACCEPTED: "link_accepted",
-  FRIEND_DECLINED: "link_declined",
+/** Maps API / mobile semantic types to DB enum values. */
+const NOTIFICATION_TYPE_MAP: Record<string, NotificationType> = {
+  FRIEND_REQUEST: NotificationType.link_request,
+  FRIEND_ACCEPTED: NotificationType.link_accepted,
+  FRIEND_DECLINED: NotificationType.link_declined,
+  HAIRCODE_ADDED: NotificationType.service_record,
 };
+
+function resolveDbNotificationType(input: string): NotificationType {
+  const mapped = NOTIFICATION_TYPE_MAP[input];
+  if (mapped) return mapped;
+  const direct = Object.values(NotificationType).find((v) => v === input);
+  if (direct) return direct as NotificationType;
+  return NotificationType.other;
+}
 
 export const notificationService = {
   async send(
@@ -18,12 +29,12 @@ export const notificationService = {
       extraData?: Record<string, unknown>;
     }
   ) {
-    const mappedType = NOTIFICATION_TYPE_MAP[params.type] ?? params.type;
+    const mappedType = resolveDbNotificationType(params.type);
     const notification = await prisma.notification.create({
       data: {
         userId: recipientId,
         message: params.message,
-        type: mappedType as "link_request" | "link_accepted" | "link_declined" | "shared_inspiration" | "service_record" | "system" | "support" | "other",
+        type: mappedType,
         senderId,
         status: params.type === "FRIEND_REQUEST" ? "pending" : null,
         data: (params.extraData ?? undefined) as object | undefined,

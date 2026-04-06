@@ -33,6 +33,11 @@ export type PrimaryOutlineTextFieldProps = Omit<
   /** Multi-line area (less rounded than single-line pill). */
   multiline?: boolean;
   minInputHeight?: number;
+  /**
+   * Single-line outline shape. Default `pill` (current app-wide default).
+   * `rounded` matches setup cards (~18) — use on visit forms etc.
+   */
+  singleLineShape?: "pill" | "rounded";
 };
 
 /**
@@ -47,10 +52,14 @@ export function PrimaryOutlineTextField({
   inputRef,
   multiline = false,
   minInputHeight,
+  singleLineShape = "pill",
   style,
   ...inputProps
 }: PrimaryOutlineTextFieldProps) {
   const [showSecret, setShowSecret] = useState(false);
+
+  const singleLineRadius =
+    singleLineShape === "rounded" ? responsiveScale(18) : responsiveScale(999);
 
   return (
     <View style={[styles.wrap, containerStyle]}>
@@ -60,7 +69,9 @@ export function PrimaryOutlineTextField({
       <View
         style={[
           styles.fieldRow,
-          multiline ? styles.fieldRowArea : null,
+          multiline
+            ? styles.fieldRowArea
+            : { borderRadius: singleLineRadius },
         ]}
       >
         <TextInput
@@ -83,7 +94,7 @@ export function PrimaryOutlineTextField({
                     ? { minHeight: minInputHeight }
                     : null,
                 ]
-              : null,
+              : { borderRadius: singleLineRadius },
             password && value.length > 0 ? styles.inputWithEye : null,
             style,
           ]}
@@ -126,24 +137,23 @@ const styles = StyleSheet.create({
   },
   fieldRow: {
     position: "relative",
-    borderRadius: responsiveScale(999),
     borderWidth: 1,
     borderColor: primaryBlack,
     backgroundColor: primaryWhite,
+    overflow: "hidden",
   },
   fieldRowArea: {
-    borderRadius: responsiveScale(20),
+    borderRadius: responsiveScale(18),
   },
   input: {
     ...Typography.bodyMedium,
     color: primaryBlack,
     paddingVertical: responsivePadding(14),
     paddingHorizontal: responsivePadding(18),
-    borderRadius: responsiveScale(999),
   },
   inputArea: {
     minHeight: responsiveScale(120),
-    borderRadius: responsiveScale(20),
+    borderRadius: responsiveScale(18),
     paddingTop: responsivePadding(14),
   },
   inputWithEye: {

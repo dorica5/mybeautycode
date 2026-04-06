@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import multer from "multer";
 import { randomUUID } from "crypto";
 import { storageService } from "../services/storageService";
+import { serviceRecordAccessService } from "../services/serviceRecordAccessService";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -36,7 +37,20 @@ export const storageController = {
   async signedUrl(req: Request, res: Response) {
     const bucket = String(req.query.bucket ?? "");
     const path = String(req.query.path ?? "");
+    const userId = req.userId;
     try {
+      if (bucket === "haircode_images" && userId) {
+        const safe = path.trim();
+        if (
+          !safe ||
+          safe.length > 2048 ||
+          safe.includes("..") ||
+          safe.startsWith("/")
+        ) {
+          return res.status(400).json({ error: "Invalid storage path." });
+        }
+        await serviceRecordAccessService.assertCanReadHaircodeImage(userId, safe);
+      }
       const signedUrl = await storageService.createSignedUrl(bucket, path);
       res.json({ signedUrl });
     } catch (err: unknown) {
@@ -57,6 +71,7 @@ export const storageController = {
     if (items.length > 60) {
       return res.status(400).json({ error: "Too many items (max 60)" });
     }
+    const userId = req.userId;
     try {
       const urls = await Promise.all(
         items.map(async (item) => {
@@ -64,6 +79,21 @@ export const storageController = {
           const path = String(item.path ?? "");
           if (!bucket || !path) return null;
           try {
+            if (bucket === "haircode_images" && userId) {
+              const safe = path.trim();
+              if (
+                !safe ||
+                safe.length > 2048 ||
+                safe.includes("..") ||
+                safe.startsWith("/")
+              ) {
+                return null;
+              }
+              await serviceRecordAccessService.assertCanReadHaircodeImage(
+                userId,
+                safe
+              );
+            }
             return await storageService.createSignedUrl(bucket, path);
           } catch {
             return null;
