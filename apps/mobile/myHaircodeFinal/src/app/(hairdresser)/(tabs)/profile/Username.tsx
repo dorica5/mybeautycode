@@ -18,79 +18,77 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
+import { Profile } from "@/src/constants/types";
 
-const FullName = () => {
+const USERNAME_RE = /^[a-z][a-z0-9_]{2,29}$/;
+const USERNAME_MAX_LEN = 30;
+
+function sanitize(raw: string): string {
+  return raw
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, USERNAME_MAX_LEN);
+}
+
+const Username = () => {
   const { profile, setProfile } = useAuth();
-  const originalName = profile.full_name;
+  const original = profile.username ?? "";
   const id = profile.id;
 
-  const [full_name, setFull_Name] = useState(originalName);
+  const [username, setUsername] = useState(original);
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [error, setError] = useState(false);
-
-  const { mutate: updateProfile } = useUpdateSupabaseProfile();
   const [errorMessage, setErrorMessage] = useState("");
 
-  const validateName = (name: string) => {
-    const trimmed = name.trim();
+  const { mutate: updateProfile } = useUpdateSupabaseProfile();
 
-    if (!trimmed) {
-      setErrorMessage("Please enter your full name.");
+  const validate = (raw: string) => {
+    const v = sanitize(raw);
+    if (!v) {
+      setErrorMessage("Enter a username (3–30 characters, letter first).");
       return false;
     }
-
-    const nameRegex = /^[a-zA-ZÀ-ÿæøåÆØÅ.\s'’-]{2,50}$/;
-    if (!nameRegex.test(trimmed)) {
+    if (!USERNAME_RE.test(v)) {
       setErrorMessage(
-        "Remove any numbers or unusual symbols. Only letters, spaces, hyphens (–), apostrophes (‘), and dots (.) are allowed."
+        "Lowercase letters, digits, underscore only; must start with a letter."
       );
       return false;
     }
-
     setErrorMessage("");
     return true;
   };
 
-  const handleNameChange = (value: string) => {
-    setFull_Name(value);
+  const handleChange = (value: string) => {
+    setUsername(sanitize(value));
     setChanged(true);
-
     if (attemptedSubmit) {
-      setError(!validateName(value));
+      setError(!validate(sanitize(value)));
     }
   };
 
-  const updateUserProfile = () => {
+  const save = () => {
     setAttemptedSubmit(true);
-
-    const trimmed = full_name.trim();
-    if (!validateName(trimmed)) {
+    const v = sanitize(username);
+    if (!validate(v)) {
       setError(true);
       return;
     }
-
     if (!id) {
       Alert.alert("User not found");
       return;
     }
-
     setLoading(true);
-
     updateProfile(
-      {
-        id,
-        full_name: trimmed,
-      },
+      { id, username: v },
       {
         onSuccess: () => {
-          setProfile((prev) => ({
+          setProfile((prev: Profile) => ({
             ...prev,
-            full_name: trimmed,
+            username: v,
           }));
-
-          setFull_Name(trimmed);
+          setUsername(v);
           setChanged(false);
           setLoading(false);
           setError(false);
@@ -98,23 +96,28 @@ const FullName = () => {
         },
         onError: (err) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", err.message);
+          const msg = (err?.message ?? "").toLowerCase();
+          if (msg.includes("username") && msg.includes("taken")) {
+            Alert.alert("Username taken", "Try another username.");
+          } else {
+            Alert.alert("Failed to update profile", err.message);
+          }
         },
       }
     );
   };
 
   useEffect(() => {
-    setChanged(full_name !== originalName);
-  }, [full_name, originalName]);
+    setChanged(sanitize(username) !== sanitize(original));
+  }, [username, original]);
 
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Full name"
+        title="Username"
         showSaveButton
         saveChanged={changed}
-        saveAction={updateUserProfile}
+        saveAction={save}
         loading={loading}
       />
       <KeyboardAvoidingView
@@ -130,10 +133,11 @@ const FullName = () => {
           showsVerticalScrollIndicator={false}
         >
           <BrandOutlineField
-            accessibilityLabel="Full name"
-            value={full_name}
-            onChangeText={handleNameChange}
-            autoCapitalize="words"
+            accessibilityLabel="Username"
+            placeholder="username"
+            value={username}
+            onChangeText={handleChange}
+            autoCapitalize="none"
             autoCorrect={false}
           />
           {attemptedSubmit && error ? (
@@ -145,15 +149,11 @@ const FullName = () => {
   );
 };
 
-export default FullName;
+export default Username;
 
 const styles = StyleSheet.create({
-  keyboard: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
+  keyboard: { flex: 1 },
+  scroll: { flex: 1 },
   errorText: {
     ...Typography.outfitRegular16,
     color: "#C62828",

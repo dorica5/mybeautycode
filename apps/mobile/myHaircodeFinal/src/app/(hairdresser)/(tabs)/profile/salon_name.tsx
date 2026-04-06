@@ -1,21 +1,23 @@
 import {
+  Alert,
   Keyboard,
   StyleSheet,
-  TextInput,
-  View,
-  TouchableWithoutFeedback,
-  Alert,
   Text,
+  ScrollView,
+  KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "@/src/constants/Colors";
+import { BrandOutlineField } from "@/src/components/BrandOutlineField";
+import {
+  MintProfileScreenShell,
+  mintProfileScrollContent,
+} from "@/src/components/MintProfileScreenShell";
 import TopNav from "@/src/components/TopNav";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
-import { moderateScale, responsiveFontSize, scale, scalePercent } from "@/src/utils/responsive";
-import { StatusBar } from "expo-status-bar";
+import { Typography } from "@/src/constants/Typography";
+import { scale } from "@/src/utils/responsive";
 
 const SalonName = () => {
   const { profile, setProfile } = useAuth();
@@ -84,75 +86,57 @@ const SalonName = () => {
     );
   };
 
-  const getInputStyle = () => {
-    if (!attemptedSubmit) return styles.input;
-
-    return [styles.input, error ? styles.errorInput : styles.validInput];
-  };
-
   useEffect(() => {
     setChanged(salon_name !== originalName);
   }, [salon_name, originalName]);
 
   return (
-    <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <SafeAreaView style={styles.container}>
-            <TopNav
-              title="Salon Name"
-              showSaveButton={true}
-              saveChanged={changed}
-              saveAction={updateUserProfile}
-              loading={loading}
-            />
-            <View style={getInputStyle()}>
-              <TextInput
-                value={salon_name}
-                placeholder="Name"
-                placeholderTextColor={Colors.dark.dark}
-                onChangeText={handleSalonNameChange}
-                style={{fontSize: responsiveFontSize(16, 12)}}
-              />
-            </View>
-            {attemptedSubmit && error && (
-              <Text style={styles.errorText}>
-                Please enter a valid name (2-50 letters)
-              </Text>
-            )}
-          </SafeAreaView>
-        </TouchableWithoutFeedback>
-      </View>
-    </>
+    <MintProfileScreenShell>
+      <TopNav
+        title="Salon name"
+        showSaveButton
+        saveChanged={changed}
+        saveAction={updateUserProfile}
+        loading={loading}
+      />
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={mintProfileScrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+        >
+          <BrandOutlineField
+            accessibilityLabel="Salon name"
+            placeholder="Salon name"
+            value={salon_name}
+            onChangeText={handleSalonNameChange}
+            autoCapitalize="words"
+          />
+          {attemptedSubmit && error ? (
+            <Text style={styles.errorText}>
+              Please enter a valid name (2–50 letters)
+            </Text>
+          ) : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </MintProfileScreenShell>
   );
 };
 
 export default SalonName;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    margin: scalePercent(5),
-  },
-  input: {
-    marginTop: scalePercent(10),
-    padding: Platform.OS === "android" ? scale(7) : scale(20),
-    backgroundColor: Colors.dark.yellowish,
-    borderRadius: 20,
-  },
-  errorInput: {
-    borderColor: "red",
-    borderWidth: scale(1),
-  },
-  validInput: {
-    borderColor: "green",
-    borderWidth: scale(1),
-  },
+  keyboard: { flex: 1 },
+  scroll: { flex: 1 },
   errorText: {
-    color: "red",
-    fontSize: moderateScale(12),
-    marginTop: scale(5),
-    marginLeft: scale(10),
+    ...Typography.outfitRegular16,
+    color: "#C62828",
+    marginTop: scale(8),
   },
 });

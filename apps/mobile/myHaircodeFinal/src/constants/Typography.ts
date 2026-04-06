@@ -72,6 +72,8 @@ export const Typography = {
   h3: antonHeading(36, 120),
   /** Anton 24 regular — e.g. username under display name on client home. */
   anton24: antonHeading(24, 120),
+  /** Anton 16 — e.g. undertittel på pro home (My clients). */
+  anton16: antonHeading(16, 120),
   h4: outfitText(24, "300", 120),
   bodyLarge: outfitText(20, "300", 130),
   bodyMedium: outfitText(18, "300", 140),
@@ -82,6 +84,8 @@ export const Typography = {
   agLabel16: outfitText(16, "500", 140),
   /** AG body medium 18 / 148% — large option rows (Outfit medium 18). */
   agBodyMedium18: outfitText(18, "500", 148),
+  /** AG 20 — Outfit medium, 130% line (e.g. pro home empty state). */
+  ag20: outfitText(20, "500", 130),
   /** AG body regular 18 / 148% — filter options (Outfit light 18). */
   agBodyRegular18: outfitText(18, "300", 148),
   /** Outfit regular 16 — e.g. map location CTA. */

@@ -1,6 +1,14 @@
-import { Alert, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import React, { useEffect, useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import TopNav from "@/src/components/TopNav";
 import MyTextinput from "@/src/components/MyTextinput";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -11,7 +19,6 @@ import MyButton from "@/src/components/MyButton";
 import { primaryBlack, setupSageBackground } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
-  isTablet,
   responsiveFontSize,
   responsiveScale,
   scale,
@@ -47,6 +54,10 @@ const HairdresserSetup = () => {
       : "hair";
 
   const accountTitle = PROFESSION_ACCOUNT_TITLE[professionCode];
+  const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  const aboutMeSectionY = useRef(0);
+  const scrollY = useRef(0);
   const { profile, setLoadingSetup } = useAuth();
   const user_type = "HAIRDRESSER";
 
@@ -70,6 +81,23 @@ const HairdresserSetup = () => {
 
   const posthog = usePostHog();
   const profileCountry = profile?.country?.trim() || "";
+  const prefilledProfessionalRef = useRef(false);
+
+  /** Når /api/auth/me returnerer salongdata (etter oppsett eller re-login), vis dem i skjemaet. */
+  useEffect(() => {
+    if (prefilledProfessionalRef.current || !profile) return;
+    const has =
+      (profile.salon_name && profile.salon_name.trim()) ||
+      (profile.salon_phone_number && profile.salon_phone_number.trim()) ||
+      (profile.about_me && profile.about_me.trim());
+    if (!has) return;
+    prefilledProfessionalRef.current = true;
+    setFields({
+      salonName: profile.salon_name?.trim() ?? "",
+      salonPhoneNumber: profile.salon_phone_number ?? "",
+      aboutMe: profile.about_me ?? "",
+    });
+  }, [profile]);
 
   const getCountryCode = (countryCode: string) => {
     try {
@@ -259,10 +287,51 @@ const HairdresserSetup = () => {
     );
   }
 
+  const scrollBottomPad =
+    scale(24) + Math.max(insets.bottom, scale(12)) + verticalScale(24);
+
+  const revealAboutMeForKeyboard = () => {
+    const sectionTop = aboutMeSectionY.current;
+    if (sectionTop <= 0) return;
+
+    const marginFromTop = verticalScale(36);
+    const targetY = Math.max(0, sectionTop - marginFromTop);
+    const alreadyVisible =
+      scrollY.current >= targetY - verticalScale(12) &&
+      scrollY.current <= targetY + verticalScale(24);
+
+    if (alreadyVisible) return;
+
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: targetY, animated: true });
+    }, 320);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <TopNav title={accountTitle} titleStyle={Typography.h3} />
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={
+          Platform.OS === "ios" ? scale(72) : verticalScale(8)
+        }
+      >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContainer,
+            { paddingBottom: scrollBottomPad, flexGrow: 1 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={32}
+          onScroll={(e) => {
+            scrollY.current = e.nativeEvent.contentOffset.y;
+          }}
+        >
         <ResponsiveText style={styles.aboutYouSubhead}>About you</ResponsiveText>
 
         <View style={styles.inputContainer}>
@@ -319,7 +388,12 @@ const HairdresserSetup = () => {
           )}
         </View>
 
-        <View style={styles.inputContainer}>
+        <View
+          style={styles.inputContainer}
+          onLayout={(e) => {
+            aboutMeSectionY.current = e.nativeEvent.layout.y;
+          }}
+        >
           <ResponsiveText size={16} weight="SemiBold" style={styles.label}>
             About me
           </ResponsiveText>
@@ -330,6 +404,7 @@ const HairdresserSetup = () => {
             style={styles.textArea}
             onChangeText={(value) => handleFieldChange("aboutMe", value)}
             placeholderTextColor={PLACEHOLDER_GRAY}
+            onFocus={revealAboutMeForKeyboard}
           />
         </View>
         <Spacer vertical={10} />
@@ -340,12 +415,16 @@ const HairdresserSetup = () => {
             onPress={setUpDone}
             disabled={loading}
             margin={false}
-            style={styles.saveButton}
+            style={[
+              styles.saveButtonBase,
+              loading ? styles.saveButtonLoading : styles.saveButtonIdle,
+            ]}
             textStyle={styles.saveButtonLabel}
-            textSize={18}
+            textSize={16}
           />
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -354,14 +433,24 @@ export default HairdresserSetup;
 
 const FIELD_BORDER = "rgba(33, 36, 39, 0.28)";
 
+/** Matches horizontal inset of centered "Save" in a `scale(98)`-wide pill (~Outfit 16). */
+const SAVE_BUTTON_WIDTH = 98;
+const SAVE_LABEL_ESTIMATE_PT = 36;
+const SAVE_BUTTON_INSET = Math.round((SAVE_BUTTON_WIDTH - SAVE_LABEL_ESTIMATE_PT) / 2);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: setupSageBackground,
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
   scrollContainer: {
     paddingHorizontal: scale(20),
-    paddingBottom: scale(24),
   },
   aboutYouSubhead: {
     ...Typography.bodyMedium,
@@ -421,16 +510,26 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: FIELD_BORDER,
   },
-  saveButton: {
+  saveButtonBase: {
     backgroundColor: primaryBlack,
-    paddingVertical: responsiveScale(16, 14),
-    paddingHorizontal: responsiveScale(40, 32),
-    borderRadius: responsiveScale(999),
+    height: scale(52),
+    paddingVertical: 0,
+    borderRadius: scale(26),
     alignSelf: "center",
-    minWidth: scalePercent(isTablet() ? 40 : 72),
+    justifyContent: "center",
+  },
+  saveButtonIdle: {
+    width: scale(SAVE_BUTTON_WIDTH),
+    paddingHorizontal: 0,
+  },
+  saveButtonLoading: {
+    minWidth: scale(SAVE_BUTTON_WIDTH),
+    paddingHorizontal: scale(SAVE_BUTTON_INSET),
   },
   saveButtonLabel: {
+    ...Typography.outfitRegular16,
     color: "#FFFFFF",
+    textAlign: "center",
   },
   btnContainer: {
     width: "100%",

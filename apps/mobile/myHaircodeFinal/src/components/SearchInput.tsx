@@ -33,6 +33,10 @@ type SearchInputProps = {
   whitePillWidth?: number;
   /** Override whitePill height (base dp). Default 46. */
   whitePillHeight?: number;
+  /** Override pill fill (default mint off-white {@link SEARCH_BAR_FILL}). */
+  pillBackgroundColor?: string;
+  /** Use full width of parent instead of fixed {@link whitePillWidth}. */
+  stretchWhitePill?: boolean;
 };
 
 const SearchInput = ({
@@ -44,6 +48,8 @@ const SearchInput = ({
   variant = "default",
   whitePillWidth,
   whitePillHeight,
+  pillBackgroundColor,
+  stretchWhitePill,
 }: SearchInputProps) => {
   const [query, setQuery] = useState("");
   const isFocused = useIsFocused();
@@ -86,11 +92,16 @@ const SearchInput = ({
         styles.container,
         variant === "whitePill" && [
           styles.containerWhitePill,
+          pillBackgroundColor
+            ? { backgroundColor: pillBackgroundColor }
+            : null,
           {
-            width: responsiveScale(pillW),
             height: responsiveScale(pillH),
             minHeight: responsiveScale(pillH),
             borderRadius: responsiveScale(pillH / 2),
+            ...(stretchWhitePill
+              ? { width: "100%" as const, alignSelf: "stretch" as const }
+              : { width: responsiveScale(pillW) }),
           },
         ],
         style,

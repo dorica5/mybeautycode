@@ -2,7 +2,11 @@ import { Request, Response } from "express";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { authService } from "../services/authService";
-import { serializeProfileForApi } from "../lib/serializeProfileForApi";
+import {
+  type ProfessionalProfileApiSlice,
+  professionalProfileApiSelect,
+  serializeProfileForApi,
+} from "../lib/serializeProfileForApi";
 
 export const authController = {
   async me(req: Request, res: Response) {
@@ -18,11 +22,11 @@ export const authController = {
         return res.status(404).json({ error: "Profile not found" });
       }
       /** Separate query so a corrupt `professional_profiles` row cannot break `/me`. */
-      let professionalProfile: { id: string } | null = null;
+      let professionalProfile: ProfessionalProfileApiSlice | null = null;
       try {
         professionalProfile = await prisma.professionalProfile.findUnique({
           where: { profileId: userId },
-          select: { id: true },
+          select: professionalProfileApiSelect,
         });
       } catch (profErr) {
         console.error("auth me professionalProfile lookup:", profErr);

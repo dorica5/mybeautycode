@@ -11,11 +11,13 @@ const _layout = () => {
     >
       <Stack.Screen name="index" />
       <Stack.Screen name="FullName" />
+      <Stack.Screen name="Username" />
       <Stack.Screen name="PhoneNumber" />
       <Stack.Screen name="ProfilePicture" />
       <Stack.Screen name="AboutMe" />
       <Stack.Screen name="hairdresser_profile" />
       <Stack.Screen name="salon_name" />
+      <Stack.Screen name="SwitchAccount" />
     </Stack>
   );
 };

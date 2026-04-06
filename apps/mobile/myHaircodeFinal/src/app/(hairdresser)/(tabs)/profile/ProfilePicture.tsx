@@ -1,16 +1,26 @@
-import { Alert, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+} from "react-native";
 import React, { useState, useEffect } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
-import RemoteImage from "@/src/components/RemoteImage";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import TopNav from "@/src/components/TopNav";
 import { useImageContext } from "@/src/providers/ImageProvider";
-import { moderateScale, responsiveFontSize, scale, scalePercent } from "@/src/utils/responsive";
-import { StatusBar } from "expo-status-bar";
+import { responsiveFontSize, scale } from "@/src/utils/responsive";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import {
+  MintProfileScreenShell,
+  mintProfileScrollContent,
+} from "@/src/components/MintProfileScreenShell";
+import { Typography } from "@/src/constants/Typography";
 
 const ProfilePicture = () => {
   const { profile, setProfile } = useAuth();
@@ -76,69 +86,73 @@ const ProfilePicture = () => {
 
   useEffect(() => {
     setChanged(image !== originalImage);
-  }, [image]);
+  }, [image, originalImage]);
 
   return (
-    <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <SafeAreaView style={styles.container}>
-          <TopNav
-            title="Profile Picture"
-            showSaveButton={true}
-            saveAction={updateUserProfile}
-            loading={loading}
-            saveChanged={changed}
-          />
-          <Pressable style={styles.pickerContainer} onPress={pickImage}>
-            {image?.startsWith("file://") || !image ? (
+    <MintProfileScreenShell>
+      <TopNav
+        title="Profile picture"
+        showSaveButton
+        saveAction={updateUserProfile}
+        loading={loading}
+        saveChanged={changed}
+      />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[mintProfileScrollContent, styles.scrollInner]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable style={styles.pickerContainer} onPress={pickImage}>
+          {image?.startsWith("file://") || !image ? (
+            image ? (
               <Image
                 source={{ uri: image }}
                 style={styles.pickerCircle}
                 resizeMode="cover"
               />
             ) : (
-              <AvatarWithSpinner uri={avatarImage} size={scale(150)} style={styles.profilePic} />
-            )}
-            {changed ? (
-              ""
-            ) : (
-              <Text style={[styles.pickerText, {fontSize: responsiveFontSize(16, 12)}]}>
-                Change Profile Picture
-              </Text>
-            )}
-          </Pressable>
-        </SafeAreaView>
-      </View>
-    </>
+              <View style={styles.pickerCircle} />
+            )
+          ) : (
+            <AvatarWithSpinner
+              uri={avatarImage}
+              size={scale(150)}
+              style={styles.profilePic}
+            />
+          )}
+          {!changed ? (
+            <Text
+              style={[
+                Typography.bodyMedium,
+                styles.pickerText,
+                { fontSize: responsiveFontSize(16, 12) },
+              ]}
+            >
+              Change profile picture
+            </Text>
+          ) : null}
+        </Pressable>
+      </ScrollView>
+    </MintProfileScreenShell>
   );
 };
 
 export default ProfilePicture;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    margin: scalePercent(5),
-  },
-  topNav: {
-    flexDirection: "row",
+  scroll: { flex: 1 },
+  scrollInner: {
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  save: {
-    fontSize: moderateScale(20),
-    fontFamily: "Inter-SemiBold",
   },
   pickerContainer: {
     alignItems: "center",
-    marginTop: scalePercent(18),
+    marginTop: 24,
   },
   pickerText: {
-    fontFamily: "Inter-SemiBold",
-    color: "red",
+    color: "#C62828",
     textAlign: "center",
-    marginTop: scalePercent(5),
+    marginTop: 16,
   },
   pickerCircle: {
     width: scale(150),
@@ -149,7 +163,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   profilePic: {
-    marginTop: "0%",
     width: scale(150),
     height: scale(150),
     borderRadius: scale(75),

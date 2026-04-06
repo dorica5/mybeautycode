@@ -1,21 +1,35 @@
 // app/Screens/feedback.tsx
 import React from "react";
-import { ActivityIndicator } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { Stack } from "expo-router";
 import TopNav from "@/src/components/TopNav";
+import { MintProfileScreenShell } from "@/src/components/MintProfileScreenShell";
 
 export default function FeedbackScreen() {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-    <Stack.Screen options={{ headerShown: false }} /> 
+    <MintProfileScreenShell>
+      <Stack.Screen options={{ headerShown: false }} />
       <TopNav title="Feedback" />
-      <WebView
-        source={{ uri: "https://myhaircode-as.canny.io/feedback" }}
-        startInLoadingState
-        renderLoading={() => <ActivityIndicator style={{ marginTop: 20 }} />}
-      />
-    </SafeAreaView>
+      <View style={styles.webWrap}>
+        <WebView
+          source={{ uri: "https://myhaircode-as.canny.io/feedback" }}
+          startInLoadingState
+          renderLoading={() => (
+            <ActivityIndicator style={styles.loading} color="#212427" />
+          )}
+        />
+      </View>
+    </MintProfileScreenShell>
   );
 }
+
+const styles = StyleSheet.create({
+  webWrap: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  loading: {
+    marginTop: 20,
+  },
+});

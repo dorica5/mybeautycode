@@ -44,6 +44,9 @@ const SNAKE_TO_CAMEL: Record<string, string> = {
   display_name: "displayName",
   business_name: "businessName",
   business_number: "businessNumber",
+  /** Mobile uses salon_*; same columns as businessName / businessNumber on professional_profiles. */
+  salon_name: "businessName",
+  salon_phone_number: "businessNumber",
   about_me: "aboutMe",
   social_media: "socialMedia",
   booking_site: "bookingSite",
