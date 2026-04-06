@@ -249,14 +249,23 @@ export const profileService = {
     const myProfileId = profProfile?.profileId;
     if (!myProfileId) return [];
 
-    const rels = await prisma.clientProfessionalLink.findMany({
+    const activeRels = await prisma.clientProfessionalLink.findMany({
       where: {
         professionalProfileId,
         status: "active",
       },
       select: { clientUserId: true },
     });
-    const linkedClientIds = new Set(rels.map((r) => r.clientUserId));
+    const linkedClientIds = new Set(activeRels.map((r) => r.clientUserId));
+
+    const pendingRels = await prisma.clientProfessionalLink.findMany({
+      where: {
+        professionalProfileId,
+        status: "pending",
+      },
+      select: { clientUserId: true },
+    });
+    const pendingClientIds = new Set(pendingRels.map((r) => r.clientUserId));
 
     const blocked = await prisma.blockedUser.findMany({
       where: { blockerId: myProfileId },
@@ -291,6 +300,7 @@ export const profileService = {
       avatar_url: p.avatarUrl,
       phone_number: p.phoneNumber,
       has_relationship: linkedClientIds.has(p.id),
+      link_pending: pendingClientIds.has(p.id),
     }));
   },
 

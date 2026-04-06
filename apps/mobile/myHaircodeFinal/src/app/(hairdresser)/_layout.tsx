@@ -15,6 +15,7 @@ const _layout = () => {
       }}
     >
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="clientProfile" options={{ headerShown: false }} />
     </Stack>
   );
 };

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, Pressable } from "react-native";
 import React from "react";
-import { Link } from "expo-router";
+import { Link, router, type Href } from "expo-router";
+import { Clock } from "phosphor-react-native";
 import { ResponsiveText } from "./ResponsiveText";
 import { AvatarWithSpinner } from "./avatarSpinner";
 import { AddClientRowIcon } from "./AddClientRowIcon";
@@ -13,6 +14,7 @@ import {
   responsiveFontSize,
   scalePercent,
 } from "../utils/responsive";
+import { isUuid } from "../utils/isUuid";
 
 type SearchResultProps = {
   item: {
@@ -24,6 +26,7 @@ type SearchResultProps = {
     phone_number: string;
     relationship_exists?: boolean;
     has_relationship?: boolean;
+    link_pending?: boolean;
   };
   context?: string;
   query?: string;
@@ -102,39 +105,122 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
   };
 
   const hasRelationship = item.relationship_exists ?? item.has_relationship;
-  const href =
-    context === "hairdresser"
-      ? hasRelationship
-        ? `/haircodes/${item.client_id}`
-        : `/(hairdresser)/clientProfile/${item.client_id}`
-      : `/(client)/(tabs)/userList/professionalProfile/${item.hairdresser_id}`;
+  const linkPending = Boolean(item.link_pending);
 
   const displayName =
-    item.full_name?.trim() ||
-    item.phone_number ||
-    "Client";
+    item.full_name?.trim() || item.phone_number || "Client";
+
+  if (isProClientRow) {
+    const clientId = item.client_id ?? item.id;
+    const showTrailing = !hasRelationship;
+    /** AddClientRowIcon uses a 24×24 viewBox; Phosphor Clock uses 256×256 with an ~208px ring — scale so the rings match. */
+    const trailingIconDp = responsiveScale(24);
+    const pendingClockDp = trailingIconDp * (15 / 13);
+
+    const navigateToClient = () => {
+      if (!isUuid(clientId)) return;
+      if (hasRelationship) {
+        router.push({
+          pathname: "/haircodes/[id]" as Href,
+          params: {
+            id: clientId,
+            full_name: item.full_name,
+            phone_number: item.phone_number,
+            relationship: String(hasRelationship),
+            client_id: clientId,
+          },
+        });
+        return;
+      }
+      router.push({
+        pathname: "/(hairdresser)/clientProfile/[id]" as Href,
+        params: {
+          id: clientId,
+          full_name: item.full_name,
+          phone_number: item.phone_number,
+          relationship: "false",
+          client_id: clientId,
+        },
+      });
+    };
+
+    const navigateToAddClientProfile = () => {
+      if (!isUuid(clientId)) return;
+      router.push({
+        pathname: "/(hairdresser)/clientProfile/[id]" as Href,
+        params: {
+          id: clientId,
+          full_name: item.full_name,
+          phone_number: item.phone_number,
+          relationship: "false",
+          client_id: clientId,
+        },
+      });
+    };
+
+    return (
+      <View style={styles.resultItemPro}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.pressableProMain,
+            { opacity: pressed ? 0.5 : 1 },
+          ]}
+          onPress={navigateToClient}
+        >
+          <AvatarWithSpinner
+            uri={item.avatar_url}
+            size={responsiveScale(48)}
+            style={[styles.profilePicture, styles.profilePicturePro]}
+          />
+          <View style={styles.nameColumn}>
+            {highlightMatch(displayName, query ?? "")}
+          </View>
+        </Pressable>
+        {showTrailing && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.plusWrap,
+              { opacity: pressed ? 0.5 : 1 },
+            ]}
+            onPress={navigateToAddClientProfile}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={
+              linkPending
+                ? "Open client profile, request pending"
+                : "Open client profile to add client"
+            }
+          >
+            {linkPending ? (
+              <Clock
+                size={pendingClockDp}
+                color={primaryBlack}
+                weight="regular"
+              />
+            ) : (
+              <AddClientRowIcon
+                size={trailingIconDp}
+                color={primaryBlack}
+              />
+            )}
+          </Pressable>
+        )}
+      </View>
+    );
+  }
+
+  const href = `/(client)/(tabs)/userList/professionalProfile/${item.hairdresser_id}`;
 
   const rowContent = (
     <>
       <AvatarWithSpinner
         uri={item.avatar_url}
-        size={isProClientRow ? responsiveScale(48) : responsiveScale(50)}
-        style={[
-          styles.profilePicture,
-          isProClientRow && styles.profilePicturePro,
-        ]}
+        size={responsiveScale(50)}
+        style={styles.profilePicture}
       />
-      <View style={isProClientRow ? styles.nameColumn : undefined}>
+      <View style={styles.nameColumn}>
         {highlightMatch(displayName, query ?? "")}
       </View>
-      {isProClientRow && (
-        <View style={styles.plusWrap} pointerEvents="none">
-          <AddClientRowIcon
-            size={responsiveScale(24)}
-            color={primaryBlack}
-          />
-        </View>
-      )}
     </>
   );
 
@@ -149,14 +235,11 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
           client_id: item.client_id,
         },
       }}
-      style={isProClientRow ? styles.resultItemPro : styles.resultItem}
+      style={styles.resultItem}
       asChild
     >
       <Pressable
-        style={({ pressed }) => [
-          isProClientRow ? styles.pressablePro : null,
-          { opacity: pressed ? 0.5 : 1 },
-        ]}
+        style={({ pressed }) => [{ opacity: pressed ? 0.5 : 1 }]}
       >
         {rowContent}
       </Pressable>
@@ -185,10 +268,11 @@ const styles = StyleSheet.create({
     paddingVertical: responsivePadding(12),
     paddingHorizontal: 0,
   },
-  pressablePro: {
+  pressableProMain: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    width: "100%",
+    minWidth: 0,
   },
   profilePicture: {
     width: responsiveScale(50),

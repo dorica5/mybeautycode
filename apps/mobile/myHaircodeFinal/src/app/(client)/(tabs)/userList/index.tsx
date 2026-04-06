@@ -22,6 +22,7 @@ import { StatusBar } from "expo-status-bar";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { Typography } from "@/src/constants/Typography";
+import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
   primaryBlack,
   primaryGreen,
@@ -241,9 +242,7 @@ const FindProfessionalsScreen = () => {
                       </Text>
                     ) : (
                       <Text style={styles.helperText}>
-                        Seems like your hairdresser hasn&apos;t started using
-                        myHaircode yet. Tip them about it so they&apos;re here
-                        next time you search!
+                        {`Seems like your hairdresser hasn't started using ${BRAND_DISPLAY_NAME} yet. Tip them about it so they're here next time you search!`}
                       </Text>
                     )}
                   </View>

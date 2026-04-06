@@ -10,9 +10,12 @@ export async function getFriendRequestStatus(
 }
 
 export async function getNotification(id: string) {
-  return api.get<{ id: string; status?: string; read?: boolean }>(
-    `/api/notifications/${id}`
-  );
+  return api.get<{
+    id: string;
+    status?: string;
+    read?: boolean;
+    data?: Record<string, unknown> | null;
+  }>(`/api/notifications/${id}`);
 }
 
 export async function respondToFriendRequest(

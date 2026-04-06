@@ -1,6 +1,7 @@
 import { Text, StyleSheet, ScrollView } from "react-native";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { Colors } from "@/src/constants/Colors";
 import TopNav from "@/src/components/TopNav";
 import Logo from "@assets/myHaircode_full_logo.svg";
@@ -21,7 +22,7 @@ const TermsAndConditionsScreen = () => {
         <ScrollView contentContainerStyle={styles.scrollView}>
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
             {/* Your Terms and Conditions or Privacy Policy text goes here */}
-            Welcome to myHaircode! By accessing or using our app, you agree to
+            Welcome to {BRAND_DISPLAY_NAME}! By accessing or using our app, you agree to
             comply with these Terms and Conditions. Please read them carefully
             before using the app
             {/* Add more content as needed */}
@@ -30,7 +31,7 @@ const TermsAndConditionsScreen = () => {
           <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>General Information</Text>
 
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            myHaircode is a journal system for the hair industry that connects
+            {BRAND_DISPLAY_NAME} is a journal system for beauty services that connects
             clients and hairdressers, allowing clients to share their complete
             treatment history with their hairdressers. Available on both iOS and
             Android.
@@ -68,7 +69,7 @@ const TermsAndConditionsScreen = () => {
 
           <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}> Liability Disclaimer</Text>
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            myHaircode provides a platform for journaling hair treatments, but we
+            {BRAND_DISPLAY_NAME} provides a platform for journaling treatments, but we
             do not guarantee specific results or outcomes.
           </Text>
 
@@ -82,7 +83,7 @@ const TermsAndConditionsScreen = () => {
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
             We reserve the right to modify these terms at any time. Continued use
             of the app after changes constitutes acceptance of the new terms. For
-            questions or support, contact us at hello@my-haircode.com.
+            questions or support, contact us at hello@mybeautycode.com.
           </Text>
         </ScrollView>
       </SafeAreaView>

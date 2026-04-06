@@ -5,22 +5,29 @@ import {
   View,
   Alert,
   ScrollView,
+  Dimensions,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   CaretLeft,
+  CaretRight,
   Plus,
   Eye,
-  Images,
   DotsThree,
 } from "phosphor-react-native";
+import { ViewGalleryRowIcon } from "@/src/components/ViewGalleryRowIcon";
 import RapportUserModal from "@/src/components/RapportUserModal";
+import {
+  ModerationSheetHeading,
+  ModerationReasonRow,
+  moderationDetailCopy,
+} from "@/src/components/moderation/ModerationSheetParts";
 import { router, useLocalSearchParams } from "expo-router";
-import Profile from "@/src/components/Profile";
-import ProfileRectangle from "@/src/components/profileRectangles";
 import MyButton from "@/src/components/MyButton";
-import { Colors } from "@/src/constants/Colors";
+import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
 import { useClientSearch } from "@/src/api/profiles";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import {
@@ -34,15 +41,15 @@ import {
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRelationshipCheck, removeRelationship } from "@/src/api/relationships";
-import { 
-  responsiveScale, 
-  scalePercent, 
+import {
+  responsiveScale,
   responsivePadding,
   responsiveMargin,
-  responsiveFontSize,
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+
+const screenHeight = Dimensions.get("window").height;
 
 const HaircodeList = () => {
   const {
@@ -57,7 +64,12 @@ const HaircodeList = () => {
   const data = profileData
     ? {
         full_name: profileData.fullName ?? profileData.full_name,
+        username:
+          profileData.username ??
+          (profileData as { Username?: string }).Username,
         avatar_url: profileData.avatarUrl ?? profileData.avatar_url,
+        phone_number:
+          profileData.phoneNumber ?? profileData.phone_number,
       }
     : undefined;
   const { session } = useAuth();
@@ -71,6 +83,25 @@ const HaircodeList = () => {
   const normalizedPhoneNumber = Array.isArray(phone_number)
     ? phone_number[0]
     : phone_number;
+  const navFullName = Array.isArray(full_name) ? full_name[0] : full_name;
+  const navRelationship = Array.isArray(relationship)
+    ? relationship[0]
+    : relationship;
+  const navPrice = Array.isArray(price) ? price[0] : price;
+
+  const displayUsername =
+    typeof data?.username === "string" && data.username.trim()
+      ? data.username.trim()
+      : null;
+  const displayFullName =
+    data?.full_name?.trim() ||
+    navFullName?.trim() ||
+    data?.phone_number?.trim() ||
+    normalizedPhoneNumber?.trim() ||
+    "Client";
+  const relParam = navRelationship ?? "true";
+
+  const connectedAvatarSize = responsiveScale(120, 144);
 
   // Control modals
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -78,6 +109,12 @@ const HaircodeList = () => {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const [isBlockedUser, setIsBlockedUser] = useState(false);
+
+  const displayPhonePill = isBlockedUser
+    ? null
+    : data?.phone_number?.trim() ||
+      normalizedPhoneNumber?.trim() ||
+      null;
 
   // Handlers
   const toggleModal = () => {
@@ -131,17 +168,20 @@ const HaircodeList = () => {
 
       if (result.autoBlocked) {
         Alert.alert(
-          "User Reported & Blocked",
-          "This user has been automatically blocked due to multiple reports and removed from the platform."
+          "Report received",
+          "Thanks for letting us know. This account was restricted after repeated reports."
         );
       } else {
-        Alert.alert("Reported", result.message);
+        Alert.alert("Report received", result.message);
       }
 
       setActiveAction(null);
     } catch (error) {
       if (error.message === "You have already reported this user") {
-        Alert.alert("Already Reported", "You have already reported this user.");
+        Alert.alert(
+          "Already reported",
+          "You have already submitted a report for this account."
+        );
       } else {
         console.error("Error reporting user:", error);
         Alert.alert("Error", "Failed to report user");
@@ -151,7 +191,11 @@ const HaircodeList = () => {
   };
 
   const modalContent = (
-    <View style={{ marginTop: "5%" }}>
+    <View>
+      <ModerationSheetHeading
+        title="Safety & privacy"
+        subtitle={`Manage how you interact with this client on ${BRAND_DISPLAY_NAME}.`}
+      />
       {isRelated && (
         <RapportUserModal
           title="Delete"
@@ -179,47 +223,44 @@ const HaircodeList = () => {
     </View>
   );
 
-  // Content for second modal
-  const renderSecondaryModal = () => (
-    <View>
-      <Text style={styles.modalHeader}>{activeAction}</Text>
-      {activeAction !== "Delete" && (
-        <Text style={styles.modalSubtext}>Your reason remains private</Text>
-      )}
+  const renderSecondaryModal = () => {
+    const copy =
+      activeAction === "Delete"
+        ? moderationDetailCopy.removeClient
+        : activeAction === "Block"
+          ? moderationDetailCopy.block
+          : activeAction === "Report"
+            ? moderationDetailCopy.report
+            : { title: "", subtitle: "" };
 
-      {activeAction === "Delete" && (
-        <>
-          <MyButton
-            style={styles.optionButton}
-            text="Confirm delete"
-            textSize={18}
-            textTabletSize={14}
-            onPress={async () => {
-              await deleteClient(client_id);
-              setActiveAction(null);
-            }}
-          />
-          <MyButton
-            style={styles.optionButton}
-            text="Cancel"
-            textSize={18}
-            textTabletSize={14}
-            onPress={async () => {
-              setActiveAction(null);
-            }}
-          />
-        </>
-      )}
-      {activeAction === "Block" && (
-        <>
-          {["No reason", "Spam, fake profile", "Inappropriate content"].map(
+    return (
+      <View>
+        {copy.title ? (
+          <ModerationSheetHeading title={copy.title} subtitle={copy.subtitle} />
+        ) : null}
+
+        {activeAction === "Delete" && (
+          <>
+            <ModerationReasonRow
+              label="Remove client"
+              danger
+              onPress={async () => {
+                await deleteClient(client_id);
+                setActiveAction(null);
+              }}
+            />
+            <ModerationReasonRow
+              label="Not now"
+              onPress={() => setActiveAction(null)}
+            />
+          </>
+        )}
+        {activeAction === "Block" &&
+          ["No reason", "Spam, fake profile", "Inappropriate content"].map(
             (reason, idx) => (
-              <MyButton
+              <ModerationReasonRow
                 key={`${reason}-${idx}`}
-                style={styles.optionButton}
-                text={reason}
-                textSize={18}
-                textTabletSize={14}
+                label={reason}
                 onPress={async () => {
                   await blockUser(
                     hairdresser_id,
@@ -227,137 +268,207 @@ const HaircodeList = () => {
                     reason,
                     queryClient
                   );
-                  Alert.alert("Blocked", "You have blocked this user.");
+                  Alert.alert(
+                    "Account blocked",
+                    `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
+                  );
                   setActiveAction(null);
                   setIsBlockedUser(true);
                 }}
               />
             )
           )}
-        </>
-      )}
 
-      {activeAction === "Report" && (
-        <ScrollView
-          style={{  }}
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled={true}
-        >
-          {REPORT_REASONS.map((reason) => (
-            <MyButton
+        {activeAction === "Report" &&
+          REPORT_REASONS.map((reason) => (
+            <ModerationReasonRow
               key={reason.value}
-              style={styles.optionButton}
-              text={reason.label}
-              textSize={18}
-              textTabletSize={14}
+              label={reason.label}
               onPress={() => handleReport(reason.value)}
             />
           ))}
-        </ScrollView>
-      )}
-    </View>
-  );
+      </View>
+    );
+  };
 
   if (relLoading) return null;
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
-      <View style={styles.container}>
-        <Pressable onPress={() => router.back()} style={styles.iconContainer}>
-          <CaretLeft size={responsiveScale(32)} color={Colors.dark.dark} />
-        </Pressable>
-
-        {!isBlockedUser && (
-          <Pressable onPress={toggleModal} style={styles.moreIconContainer}>
-            <DotsThree size={responsiveScale(32)} color={Colors.dark.dark} weight="bold" />
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.mintRoot} edges={["top", "left", "right"]}>
+        <View style={styles.connectedTopBar}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.connectedBackRow}
+            hitSlop={12}
+          >
+            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+            <Text style={styles.backLabel}>Back</Text>
           </Pressable>
-        )}
-
-        <ProfileRectangle full_name={data?.full_name} />
-
-        <View>
-          <AvatarWithSpinner
-            uri={data?.avatar_url}
-            size={scalePercent(25)}
-            style={styles.profilePic}
-          />
+          {!isBlockedUser ? (
+            <Pressable
+              onPress={toggleModal}
+              style={styles.connectedMore}
+              hitSlop={12}
+              accessibilityLabel="More options"
+            >
+              <DotsThree
+                size={responsiveScale(28)}
+                color={primaryBlack}
+                weight="bold"
+              />
+            </Pressable>
+          ) : (
+            <View style={styles.connectedMoreSpacer} />
+          )}
         </View>
 
-        <View style={styles.stack}>
-          {isBlockedUser ? (
-            <MyButton
-              style={[styles.clientProfileButton, { borderColor: "red" }]}
-              text="Unblock User"
-              textSize={18}
-              textTabletSize={14}
-              onPress={async () => {
-                await unblockUser(hairdresser_id, client_id, queryClient);
-                setIsBlockedUser(false);
-                Alert.alert(
-                  "User unblocked",
-                  "You can now access this user's profile."
-                );
+        <ScrollView
+          contentContainerStyle={styles.connectedScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View
+            style={[
+              styles.avatarOuter,
+              {
+                width: connectedAvatarSize,
+                height: connectedAvatarSize,
+                borderRadius: connectedAvatarSize / 2,
+              },
+            ]}
+          >
+            <AvatarWithSpinner
+              uri={data?.avatar_url}
+              size={connectedAvatarSize}
+              style={{
+                width: connectedAvatarSize,
+                height: connectedAvatarSize,
+                borderRadius: connectedAvatarSize / 2,
               }}
             />
-          ) : (
-            <>
+          </View>
+
+          <Text
+            style={[Typography.h3, styles.nameMint]}
+            accessibilityRole="header"
+          >
+            {displayFullName}
+          </Text>
+          {displayUsername ? (
+            <Text
+              style={[
+                Typography.anton26,
+                styles.usernameMint,
+                styles.usernameMintConnected,
+              ]}
+            >
+              {displayUsername}
+            </Text>
+          ) : null}
+
+          {displayPhonePill ? (
+            <View style={styles.phonePill}>
+              <Text style={styles.phonePillLabel}>{displayPhonePill}</Text>
+            </View>
+          ) : null}
+
+          {isBlockedUser ? (
+            <View style={styles.mintButtonWrap}>
               <MyButton
-                style={styles.clientProfileButton}
-                text="View profile"
+                style={[styles.unblockMint, { borderColor: "red" }]}
+                text="Unblock User"
                 textSize={18}
                 textTabletSize={14}
-                onPress={() => {
-                  router.push({
-                    pathname: `/(hairdresser)/clientProfile/${client_id}`,
-                    params: { relationship },
-                  });
+                onPress={async () => {
+                  await unblockUser(hairdresser_id, client_id, queryClient);
+                  setIsBlockedUser(false);
+                  Alert.alert(
+                    "User unblocked",
+                    "You can now access this user's profile."
+                  );
                 }}
               />
-
-              <View style={styles.profileContainer}>
-                <Profile
-                  title="New haircode"
-                  Icon={Plus}
-                  top={true}
+            </View>
+          ) : (
+            <View style={styles.actionCard}>
+              <View style={styles.actionRowShellFirst}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionRowInner,
+                    pressed && styles.actionRowPressed,
+                  ]}
                   onPress={() =>
                     router.push({
                       pathname: "/haircodes/new_haircode",
                       params: { clientId: client_id },
                     })
                   }
-                />
-                <Profile
-                  title="See haircodes"
-                  Icon={Eye}
+                >
+                  <View style={styles.actionRowLeft}>
+                    <Plus size={responsiveScale(28)} color={primaryBlack} />
+                    <Text style={styles.actionRowTitle}>New visit</Text>
+                  </View>
+                  <CaretRight size={responsiveScale(24)} color={primaryBlack} />
+                </Pressable>
+              </View>
+              <View style={styles.actionRowShellMiddle}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionRowInner,
+                    pressed && styles.actionRowPressed,
+                  ]}
                   onPress={() =>
                     router.push({
                       pathname: "/haircodes/see_haircode",
                       params: {
                         id: client_id,
-                        phone_number,
-                        full_name,
-                        relationship,
-                        price,
+                        phone_number:
+                          displayPhonePill ?? normalizedPhoneNumber ?? "",
+                        full_name: displayFullName,
+                        relationship: relParam,
+                        price: navPrice ?? "",
                       },
                     })
                   }
-                />
-                <Profile
-                  title="View gallery"
-                  Icon={Images}
-                  bottom={true}
+                >
+                  <View style={styles.actionRowLeft}>
+                    <Eye size={responsiveScale(28)} color={primaryBlack} />
+                    <Text style={styles.actionRowTitle}>View all visits</Text>
+                  </View>
+                  <CaretRight size={responsiveScale(24)} color={primaryBlack} />
+                </Pressable>
+              </View>
+              <View style={styles.actionRowShellLast}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.actionRowInner,
+                    pressed && styles.actionRowPressed,
+                  ]}
                   onPress={() =>
                     router.push({
                       pathname: "/haircodes/view_gallery",
-                      params: { clientId: client_id, clientName: full_name },
+                      params: {
+                        clientId: client_id,
+                        clientName: displayFullName,
+                      },
                     })
                   }
-                />
+                >
+                  <View style={styles.actionRowLeft}>
+                    <ViewGalleryRowIcon
+                      size={responsiveScale(28)}
+                      color={primaryBlack}
+                    />
+                    <Text style={styles.actionRowTitle}>View gallery</Text>
+                  </View>
+                  <CaretRight size={responsiveScale(24)} color={primaryBlack} />
+                </Pressable>
               </View>
-            </>
+            </View>
           )}
-        </View>
+        </ScrollView>
 
         <SmallDraggableModal
           isVisible={isModalVisible}
@@ -368,17 +479,19 @@ const HaircodeList = () => {
               setPendingAction(null);
             }
           }}
-          modalHeight={"50%"}
+          modalHeight={screenHeight * 0.52}
+          sheetVariant="brand"
           renderContent={modalContent}
         />
 
         <SmallDraggableModal
           isVisible={!!activeAction}
           onClose={() => setActiveAction(null)}
-          modalHeight={"70%"}
+          modalHeight={screenHeight * 0.72}
+          sheetVariant="brand"
           renderContent={renderSecondaryModal()}
         />
-      </View>
+      </SafeAreaView>
     </>
   );
 };
@@ -386,96 +499,141 @@ const HaircodeList = () => {
 export default HaircodeList;
 
 const styles = StyleSheet.create({
-  container: {
+  mintRoot: {
     flex: 1,
-    backgroundColor: "#fff"
+    backgroundColor: primaryGreen,
   },
-  moreIconContainer: {
-    position: "absolute",
-    top: responsiveScale(60),
-    right: responsiveScale(20),
-    zIndex: 10,
-  },
-  stack: {
-    marginTop: responsiveScale(90, 120),
-    justifyContent: "center",
+  connectedTopBar: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingRight: responsivePadding(8),
   },
-  iconContainer: {
-    position: "absolute",
-    top: responsiveScale(60),
-    left: responsiveScale(20),
-    zIndex: 10,
-    paddingHorizontal: scalePercent(5),
-    paddingTop: responsiveScale(1),
-  },
-  name: {
-    fontSize: responsiveFontSize(20, 18),
-    fontFamily: "Inter-SemiBold",
-  },
-  profileContainer: {
-    marginTop: responsiveScale(40),
-    width: scalePercent(100),
-    alignSelf: "center",
-  },
-  profilePic: {
-    backgroundColor: Colors.dark.yellowish,
-    position: "absolute",
-    width: scalePercent(25),
-    height: scalePercent(25),
-    borderRadius: scalePercent(25) / 2,
-    justifyContent: "center",
+  connectedBackRow: {
+    flexDirection: "row",
     alignItems: "center",
-    alignSelf: "center",
-    marginTop: responsiveScale(55, 40),
+    paddingHorizontal: responsivePadding(12),
+    paddingVertical: responsiveMargin(12),
+    gap: responsiveScale(4),
   },
-  clientProfileButton: {
-    height: responsiveScale(50),
-    paddingVertical: responsivePadding(12, 8),
-    marginTop: responsiveScale(200, 300),
-    backgroundColor: Colors.light.yellowish,
-    borderWidth: responsiveScale(2),
-    borderColor: Colors.dark.warmGreen,
-    shadowColor: Colors.dark.dark,
-    shadowOffset: { width: 0, height: responsiveScale(2) },
-    shadowOpacity: 0.4,
-    shadowRadius: responsiveScale(3),
-    elevation: 5,
+  backLabel: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
   },
-  optionButton: {
-    height: responsiveScale(50,70),
-    paddingVertical: responsivePadding(12),
-    marginTop: scalePercent(3),
-    backgroundColor: Colors.light.yellowish,
-    borderWidth: responsiveScale(2),
-    borderColor: Colors.dark.warmGreen,
-    shadowColor: Colors.dark.dark,
-    shadowOffset: { width: 0, height: responsiveScale(2) },
-    shadowOpacity: 0.4,
-    shadowRadius: responsiveScale(3),
-    elevation: 5,
+  connectedMore: {
+    padding: responsivePadding(8),
+    minWidth: responsiveScale(44),
+    alignItems: "flex-end",
   },
-  modalHeader: {
-    fontSize: responsiveFontSize(18, 16),
-    textAlign: "center",
-    marginBottom: responsiveMargin(10),
-    fontFamily: "Inter-Bold"
+  connectedMoreSpacer: {
+    width: responsiveScale(44),
   },
-  modalSubtext: {
-    fontSize: responsiveFontSize(14, 12),
-    textAlign: "center",
+  connectedScroll: {
+    flexGrow: 1,
+    alignItems: "center",
+    paddingHorizontal: responsivePadding(24),
+    paddingBottom: responsiveMargin(40),
+  },
+  avatarOuter: {
+    marginTop: responsiveMargin(16),
     marginBottom: responsiveMargin(20),
-    color: "gray",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: primaryBlack,
+    backgroundColor: primaryWhite,
   },
-  buttonText: {
-    fontSize: responsiveFontSize(18, 16),
-    color: Colors.dark.dark,
-    fontFamily: "Inter-Bold"
+  nameMint: {
+    textAlign: "center",
+    marginBottom: responsiveMargin(8),
   },
-  rapportButton: {
-    backgroundColor: Colors.dark.yellowish,
+  usernameMint: {
+    textAlign: "center",
+    marginBottom: responsiveMargin(28),
   },
-  deleteButton: {
-    backgroundColor: Colors.dark.warmGreen,
+  usernameMintConnected: {
+    marginBottom: responsiveMargin(12),
+  },
+  phonePill: {
+    alignSelf: "center",
+    paddingVertical: responsiveScale(10),
+    paddingHorizontal: responsiveScale(22),
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: primaryBlack,
+    backgroundColor: "transparent",
+    marginBottom: responsiveMargin(52),
+  },
+  phonePillLabel: {
+    ...Typography.outfitRegular16,
+    fontWeight: "400",
+    textAlign: "center",
+  },
+  actionCard: {
+    width: "100%",
+    maxWidth: 400,
+    gap: responsiveMargin(6),
+    backgroundColor: "transparent",
+  },
+  /** Mint shows in gaps; only stack outer top/bottom get radius (per design). */
+  actionRowShellFirst: {
+    borderTopLeftRadius: responsiveScale(22),
+    borderTopRightRadius: responsiveScale(22),
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${primaryBlack}22`,
+    backgroundColor: primaryWhite,
+  },
+  actionRowShellMiddle: {
+    borderRadius: 0,
+    overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${primaryBlack}22`,
+    backgroundColor: primaryWhite,
+  },
+  actionRowShellLast: {
+    borderBottomLeftRadius: responsiveScale(22),
+    borderBottomRightRadius: responsiveScale(22),
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${primaryBlack}22`,
+    backgroundColor: primaryWhite,
+  },
+  actionRowInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: responsivePadding(22, 20),
+    paddingHorizontal: responsivePadding(22, 20),
+    minHeight: responsiveScale(64, 58),
+    backgroundColor: primaryWhite,
+  },
+  actionRowPressed: {
+    backgroundColor: `${primaryBlack}08`,
+  },
+  actionRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveScale(18),
+  },
+  actionRowTitle: {
+    ...Typography.bodyLarge,
+    color: primaryBlack,
+  },
+  mintButtonWrap: {
+    marginTop: responsiveMargin(8),
+    width: "100%",
+    maxWidth: 400,
+    alignSelf: "center",
+  },
+  unblockMint: {
+    borderWidth: responsiveScale(2),
+    backgroundColor: "transparent",
+    width: "95%",
+    alignSelf: "center",
   },
 });

@@ -26,6 +26,7 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { Typography } from "@/src/constants/Typography";
+import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
   primaryBlack,
   primaryGreen,
@@ -253,8 +254,7 @@ const HomeScreen = () => {
                               No results found for "{debouncedQuery.trim()}"
                             </Text>
                             <Text style={styles.helperText}>
-                              Seems like your client hasn’t joined myHaircode
-                              yet. You can invite them to download the app.
+                              {`Seems like your client hasn't joined ${BRAND_DISPLAY_NAME} yet. You can invite them to download the app.`}
                             </Text>
                           </View>
                         )

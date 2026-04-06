@@ -61,7 +61,26 @@ export const FriendRequest = () => {
   const handleResponse = async (accepted: boolean) => {
     setLoading(true);
     try {
-      if (accepted && !isClientRequest) {
+      let clientProfessionalLinkId: string | null = null;
+      if (notificationId) {
+        try {
+          const notifRow = await getNotification(notificationId as string);
+          const d = notifRow?.data;
+          if (
+            d &&
+            typeof d === "object" &&
+            typeof d.clientProfessionalLinkId === "string"
+          ) {
+            clientProfessionalLinkId = d.clientProfessionalLinkId;
+          }
+        } catch {
+          // notification fetch is optional for deciding legacy accept path
+        }
+      }
+
+      await respondToFriendRequest(notificationId as string, accepted);
+
+      if (accepted && !isClientRequest && !clientProfessionalLinkId) {
         await api.post("/api/relationships", {
           hairdresser_id: senderId,
           client_id: profile.id,
@@ -80,7 +99,6 @@ export const FriendRequest = () => {
         );
       }
 
-      await respondToFriendRequest(notificationId as string, accepted);
       setIsHandled(true);
     } catch (error) {
       console.error("Error handling friend request:", error);

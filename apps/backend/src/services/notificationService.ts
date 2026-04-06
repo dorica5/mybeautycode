@@ -137,9 +137,72 @@ export const notificationService = {
     userId: string,
     accepted: boolean
   ) {
+    const n = await prisma.notification.findFirst({
+      where: { id: notificationId, userId },
+    });
+    if (!n) {
+      throw Object.assign(new Error("Notification not found"), { statusCode: 404 });
+    }
+
+    const rawData = n.data as Record<string, unknown> | null | undefined;
+    const linkId =
+      rawData && typeof rawData.clientProfessionalLinkId === "string"
+        ? rawData.clientProfessionalLinkId
+        : null;
+
+    let linkResponded = false;
+    if (linkId) {
+      const link = await prisma.clientProfessionalLink.findFirst({
+        where: {
+          id: linkId,
+          clientUserId: userId,
+          status: "pending",
+        },
+      });
+      if (link) {
+        linkResponded = true;
+        if (accepted) {
+          await prisma.clientProfessionalLink.update({
+            where: { id: linkId },
+            data: {
+              status: "active",
+              statusChangedAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+        } else {
+          await prisma.clientProfessionalLink.delete({
+            where: { id: linkId },
+          });
+        }
+      }
+    }
+
     await prisma.notification.updateMany({
       where: { id: notificationId, userId },
       data: { status: accepted ? "accepted" : "rejected", read: true },
     });
+
+    if (linkResponded && n.type === "link_request" && n.senderId) {
+      const clientProfile = await prisma.profile.findUnique({
+        where: { id: userId },
+        select: { firstName: true, lastName: true },
+      });
+      const clientName = profileDisplayName(clientProfile ?? {});
+      if (accepted) {
+        await notificationService.send(userId, n.senderId, {
+          type: "FRIEND_ACCEPTED",
+          message: `${clientName} accepted your connection request`,
+          title: "Request accepted",
+          extraData: { clientProfessionalLinkId: linkId },
+        });
+      } else {
+        await notificationService.send(userId, n.senderId, {
+          type: "FRIEND_DECLINED",
+          message: `${clientName} declined your connection request`,
+          title: "Request declined",
+        });
+      }
+    }
   },
 };

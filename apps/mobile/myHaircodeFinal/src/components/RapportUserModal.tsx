@@ -1,13 +1,18 @@
-import { StyleSheet, View, Pressable } from "react-native";
+import { StyleSheet, View, Pressable, Text } from "react-native";
 import React from "react";
-import { Colors } from "../constants/Colors";
-import { 
-  responsiveScale, 
-  responsivePadding, 
-  responsiveMargin, 
-  responsiveBorderRadius 
+import { Flag, Prohibit, Trash, X } from "phosphor-react-native";
+import {
+  primaryBlack,
+  primaryWhite,
+  secondaryGreen,
+} from "../constants/Colors";
+import { Typography } from "../constants/Typography";
+import {
+  responsiveScale,
+  responsivePadding,
+  responsiveMargin,
 } from "../utils/responsive";
-import { ResponsiveText } from "./ResponsiveText";
+import { moderationDestructive } from "./moderation/ModerationSheetParts";
 
 type RapportUserProps = {
   bottom?: boolean;
@@ -15,41 +20,61 @@ type RapportUserProps = {
   title: string;
 } & React.ComponentPropsWithoutRef<typeof Pressable>;
 
+const MENU_LABELS: Record<string, string> = {
+  Delete: "Remove client",
+  Block: "Block user",
+  Report: "Report",
+  Cancel: "Cancel",
+};
+
 const RapportUserModal = ({
-  bottom = false,
-  top = false,
   title,
   ...pressableProps
 }: RapportUserProps) => {
+  const label = MENU_LABELS[title] ?? title;
+  const isDelete = title === "Delete";
+  const isCancel = title === "Cancel";
+
+  const Icon = (() => {
+    switch (title) {
+      case "Delete":
+        return Trash;
+      case "Block":
+        return Prohibit;
+      case "Report":
+        return Flag;
+      default:
+        return X;
+    }
+  })();
+
+  const iconColor = isDelete ? moderationDestructive : primaryBlack;
+  const iconSize = responsiveScale(22);
+
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.container,
-        {
-          borderTopLeftRadius: top ? responsiveBorderRadius(20) : 0,
-          borderTopRightRadius: top ? responsiveBorderRadius(20) : 0,
-          borderBottomLeftRadius: bottom ? responsiveBorderRadius(20) : 0,
-          borderBottomRightRadius: bottom ? responsiveBorderRadius(20) : 0,
-          backgroundColor: pressed
-            ? Colors.dark.warmGreen
-            : Colors.dark.yellowish,
-          marginTop: bottom && top ? responsiveMargin(16) : responsiveMargin(4),
-        },
+        styles.row,
+        isCancel && styles.rowCancel,
+        isDelete && styles.rowDestructive,
+        pressed && styles.rowPressed,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
       {...pressableProps}
     >
-      <View style={styles.subContainer}>
-        <ResponsiveText
-          size={16}
-          tabletSize={14}
-          weight="SemiBold"
+      <View style={styles.rowInner}>
+        <Icon size={iconSize} color={iconColor} weight="regular" />
+        <Text
           style={[
-            styles.title,
-            bottom && top ? { color: "#F00" } : {},
+            Typography.bodyMedium,
+            styles.label,
+            isDelete && { color: moderationDestructive },
+            isCancel && styles.labelCancel,
           ]}
         >
-          {title}
-        </ResponsiveText>
+          {label}
+        </Text>
       </View>
     </Pressable>
   );
@@ -58,18 +83,35 @@ const RapportUserModal = ({
 export default RapportUserModal;
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: responsiveMargin(4),
-    marginHorizontal: responsiveScale(4), // Convert percentage to responsive scale
-    padding: responsivePadding(12), // Convert percentage to fixed responsive padding
+  row: {
+    marginBottom: responsiveMargin(10),
+    paddingVertical: responsivePadding(16, 14),
+    paddingHorizontal: responsivePadding(18, 16),
+    borderRadius: responsiveScale(14),
+    backgroundColor: primaryWhite,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: `${primaryBlack}18`,
   },
-  subContainer: {
+  rowDestructive: {
+    borderColor: `${moderationDestructive}35`,
+  },
+  rowCancel: {
+    backgroundColor: "transparent",
+    borderColor: `${primaryBlack}24`,
+  },
+  rowPressed: {
+    backgroundColor: secondaryGreen,
+  },
+  rowInner: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    width: "100%",
+    gap: responsiveScale(14),
   },
-  title: {
-    color: "#333",
+  label: {
+    color: primaryBlack,
+    flex: 1,
+  },
+  labelCancel: {
+    opacity: 0.85,
   },
 });

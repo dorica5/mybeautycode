@@ -102,6 +102,7 @@ export const NotificationItem = ({
 
     switch (notification.type) {
       case "FRIEND_REQUEST":
+      case "link_request":
         router.push({
           pathname: "/Notifications/FriendRequest",
           params: {

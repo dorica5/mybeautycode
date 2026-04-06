@@ -6,6 +6,7 @@ export const relationshipRoutes = Router();
 
 relationshipRoutes.use(authMiddleware);
 
+relationshipRoutes.post("/request-client", relationshipController.requestClient);
 relationshipRoutes.post("/", relationshipController.add);
 relationshipRoutes.delete("/", relationshipController.remove);
 relationshipRoutes.get("/check", relationshipController.checkExists);

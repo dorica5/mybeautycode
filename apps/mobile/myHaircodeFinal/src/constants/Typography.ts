@@ -70,6 +70,8 @@ export const Typography = {
   h1: antonHeading(48, 130),
   h2: antonHeading(44, 120),
   h3: antonHeading(36, 120),
+  /** Anton 26 regular — e.g. username on professional “add client” profile preview. */
+  anton26: antonHeading(26, 120),
   /** Anton 24 regular — e.g. username under display name on client home. */
   anton24: antonHeading(24, 120),
   /** Anton 16 regular — e.g. profession line under “My visits” (professional home). */

@@ -13,13 +13,15 @@ import {
 import { CaretLeft, DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import OpenUrl from "@/src/components/OpenUrl";
+import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { Colors } from "@/src/constants/Colors";
 import RemoteImage from "@/src/components/RemoteImage";
 import ProfileRectangle from "@/src/components/profileRectangles";
 import {
   blockUser,
   isBlocked,
-  ReportReason,
+  REPORT_REASONS,
+  type ReportReason,
   reportUserEnhanced,
   unblockUser,
 } from "@/src/api/moderation";
@@ -35,6 +37,11 @@ import {
 import { useAddHairdresser } from "@/src/api/profiles";
 import { sendPushNotification } from "@/src/providers/useNotifcations";
 import RapportUserModal from "@/src/components/RapportUserModal";
+import {
+  ModerationSheetHeading,
+  ModerationReasonRow,
+  moderationDetailCopy,
+} from "@/src/components/moderation/ModerationSheetParts";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRelationshipCheck } from "@/src/api/relationships";
@@ -175,17 +182,21 @@ const OtherProfessionalProfile = () => {
 
       if (result.autoBlocked) {
         Alert.alert(
-          "User Reported & Blocked",
-          "This user has been automatically blocked due to multiple reports and removed from the platform."
+          "Report received",
+          "Thanks for letting us know. This account was restricted after repeated reports."
         );
       } else {
-        Alert.alert("Reported", result.message);
+        Alert.alert("Report received", result.message);
       }
 
       setActiveAction(null);
-    } catch (error) {
-      if (error.message === "You have already reported this user") {
-        Alert.alert("Already Reported", "You have already reported this user.");
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "";
+      if (msg === "You have already reported this user") {
+        Alert.alert(
+          "Already reported",
+          "You have already submitted a report for this account."
+        );
       } else {
         console.error("Error reporting user:", error);
         Alert.alert("Error", "Failed to report user");
@@ -212,13 +223,103 @@ const OtherProfessionalProfile = () => {
   const handleBlock = async (reason: string) => {
     try {
       await blockUser(client_id, hairdresser_id, reason, queryClient);
-      Alert.alert("Blocked", "You have blocked this user.");
+      Alert.alert(
+        "Account blocked",
+        `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
+      );
       setActiveAction(null);
       setIsBlockedUser(true);
     } catch (error) {
       console.error("Error blocking user:", error);
       Alert.alert("Error", "Failed to block user");
     }
+  };
+
+  const moderationPrimaryContent = (
+    <View>
+      <ModerationSheetHeading
+        title="Safety & privacy"
+        subtitle={`Manage how you interact with this professional on ${BRAND_DISPLAY_NAME}.`}
+      />
+      {isRelated && (
+        <RapportUserModal
+          title="Delete"
+          top
+          onPress={() => handleModalOption("Delete")}
+        />
+      )}
+      <RapportUserModal
+        top={!isRelated}
+        title="Block"
+        onPress={() => handleModalOption("Block")}
+      />
+      <RapportUserModal
+        title="Report"
+        bottom={!isRelated}
+        onPress={() => handleModalOption("Report")}
+      />
+      <RapportUserModal
+        title="Cancel"
+        top
+        bottom
+        onPress={() => setIsModalVisible(false)}
+      />
+    </View>
+  );
+
+  const renderModerationDetail = () => {
+    const copy =
+      activeAction === "Delete"
+        ? moderationDetailCopy.removeProfessional
+        : activeAction === "Block"
+          ? moderationDetailCopy.block
+          : activeAction === "Report"
+            ? moderationDetailCopy.report
+            : { title: "", subtitle: "" };
+
+    return (
+      <View>
+        {copy.title ? (
+          <ModerationSheetHeading title={copy.title} subtitle={copy.subtitle} />
+        ) : null}
+
+        {activeAction === "Delete" && (
+          <>
+            <ModerationReasonRow
+              label="Remove professional"
+              danger
+              onPress={async () => {
+                await deleteHairdresser();
+                setActiveAction(null);
+              }}
+            />
+            <ModerationReasonRow
+              label="Not now"
+              onPress={() => setActiveAction(null)}
+            />
+          </>
+        )}
+        {activeAction === "Block" &&
+          ["No reason", "Spam, fake profile", "Inappropriate content"].map(
+            (reason) => (
+              <ModerationReasonRow
+                key={reason}
+                label={reason}
+                onPress={() => handleBlock(reason)}
+              />
+            )
+          )}
+
+        {activeAction === "Report" &&
+          REPORT_REASONS.map((reason) => (
+            <ModerationReasonRow
+              key={reason.value}
+              label={reason.label}
+              onPress={() => handleReport(reason.value)}
+            />
+          ))}
+      </View>
+    );
   };
 
   // Helper function to check if a field has valid content
@@ -350,114 +451,18 @@ const OtherProfessionalProfile = () => {
               setPendingAction(null);
             }
           }}
-          modalHeight={"50%"}
-          renderContent={
-            <View style={{ marginTop: "5%" }}>
-              {isRelated && (
-                <RapportUserModal
-                  title="Delete"
-                  top
-                  onPress={() => handleModalOption("Delete")}
-                />
-              )}
-              <RapportUserModal
-                top={!isRelated}
-                title="Block"
-                onPress={() => handleModalOption("Block")}
-              />
-              <RapportUserModal
-                title="Report"
-                bottom={!isRelated}
-                onPress={() => handleModalOption("Report")}
-              />
-              <RapportUserModal
-                title="Cancel"
-                top
-                bottom
-                onPress={() => setIsModalVisible(false)}
-              />
-            </View>
-          }
+          modalHeight="52%"
+          sheetVariant="brand"
+          renderContent={moderationPrimaryContent}
         />
 
         {activeAction && (
           <SmallDraggableModal
             isVisible
             onClose={() => setActiveAction(null)}
-            modalHeight={"70%"}
-            renderContent={
-              <View>
-                <Text style={[styles.modalHeader, {fontSize: responsiveFontSize(18, 14)}]}>{activeAction}</Text>
-                {activeAction !== "Delete" && (
-                  <Text style={[styles.modalSubtext, {fontSize: responsiveFontSize(14, 12)}]}>
-                    Your reason remains private
-                  </Text>
-                )}
-
-                {activeAction === "Delete" && (
-                  <>
-                    <MyButton
-                      style={styles.optionButton}
-                      text="Confirm delete"
-                      textSize={18}
-                      textTabletSize={14}
-                      onPress={async () => {
-                        await deleteHairdresser();
-                        setActiveAction(null);
-                      }}
-                    />
-                    <MyButton
-                      style={styles.optionButton}
-                      text="Cancel"
-                      textSize={18}
-                      textTabletSize={14}
-                      onPress={() => setActiveAction(null)}
-                    />
-                  </>
-                )}
-
-                {activeAction === "Block" && (
-                  <>
-                    {[
-                      "No reason",
-                      "Spam, fake profile",
-                      "Inappropriate content",
-                    ].map((reason) => (
-                      <MyButton
-                        key={reason}
-                        style={styles.optionButton}
-                        text={reason}
-                        textSize={18}
-                        textTabletSize={14}
-                        onPress={async () => {
-                          await handleBlock(reason);
-                          Alert.alert("Blocked", "You have blocked this user.");
-                        }}
-                      />
-                    ))}
-                  </>
-                )}
-
-                {activeAction === "Report" && (
-                  <>
-                    {[
-                      "No reason",
-                      "Spam, fake profile",
-                      "Inappropriate content",
-                    ].map((reason) => (
-                      <MyButton
-                        key={reason}
-                        style={styles.optionButton}
-                        text={reason}
-                        textSize={18}
-                        textTabletSize={14}
-                        onPress={() => handleReport(reason)}
-                      />
-                    ))}
-                  </>
-                )}
-              </View>
-            }
+            modalHeight="72%"
+            sheetVariant="brand"
+            renderContent={renderModerationDetail()}
           />
         )}
       </ScrollView>
@@ -567,34 +572,5 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginTop: responsiveScale(38, 120),
     borderRadius: responsiveBorderRadius(25, 18),
-  },
-
-  optionButton: {
-    height: responsiveScale(50, 45),
-    paddingVertical: responsiveScale(12, 8),
-    marginTop: responsiveScale(12, 8),
-    backgroundColor: Colors.light.yellowish,
-    borderWidth: 2,
-    borderColor: Colors.dark.warmGreen,
-    borderRadius: responsiveBorderRadius(20, 14),
-    shadowColor: Colors.dark.dark,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-
-  modalHeader: {
-    fontSize: responsiveFontSize(18, 14),
-    textAlign: "center",
-    marginBottom: 10,
-    fontFamily: "Inter-Bold",
-  },
-  modalSubtext: {
-    fontSize: responsiveFontSize(14, 12),
-    textAlign: "center",
-    color: "gray",
-    marginBottom: 20,
-    fontFamily: "Inter-Regular",
   },
 });

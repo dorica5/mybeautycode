@@ -17,6 +17,7 @@ import { useListAllHairdresserSearch } from "@/src/api/profiles";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { ResponsiveText } from "@/src/components/ResponsiveText";
 import { StatusBar } from "expo-status-bar";
+import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
   responsiveScale,
   responsiveFontSize,
@@ -132,9 +133,7 @@ const SearchHairdresserPage = () => {
                         </Text>
                       ) : (
                         <Text style={styles.helperText}>
-                          Seems like your hairdresser hasn’t started using
-                          myHaircode yet. Tip them about it so they’re here next
-                          time you search!
+                          {`Seems like your hairdresser hasn't started using ${BRAND_DISPLAY_NAME} yet. Tip them about it so they're here next time you search!`}
                         </Text>
                       )}
                     </View>

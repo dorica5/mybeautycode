@@ -89,13 +89,13 @@ const AddProfession = () => {
         <View style={styles.paddedHorizontal}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Tilbake"
+            accessibilityLabel="Back"
             onPress={() => router.back()}
             style={styles.backRow}
             hitSlop={12}
           >
             <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={[Typography.bodyMedium, styles.backText]}>Tilbake</Text>
+            <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
           </Pressable>
         </View>
 

@@ -3,6 +3,15 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
 import { supabase } from "@/src/lib/supabase";
+import { isUuid } from "@/src/utils/isUuid";
+
+export async function requestClientLink(clientId: string) {
+  return api.post<{
+    success: boolean;
+    clientProfessionalLinkId?: string;
+    alreadyPending?: boolean;
+  }>("/api/relationships/request-client", { client_id: clientId });
+}
 
 export const useUpdateSupabaseProfile = () => {
   const queryClient = useQueryClient();
@@ -69,11 +78,11 @@ export const useListAllClientSearch = (
   });
 };
 
-export const useClientSearch = (client_id: string) => {
+export const useClientSearch = (client_id: string | undefined) => {
   return useQuery({
     queryKey: ["clientSearch", client_id],
     queryFn: () => api.get(`/api/profiles/${client_id}`),
-    enabled: !!client_id,
+    enabled: !!client_id && isUuid(client_id),
   });
 };
 
