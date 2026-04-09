@@ -35,11 +35,6 @@ export function needsProfessionCodesSqlFallback(
 export type SerializeProfileOptions = {
   /** Filled when nested Prisma include returns no join rows but DB has links. */
   professionCodesSqlFallback?: string[];
-  /**
-   * Hair-only peer fields (e.g. color_brand). Shown to professionals viewing another pro, or to self on /me.
-   * Clients get `color_brand: null` when the target has a professional profile.
-   */
-  includeHairdresserOnlyFields?: boolean;
 };
 
 function toIsoString(value: Date | null | undefined): string | null {
@@ -99,12 +94,11 @@ export function serializeProfileForApi(
       ? fromNested
       : (options?.professionCodesSqlFallback ?? []);
 
-  const hairdresserOnly =
-    options?.includeHairdresserOnlyFields === true
-      ? {
-          color_brand: prof.professionalHairProfile?.colorBrand ?? null,
-        }
-      : { color_brand: null as string | null };
+  /** Public “salon color lines” — shown on pro public profile to any viewer when target lists `hair`. */
+  const targetHasHairProfession = profession_codes.includes("hair");
+  const color_brand = targetHasHairProfession
+    ? (prof.professionalHairProfile?.colorBrand ?? null)
+    : null;
 
   return {
     ...base,
@@ -120,6 +114,6 @@ export function serializeProfileForApi(
     /** Legacy aliases from pre–professional_profiles naming */
     salon_name: prof.businessName ?? null,
     salon_phone_number: prof.businessNumber ?? null,
-    ...hairdresserOnly,
+    color_brand,
   };
 }

@@ -26,12 +26,9 @@ export const profileController = {
       ) {
         professionCodesSqlFallback = await fetchProfessionCodesForProfile(id);
       }
-      const includeHairdresserOnlyFields =
-        req.userId != null && (await profileService.hasHairProfession(req.userId));
       res.json(
         serializeProfileForApi(profile, {
           professionCodesSqlFallback,
-          includeHairdresserOnlyFields,
         })
       );
     } catch (err) {
@@ -62,13 +59,9 @@ export const profileController = {
       ) {
         professionCodesSqlFallback = await fetchProfessionCodesForProfile(id);
       }
-      const includeHairdresserOnlyFields = await profileService.hasHairProfession(
-        id
-      );
       res.json(
         serializeProfileForApi(fresh, {
           professionCodesSqlFallback,
-          includeHairdresserOnlyFields,
         })
       );
     } catch (err: unknown) {

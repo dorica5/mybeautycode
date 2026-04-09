@@ -7,6 +7,6 @@ export const posthog = new PostHog(
     }
 )
 
-export const identifyUser = (userId: string, traits?: Record<string, any>){
+export const identifyUser = (userId: string, traits?: Record<string, any>) => {
     posthog.identify(userId, traits);
 }

@@ -8,8 +8,6 @@ import {
   needsProfessionCodesSqlFallback,
   serializeProfileForApi,
 } from "../lib/serializeProfileForApi";
-import { profileService } from "../services/profileService";
-
 export const authController = {
   async me(req: Request, res: Response) {
     const userId = req.userId;
@@ -33,13 +31,9 @@ export const authController = {
           userId
         );
       }
-      const includeHairdresserOnlyFields = await profileService.hasHairProfession(
-        userId
-      );
       return res.json(
         serializeProfileForApi(profile, {
           professionCodesSqlFallback,
-          includeHairdresserOnlyFields,
         })
       );
     } catch (err) {

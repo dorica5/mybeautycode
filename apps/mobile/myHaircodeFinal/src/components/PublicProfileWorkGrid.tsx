@@ -29,12 +29,17 @@ function chunkRows<T>(items: T[], size: number): T[][] {
 
 type Props = {
   profileUserId: string;
+  /** When false, omit the built-in "My work" label (use when the parent already shows a section title). @default true */
+  showTitle?: boolean;
 };
 
 /**
  * Read-only 2-column grid of public portfolio images (Get discovered), for any profile viewer.
  */
-export function PublicProfileWorkGrid({ profileUserId }: Props) {
+export function PublicProfileWorkGrid({
+  profileUserId,
+  showTitle = true,
+}: Props) {
   const [rows, setRows] = useState<PublicProfileWorkRow[]>([]);
   const width = Dimensions.get("window").width;
   const scrollPad = responsivePadding(24);
@@ -74,7 +79,9 @@ export function PublicProfileWorkGrid({ profileUserId }: Props) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={[Typography.label, styles.label]}>My work</Text>
+      {showTitle ? (
+        <Text style={[Typography.label, styles.label]}>My work</Text>
+      ) : null}
       <View style={[styles.grid, { width: rowInner }]}>
         {pairRows.map((row, rowIndex) => (
           <View

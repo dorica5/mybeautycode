@@ -1,25 +1,14 @@
 /* eslint-disable react/react-in-jsx-scope */
 import React, { useEffect, useState, useCallback } from "react";
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  Linking,
-  Alert,
-  ScrollView,
-  Pressable,
-} from "react-native";
-import { CaretLeft, DotsThree } from "phosphor-react-native";
+import { StyleSheet, View, Alert, Pressable } from "react-native";
+import { DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
-import OpenUrl from "@/src/components/OpenUrl";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
-import { Colors } from "@/src/constants/Colors";
-import ProfileRectangle from "@/src/components/profileRectangles";
-import { sendPushNotification } from "@/src/providers/useNotifcations";
+import { Colors, primaryBlack } from "@/src/constants/Colors";
+import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
   ModerationSheetHeading,
@@ -38,16 +27,10 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useRelationshipCheck } from "@/src/api/relationships";
 import { useRemoveRelationships } from "@/src/api/profiles";
-import { primarySocialUrl } from "@/src/lib/socialMediaStorage";
-import {
-  responsiveScale,
-  responsiveFontSize,
-  responsiveBorderRadius,
-  scalePercent,
-} from "@/src/utils/responsive";
+import { sendPushNotification } from "@/src/providers/useNotifcations";
+import { responsiveScale } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
-import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
-import { PublicProfileWorkGrid } from "@/src/components/PublicProfileWorkGrid";
+import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
 
 const ProfessionalProfileScreen = () => {
   const { id: hairdresser_id } = useLocalSearchParams<{ id: string }>();
@@ -56,41 +39,44 @@ const ProfessionalProfileScreen = () => {
 
   const queryClient = useQueryClient();
 
-  const { data: profileData } = useClientSearch(hairdresser_id);
-  const data = profileData
-    ? {
-        full_name: profileData.fullName ?? profileData.full_name,
-        avatar_url: profileData.avatarUrl ?? profileData.avatar_url,
-        about_me: profileData.aboutMe ?? profileData.about_me,
-        salon_name: profileData.salonName ?? profileData.salon_name,
-        salon_phone_number: profileData.salonPhoneNumber ?? profileData.salon_phone_number,
-        booking_site: profileData.bookingSite ?? profileData.booking_site,
-        social_media: profileData.socialMedia ?? profileData.social_media,
-      }
-    : undefined;
-  const { data: isRelated = false, isFetching: relLoading } = useRelationshipCheck(
-    client_id ?? undefined,
+  const { data: profileData, isLoading: profileLoading } = useClientSearch(
     hairdresser_id
   );
+  const p = profileData as Profile | undefined;
+  const data = p
+    ? {
+        full_name: p.full_name,
+        first_name: p.first_name,
+        username: p.username,
+        avatar_url: p.avatar_url,
+        about_me: p.about_me,
+        salon_name: p.salon_name,
+        business_address: p.business_address,
+        salon_phone_number: p.salon_phone_number,
+        booking_site: p.booking_site,
+        social_media: p.social_media,
+        color_brand: p.color_brand,
+        profession_codes: p.profession_codes,
+      }
+    : undefined;
+
+  const { data: isRelated = false, isFetching: relLoading } =
+    useRelationshipCheck(client_id ?? undefined, hairdresser_id);
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
-  // block state
   const [isBlockedUser, setIsBlockedUser] = useState(false);
   const [blockCheckComplete, setBlockCheckComplete] = useState(false);
 
-  // modals
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
-  // mutations
   const [loading, setLoading] = useState(false);
   const { mutateAsync: addHairdresserDB } = useAddHairdresser(
     hairdresser_id,
     client_id
   );
 
-  // check blocked
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -126,7 +112,7 @@ const ProfessionalProfileScreen = () => {
         }),
       ]);
       router.replace({
-        pathname: "/(client)/userList/professionalProfile/[id]",
+        pathname: "/(client)/(tabs)/userList/professionalProfile/[id]",
         params: { id: hairdresser_id },
       });
     } catch (error) {
@@ -143,8 +129,8 @@ const ProfessionalProfileScreen = () => {
 
       const message = `${profile?.full_name} has added you as their hairdresser.`;
       await sendPushNotification(
-        hairdresser_id,
-        client_id,
+        hairdresser_id as string,
+        client_id as string,
         "FRIEND_REQUEST",
         message,
         {
@@ -166,19 +152,13 @@ const ProfessionalProfileScreen = () => {
     }
   }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient]);
 
-  const handlePhoneCall = useCallback(async () => {
-    const phoneUrl = `tel:${data?.salon_phone_number}`;
-    const supported = await Linking.canOpenURL(phoneUrl);
-    if (supported) Linking.openURL(phoneUrl);
-    else Alert.alert("Error", "Your device does not support phone calls.");
-  }, [data?.salon_phone_number]);
-
   const handleModalOption = (action: string) => {
     setPendingAction(action);
     setIsModalVisible(false);
   };
 
   const handleUnblock = async () => {
+    if (!client_id || !hairdresser_id) return;
     try {
       await unblockUser(client_id, hairdresser_id);
       setIsBlockedUser(false);
@@ -190,8 +170,16 @@ const ProfessionalProfileScreen = () => {
   };
 
   const handleBlock = async (reason: string) => {
+    if (!client_id || !hairdresser_id) return;
     try {
-      await blockUser(client_id, hairdresser_id, reason, queryClient);
+      await blockUser(
+        client_id,
+        hairdresser_id,
+        reason,
+        queryClient as unknown as {
+          invalidateQueries: (opts: unknown) => void;
+        }
+      );
       Alert.alert(
         "Account blocked",
         `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
@@ -205,15 +193,22 @@ const ProfessionalProfileScreen = () => {
   };
 
   const handleReport = async (reason: ReportReason) => {
+    if (!client_id || !hairdresser_id) return;
     try {
       const result = await reportUserEnhanced(
         client_id,
         hairdresser_id,
         reason,
-        queryClient
+        undefined,
+        queryClient as unknown as {
+          invalidateQueries: (opts: unknown) => void;
+        }
       );
 
-      if (result.autoBlocked) {
+      const autoBlocked =
+        "autoBlocked" in result &&
+        Boolean((result as { autoBlocked?: boolean }).autoBlocked);
+      if (autoBlocked) {
         Alert.alert(
           "Report received",
           "Thanks for letting us know. This account was restricted after repeated reports."
@@ -223,8 +218,11 @@ const ProfessionalProfileScreen = () => {
       }
 
       setActiveAction(null);
-    } catch (error) {
-      if (error.message === "You have already reported this user") {
+    } catch (error: unknown) {
+      if (
+        error instanceof Error &&
+        error.message === "You have already reported this user"
+      ) {
         Alert.alert(
           "Already reported",
           "You have already submitted a report for this account."
@@ -326,122 +324,56 @@ const ProfessionalProfileScreen = () => {
     );
   };
 
-  // Helper function to check if a field has valid content
-  const hasContent = (field) => {
-    return (
-      field &&
-      field.toString().trim() !== "" &&
-      field !== "undefined" &&
-      field !== "null"
-    );
-  };
+  if (!blockCheckComplete || relLoading || profileLoading) return null;
 
-  if (!blockCheckComplete || relLoading) return null;
+  if (isBlockedUser) {
+    return (
+      <>
+        <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
+        <View style={styles.blockedWrap}>
+          <MyButton
+            style={[styles.unblockBtn, { borderColor: "red" }]}
+            text="Unblock"
+            onPress={handleUnblock}
+          />
+        </View>
+      </>
+    );
+  }
+
+  if (!data || !hairdresser_id) return null;
 
   return (
     <>
-    <StatusBar style="dark" backgroundColor= {Colors.dark.warmGreen} />
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: scalePercent(40), flexGrow: 1 }}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Pressable onPress={() => router.back()} style={styles.iconContainer}>
-        <CaretLeft size={32} color={Colors.dark.dark} />
-      </Pressable>
-
-      {!isBlockedUser && (
-        <View style={styles.moreIconContainer}>
-          <Pressable onPress={() => setIsModalVisible(true)}>
-            <DotsThree size={32} color={Colors.dark.dark} weight="bold" />
+      <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
+      <PublicProfessionalProfileView
+        mode="client"
+        profileUserId={String(hairdresser_id)}
+        fullName={data.full_name}
+        firstName={data.first_name ?? null}
+        username={data.username ?? null}
+        avatarUrl={data.avatar_url ?? null}
+        salonName={data.salon_name ?? null}
+        businessAddress={data.business_address ?? null}
+        aboutMe={data.about_me ?? null}
+        salonPhone={data.salon_phone_number ?? null}
+        bookingSite={data.booking_site ?? null}
+        socialMediaRaw={data.social_media ?? null}
+        colorBrandRaw={data.color_brand ?? null}
+        professionCodes={
+          Array.isArray(data.profession_codes) ? data.profession_codes : null
+        }
+        onBack={() => router.back()}
+        showRelationshipCta
+        isRelated={isRelated}
+        addLoading={loading}
+        onAddHairdresser={addHairdresser}
+        headerRight={
+          <Pressable onPress={() => setIsModalVisible(true)} hitSlop={12}>
+            <DotsThree size={32} color={primaryBlack} weight="bold" />
           </Pressable>
-        </View>
-      )}
-
-      <ProfileRectangle full_name={data?.full_name} />
-      <View style={styles.profileContainer}>
-        <AvatarWithSpinner
-          uri={data?.avatar_url}
-          size={scalePercent(25)}
-          style={styles.profilePic}
-        />
-      </View>
-
-      {/* Show only unblock button if user is blocked */}
-      {isBlockedUser ? (
-        <View style={styles.stack}>
-        <MyButton
-          style={[styles.addButton, { borderColor: "red" }]}
-          text="Unblock"
-          onPress={handleUnblock}
-        />
-        </View>
-      ) : (
-        /* Show profile content only if user is not blocked */
-        <View style={styles.stack}>
-          {!isRelated ? (
-            <MyButton
-              style={styles.addButton}
-              text="Add hairdresser"
-              onPress={addHairdresser}
-              disabled={loading}
-            />
-          ) : (
-            <MyButton
-              style={[styles.addedButton, { opacity: 0.5 }]}
-              text="Hairdresser added!"
-              disabled
-            />
-          )}
-
-          {/* Only show about me if it has content */}
-          {hasContent(data?.about_me) && (
-            <View style={styles.aboutContainer}>
-              <Text style={styles.bio}>{data?.about_me}</Text>
-            </View>
-          )}
-
-          {hairdresser_id ? (
-            <PublicProfileWorkGrid profileUserId={String(hairdresser_id)} />
-          ) : null}
-
-          {/* Only show salon name if it has content */}
-          {hasContent(data?.salon_name) && (
-            <Text style={styles.salonName}>{data?.salon_name}</Text>
-          )}
-
-          {/* Only show phone number if it has content */}
-          {hasContent(data?.salon_phone_number) && (
-            <View style={[styles.phoneContainer, { marginBottom: "10%" }]}>
-              <Text style={styles.label}>Salon phone number: </Text>
-              <TouchableOpacity onPress={handlePhoneCall}>
-                <Text style={styles.phoneNumber}>
-                  {data?.salon_phone_number}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Only show booking site if it has content */}
-          {hasContent(data?.booking_site) && (
-            <OpenUrl url={data?.booking_site}>Open Booking Site</OpenUrl>
-          )}
-
-          {/* Only show social media if it has content */}
-          {hasContent(data?.social_media) && (
-            <OpenUrl
-              url={
-                primarySocialUrl(data?.social_media) ??
-                data?.social_media ??
-                ""
-              }
-            >
-              Open Social Media Account
-            </OpenUrl>
-          )}
-        </View>
-      )}
-
+        }
+      />
       <SmallDraggableModal
         isVisible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
@@ -455,8 +387,7 @@ const ProfessionalProfileScreen = () => {
         sheetVariant="brand"
         renderContent={moderationPrimaryContent}
       />
-
-      {activeAction && (
+      {activeAction ? (
         <SmallDraggableModal
           isVisible
           onClose={() => setActiveAction(null)}
@@ -464,8 +395,7 @@ const ProfessionalProfileScreen = () => {
           sheetVariant="brand"
           renderContent={renderModerationDetail()}
         />
-      )}
-    </ScrollView>
+      ) : null}
     </>
   );
 };
@@ -473,105 +403,15 @@ const ProfessionalProfileScreen = () => {
 export default ProfessionalProfileScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-
-  iconContainer: {
-    position: "absolute",
-    top: responsiveScale(60, 50),
-    left: responsiveScale(20, 16),
-    zIndex: 10,
-  },
-  moreIconContainer: {
-    position: "absolute",
-    top: responsiveScale(60, 50),
-    right: responsiveScale(20, 16),
-    zIndex: 10,
-  },
-
-  profileContainer: {
-    alignItems: "center",
-    marginTop: responsiveScale(58, 34), 
-  },
-  profilePic: {
-    backgroundColor: Colors.dark.yellowish,
-    position: "absolute",
-    width: scalePercent(25),
-    height: scalePercent(25),
-    borderRadius: scalePercent(25) / 2,
+  blockedWrap: {
+    flex: 1,
+    backgroundColor: Colors.light.primaryGreen,
     justifyContent: "center",
     alignItems: "center",
-    alignSelf: "center",
+    paddingHorizontal: responsiveScale(24),
   },
-  profilePlaceholder: {
-    width: scalePercent(25),
-    height: scalePercent(25),
-    borderRadius: scalePercent(25) / 2,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.dark.yellowish,
-  },
-
-  stack: {
-    marginTop: responsiveScale(220, 300),
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: scalePercent(5),
-  },
-
-  salonName: {
-    textAlign: "center",
-    fontSize: responsiveFontSize(25, 18),
-    fontFamily: "Inter-Regular",
-    marginTop: responsiveScale(20, 14),
-  },
-  phoneContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: responsiveScale(20, 14),
-  },
-  label: {
-    fontSize: responsiveFontSize(20, 14),
-    fontFamily: "Inter-Regular",
-  },
-  phoneNumber: {
-    color: Colors.light.warmGreen,
-    textDecorationLine: "underline",
-    fontSize: responsiveFontSize(20, 14),
-    fontFamily: "Inter-SemiBold",
-  },
-
-  bio: {
-    textAlign: "left",
-    fontSize: responsiveFontSize(16, 12),
-    fontFamily: "Inter-Regular",
-    marginTop: 0,
-  },
-  aboutContainer: {
-    marginTop: responsiveScale(40, 30),
-    backgroundColor: Colors.dark.light,
-    borderRadius: responsiveBorderRadius(20, 14),
-    borderColor: Colors.dark.yellowish,
-    borderWidth: responsiveScale(3, 2),
-    width: scalePercent(90),
-    padding: scalePercent(5),
-  },
-
-  addButton: {
-    borderWidth: 2,
-    borderColor: Colors.light.warmGreen,
-    backgroundColor: "transparent",
-    width: scalePercent(83),
-    alignSelf: "center",
-    marginTop: responsiveScale(38, - 80),
-    borderRadius: responsiveBorderRadius(25, 18),
-  },
-  addedButton: {
-    borderWidth: 2,
-    borderColor: Colors.light.warmGreen,
-    backgroundColor: "transparent",
-    width: scalePercent(83),
-    alignSelf: "center",
-    marginTop: responsiveScale(38, 120),
-    borderRadius: responsiveBorderRadius(25, 18),
+  unblockBtn: {
+    alignSelf: "stretch",
+    maxWidth: 400,
   },
 });

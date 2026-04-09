@@ -72,8 +72,10 @@ export const Typography = {
   h3: antonHeading(36, 120),
   /** Anton 26 regular — e.g. username on professional “add client” profile preview. */
   anton26: antonHeading(26, 120),
-  /** Anton 24 regular — e.g. username under name on client home. */
+  /** Anton 24 regular — e.g. public profile handle (no @). */
   anton24: antonHeading(24, 120),
+  /** Anton 20 regular — e.g. business / salon name on public profile. */
+  anton20: antonHeading(20, 120),
   /** Anton 16 regular — e.g. subtitle on pro home (My clients) or profession line under “My visits”. */
   anton16: antonHeading(16, 120),
   /** Anton 16 with medium weight where the platform honors it (e.g. visit list date on sage cards). */
