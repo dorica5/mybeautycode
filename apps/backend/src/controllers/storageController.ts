@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import multer from "multer";
 import { randomUUID } from "crypto";
-import { storageService } from "../services/storageService";
+import { SIGNABLE_BUCKETS, storageService } from "../services/storageService";
 import { serviceRecordAccessService } from "../services/serviceRecordAccessService";
 
 const upload = multer({
@@ -17,7 +17,12 @@ export const storageController = {
     if (!file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    const bucket = (req.body.bucket as string) ?? "inspirations";
+    const bucket = String(
+      (req.body.bucket as string) ?? "inspirations"
+    ).trim();
+    if (!SIGNABLE_BUCKETS.has(bucket)) {
+      return res.status(400).json({ error: "Storage bucket not allowed." });
+    }
     const ext = file.originalname.split(".").pop() ?? "jpg";
     const path = `${req.userId}/${randomUUID()}.${ext}`;
     try {
@@ -28,9 +33,22 @@ export const storageController = {
         file.mimetype
       );
       res.json({ path: storagePath });
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("storage upload error:", err);
-      res.status(500).json({ error: "Failed to upload file" });
+      const e = err as {
+        message?: string;
+        statusCode?: string;
+        __isStorageError?: boolean;
+      };
+      const msg = String(e?.message ?? "");
+      const bucketMissing =
+        e?.__isStorageError === true &&
+        (e.statusCode === "404" || /bucket not found/i.test(msg));
+      res.status(500).json({
+        error: bucketMissing
+          ? "Storage bucket missing: create a private bucket named public_profile_work in Supabase (Storage), or run apps/backend/supabase/storage_bucket_public_profile_work.sql in the SQL editor."
+          : "Failed to upload file",
+      });
     }
   },
 

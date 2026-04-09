@@ -13,7 +13,8 @@ WHERE id IN (
   'avatars',
   'inspirations',
   'haircode_images',
-  'shared_inspiration_images'
+  'shared_inspiration_images',
+  'public_profile_work'
 );
 
 -- 2) Inspect existing storage policies (run first if you created buckets long ago)

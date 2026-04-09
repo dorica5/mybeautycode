@@ -26,6 +26,7 @@ import {
   unblockUser,
 } from "@/src/api/moderation";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { primarySocialUrl } from "@/src/lib/socialMediaStorage";
 import MyButton from "@/src/components/MyButton";
 import { 
   responsiveScale, 
@@ -48,6 +49,7 @@ import { useRelationshipCheck } from "@/src/api/relationships";
 import { useRemoveRelationships } from "@/src/api/profiles";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { PublicProfileWorkGrid } from "@/src/components/PublicProfileWorkGrid";
 
 const OtherProfessionalProfile = () => {
   const {
@@ -415,6 +417,10 @@ const OtherProfessionalProfile = () => {
               </View>
             )}
 
+            {hairdresser_id ? (
+              <PublicProfileWorkGrid profileUserId={String(hairdresser_id)} />
+            ) : null}
+
             {/* Only show salon name if it has content */}
             {hasContent(salon_name) && (
               <Text style={[styles.salonName, {fontSize: responsiveFontSize(25, 20)}]}>{salon_name}</Text>
@@ -437,7 +443,11 @@ const OtherProfessionalProfile = () => {
 
             {/* Only show social media if it has content */}
             {hasContent(social_media) && (
-              <OpenUrl url={social_media}>Open Social Media Account</OpenUrl>
+              <OpenUrl
+                url={primarySocialUrl(social_media) ?? social_media ?? ""}
+              >
+                Open Social Media Account
+              </OpenUrl>
             )}
           </View>
         )}

@@ -38,6 +38,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useRelationshipCheck } from "@/src/api/relationships";
 import { useRemoveRelationships } from "@/src/api/profiles";
+import { primarySocialUrl } from "@/src/lib/socialMediaStorage";
 import {
   responsiveScale,
   responsiveFontSize,
@@ -46,6 +47,7 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { PublicProfileWorkGrid } from "@/src/components/PublicProfileWorkGrid";
 
 const ProfessionalProfileScreen = () => {
   const { id: hairdresser_id } = useLocalSearchParams<{ id: string }>();
@@ -399,6 +401,10 @@ const ProfessionalProfileScreen = () => {
             </View>
           )}
 
+          {hairdresser_id ? (
+            <PublicProfileWorkGrid profileUserId={String(hairdresser_id)} />
+          ) : null}
+
           {/* Only show salon name if it has content */}
           {hasContent(data?.salon_name) && (
             <Text style={styles.salonName}>{data?.salon_name}</Text>
@@ -423,7 +429,13 @@ const ProfessionalProfileScreen = () => {
 
           {/* Only show social media if it has content */}
           {hasContent(data?.social_media) && (
-            <OpenUrl url={data?.social_media}>
+            <OpenUrl
+              url={
+                primarySocialUrl(data?.social_media) ??
+                data?.social_media ??
+                ""
+              }
+            >
               Open Social Media Account
             </OpenUrl>
           )}

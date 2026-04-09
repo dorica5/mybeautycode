@@ -124,6 +124,8 @@ model Profile {
   adminUser                   AdminUser?
   clientProfessionProfilesAsUpdater ClientProfessionProfile[] @relation("ClientProfessionProfileUpdater")
   serviceRecordMediaAsUploader ServiceRecordMedia[] @relation("ServiceRecordMediaUploader")
+  /// Shown on public pro profile (Get discovered); not visit / service-record media.
+  publicProfileWorkImages   PublicProfileWorkImage[]
 
   @@map("profiles")
 }
@@ -150,8 +152,37 @@ model ProfessionalProfile {
   professionalProfessions ProfessionalProfession[]
   clientProfessionalLinks ClientProfessionalLink[]
   serviceRecords    ServiceRecord[]
+  /// Hair-only fields (e.g. color brand for hairdresser peers); not on generic professional_professions.
+  professionalHairProfile  ProfessionalHairProfile?
+  /// Nails-only fields (future). Placeholder 1:1 child table.
+  professionalNailsProfile ProfessionalNailsProfile?
 
   @@map("professional_profiles")
+}
+
+/// Hairdresser-specific profile data (visible to other pros, not to clients).
+model ProfessionalHairProfile {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  professionalProfileId String   @unique @map("professional_profile_id") @db.Uuid
+  colorBrand            String?  @map("color_brand") @db.Text
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime? @map("updated_at") @db.Timestamptz
+
+  professionalProfile ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+
+  @@map("professional_hair_profiles")
+}
+
+/// Nail tech–specific profile data (future columns). Same pattern as hair child table.
+model ProfessionalNailsProfile {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  professionalProfileId String   @unique @map("professional_profile_id") @db.Uuid
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime? @map("updated_at") @db.Timestamptz
+
+  professionalProfile ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+
+  @@map("professional_nails_profiles")
 }
 
 /// Lookup table: hair, brows_lashes, nails, esthetician, etc.
@@ -313,6 +344,22 @@ model Inspiration {
   @@index([ownerId])
   @@index([professionId])
   @@map("inspirations")
+}
+
+/// Public portfolio on Get discovered / pro profile. Not visit (service-record) images.
+model PublicProfileWorkImage {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId          String   @map("owner_id") @db.Uuid
+  professionCode   String   @map("profession_code") @db.Text
+  imageUrl         String   @map("image_url") @db.Text
+  lowResImageUrl   String?  @map("low_res_image_url") @db.Text
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  owner Profile @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, professionCode])
+  @@map("public_profile_work_images")
 }
 
 /// Shared inspiration between users.

@@ -65,10 +65,38 @@ export const profileService = {
     return profile;
   },
 
+  async hasHairProfession(profileId: string): Promise<boolean> {
+    const pp = await prisma.professionalProfile.findUnique({
+      where: { profileId },
+      select: { id: true },
+    });
+    if (!pp) return false;
+    const link = await prisma.professionalProfession.findFirst({
+      where: {
+        professionalProfileId: pp.id,
+        profession: { code: "hair" },
+      },
+      select: { id: true },
+    });
+    return link != null;
+  },
+
   async update(id: string, data: Record<string, unknown>) {
     const filtered: Record<string, unknown> = {};
     const professionalData: Record<string, unknown> = {};
     const body = { ...data };
+
+    let colorBrandUpdate: string | null | undefined;
+    if (
+      Object.prototype.hasOwnProperty.call(body, "color_brand") ||
+      Object.prototype.hasOwnProperty.call(body, "colorBrand")
+    ) {
+      const raw = body.color_brand ?? body.colorBrand;
+      delete body.color_brand;
+      delete body.colorBrand;
+      if (raw === null) colorBrandUpdate = null;
+      else if (typeof raw === "string") colorBrandUpdate = raw.trim() || null;
+    }
 
     const professionCodeRaw =
       body.profession_code ?? body.professionCode ?? null;
@@ -164,6 +192,35 @@ export const profileService = {
         await professionService.ensureProfessionsForProfile(profProfileId, [
           professionCode!,
         ]);
+      }
+
+      if (colorBrandUpdate !== undefined) {
+        const pp = await prisma.professionalProfile.findUnique({
+          where: { profileId: id },
+          select: { id: true },
+        });
+        if (pp) {
+          const hasHair = await prisma.professionalProfession.findFirst({
+            where: {
+              professionalProfileId: pp.id,
+              profession: { code: "hair" },
+            },
+            select: { id: true },
+          });
+          if (hasHair) {
+            await prisma.professionalHairProfile.upsert({
+              where: { professionalProfileId: pp.id },
+              create: {
+                professionalProfileId: pp.id,
+                colorBrand: colorBrandUpdate,
+              },
+              update: {
+                colorBrand: colorBrandUpdate,
+                updatedAt: new Date(),
+              },
+            });
+          }
+        }
       }
 
       return updated;

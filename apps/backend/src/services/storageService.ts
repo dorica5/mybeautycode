@@ -11,6 +11,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 export const SIGNABLE_BUCKETS = new Set([
   "avatars",
   "inspirations",
+  "public_profile_work",
   "haircode_images",
   "shared_inspiration_images",
 ]);

@@ -9,6 +9,7 @@ import {
 } from "../lib/serializeProfileForApi";
 import { profileService } from "../services/profileService";
 import { professionService } from "../services/professionService";
+import { publicProfileWorkService } from "../services/publicProfileWorkService";
 
 export const profileController = {
   async getById(req: Request, res: Response) {
@@ -25,7 +26,14 @@ export const profileController = {
       ) {
         professionCodesSqlFallback = await fetchProfessionCodesForProfile(id);
       }
-      res.json(serializeProfileForApi(profile, { professionCodesSqlFallback }));
+      const includeHairdresserOnlyFields =
+        req.userId != null && (await profileService.hasHairProfession(req.userId));
+      res.json(
+        serializeProfileForApi(profile, {
+          professionCodesSqlFallback,
+          includeHairdresserOnlyFields,
+        })
+      );
     } catch (err) {
       console.error("profile getById error:", err);
       res.status(500).json({ error: "Failed to fetch profile" });
@@ -54,7 +62,15 @@ export const profileController = {
       ) {
         professionCodesSqlFallback = await fetchProfessionCodesForProfile(id);
       }
-      res.json(serializeProfileForApi(fresh, { professionCodesSqlFallback }));
+      const includeHairdresserOnlyFields = await profileService.hasHairProfession(
+        id
+      );
+      res.json(
+        serializeProfileForApi(fresh, {
+          professionCodesSqlFallback,
+          includeHairdresserOnlyFields,
+        })
+      );
     } catch (err: unknown) {
       const e = err as Error & { statusCode?: number };
       if (e.statusCode === 409) {
@@ -135,6 +151,74 @@ export const profileController = {
     } catch (err) {
       console.error("profile searchHairdressersWithRelationship error:", err);
       res.status(500).json({ error: "Failed to search" });
+    }
+  },
+
+  /** Public portfolio images (any authenticated user). */
+  async listPublicWorkImages(req: Request, res: Response) {
+    const ownerId = String(req.params.id ?? "").trim();
+    const profession =
+      typeof req.query.profession === "string" && req.query.profession.trim()
+        ? req.query.profession.trim()
+        : "hair";
+    if (!ownerId) {
+      return res.status(400).json({ error: "id required" });
+    }
+    try {
+      const data = await publicProfileWorkService.listForOwner(ownerId, profession);
+      res.json(data);
+    } catch (err) {
+      console.error("listPublicWorkImages error:", err);
+      res.status(500).json({ error: "Failed to fetch portfolio images" });
+    }
+  },
+
+  async addPublicWorkImage(req: Request, res: Response) {
+    const ownerId = String(req.params.id ?? "").trim();
+    const userId = req.userId;
+    if (!ownerId || userId !== ownerId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    const body = req.body as {
+      profession_code?: string;
+      image_url?: string;
+      low_res_image_url?: string | null;
+    };
+    try {
+      const row = await publicProfileWorkService.addForOwner(
+        ownerId,
+        String(body.profession_code ?? "hair"),
+        String(body.image_url ?? ""),
+        body.low_res_image_url
+      );
+      res.json(row);
+    } catch (err: unknown) {
+      const e = err as Error & { statusCode?: number };
+      if (e.statusCode === 400) {
+        return res.status(400).json({ error: e.message });
+      }
+      console.error("addPublicWorkImage error:", err);
+      res.status(500).json({ error: "Failed to add image" });
+    }
+  },
+
+  async deletePublicWorkImage(req: Request, res: Response) {
+    const ownerId = String(req.params.id ?? "").trim();
+    const imageId = String(req.params.imageId ?? "").trim();
+    const userId = req.userId;
+    if (!ownerId || userId !== ownerId || !imageId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    try {
+      await publicProfileWorkService.deleteForOwner(ownerId, imageId);
+      res.json({ success: true });
+    } catch (err: unknown) {
+      const e = err as Error & { statusCode?: number };
+      if (e.statusCode === 404) {
+        return res.status(404).json({ error: e.message });
+      }
+      console.error("deletePublicWorkImage error:", err);
+      res.status(500).json({ error: "Failed to delete image" });
     }
   },
 };

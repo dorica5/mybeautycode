@@ -26,13 +26,15 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
+import { colorBrandsLabel } from "@/src/lib/colorBrandStorage";
+import { primarySocialUrl } from "@/src/lib/socialMediaStorage";
 
 const ProfessionalProfile = () => {
   const { profile } = useAuth();
   const bookingSiteUri = profile.booking_site;
-  const socialMediaUri = profile.social_media;
+  const socialMediaUri = primarySocialUrl(profile.social_media);
   const salonPhoneNumber = profile.salon_phone_number;
-  const color_brand = profile.color_brand;
+  const colorBrandsText = colorBrandsLabel(profile.color_brand);
   const { avatarImage } = useImageContext();
 
   console.log("avatarImage: ", avatarImage);
@@ -79,12 +81,25 @@ const ProfessionalProfile = () => {
                   <Text style={[styles.phoneNumber, {fontSize: responsiveFontSize(20, 16)}]}>{salonPhoneNumber}</Text>
                 </TouchableOpacity>
               </View>
-              {profileHasProfessionalCapability(profile) ? (
-                <Text style={[styles.colorBrand, {fontSize: responsiveFontSize(16, 12)}]}> Color brand: {color_brand} </Text>
+              {profileHasProfessionalCapability(profile) &&
+              colorBrandsText.length > 0 ? (
+                <Text
+                  style={[
+                    styles.colorBrand,
+                    { fontSize: responsiveFontSize(16, 12) },
+                  ]}
+                >
+                  {" "}
+                  Color brand: {colorBrandsText}{" "}
+                </Text>
               ) : null}
 
-              <OpenUrl url={bookingSiteUri}>Open Booking Site</OpenUrl>
-              <OpenUrl url={socialMediaUri}>Open Social Media Account</OpenUrl>
+              {bookingSiteUri ? (
+                <OpenUrl url={bookingSiteUri}>Open Booking Site</OpenUrl>
+              ) : null}
+              {socialMediaUri ? (
+                <OpenUrl url={socialMediaUri}>Open Social Media Account</OpenUrl>
+              ) : null}
             </View>
           </View>
         </ScrollView>
