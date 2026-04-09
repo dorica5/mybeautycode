@@ -21,38 +21,53 @@ import {
   scalePercent,
 } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { StatusBar } from "expo-status-bar";
+import { parseProfilePhone } from "@/src/lib/profileFieldValidation";
 
 const PhoneNumber = () => {
   const { profile, setProfile } = useAuth();
   const originalPhoneNumber = profile.phone_number;
   const userId = profile.id;
+  const countryHint = profile.country?.trim() || null;
 
   const [phoneNumber, setPhoneNumber] = useState(originalPhoneNumber || "");
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+  const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const { mutate: updateProfile } = useUpdateSupabaseProfile();
 
+  const validate = (raw: string) => {
+    const result = parseProfilePhone(raw, countryHint);
+    if (!result.ok) {
+      setErrorMessage(result.message);
+      return false;
+    }
+    setErrorMessage("");
+    return true;
+  };
+
   const updateUserProfile = () => {
+    setAttemptedSubmit(true);
     if (!userId) {
       Alert.alert("User not found");
       return;
     }
 
-    const parsed = parsePhoneNumberFromString(phoneNumber.trim());
-
-    if (!parsed || !parsed.isValid()) {
-      Alert.alert(
-        "Invalid number",
-        "Please enter a valid phone number with country code (e.g. +47…)."
-      );
+    if (!validate(phoneNumber)) {
+      setError(true);
       return;
     }
 
-    const formatted = parsed.format("E.164");
-    const country = parsed.country || "UNKNOWN";
+    const result = parseProfilePhone(phoneNumber, countryHint);
+    if (!result.ok) {
+      setError(true);
+      return;
+    }
+
+    const { e164: formatted, country } = result;
 
     setLoading(true);
 
@@ -72,19 +87,38 @@ const PhoneNumber = () => {
 
           setChanged(false);
           setLoading(false);
+          setError(false);
           Keyboard.dismiss();
         },
-        onError: (error) => {
+        onError: (err) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", error.message);
+          const msg = (err?.message ?? "").toLowerCase();
+          if (
+            msg.includes("phone") &&
+            (msg.includes("taken") ||
+              msg.includes("already") ||
+              msg.includes("use"))
+          ) {
+            Alert.alert(
+              "Phone number in use",
+              "This number is already linked to another account."
+            );
+          } else {
+            Alert.alert("Failed to update profile", err.message);
+          }
         },
       }
     );
   };
 
   useEffect(() => {
-    setChanged(phoneNumber !== originalPhoneNumber);
+    setChanged(phoneNumber !== (originalPhoneNumber || ""));
   }, [phoneNumber, originalPhoneNumber]);
+
+  const getInputStyle = () => {
+    if (!attemptedSubmit) return styles.input;
+    return [styles.input, error ? styles.errorInput : styles.validInput];
+  };
 
   return (
     <>
@@ -99,27 +133,35 @@ const PhoneNumber = () => {
               saveAction={updateUserProfile}
               loading={loading}
             />
-            <View style={styles.input}>
+            <View style={getInputStyle()}>
               <TextInput
                 value={phoneNumber}
-                placeholder="Enter your phone number with country code"
+                placeholder={
+                  countryHint
+                    ? "Phone with country code or national number"
+                    : "Phone with country code (e.g. +47…)"
+                }
                 placeholderTextColor="#687076"
                 keyboardType="phone-pad"
                 onChangeText={(e) => {
                   setPhoneNumber(e);
                   setChanged(true);
+                  if (attemptedSubmit) {
+                    const ok = validate(e);
+                    setError(!ok);
+                  }
                 }}
                 style={{
                   fontSize: responsiveFontSize(16, 12),
                   color: Colors.dark.dark,
                 }}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
-            {changed && !phoneNumber && (
-              <Text style={styles.errorText}>
-                Please enter a valid phone number.
-              </Text>
-            )}
+            {attemptedSubmit && error ? (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            ) : null}
           </SafeAreaView>
         </TouchableWithoutFeedback>
       </View>
@@ -139,6 +181,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dark.yellowish,
     borderRadius: 20,
     padding: Platform.OS === "android" ? scale(7) : scale(20),
+  },
+  errorInput: {
+    borderColor: "red",
+    borderWidth: scale(1),
+  },
+  validInput: {
+    borderColor: "green",
+    borderWidth: scale(1),
   },
   errorText: {
     color: "red",

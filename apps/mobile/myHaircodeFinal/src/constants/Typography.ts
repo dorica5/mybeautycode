@@ -72,10 +72,12 @@ export const Typography = {
   h3: antonHeading(36, 120),
   /** Anton 26 regular — e.g. username on professional “add client” profile preview. */
   anton26: antonHeading(26, 120),
-  /** Anton 24 regular — e.g. username under display name on client home. */
+  /** Anton 24 regular — e.g. username under name on client home. */
   anton24: antonHeading(24, 120),
   /** Anton 16 regular — e.g. subtitle on pro home (My clients) or profession line under “My visits”. */
   anton16: antonHeading(16, 120),
+  /** Anton 16 with medium weight where the platform honors it (e.g. visit list date on sage cards). */
+  anton16Medium: { ...antonHeading(16, 120), fontWeight: "500" },
   h4: outfitText(24, "300", 120),
   bodyLarge: outfitText(20, "300", 130),
   bodyMedium: outfitText(18, "300", 140),

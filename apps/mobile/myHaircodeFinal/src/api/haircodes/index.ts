@@ -1,5 +1,6 @@
 import { api } from "@/src/lib/apiClient";
 import { sendPushNotification } from "@/src/providers/useNotifcations";
+import type { QueryClient } from "@tanstack/react-query";
 import {
   useMutation,
   useQuery,
@@ -50,11 +51,19 @@ export const useCreateHaircode = () => {
   });
 };
 
-export const useListClientHaircodes = (clientId: string) => {
+export const useListClientHaircodes = (
+  clientId: string,
+  professionCode?: string | null
+) => {
+  const code =
+    professionCode && professionCode.trim() ? professionCode.trim() : null;
   return useQuery({
-    queryKey: ["client_haircodes", clientId],
-    queryFn: () =>
-      api.get<unknown[]>(`/api/haircodes?clientId=${encodeURIComponent(clientId)}`),
+    queryKey: ["client_haircodes", clientId, code ?? "all"],
+    queryFn: () => {
+      const base = `/api/haircodes?clientId=${encodeURIComponent(clientId)}`;
+      const url = code ? `${base}&professionCode=${encodeURIComponent(code)}` : base;
+      return api.get<unknown[]>(url);
+    },
     enabled: Boolean(clientId),
     retry: 1,
   });
@@ -127,11 +136,29 @@ export const useMultipleHaircodeMedia = (haircode_ids: string[] = []) => {
   });
 };
 
+const HAIRCODE_WITH_MEDIA_STALE_MS = 5 * 60 * 1000;
+
+export async function fetchHaircodeWithMedia(haircode_id: string) {
+  return api.get<unknown>(`/api/haircodes/${haircode_id}`);
+}
+
+export function prefetchHaircodeWithMedia(
+  queryClient: QueryClient,
+  haircodeId: string
+) {
+  if (!haircodeId) return Promise.resolve();
+  return queryClient.prefetchQuery({
+    queryKey: [haircodeId, "haircode_with_media"],
+    queryFn: () => fetchHaircodeWithMedia(haircodeId),
+    staleTime: HAIRCODE_WITH_MEDIA_STALE_MS,
+  });
+}
+
 export const useHaircodeWithMedia = (haircode_id: string) => {
   return useQuery({
     queryKey: [haircode_id, "haircode_with_media"],
-    queryFn: () => api.get<{ media: unknown[] }>(`/api/haircodes/${haircode_id}`),
-    staleTime: 5 * 60 * 1000,
+    queryFn: () => fetchHaircodeWithMedia(haircode_id),
+    staleTime: HAIRCODE_WITH_MEDIA_STALE_MS,
     enabled: !!haircode_id,
   });
 };
@@ -228,6 +255,7 @@ export const useSubmitHaircode = () => {
       clientId,
       uploadMedia,
       hasMediaChanged,
+      professionCode,
     }: {
       isEditing: boolean;
       params: Record<string, unknown>;
@@ -241,6 +269,8 @@ export const useSubmitHaircode = () => {
       clientId: string;
       uploadMedia: (index: number) => Promise<string | null>;
       hasMediaChanged: () => boolean;
+      /** Active professional surface when creating a visit (ignored when editing). */
+      professionCode: string;
     }) => {
       const haircodeData = {
         service_description: newHaircode,
@@ -292,6 +322,7 @@ export const useSubmitHaircode = () => {
           client_id: clientId,
           hairdresser_id: profile.id,
           hairdresser_name: profile.full_name,
+          profession_code: professionCode,
         });
         haircodeId = data.id;
         updatedHaircode = data;

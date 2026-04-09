@@ -9,20 +9,47 @@ const supabase = createClient(
 );
 
 export const haircodeService = {
-  async listClientHaircodes(clientUserId: string) {
-    const hairProfessionId = await professionService.getProfessionIdByCode();
+  async listClientHaircodes(clientUserId: string, professionCode?: string) {
+    const where: { clientUserId: string; professionId?: string } = {
+      clientUserId,
+    };
+    if (professionCode?.trim()) {
+      where.professionId = await professionService.getProfessionIdByCode(
+        professionCode.trim()
+      );
+    }
+
     const records = await prisma.serviceRecord.findMany({
-      where: { clientUserId },
+      where,
       orderBy: { createdAt: "desc" },
       include: {
         professionalProfile: {
           include: { profile: true },
+        },
+        media: {
+          take: 1,
+          orderBy: { createdAt: "asc" },
+          select: { mediaUrl: true, mediaType: true },
         },
       },
     });
     return records.map((r) => {
       const pp = r.professionalProfile;
       const p = pp?.profile;
+      const thumb = r.media[0];
+      const profPayload = pp
+        ? {
+            avatar_url: p?.avatarUrl,
+            business_name: pp.businessName,
+            business_number: pp.businessNumber,
+            business_address: pp.businessAddress,
+            about_me: pp.aboutMe,
+            booking_site: pp.bookingSite,
+            social_media: pp.socialMedia,
+            salon_name: pp.businessName ?? pp.displayName ?? undefined,
+            salon_phone_number: pp.businessNumber ?? undefined,
+          }
+        : null;
       return {
         id: r.id,
         created_at: r.createdAt?.toISOString(),
@@ -34,17 +61,10 @@ export const haircodeService = {
         services: (r.recordData as { services?: string })?.services ?? null,
         price: r.price?.toString() ?? null,
         duration: r.durationMinutes?.toString() ?? null,
-        professional_profile: pp
-          ? {
-              avatar_url: p?.avatarUrl,
-              business_name: pp.businessName,
-              business_number: pp.businessNumber,
-              business_address: pp.businessAddress,
-              about_me: pp.aboutMe,
-              booking_site: pp.bookingSite,
-              social_media: pp.socialMedia,
-            }
-          : null,
+        preview_media_url: thumb?.mediaUrl ?? null,
+        preview_media_type: thumb?.mediaType ?? null,
+        professional_profile: profPayload,
+        hairdresser_profile: profPayload,
       };
     });
   },
@@ -104,6 +124,17 @@ export const haircodeService = {
   async getWithMedia(serviceRecordId: string) {
     const record = await prisma.serviceRecord.findUnique({
       where: { id: serviceRecordId },
+      include: {
+        profession: { select: { code: true } },
+        professionalProfile: {
+          select: {
+            professionalProfessions: {
+              where: { isActive: true },
+              select: { profession: { select: { code: true } } },
+            },
+          },
+        },
+      },
     });
     if (!record) return null;
     const media = await prisma.serviceRecordMedia.findMany({
@@ -120,9 +151,18 @@ export const haircodeService = {
     });
   },
 
-  async listClientGallery(clientUserId: string) {
+  async listClientGallery(clientUserId: string, professionCode?: string) {
+    const where: { clientUserId: string; professionId?: string } = {
+      clientUserId,
+    };
+    if (professionCode?.trim()) {
+      where.professionId = await professionService.getProfessionIdByCode(
+        professionCode.trim()
+      );
+    }
+
     const records = await prisma.serviceRecord.findMany({
-      where: { clientUserId },
+      where,
       select: { id: true },
     });
     const ids = records.map((r) => r.id);
@@ -148,11 +188,17 @@ export const haircodeService = {
     services?: string;
     price?: string;
     duration?: string;
+    /** Profession for this visit (e.g. active surface when logging). Defaults to hair for old clients. */
+    profession_code?: string;
   }) {
     const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
       data.hairdresser_id
     );
-    const professionId = await professionService.getProfessionIdByCode();
+    const code =
+      typeof data.profession_code === "string" && data.profession_code.trim()
+        ? data.profession_code.trim()
+        : "hair";
+    const professionId = await professionService.getProfessionIdByCode(code);
 
     const link = await prisma.clientProfessionalLink.findFirst({
       where: {

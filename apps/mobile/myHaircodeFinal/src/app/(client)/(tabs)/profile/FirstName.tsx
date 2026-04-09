@@ -22,8 +22,7 @@ import {
 } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
 import { StatusBar } from "expo-status-bar";
-
-const NAME_RE = /^[a-zA-ZÀ-ÿæøåÆØÅ.\s'’-]{2,50}$/;
+import { validatePersonName } from "@/src/lib/profileFieldValidation";
 
 const FirstName = () => {
   const { profile, setProfile } = useAuth();
@@ -70,7 +69,9 @@ const FirstName = () => {
 
   const save = () => {
     setAttemptedSubmit(true);
-    if (!validate(firstName)) {
+    const result = validatePersonName(firstName, "first");
+    if (!result.ok) {
+      setErrorMessage(result.message);
       setError(true);
       return;
     }
@@ -80,12 +81,12 @@ const FirstName = () => {
     }
     setLoading(true);
     updateProfile(
-      { id, first_name: firstName.trim() },
+      { id, first_name: result.value },
       {
         onSuccess: () => {
           setProfile((prev: Profile) => ({
             ...prev,
-            first_name: firstName.trim(),
+            first_name: result.value,
           }));
           setChanged(false);
           setLoading(false);

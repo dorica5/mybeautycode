@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Image as RNImage,
   Platform,
   Pressable,
   ScrollView,
@@ -12,7 +11,7 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
-import { Image } from "expo-image";
+import { Image, type ImageLoadEventData } from "expo-image";
 import { ResizeMode, Video } from "expo-av";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
@@ -57,7 +56,7 @@ export type VisitPreviewModalContentProps = {
   carouselHeight: number;
 };
 
-function PreviewArrowRightIcon() {
+export function PreviewArrowRightIcon() {
   return (
     <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
       <Path
@@ -78,7 +77,7 @@ function PreviewArrowRightIcon() {
   );
 }
 
-function PreviewArrowLeftIcon() {
+export function PreviewArrowLeftIcon() {
   return (
     <Svg width={18} height={18} viewBox="0 0 18 18" fill="none">
       <G transform="translate(18 0) scale(-1 1)">
@@ -140,56 +139,40 @@ function containedDisplaySize(
   return { dw: maxH * ar, dh: maxH };
 }
 
-/** Border + rounded rect match the photo bounds, not the full carousel slot. */
-function VisitPreviewSizedImage({
+/**
+ * Carousel slide image — same framed + rounded look as before, without a separate
+ * `getSize` probe: intrinsic size comes from expo-image `onLoad` (same load as paint).
+ */
+export function VisitPreviewSizedImage({
   uri,
   maxWidth,
   maxHeight,
   cornerRadius,
+  priority = "normal",
 }: {
   uri: string;
   maxWidth: number;
   maxHeight: number;
   cornerRadius: number;
+  /** First slide can use `"high"` for quicker decode priority. */
+  priority?: "low" | "normal" | "high";
 }) {
-  const [intrinsic, setIntrinsic] = useState<{ w: number; h: number } | null>(
-    null
-  );
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    RNImage.getSize(
-      uri,
-      (w, h) => {
-        if (!cancelled && w > 0 && h > 0) {
-          setIntrinsic({ w, h });
-        }
-      },
-      () => {
-        if (!cancelled) {
-          setIntrinsic({ w: maxWidth, h: maxHeight });
-        }
-      }
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [uri, maxWidth, maxHeight]);
+    setNatural(null);
+  }, [uri]);
 
-  if (!intrinsic) {
-    return (
-      <View
-        style={[styles.slidePageCenter, { width: maxWidth, height: maxHeight }]}
-      />
-    );
-  }
+  const { dw, dh } = natural
+    ? containedDisplaySize(natural.w, natural.h, maxWidth, maxHeight)
+    : { dw: maxWidth, dh: maxHeight };
 
-  const { dw, dh } = containedDisplaySize(
-    intrinsic.w,
-    intrinsic.h,
-    maxWidth,
-    maxHeight
-  );
+  const onLoad = useCallback((e: ImageLoadEventData) => {
+    const { width, height } = e.source;
+    if (width > 0 && height > 0) {
+      setNatural({ w: width, h: height });
+    }
+  }, []);
 
   return (
     <View
@@ -204,14 +187,19 @@ function VisitPreviewSizedImage({
         <Image
           source={{ uri }}
           style={{ width: dw, height: dh }}
-          contentFit="cover"
+          contentFit={natural ? "cover" : "contain"}
+          cachePolicy="memory-disk"
+          priority={priority}
+          transition={0}
+          recyclingKey={uri}
+          onLoad={onLoad}
         />
       </View>
     </View>
   );
 }
 
-function VisitPreviewSizedVideo({
+export function VisitPreviewSizedVideo({
   uri,
   maxWidth,
   maxHeight,
@@ -255,7 +243,7 @@ function VisitPreviewSizedVideo({
   );
 }
 
-function PreviewDots({ length, active }: { length: number; active: number }) {
+export function PreviewDots({ length, active }: { length: number; active: number }) {
   return (
     <View style={styles.dotsRow}>
       {Array.from({ length }).map((_, i) => (
@@ -471,6 +459,7 @@ export function VisitPreviewModalContent({
                       maxWidth={carouselTrackWidth}
                       maxHeight={carouselHeight}
                       cornerRadius={previewMediaRadius}
+                      priority={index === 0 ? "high" : "normal"}
                     />
                   ) : item.uri ? (
                     <VisitPreviewSizedVideo

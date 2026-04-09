@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from "react-native";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CaretRight, Check, Plus } from "phosphor-react-native";
 import { Href, router, useLocalSearchParams } from "expo-router";
@@ -23,8 +23,10 @@ import { StatusBar } from "expo-status-bar";
 import {
   expandAccountRows,
   linkedAccountEntryFromSession,
+  roleLabelForProfile,
   type LinkedAccountEntry,
 } from "@/src/lib/linkedAccountsStorage";
+import { getLastProfessionCode } from "@/src/lib/lastVisitPreference";
 
 type AccountRow = {
   entry: LinkedAccountEntry;
@@ -66,6 +68,37 @@ const SwitchAccountScreen = () => {
       rowKey: `${e.id}-${surface}`,
     }));
   }, [session, profile]);
+
+  const professionCodesKey = useMemo(() => {
+    const c =
+      profile?.profession_codes ??
+      (profile as { professionCodes?: string[] | null } | null)
+        ?.professionCodes;
+    return Array.isArray(c) ? c.join("\0") : "";
+  }, [profile]);
+
+  const [professionalRoleLabel, setProfessionalRoleLabel] = useState(() =>
+    profile ? roleLabelForProfile(profile) : "Professional"
+  );
+
+  useEffect(() => {
+    if (!profile) return;
+    if (profile.user_type === "CLIENT") {
+      setProfessionalRoleLabel("Professional");
+      return;
+    }
+    setProfessionalRoleLabel(roleLabelForProfile(profile));
+    const uid = profile.id;
+    let cancelled = false;
+    void (async () => {
+      const last = await getLastProfessionCode(uid);
+      if (cancelled) return;
+      setProfessionalRoleLabel(roleLabelForProfile(profile, last));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile, professionCodesKey]);
 
   const isHairdresser =
     profile?.user_type === "HAIRDRESSER" ||
@@ -124,7 +157,7 @@ const SwitchAccountScreen = () => {
                   const isCurrent = rowIsCurrent(acc, surface);
                   const roleLabel =
                     surface === "professional"
-                      ? acc.meta.roleLabel
+                      ? professionalRoleLabel
                       : "Client";
                   const detailLine =
                     surface === "professional" ? acc.meta.detail : "";
@@ -135,7 +168,7 @@ const SwitchAccountScreen = () => {
                       disabled={isCurrent}
                       accessibilityRole="button"
                       accessibilityState={{ selected: isCurrent, disabled: isCurrent }}
-                      accessibilityLabel={`${roleLabel}, ${acc.meta.name}${isCurrent ? ", current" : ""}`}
+                      accessibilityLabel={`${roleLabel} ${acc.meta.name}${detailLine ? ` ${detailLine}` : ""}${isCurrent ? " current" : ""}`}
                       style={({ pressed }) => [
                         styles.accountCard,
                         !isCurrent && pressed && styles.accountCardPressed,
@@ -171,7 +204,7 @@ const SwitchAccountScreen = () => {
                     pressed && styles.accountCardPressed,
                   ]}
                   onPress={() =>
-                    router.push("/(setup)/ChooseProfession" as Href)
+                    router.push("/(setup)/AddProfession" as Href)
                   }
                 >
                   <View style={styles.plusBubble}>

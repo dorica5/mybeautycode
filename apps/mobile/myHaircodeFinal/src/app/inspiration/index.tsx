@@ -10,9 +10,7 @@ import {
   Alert,
   Image,
   ActivityIndicator,
-  Image as RNImage,
   Platform,
-  ScrollView,
   StatusBar as RNStatusBar,
 } from "react-native";
 import { randomUUID } from "expo-crypto";
@@ -37,10 +35,7 @@ import {
 } from "@/src/providers/ImageProvider";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import ImageCropModal from "@/src/components/ImageCropModal";
-import {
-  fetchSignedStorageUrl,
-  fetchSignedStorageUrls,
-} from "@/src/lib/storageSignedUrl";
+import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
 import Carousel from "react-native-reanimated-carousel";
 import CustomAlert from "@/src/components/CustomAlert";
 import {
@@ -113,7 +108,6 @@ const MyInspiration = () => {
   const [detailDeleteTargetId, setDetailDeleteTargetId] = useState<string | null>(
     null
   );
-  const [currentImageAspectRatio, setCurrentImageAspectRatio] = useState(1.3); // Default slightly taller than square
   /** Full-screen signed URLs for the carousel (batch-fetched when modal opens). */
   const [carouselFullUrls, setCarouselFullUrls] = useState<Record<string, string>>(
     {}
@@ -121,7 +115,6 @@ const MyInspiration = () => {
   const width = Dimensions.get("window").width;
   const screenHeight = Dimensions.get("window").height;
   const safeInsets = useSafeAreaInsets();
-  const minCarouselRatio = (screenHeight * 0.57) / width; // Ensures ~57% of screen height minimum
   const horizontalPadding = scalePercent(5);
   const columnGap = responsiveScale(12);
   const gridInnerWidth = width - horizontalPadding * 2;
@@ -556,38 +549,6 @@ const MyInspiration = () => {
     }
   };
 
-  // Calculate aspect ratio for current image
-  const calculateImageAspectRatio = async (imageUri: string) => {
-    const isLocalUri =
-      imageUri.startsWith("file://") || imageUri.startsWith("content://");
-    const isFullUrl = imageUri.startsWith("http");
-
-    let fullUrl: string;
-    if (isLocalUri || isFullUrl) {
-      fullUrl = imageUri;
-    } else {
-      fullUrl = (await fetchSignedStorageUrl("inspirations", imageUri)) ?? "";
-    }
-
-    if (!fullUrl) {
-      setCurrentImageAspectRatio(1.3);
-      return;
-    }
-
-    RNImage.getSize(
-      fullUrl,
-      (imgWidth, imgHeight) => {
-        const aspectRatio = imgHeight / imgWidth;
-        const boundedRatio = Math.max(minCarouselRatio, Math.min(aspectRatio, 3));
-        setCurrentImageAspectRatio(boundedRatio);
-      },
-      (error) => {
-        console.error("Error getting image size:", error);
-        setCurrentImageAspectRatio(1.3);
-      }
-    );
-  };
-
   const handleImagePress = (item: any) => {
     if (!item) return;
     if (buttonText === "Cancel") {
@@ -611,13 +572,6 @@ const MyInspiration = () => {
         item.id != null && !item.isTemp ? String(item.id) : null
       );
       setModalVisible(true);
-
-      // Calculate aspect ratio for selected image
-      const uri =
-        item.localUri || item.thumbnail_url || item.image_url;
-      if (uri) {
-        void calculateImageAspectRatio(uri);
-      }
     }
   };
 
@@ -785,32 +739,12 @@ const MyInspiration = () => {
                           ? String(snapped.id)
                           : null
                       );
-                      const uri =
-                        snapped?.localUri ||
-                        snapped?.thumbnail_url ||
-                        snapped?.image_url;
-                      if (uri) {
-                        void calculateImageAspectRatio(
-                          typeof uri === "string" ? uri : String(uri)
-                        );
-                      }
                     }}
                     defaultIndex={startingIndex}
                     renderItem={({ item }) => {
                       if (!item) return null;
                       const detailW = width - horizontalPadding * 2;
-                      const focused =
-                        item.image_url ===
-                        safeGallery[currentIndex]?.image_url;
-                      const aspect = focused ? currentImageAspectRatio : 1.2;
-                      const imageBlockHeight = Math.min(
-                        detailW * Math.max(aspect, 1.05),
-                        screenHeight * 1.35
-                      );
-                      const scrollContentMinH = Math.max(
-                        imageBlockHeight + responsiveScale(32),
-                        detailCarouselViewportHeight + 1
-                      );
+                      const imageBlockHeight = detailCarouselViewportHeight;
 
                       let inner: React.ReactNode = null;
                       if (item.localUri) {
@@ -819,13 +753,10 @@ const MyInspiration = () => {
                             directUrl={item.localUri}
                             sizePreset="fullscreen"
                             width={Math.ceil(detailW)}
-                            style={[
-                              styles.detailOptimizedImage,
-                              { height: imageBlockHeight },
-                            ]}
-                            contentFit="contain"
-                            contentPosition="top"
+                            style={styles.detailOptimizedImage}
+                            contentFit="cover"
                             priority="high"
+                            transition={0}
                           />
                         );
                       } else {
@@ -863,13 +794,10 @@ const MyInspiration = () => {
                             bucket="inspirations"
                             sizePreset="fullscreen"
                             width={Math.ceil(detailW)}
-                            style={[
-                              styles.detailOptimizedImage,
-                              { height: imageBlockHeight },
-                            ]}
-                            contentFit="contain"
-                            contentPosition="top"
+                            style={styles.detailOptimizedImage}
+                            contentFit="cover"
                             priority="high"
+                            transition={0}
                           />
                         );
                       }
@@ -881,32 +809,17 @@ const MyInspiration = () => {
                             { width, height: "100%" },
                           ]}
                         >
-                          <ScrollView
+                          <View
                             style={[
-                              styles.detailSlideScroll,
-                              { width, height: detailCarouselViewportHeight },
+                              styles.detailImageFrame,
+                              {
+                                width: detailW,
+                                height: imageBlockHeight,
+                              },
                             ]}
-                            contentContainerStyle={{
-                              alignItems: "center",
-                              paddingVertical: responsiveScale(8),
-                              minHeight: scrollContentMinH,
-                            }}
-                            showsVerticalScrollIndicator
-                            nestedScrollEnabled
-                            bounces
                           >
-                            <View
-                              style={[
-                                styles.detailImageCard,
-                                {
-                                  width: detailW,
-                                  height: imageBlockHeight,
-                                },
-                              ]}
-                            >
-                              {inner}
-                            </View>
-                          </ScrollView>
+                            {inner}
+                          </View>
                         </View>
                       );
                     }}
@@ -1284,13 +1197,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  detailSlideScroll: {
-    flexGrow: 0,
-  },
-  detailImageCard: {
-    borderRadius: responsiveBorderRadius(24),
+  detailImageFrame: {
+    alignSelf: "center",
     overflow: "hidden",
-    backgroundColor: "rgba(0,0,0,0.06)",
+    borderRadius: responsiveBorderRadius(24),
+    backgroundColor: primaryGreen,
   },
   detailOptimizedImage: {
     width: "100%",

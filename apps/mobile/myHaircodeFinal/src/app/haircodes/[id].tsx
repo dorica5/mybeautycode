@@ -39,6 +39,8 @@ import {
   type ReportReason,
 } from "@/src/api/moderation";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { pickActiveProfessionCode } from "@/src/constants/professionCodes";
+import { getLastProfessionCode } from "@/src/lib/lastVisitPreference";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRelationshipCheck, removeRelationship } from "@/src/api/relationships";
 import {
@@ -72,8 +74,28 @@ const HaircodeList = () => {
           profileData.phoneNumber ?? profileData.phone_number,
       }
     : undefined;
-  const { session } = useAuth();
+  const { session, profile: authProfile } = useAuth();
   const hairdresser_id = session?.user.id;
+
+  const [navProfessionCode, setNavProfessionCode] = useState<string>("hair");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const userId = authProfile?.id;
+      if (!userId) return;
+      const last = await getLastProfessionCode(userId);
+      if (cancelled) return;
+      const picked = pickActiveProfessionCode(
+        authProfile?.profession_codes,
+        last
+      );
+      setNavProfessionCode(picked ?? "hair");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authProfile?.id, authProfile?.profession_codes]);
   const queryClient = useQueryClient();
   const { data: isRelated = false, isFetching: relLoading } = useRelationshipCheck(
     client_id as string,
@@ -429,6 +451,7 @@ const HaircodeList = () => {
                         full_name: displayFullName,
                         relationship: relParam,
                         price: navPrice ?? "",
+                        professionCode: navProfessionCode,
                       },
                     })
                   }
@@ -452,6 +475,7 @@ const HaircodeList = () => {
                       params: {
                         clientId: client_id,
                         clientName: displayFullName,
+                        professionCode: navProfessionCode,
                       },
                     })
                   }

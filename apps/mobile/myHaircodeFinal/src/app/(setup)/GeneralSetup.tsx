@@ -44,11 +44,12 @@ import {
   getCountryCallingCode,
   parsePhoneNumberFromString,
 } from "libphonenumber-js";
-
-const NAME_RE = /^[a-zA-ZÀ-ÿæøåÆØÅ.\s'’-]{2,50}$/;
-/** Lowercase handle: letter first, then letters / digits / underscore; length 3–30. */
-const USERNAME_RE = /^[a-z][a-z0-9_]{2,29}$/;
-const USERNAME_MAX_LEN = 30;
+import {
+  parseProfilePhone,
+  sanitizeUsername,
+  validatePersonName,
+  validateUsernameInput,
+} from "@/src/lib/profileFieldValidation";
 
 type ApiErrorShape = Error & { status?: number };
 
@@ -86,10 +87,6 @@ type MeProfile = {
   phone_number?: string | null;
   avatar_url?: string | null;
 };
-
-function sanitizeUsernameInput(raw: string): string {
-  return raw.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, USERNAME_MAX_LEN);
-}
 
 export default function GeneralSetup() {
   const insets = useSafeAreaInsets();
@@ -145,7 +142,7 @@ export default function GeneralSetup() {
           | Record<string, string>
           | undefined;
         if (meta?.username)
-          setUserName(sanitizeUsernameInput(String(meta.username)));
+          setUserName(sanitizeUsername(String(meta.username)));
       }
     })();
     return () => {
@@ -162,16 +159,6 @@ export default function GeneralSetup() {
     }
   };
 
-  const validatePhone = (p: string, cc: string | null) => {
-    if (!cc) return false;
-    try {
-      const clean = p.replace(/^\+\d+\s?/, "").trim();
-      return parsePhoneNumberFromString(clean, cc as import("libphonenumber-js").CountryCode)?.isValid() ?? false;
-    } catch {
-      return false;
-    }
-  };
-
   const runValidation = () => {
     const next = {
       firstName: "",
@@ -180,28 +167,19 @@ export default function GeneralSetup() {
       country: "",
       phone: "",
     };
-    const fn = firstName.trim();
-    const ln = lastName.trim();
-    const un = userName.trim().toLowerCase();
+    const fnResult = validatePersonName(firstName, "first");
+    if (!fnResult.ok) next.firstName = fnResult.message;
 
-    if (!fn) next.firstName = "Enter your first name.";
-    else if (!NAME_RE.test(fn))
-      next.firstName = "Use letters, spaces, hyphens, apostrophes, or dots (2–50 characters).";
+    const lnResult = validatePersonName(lastName, "last");
+    if (!lnResult.ok) next.lastName = lnResult.message;
 
-    if (!ln) next.lastName = "Enter your last name.";
-    else if (!NAME_RE.test(ln))
-      next.lastName = "Use letters, spaces, hyphens, apostrophes, or dots (2–50 characters).";
-
-    if (!un) next.userName = "Enter a username.";
-    else if (!USERNAME_RE.test(un))
-      next.userName =
-        "Use 3–30 characters: lowercase letters, numbers, and underscores only. Start with a letter.";
+    const unResult = validateUsernameInput(userName);
+    if (!unResult.ok) next.userName = unResult.message;
 
     if (!country) next.country = "Select your country.";
-    if (!validatePhone(phone, country)) {
-      next.phone = country
-        ? "Enter a valid phone number for your country."
-        : "Select country first.";
+    const phoneResult = parseProfilePhone(phone, country || null);
+    if (!phoneResult.ok) {
+      next.phone = country ? phoneResult.message : "Select country first.";
     }
 
     setErrors(next);
@@ -228,19 +206,22 @@ export default function GeneralSetup() {
     setSaving(true);
     try {
       const avatar_url = await uploadAvatar();
-      const clean = phone.replace(/^\+\d+\s?/, "").trim();
-      const parsed = parsePhoneNumberFromString(
-        clean,
-        country as import("libphonenumber-js").CountryCode
-      );
+      const fnResult = validatePersonName(firstName, "first");
+      const lnResult = validatePersonName(lastName, "last");
+      const unResult = validateUsernameInput(userName);
+      const phoneResult = parseProfilePhone(phone, country);
+      if (!fnResult.ok || !lnResult.ok || !unResult.ok || !phoneResult.ok) {
+        setSaving(false);
+        return;
+      }
 
       const body: Record<string, unknown> = {
         id: userId,
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        username: userName.trim().toLowerCase(),
+        first_name: fnResult.value,
+        last_name: lnResult.value,
+        username: unResult.value,
         country: country!,
-        phone_number: parsed ? parsed.format("E.164") : phone.trim(),
+        phone_number: phoneResult.e164,
         setup_status: true,
       };
       if (avatar_url != null) body.avatar_url = avatar_url;
@@ -248,8 +229,8 @@ export default function GeneralSetup() {
 
       await supabase.auth.updateUser({
         data: {
-          username: userName.trim().toLowerCase(),
-          display_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          username: unResult.value,
+          display_name: `${fnResult.value} ${lnResult.value}`.trim(),
         },
       });
 
@@ -389,7 +370,7 @@ export default function GeneralSetup() {
             label="Username"
             value={userName}
             onChangeText={(t) => {
-              setUserName(sanitizeUsernameInput(t));
+              setUserName(sanitizeUsername(t));
               if (errors.userName) {
                 setErrors((prev) => ({ ...prev, userName: "" }));
               }
@@ -406,11 +387,14 @@ export default function GeneralSetup() {
             onChange={(c) => {
               setCountry(c);
               if (attempted) {
-                setErrors((e) => ({
-                  ...e,
-                  country: c ? "" : "Select your country.",
-                  phone: validatePhone(phone, c) ? "" : e.phone,
-                }));
+                setErrors((e) => {
+                  const phoneOk = c ? parseProfilePhone(phone, c).ok : false;
+                  return {
+                    ...e,
+                    country: c ? "" : "Select your country.",
+                    phone: phoneOk ? "" : e.phone,
+                  };
+                });
               }
             }}
             error={attempted && !!errors.country}

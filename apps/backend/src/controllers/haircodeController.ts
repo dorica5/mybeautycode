@@ -13,7 +13,13 @@ export const haircodeController = {
         req.userId!,
         String(clientId)
       );
-      const data = await haircodeService.listClientGallery(String(clientId));
+      const professionCode = req.query.professionCode
+        ? String(req.query.professionCode)
+        : undefined;
+      const data = await haircodeService.listClientGallery(
+        String(clientId),
+        professionCode
+      );
       res.json(data);
     } catch (err: unknown) {
       const e = err as { statusCode?: number; message?: string };
@@ -35,7 +41,13 @@ export const haircodeController = {
         req.userId!,
         String(clientId)
       );
-      const data = await haircodeService.listClientHaircodes(String(clientId));
+      const professionCode = req.query.professionCode
+        ? String(req.query.professionCode)
+        : undefined;
+      const data = await haircodeService.listClientHaircodes(
+        String(clientId),
+        professionCode
+      );
       res.json(data);
     } catch (err: unknown) {
       const e = err as { statusCode?: number; message?: string };
@@ -109,6 +121,12 @@ export const haircodeController = {
         services: body.services,
         price: body.price,
         duration: body.duration,
+        profession_code:
+          typeof body.profession_code === "string"
+            ? body.profession_code
+            : typeof body.professionCode === "string"
+              ? body.professionCode
+              : undefined,
       });
       res.json(data);
     } catch (err) {

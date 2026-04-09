@@ -1,5 +1,9 @@
 import type { Session } from "@supabase/supabase-js";
 import type { Profile } from "@/src/constants/types";
+import {
+  PROFESSION_HEADLINE_ROLE,
+  pickActiveProfessionCode,
+} from "@/src/constants/professionCodes";
 
 /** Én bruker kan ha flere «overflater» (pro / klient); samme innlogging. */
 export type LinkedAccountEntry = {
@@ -12,9 +16,31 @@ export type LinkedAccountEntry = {
   };
 };
 
-export function roleLabelForProfile(profile: Profile): string {
+/** Linked profession codes from API (`profession_codes`) or legacy camelCase. */
+function professionCodesList(profile: Profile): string[] {
+  const raw =
+    profile.profession_codes ??
+    (profile as { professionCodes?: string[] | null }).professionCodes ??
+    [];
+  return Array.isArray(raw) ? raw : [];
+}
+
+/**
+ * Label for the professional surface on switch-account (and similar).
+ * Pass `lastVisitedProfessionCode` from {@link getLastProfessionCode} when available
+ * so multi-profession users see the role for their active tab.
+ */
+export function roleLabelForProfile(
+  profile: Profile,
+  lastVisitedProfessionCode?: string | null
+): string {
   if (profile.user_type === "CLIENT") return "Client";
-  return "Hairdresser";
+  const code = pickActiveProfessionCode(
+    professionCodesList(profile),
+    lastVisitedProfessionCode ?? undefined
+  );
+  if (code) return PROFESSION_HEADLINE_ROLE[code];
+  return "Professional";
 }
 
 export function profileUserType(profile: Profile): "HAIRDRESSER" | "CLIENT" {
@@ -24,7 +50,7 @@ export function profileUserType(profile: Profile): "HAIRDRESSER" | "CLIENT" {
 export function entryUserType(entry: LinkedAccountEntry): "HAIRDRESSER" | "CLIENT" {
   const ut = entry.meta.userType;
   if (ut === "HAIRDRESSER" || ut === "CLIENT") return ut;
-  return entry.meta.roleLabel === "Hairdresser" ? "HAIRDRESSER" : "CLIENT";
+  return entry.meta.roleLabel === "Client" ? "CLIENT" : "HAIRDRESSER";
 }
 
 /** Én rad for kun-klient; to rader (pro + klient) for frisør. */
@@ -41,11 +67,10 @@ export function expandAccountRows(entry: LinkedAccountEntry): Array<{
   return [{ entry, surface: "client" }];
 }
 
+/** Salon only (no country) — switch account row: role, name, then salon. */
 export function buildDetailLine(profile: Profile): string {
-  const parts = [profile.salon_name, profile.country].filter(
-    (p): p is string => Boolean(p && String(p).trim())
-  );
-  return parts.join(", ");
+  const salon = profile.salon_name?.trim();
+  return salon ?? "";
 }
 
 function displayName(profile: Profile): string {

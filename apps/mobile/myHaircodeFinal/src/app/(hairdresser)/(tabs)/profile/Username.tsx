@@ -19,16 +19,10 @@ import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
-
-const USERNAME_RE = /^[a-z][a-z0-9_]{2,29}$/;
-const USERNAME_MAX_LEN = 30;
-
-function sanitize(raw: string): string {
-  return raw
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, "")
-    .slice(0, USERNAME_MAX_LEN);
-}
+import {
+  sanitizeUsername,
+  validateUsernameInput,
+} from "@/src/lib/profileFieldValidation";
 
 const Username = () => {
   const { profile, setProfile } = useAuth();
@@ -108,7 +102,7 @@ const Username = () => {
   };
 
   useEffect(() => {
-    setChanged(sanitize(username) !== sanitize(original));
+    setChanged(sanitizeUsername(username) !== sanitizeUsername(original));
   }, [username, original]);
 
   return (

@@ -4,14 +4,6 @@ import { useIsFocused } from "@react-navigation/native";
 import { MagnifyingGlass, XCircle } from "phosphor-react-native";
 import { Colors, primaryBlack } from "../constants/Colors";
 import Delete2Streamline from "../../assets/icons/delete_2_streamline.svg";
-import {
-  responsiveScale,
-  responsivePadding,
-  responsiveMargin,
-  responsiveFontSize,
-  responsiveBorderRadius,
-  scalePercent,
-} from "../utils/responsive";
 
 /** Mint off-white fill for brand search bar (matches design). */
 const SEARCH_BAR_FILL = "#F1F8F5";
@@ -20,6 +12,14 @@ const SEARCH_BAR_STROKE = "#333333";
 /** Design size (dp @ base) — width × height capsule. */
 const SEARCH_BAR_WIDTH = 343;
 const SEARCH_BAR_HEIGHT = 46;
+import { 
+  responsiveScale, 
+  responsivePadding, 
+  responsiveMargin,
+  responsiveFontSize,
+  responsiveBorderRadius,
+  scalePercent 
+} from "../utils/responsive";
 
 type SearchInputProps = {
   initialQuery: string;
@@ -36,18 +36,14 @@ type SearchInputProps = {
   onBlur?: () => void;
   /** When set, search field uses white pill styling (e.g. client find-professionals screen). */
   variant?: "default" | "whitePill";
-  /** Override whitePill width (base dp). Default 343. Ignored when stretch is true. */
+  /** Override whitePill width (base dp). Default 343. Ignored when `whitePillStretch`. */
   whitePillWidth?: number;
   /** Override whitePill height (base dp). Default 46. */
   whitePillHeight?: number;
   /** Mint off-white default; set to `#fff` for solid white pill. */
   whitePillFill?: string;
-  /** Alias for `whitePillFill` (cecilie branch). */
-  pillBackgroundColor?: string;
   /** Use full width of parent (e.g. inside a card). */
   whitePillStretch?: boolean;
-  /** Alias for `whitePillStretch` (cecilie branch). */
-  stretchWhitePill?: boolean;
 };
 
 const SearchInput = ({
@@ -63,9 +59,7 @@ const SearchInput = ({
   whitePillWidth,
   whitePillHeight,
   whitePillFill,
-  pillBackgroundColor,
   whitePillStretch,
-  stretchWhitePill,
 }: SearchInputProps) => {
   const [internalQuery, setInternalQuery] = useState(initialQuery ?? "");
   const isControlled = valueProp !== undefined;
@@ -74,8 +68,6 @@ const SearchInput = ({
 
   const pillW = whitePillWidth ?? SEARCH_BAR_WIDTH;
   const pillH = whitePillHeight ?? SEARCH_BAR_HEIGHT;
-  const effectiveFill = whitePillFill ?? pillBackgroundColor;
-  const effectiveStretch = whitePillStretch ?? stretchWhitePill;
 
   useEffect(() => {
     if (!isControlled) {
@@ -121,12 +113,12 @@ const SearchInput = ({
         variant === "whitePill" && [
           styles.containerWhitePill,
           {
-            width: effectiveStretch ? ("100%" as const) : responsiveScale(pillW),
-            alignSelf: effectiveStretch ? ("stretch" as const) : "center",
+            width: whitePillStretch ? ("100%" as const) : responsiveScale(pillW),
+            alignSelf: whitePillStretch ? ("stretch" as const) : "center",
             height: responsiveScale(pillH),
             minHeight: responsiveScale(pillH),
             borderRadius: responsiveScale(pillH / 2),
-            backgroundColor: effectiveFill ?? SEARCH_BAR_FILL,
+            backgroundColor: whitePillFill ?? SEARCH_BAR_FILL,
           },
         ],
         style,
@@ -200,7 +192,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: responsivePadding(10),
     width: scalePercent(93),
-    alignSelf: "center",
+    alignSelf: 'center',
   },
   input: {
     flex: 1,

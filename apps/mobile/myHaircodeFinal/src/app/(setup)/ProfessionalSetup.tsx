@@ -32,6 +32,7 @@ import {
   responsiveScale,
 } from "@/src/utils/responsive";
 import { parsePhoneNumberFromString, getCountryCallingCode } from "libphonenumber-js";
+import { parseProfilePhone } from "@/src/lib/profileFieldValidation";
 import { usePostHog } from "posthog-react-native";
 import {
   PROFESSION_CHOICE_CODES,
@@ -58,7 +59,6 @@ const ProfessionalSetup = () => {
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   const [fields, setFields] = useState({
-    displayName: "",
     businessName: "",
     businessPhone: "",
     businessAddress: "",
@@ -76,7 +76,6 @@ const ProfessionalSetup = () => {
     if (!profile) return;
     setFields((prev) => {
       const empty =
-        !prev.displayName &&
         !prev.businessName &&
         !prev.businessPhone &&
         !prev.businessAddress &&
@@ -100,7 +99,6 @@ const ProfessionalSetup = () => {
         }
       }
       return {
-        displayName: profile.display_name ?? "",
         businessName: bizName,
         businessPhone: phoneDisplay,
         businessAddress: profile.business_address ?? "",
@@ -136,22 +134,6 @@ const ProfessionalSetup = () => {
     fetchUserId();
   }, []);
 
-  const validatePhoneNumber = (phone: string) => {
-    if (!profileCountry) return false;
-    const trimmed = phone.replace(/^\+\d+\s?/, "").trim();
-    if (!trimmed) return false;
-
-    try {
-      const parsed = parsePhoneNumberFromString(
-        trimmed,
-        profileCountry as never
-      );
-      return parsed?.isValid() ?? false;
-    } catch {
-      return false;
-    }
-  };
-
   const validateField = (field: string, value: string) => {
     switch (field) {
       case "businessName": {
@@ -159,7 +141,7 @@ const ProfessionalSetup = () => {
         if (!trimmed) {
           setErrorMessages((prev) => ({
             ...prev,
-            businessName: "Please enter your business or studio name.",
+            businessName: "Please enter your salon name.",
           }));
           return false;
         }
@@ -176,14 +158,12 @@ const ProfessionalSetup = () => {
           }));
           return false;
         }
-        const isValid = validatePhoneNumber(value);
+        const r = parseProfilePhone(value, profileCountry);
         setErrorMessages((prev) => ({
           ...prev,
-          phone_number: isValid
-            ? ""
-            : "Please enter a valid phone number for your country.",
+          phone_number: r.ok ? "" : r.message,
         }));
-        return isValid;
+        return r.ok;
       }
 
       case "businessAddress": {
@@ -191,7 +171,7 @@ const ProfessionalSetup = () => {
         if (!trimmed) {
           setErrorMessages((prev) => ({
             ...prev,
-            businessAddress: "Please enter your business address.",
+            businessAddress: "Please enter your salon address.",
           }));
           return false;
         }
@@ -232,17 +212,14 @@ const ProfessionalSetup = () => {
 
   const formatBusinessPhoneE164 = (): string => {
     if (!profileCountry) throw new Error("Missing profile country");
-    const raw = fields.businessPhone.trim();
-    const clean = raw.replace(/^\+\d+\s?/, "").trim();
-    const parsed = parsePhoneNumberFromString(clean, profileCountry as never);
-    if (parsed?.isValid()) return parsed.format("E.164");
-    return raw;
+    const r = parseProfilePhone(fields.businessPhone, profileCountry);
+    if (!r.ok) throw new Error(r.message);
+    return r.e164;
   };
 
   const updateUserProfile = async () => {
     if (!userId) throw new Error("User not found");
 
-    const display = fields.displayName.trim();
     const bizAddr = fields.businessAddress.trim();
     const social = fields.socialMedia.trim();
     const booking = fields.bookingSite.trim();
@@ -252,7 +229,6 @@ const ProfessionalSetup = () => {
       business_name: fields.businessName.trim(),
       business_number: formatBusinessPhoneE164(),
       business_address: bizAddr,
-      display_name: display.length > 0 ? display : null,
       social_media: social.length > 0 ? social : null,
       booking_site: booking.length > 0 ? booking : null,
       about_me: fields.aboutMe.trim(),
@@ -361,15 +337,7 @@ const ProfessionalSetup = () => {
 
           <View style={styles.form}>
             <BrandOutlineField
-              label="Display name (optional)"
-              value={fields.displayName}
-              onChangeText={(value) => handleFieldChange("displayName", value)}
-              autoCapitalize="words"
-              containerStyle={styles.formFieldSpacing}
-            />
-
-            <BrandOutlineField
-              label="Business name"
+              label="Salon name"
               value={fields.businessName}
               onChangeText={(value) => handleFieldChange("businessName", value)}
               autoCapitalize="words"
@@ -386,8 +354,8 @@ const ProfessionalSetup = () => {
             <BrandOutlineField
               label={
                 profileCountry
-                  ? `Business phone (${getCountryCode(profileCountry)})`
-                  : "Business phone"
+                  ? `Salon phone number (${getCountryCode(profileCountry)})`
+                  : "Salon phone number"
               }
               value={fields.businessPhone}
               onChangeText={(value) =>
@@ -410,7 +378,7 @@ const ProfessionalSetup = () => {
             {showFieldError(errorMessages.phone_number)}
 
             <BrandAddressAutocompleteField
-              label="Business address"
+              label="Salon address"
               value={fields.businessAddress}
               onChangeText={(value) =>
                 handleFieldChange("businessAddress", value)

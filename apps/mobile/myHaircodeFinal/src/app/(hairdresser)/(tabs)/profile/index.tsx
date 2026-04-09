@@ -10,7 +10,6 @@ import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   UserCircle,
-  User,
   Phone,
   HouseLine,
   PencilSimple,
@@ -22,6 +21,7 @@ import {
   MinusCircle,
 } from "phosphor-react-native";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
+import { ProfileMenuNameIcon } from "@/src/components/profileMenuIcons";
 import {
   Colors,
   primaryBlack,
@@ -113,16 +113,24 @@ const ProfileScreen = () => {
               </Text>
 
               <Profile
-                title="Display name"
-                Icon={User}
+                title="First name"
+                Icon={ProfileMenuNameIcon}
                 tileStyle="light"
                 top
                 onPress={() =>
-                  router.push("/(hairdresser)/(tabs)/profile/DisplayName")
+                  router.push("/(hairdresser)/(tabs)/profile/FirstName")
                 }
               />
               <Profile
-                title="User name"
+                title="Last name"
+                Icon={ProfileMenuNameIcon}
+                tileStyle="light"
+                onPress={() =>
+                  router.push("/(hairdresser)/(tabs)/profile/LastName")
+                }
+              />
+              <Profile
+                title="Username"
                 Icon={At}
                 tileStyle="light"
                 onPress={() =>
@@ -182,7 +190,7 @@ const ProfileScreen = () => {
                 Icon={PlusCircle}
                 tileStyle="light"
                 onPress={() =>
-                  router.push("/(setup)/ChooseProfession" as Href)
+                  router.push("/(setup)/AddProfession" as Href)
                 }
               />
               <Profile

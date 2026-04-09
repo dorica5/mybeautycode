@@ -19,12 +19,25 @@ type HaircodeCardProps = {
   salon_name: string;
   profilePicture?: string; // Make profilePicture optional
   onPress: () => void;
+  /** e.g. prefetch detail before `onPress` completes */
+  onPressIn?: () => void;
 };
 
 const HaircodeCard = React.memo(
-  ({ name, date, profilePicture, salon_name, onPress }: HaircodeCardProps) => {
+  ({
+    name,
+    date,
+    profilePicture,
+    salon_name,
+    onPress,
+    onPressIn,
+  }: HaircodeCardProps) => {
     return (
-      <Pressable style={styles.container} onPress={onPress}>
+      <Pressable
+        style={styles.container}
+        onPress={onPress}
+        onPressIn={onPressIn}
+      >
         <Text style={styles.nameText}>
           {name}
           {salon_name && `, ${salon_name}`}

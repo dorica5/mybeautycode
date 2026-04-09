@@ -73,3 +73,61 @@ export async function fetchSignedStorageUrls(
   }
   return out;
 }
+
+const HAIRCODE_MEDIA_BUCKET = "haircode_images";
+
+export type HaircodeMediaRow = {
+  mediaUrl?: string;
+  media_url?: string;
+  mediaType?: string;
+  media_type?: string;
+};
+
+/**
+ * Resolve visit/carousel media URLs: already-public HTTP links stay as-is;
+ * storage paths are signed in one batch (fast vs N sequential /signed-url calls).
+ */
+export async function signHaircodeVisitMedia(
+  rows: HaircodeMediaRow[]
+): Promise<{ uri: string; type: string }[]> {
+  type Slot =
+    | { kind: "direct"; uri: string; type: string }
+    | { kind: "sign"; path: string; type: string };
+
+  const slots: Slot[] = [];
+  for (const row of rows) {
+    const path = row.mediaUrl ?? row.media_url;
+    const typ = (row.mediaType ?? row.media_type ?? "image").toLowerCase();
+    if (!path) continue;
+    if (/^https?:\/\//i.test(String(path).trim())) {
+      slots.push({ kind: "direct", uri: String(path).trim(), type: typ });
+    } else {
+      slots.push({ kind: "sign", path: String(path), type: typ });
+    }
+  }
+
+  const toSign = slots.filter(
+    (s): s is Extract<Slot, { kind: "sign" }> => s.kind === "sign"
+  );
+  if (toSign.length === 0) {
+    return slots
+      .filter((s): s is Extract<Slot, { kind: "direct" }> => s.kind === "direct")
+      .map((s) => ({ uri: s.uri, type: s.type }));
+  }
+
+  const signed = await fetchSignedStorageUrls(
+    toSign.map((s) => ({ bucket: HAIRCODE_MEDIA_BUCKET, path: s.path }))
+  );
+
+  let si = 0;
+  const out: { uri: string; type: string }[] = [];
+  for (const s of slots) {
+    if (s.kind === "direct") {
+      out.push({ uri: s.uri, type: s.type });
+    } else {
+      const u = signed[si++];
+      if (u) out.push({ uri: u, type: s.type });
+    }
+  }
+  return out;
+}

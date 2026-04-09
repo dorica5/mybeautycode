@@ -369,6 +369,7 @@ const NewHaircode = () => {
         clientId,
         uploadMedia,
         hasMediaChanged,
+        professionCode: activeProfessionCode ?? "hair",
       });
 
       posthog.capture("Haircode Added", {

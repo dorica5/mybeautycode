@@ -22,13 +22,10 @@ import {
 } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
 import { StatusBar } from "expo-status-bar";
-
-const USERNAME_RE = /^[a-z][a-z0-9_]{2,29}$/;
-const USERNAME_MAX_LEN = 30;
-
-function sanitize(raw: string): string {
-  return raw.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, USERNAME_MAX_LEN);
-}
+import {
+  sanitizeUsername,
+  validateUsernameInput,
+} from "@/src/lib/profileFieldValidation";
 
 const Username = () => {
   const { profile, setProfile } = useAuth();
@@ -75,11 +72,13 @@ const Username = () => {
 
   const save = () => {
     setAttemptedSubmit(true);
-    const v = sanitize(username);
-    if (!validate(v)) {
+    const result = validateUsernameInput(username);
+    if (!result.ok) {
+      setErrorMessage(result.message);
       setError(true);
       return;
     }
+    const v = result.value;
     if (!id) {
       Alert.alert("User not found");
       return;
@@ -113,7 +112,7 @@ const Username = () => {
   };
 
   useEffect(() => {
-    setChanged(sanitize(username) !== sanitize(original));
+    setChanged(sanitizeUsername(username) !== sanitizeUsername(original));
   }, [username, original]);
 
   return (

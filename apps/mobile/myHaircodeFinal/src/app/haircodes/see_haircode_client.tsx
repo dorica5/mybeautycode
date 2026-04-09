@@ -4,7 +4,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import HaircodeCard from "@/src/components/HaircodeCard";
 import TopNav from "@/src/components/TopNav";
-import { useListClientHaircodes, usePrefetchVisibleHaircodes } from "@/src/api/haircodes";
+import {
+  prefetchHaircodeWithMedia,
+  useListClientHaircodes,
+  usePrefetchVisibleHaircodes,
+} from "@/src/api/haircodes";
 import { Colors } from "@/src/constants/Colors";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useQueryClient } from "@tanstack/react-query";
@@ -66,14 +70,17 @@ const SeeHaircodeClient = () => {
               </Text>
             )}
             renderItem={({ item }) => {
-              const hp = item.hairdresser_profile ?? {};
+              const hp =
+                item.hairdresser_profile ?? item.professional_profile ?? {};
               return (
               <HaircodeCard
                 name={item.hairdresser_name}
                 date={formatDate(item.created_at)}
                 profilePicture={hp.avatar_url}
                 salon_name={hp.salon_name}
+                onPressIn={() => prefetchHaircodeWithMedia(queryClient, item.id)}
                 onPress={() => {
+                  void prefetchHaircodeWithMedia(queryClient, item.id);
                   router.push({
                     pathname: "./single_haircode_client",
                     params: {

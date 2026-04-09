@@ -1,119 +1,212 @@
-import { StyleSheet, FlatList, Text, View } from "react-native";
+import {
+  StyleSheet,
+  FlatList,
+  Text,
+  View,
+  Pressable,
+} from "react-native";
 import React, { useState, useCallback, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import HaircodeCard from "@/src/components/HaircodeCard";
 import TopNavGallery from "@/src/components/TopNavGallery";
-import { useListClientHaircodes } from "@/src/api/haircodes";
-import { Colors } from "@/src/constants/Colors";
+import {
+  prefetchHaircodeWithMedia,
+  useListClientHaircodes,
+  usePrefetchVisibleHaircodes,
+} from "@/src/api/haircodes";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { usePrefetchVisibleHaircodes } from "@/src/api/haircodes";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
-import { 
-  scalePercent,
-  responsiveFontSize
+import {
+  responsiveScale,
+  responsivePadding,
+  responsiveMargin,
+  responsiveFontSize,
 } from "@/src/utils/responsive";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
+import { CaretRight } from "phosphor-react-native";
+import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+
+type ClientHaircodeRow = {
+  id: string;
+  created_at: string;
+  hairdresser_name?: string | null;
+  service_description?: string | null;
+  services?: string | null;
+  price?: string | null;
+  duration?: string | null;
+  hairdresser_profile?: {
+    avatar_url?: string | null;
+    salon_name?: string | null;
+    salon_phone_number?: string | null;
+    about_me?: string | null;
+    booking_site?: string | null;
+    social_media?: string | null;
+  } | null;
+  professional_profile?: ClientHaircodeRow["hairdresser_profile"];
+  preview_media_url?: string | null;
+  preview_media_type?: string | null;
+};
 
 const SeeHaircode = () => {
   const { profile } = useAuth();
-  const { id, phone_number, full_name, relationship } = useLocalSearchParams();
+  const {
+    id,
+    phone_number,
+    full_name,
+    relationship,
+    professionCode: professionCodeParam,
+  } = useLocalSearchParams();
   const queryClient = useQueryClient();
 
-  const [visibleHaircodeIds, setVisibleHaircodeIds] = useState([]);
+  const [visibleHaircodeIds, setVisibleHaircodeIds] = useState<string[]>([]);
 
   usePrefetchVisibleHaircodes(visibleHaircodeIds);
 
-  const isRelated = relationship === "true";
-  const { data, error, isLoading } = useListClientHaircodes(
-    Array.isArray(id) ? id[0] : id
+  const clientId = Array.isArray(id) ? id[0] : id;
+  const rawProfession = Array.isArray(professionCodeParam)
+    ? professionCodeParam[0]
+    : professionCodeParam;
+  const professionCode =
+    typeof rawProfession === "string" && rawProfession.trim()
+      ? rawProfession.trim()
+      : "hair";
+
+  const { data, isLoading } = useListClientHaircodes(
+    clientId ?? "",
+    professionCode
   );
 
-  const normalizedPhoneNumber = Array.isArray(phone_number)
-    ? phone_number[0]
-    : phone_number;
+  const normalizedPhoneNumber =
+    (Array.isArray(phone_number) ? phone_number[0] : phone_number) ?? "";
+  const displayPhone =
+    normalizedPhoneNumber && !normalizedPhoneNumber.startsWith("+")
+      ? `+47${normalizedPhoneNumber}`
+      : normalizedPhoneNumber;
 
-  const number = normalizedPhoneNumber.startsWith("+47")
-    ? normalizedPhoneNumber
-    : `+47${normalizedPhoneNumber}`;
+  const displayClientName =
+    (Array.isArray(full_name) ? full_name.join(" ") : full_name)?.trim() ||
+    "Client";
 
-  const formatDate = (createdAt) => {
+  const formatVisitDate = (createdAt: string) => {
     const date = new Date(createdAt);
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
+    return date.toLocaleDateString("nb-NO", {
+      day: "numeric",
+      month: "long",
       year: "numeric",
     });
   };
 
-  const onViewableItemsChanged = useCallback(({ viewableItems }) => {
-    const visibleIds = viewableItems.map((item) => item.item.id);
-    setVisibleHaircodeIds(visibleIds);
-  }, []);
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { item: { id: string } }[] }) => {
+      const visibleIds = viewableItems.map((v) => v.item.id);
+      setVisibleHaircodeIds(visibleIds);
+    },
+    []
+  );
 
   useEffect(() => {
-    if (data && data.length > 0) {
-      const topHaircodeIds = data.slice(0, 5).map((item) => item.id);
-      import("@/src/api/haircodes").then((module) => {
-        module.prefetchHaircodeMedia(topHaircodeIds, queryClient);
-      });
+    const list = data as ClientHaircodeRow[] | undefined;
+    if (list && list.length > 0) {
+      const topHaircodeIds = list.slice(0, 12).map((item) => item.id);
+      for (const id of topHaircodeIds) {
+        void prefetchHaircodeWithMedia(queryClient, id);
+      }
     }
-  }, [data]);
+  }, [data, queryClient]);
+
+  const listData = (data as ClientHaircodeRow[] | undefined) ?? [];
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
+      <View style={styles.root}>
+        <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
           <TopNavGallery
-            title={Array.isArray(full_name) ? full_name.join(", ") : full_name}
-            secondTitle={Array.isArray(number) ? number.join(", ") : number}
+            title={displayClientName}
+            secondTitle={displayPhone}
           />
 
           <FlatList
-            data={data}
+            data={listData}
             keyExtractor={(item) => item.id}
             onViewableItemsChanged={onViewableItemsChanged}
             viewabilityConfig={{ viewAreaCoveragePercentThreshold: 20 }}
+            contentContainerStyle={styles.listContent}
             ListEmptyComponent={() => (
               <Text style={styles.emptyText}>
-                {isLoading ? "Loading haircodes..." : "No haircodes added yet"}
+                {isLoading ? "Loading visits…" : "No visits yet"}
               </Text>
             )}
             renderItem={({ item }) => {
+              const hp =
+                item.hairdresser_profile ??
+                item.professional_profile ??
+                null;
+              const proAvatarUrl =
+                hp?.avatar_url ?? profile?.avatar_url ?? undefined;
+
               return (
-                <HaircodeCard
-                  name={item.hairdresser_name}
-                  date={formatDate(item.created_at)}
-                  profilePicture={item.hairdresser_profile.avatar_url}
-                  salon_name={item.hairdresser_profile.salon_name}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.visitCard,
+                    pressed && styles.visitCardPressed,
+                  ]}
+                  onPressIn={() => prefetchHaircodeWithMedia(queryClient, item.id)}
                   onPress={() => {
+                    void prefetchHaircodeWithMedia(queryClient, item.id);
                     router.push({
-                      pathname: "./single_haircode",
+                      pathname: "/haircodes/single_haircode",
                       params: {
                         haircodeId: item.id,
-                        hairdresserName: item.hairdresser_name,
-                        hairdresser_profile_pic:
-                          item.hairdresser_profile.avatar_url,
-                        description: item.service_description,
-                        services: item.services,
-                        createdAt: formatDate(item.created_at),
-                        salon_name: item.hairdresser_profile.salon_name,
-                        full_name,
-                        number,
-                        salonPhoneNumber:
-                          item.hairdresser_profile.salon_phone_number,
-                        about_me: item.hairdresser_profile.about_me,
-                        booking_site: item.hairdresser_profile.booking_site,
-                        social_media: item.hairdresser_profile.social_media,
-                        price: item.price,
-                        duration: item.duration,
-                        relationship,
-                        this_hairdresser: profile.id,
+                        hairdresserName: item.hairdresser_name ?? "",
+                        hairdresser_profile_pic: hp?.avatar_url ?? "",
+                        description: item.service_description ?? "",
+                        services: item.services ?? "",
+                        createdAt: formatVisitDate(item.created_at),
+                        salon_name: hp?.salon_name ?? "",
+                        full_name: displayClientName,
+                        number: displayPhone,
+                        salonPhoneNumber: hp?.salon_phone_number ?? "",
+                        about_me: hp?.about_me ?? "",
+                        booking_site: hp?.booking_site ?? "",
+                        social_media: hp?.social_media ?? "",
+                        price: item.price ?? "",
+                        duration: item.duration ?? "",
+                        relationship: relationship as string,
+                        this_hairdresser: profile?.id ?? "",
                       },
                     });
                   }}
-                />
+                >
+                  <View style={styles.thumbWrap}>
+                    <AvatarWithSpinner
+                      uri={proAvatarUrl}
+                      size={AVATAR_SIZE}
+                      style={styles.avatar}
+                    />
+                  </View>
+                  <View style={styles.textCol}>
+                    <Text
+                      style={[Typography.anton16Medium, styles.dateLine]}
+                      numberOfLines={1}
+                    >
+                      {formatVisitDate(item.created_at)}
+                    </Text>
+                    <Text
+                      style={Typography.bodyMedium}
+                      numberOfLines={2}
+                    >
+                      {displayClientName}
+                    </Text>
+                  </View>
+                  <CaretRight
+                    size={responsiveScale(22)}
+                    color={primaryBlack}
+                    style={styles.chevron}
+                  />
+                </Pressable>
               );
             }}
           />
@@ -125,26 +218,60 @@ const SeeHaircode = () => {
 
 export default SeeHaircode;
 
+/** Pro (hairdresser) avatar — matches taller row cards. */
+const AVATAR_SIZE = responsiveScale(64);
+
 const styles = StyleSheet.create({
-  container: {
+  root: {
     flex: 1,
-    marginHorizontal: scalePercent(1),
+    backgroundColor: primaryGreen,
   },
-  topNav: {
+  safe: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
+  listContent: {
+    paddingHorizontal: responsivePadding(20),
+    paddingBottom: responsivePadding(32),
+  },
+  visitCard: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    position: "relative",
+    backgroundColor: primaryWhite,
+    borderRadius: responsiveScale(20),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
+    minHeight: responsiveScale(108),
+    paddingVertical: responsivePadding(20),
+    paddingHorizontal: responsivePadding(18),
+    marginBottom: responsiveMargin(14),
   },
-  save: {
-    fontSize: responsiveFontSize(20, 18),
-    fontFamily: "Inter-SemiBold",
+  visitCardPressed: {
+    opacity: 0.92,
+  },
+  thumbWrap: {
+    marginRight: responsiveMargin(16),
+  },
+  avatar: {
+    borderWidth: 1,
+    borderColor: `${primaryBlack}33`,
+  },
+  textCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dateLine: {
+    marginBottom: responsiveMargin(6),
+  },
+  chevron: {
+    marginLeft: responsiveMargin(8),
   },
   emptyText: {
     textAlign: "center",
-    fontSize: responsiveFontSize(20, 18),
-    fontFamily: "Inter-SemiBold",
-    marginTop: "50%",
-    color: Colors.dark.warmGreen,
+    marginTop: responsiveMargin(48),
+    fontSize: responsiveFontSize(16, 14),
+    fontFamily: "Inter-Medium",
+    color: primaryBlack,
+    opacity: 0.75,
   },
 });

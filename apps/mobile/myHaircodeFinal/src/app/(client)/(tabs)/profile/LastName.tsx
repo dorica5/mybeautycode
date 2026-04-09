@@ -22,8 +22,7 @@ import {
 } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
 import { StatusBar } from "expo-status-bar";
-
-const NAME_RE = /^[a-zA-ZÀ-ÿæøåÆØÅ.\s'’-]{2,50}$/;
+import { validatePersonName } from "@/src/lib/profileFieldValidation";
 
 const LastName = () => {
   const { profile, setProfile } = useAuth();
@@ -40,15 +39,9 @@ const LastName = () => {
   const { mutate: updateProfile } = useUpdateSupabaseProfile();
 
   const validate = (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setErrorMessage("Please enter your last name.");
-      return false;
-    }
-    if (!NAME_RE.test(trimmed)) {
-      setErrorMessage(
-        "Use only letters, spaces, hyphens, apostrophes, and dots (2–50 characters)."
-      );
+    const result = validatePersonName(name, "last");
+    if (!result.ok) {
+      setErrorMessage(result.message);
       return false;
     }
     setErrorMessage("");
@@ -70,7 +63,9 @@ const LastName = () => {
 
   const save = () => {
     setAttemptedSubmit(true);
-    if (!validate(lastName)) {
+    const result = validatePersonName(lastName, "last");
+    if (!result.ok) {
+      setErrorMessage(result.message);
       setError(true);
       return;
     }
@@ -80,12 +75,12 @@ const LastName = () => {
     }
     setLoading(true);
     updateProfile(
-      { id, last_name: lastName.trim() },
+      { id, last_name: result.value },
       {
         onSuccess: () => {
           setProfile((prev: Profile) => ({
             ...prev,
-            last_name: lastName.trim(),
+            last_name: result.value,
           }));
           setChanged(false);
           setLoading(false);
