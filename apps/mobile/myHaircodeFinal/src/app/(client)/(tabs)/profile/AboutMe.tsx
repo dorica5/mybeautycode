@@ -29,6 +29,7 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 
+/** Client hair baseline / About Me — not the professional “Get discovered” editor (`(hairdresser)/.../AboutMe`). */
 const HairProfile = () => {
   const { profile } = useAuth();
 

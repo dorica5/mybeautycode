@@ -25,7 +25,10 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
-import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
+import {
+  profileHasHairProfession,
+  profileHasProfessionalCapability,
+} from "@/src/constants/professionCodes";
 import { colorBrandsLabel } from "@/src/lib/colorBrandStorage";
 import { primarySocialUrl } from "@/src/lib/socialMediaStorage";
 
@@ -82,6 +85,7 @@ const ProfessionalProfile = () => {
                 </TouchableOpacity>
               </View>
               {profileHasProfessionalCapability(profile) &&
+              profileHasHairProfession(profile) &&
               colorBrandsText.length > 0 ? (
                 <Text
                   style={[

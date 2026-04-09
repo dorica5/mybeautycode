@@ -54,7 +54,10 @@ import {
   serializeSocialLinks,
   socialLinkRowLabel,
 } from "@/src/lib/socialMediaStorage";
-import { coerceProfessionCode } from "@/src/constants/professionCodes";
+import {
+  coerceProfessionCode,
+  profileHasHairProfession,
+} from "@/src/constants/professionCodes";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import { uploadToStorage } from "@/src/lib/uploadHelpers";
 import {
@@ -64,6 +67,11 @@ import {
   type PublicProfileWorkRow,
 } from "@/src/api/publicProfileWork";
 
+/**
+ * Get discovered — professional-only editor (public-facing bio, links, hair color brands, portfolio).
+ * Routed only from `(hairdresser)/(tabs)/profile/`. Client accounts use
+ * `(client)/(tabs)/profile/AboutMe` for their own “about” / hair-baseline flow, not this file.
+ */
 const NUM_WORK_COLS = 2;
 /** Must match `styles.section.maxWidth` — grid cells were sized to full screen while this caps row width, so two columns didn’t fit. */
 const WORK_SECTION_MAX_WIDTH = 400;
@@ -138,6 +146,18 @@ const AboutMe = () => {
       coerceProfessionCode(profile.profession_codes?.[0] ?? null) ?? "hair"
     );
   }, [profile.profession_codes]);
+
+  const hasHairProfession = useMemo(
+    () => profileHasHairProfession(profile),
+    [profile]
+  );
+
+  useEffect(() => {
+    if (!hasHairProfession) {
+      setColorBrandModal(null);
+      setAlertVisible(false);
+    }
+  }, [hasHairProfession]);
 
   const refreshWorkFromServer = useCallback(async () => {
     if (!id) return;
@@ -358,7 +378,9 @@ const AboutMe = () => {
         about_me: about_me.trim() || null,
         social_media: serializedSocial || null,
         booking_site: booking_site.trim() || null,
-        color_brand: serializeColorBrands(colorBrands),
+        ...(hasHairProfession
+          ? { color_brand: serializeColorBrands(colorBrands) }
+          : {}),
       });
 
       await refreshWorkFromServer();
@@ -378,9 +400,10 @@ const AboutMe = () => {
         normalizeLinksForCompare(serializedSocial) !==
           normalizeLinksForCompare(originalSocialMedia) ||
         booking_site !== originalBookingSite ||
-        serializeColorBrands(colorBrands) !==
-          serializeColorBrands(parseColorBrands(originalColorBrand)) ||
-        workDirty
+        workDirty ||
+        (hasHairProfession &&
+          serializeColorBrands(colorBrands) !==
+            serializeColorBrands(parseColorBrands(originalColorBrand)))
     );
   }, [
     about_me,
@@ -392,6 +415,7 @@ const AboutMe = () => {
     colorBrands,
     originalColorBrand,
     workDirty,
+    hasHairProfession,
   ]);
 
   const scrollToInput = (y: number) => {
@@ -657,81 +681,88 @@ const AboutMe = () => {
             </Pressable>
           </View>
 
-          <View
-            style={[
-              styles.section,
-              styles.sectionAfterLinks,
-              styles.sectionLinkBlock,
-            ]}
-          >
-            <View style={styles.labelRow}>
-              <Text style={[Typography.label, styles.labelFlex]}>
-                What color brand does your salon use?
-              </Text>
-              <Pressable
-                onPress={() => setAlertVisible(true)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="About color brand"
-              >
-                <InfoStroke16 />
-              </Pressable>
-            </View>
-            {colorBrands.map((brand, index) => (
+          {hasHairProfession ? (
+            <>
               <View
-                key={`${brand}-${index}`}
-                style={styles.summaryCard}
+                style={[
+                  styles.section,
+                  styles.sectionAfterLinks,
+                  styles.sectionLinkBlock,
+                ]}
               >
-                <Palette
-                  size={responsiveScale(20)}
-                  color={primaryBlack}
-                  weight="regular"
-                />
-                <Text
-                  style={[Typography.outfitRegular16, styles.summaryTitle]}
-                  numberOfLines={3}
-                >
-                  {brand}
-                </Text>
+                <View style={styles.labelRow}>
+                  <Text style={[Typography.label, styles.labelFlex]}>
+                    What color brand does your salon use?
+                  </Text>
+                  <Pressable
+                    onPress={() => setAlertVisible(true)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="About color brand"
+                  >
+                    <InfoStroke16 />
+                  </Pressable>
+                </View>
+                {colorBrands.map((brand, index) => (
+                  <View
+                    key={`${brand}-${index}`}
+                    style={styles.summaryCard}
+                  >
+                    <Palette
+                      size={responsiveScale(20)}
+                      color={primaryBlack}
+                      weight="regular"
+                    />
+                    <Text
+                      style={[Typography.outfitRegular16, styles.summaryTitle]}
+                      numberOfLines={3}
+                    >
+                      {brand}
+                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit color brand ${brand}`}
+                      onPress={() => openEditColorBrand(index)}
+                      style={styles.editCtrl}
+                      hitSlop={8}
+                    >
+                      <Text
+                        style={[Typography.outfitRegular16, styles.editLabel]}
+                      >
+                        Edit
+                      </Text>
+                      <PencilStroke16 />
+                    </Pressable>
+                  </View>
+                ))}
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Edit color brand ${brand}`}
-                  onPress={() => openEditColorBrand(index)}
-                  style={styles.editCtrl}
-                  hitSlop={8}
+                  accessibilityLabel="Add color brand"
+                  onPress={openAddColorBrand}
+                  disabled={colorBrands.length >= MAX_COLOR_BRANDS}
+                  style={[
+                    styles.addPill,
+                    styles.addPillColorBrand,
+                    colorBrands.length >= MAX_COLOR_BRANDS &&
+                      styles.addPillDisabled,
+                  ]}
                 >
-                  <Text style={[Typography.outfitRegular16, styles.editLabel]}>
-                    Edit
+                  <Text style={[Typography.label, styles.addPillLabel]}>
+                    {colorBrands.length >= MAX_COLOR_BRANDS
+                      ? "Maximum 6 brands"
+                      : "Add color brand"}
                   </Text>
-                  <PencilStroke16 />
                 </Pressable>
               </View>
-            ))}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Add color brand"
-              onPress={openAddColorBrand}
-              disabled={colorBrands.length >= MAX_COLOR_BRANDS}
-              style={[
-                styles.addPill,
-                styles.addPillColorBrand,
-                colorBrands.length >= MAX_COLOR_BRANDS && styles.addPillDisabled,
-              ]}
-            >
-              <Text style={[Typography.label, styles.addPillLabel]}>
-                {colorBrands.length >= MAX_COLOR_BRANDS
-                  ? "Maximum 6 brands"
-                  : "Add color brand"}
-              </Text>
-            </Pressable>
-          </View>
 
-          <CustomAlert
-            visible={alertVisible}
-            title="Color brand"
-            message="Color brand will only be visible to other hairdressers"
-            onClose={() => setAlertVisible(false)}
-          />
+              <CustomAlert
+                visible={alertVisible}
+                title="Color brand"
+                message="Color brand will only be visible to other hairdressers"
+                onClose={() => setAlertVisible(false)}
+              />
+            </>
+          ) : null}
 
           <View style={styles.section}>
             <Text style={[Typography.label, styles.sectionLabel]}>My work</Text>
@@ -957,49 +988,54 @@ const AboutMe = () => {
         </Pressable>
       </Modal>
 
-      <Modal
-        visible={colorBrandModal != null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setColorBrandModal(null)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setColorBrandModal(null)}
+      {hasHairProfession ? (
+        <Modal
+          visible={colorBrandModal != null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setColorBrandModal(null)}
         >
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
-            <Text style={[Typography.label, styles.modalTitle]}>
-              {colorBrandModal?.editIndex !== undefined
-                ? "Edit color brand"
-                : "Add color brand"}
-            </Text>
-            <TextInput
-              value={colorBrandModal?.draft ?? ""}
-              onChangeText={(t) =>
-                setColorBrandModal((m) => (m ? { draft: t } : m))
-              }
-              placeholder="e.g. Wella, Redken"
-              placeholderTextColor={`${primaryBlack}99`}
-              autoCapitalize="words"
-              style={styles.modalInput}
-            />
-            <View style={styles.modalActions}>
-              <Pressable
-                onPress={() => setColorBrandModal(null)}
-                style={styles.modalSecondary}
-              >
-                <Text style={Typography.label}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                onPress={commitColorBrandModal}
-                style={styles.modalPrimary}
-              >
-                <Text style={[Typography.label, styles.saveLabel]}>Save</Text>
-              </Pressable>
-            </View>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setColorBrandModal(null)}
+          >
+            <Pressable
+              style={styles.modalCard}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Text style={[Typography.label, styles.modalTitle]}>
+                {colorBrandModal?.editIndex !== undefined
+                  ? "Edit color brand"
+                  : "Add color brand"}
+              </Text>
+              <TextInput
+                value={colorBrandModal?.draft ?? ""}
+                onChangeText={(t) =>
+                  setColorBrandModal((m) => (m ? { draft: t } : m))
+                }
+                placeholder="e.g. Wella, Redken"
+                placeholderTextColor={`${primaryBlack}99`}
+                autoCapitalize="words"
+                style={styles.modalInput}
+              />
+              <View style={styles.modalActions}>
+                <Pressable
+                  onPress={() => setColorBrandModal(null)}
+                  style={styles.modalSecondary}
+                >
+                  <Text style={Typography.label}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={commitColorBrandModal}
+                  style={styles.modalPrimary}
+                >
+                  <Text style={[Typography.label, styles.saveLabel]}>Save</Text>
+                </Pressable>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
+      ) : null}
     </MintProfileScreenShell>
   );
 };

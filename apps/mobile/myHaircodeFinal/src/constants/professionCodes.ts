@@ -141,6 +141,19 @@ export function profileHasProfessionalCapability(
   );
 }
 
+/** Hair-only profile fields (e.g. color brand on `professional_hair_profiles`). */
+export function profileHasHairProfession(
+  profile: {
+    profession_codes?: string[] | null | undefined;
+  } | null
+  | undefined
+): boolean {
+  for (const c of profile?.profession_codes ?? []) {
+    if (coerceProfessionCode(c) === "hair") return true;
+  }
+  return false;
+}
+
 export function professionHomeAccountLabel(
   activeCode: ProfessionChoiceCode | null,
   fallbackRawCode?: string | null
