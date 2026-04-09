@@ -53,7 +53,8 @@ export const useCreateHaircode = () => {
 
 export const useListClientHaircodes = (
   clientId: string,
-  professionCode?: string | null
+  professionCode?: string | null,
+  queryEnabled: boolean = true
 ) => {
   const code =
     professionCode && professionCode.trim() ? professionCode.trim() : null;
@@ -64,7 +65,7 @@ export const useListClientHaircodes = (
       const url = code ? `${base}&professionCode=${encodeURIComponent(code)}` : base;
       return api.get<unknown[]>(url);
     },
-    enabled: Boolean(clientId),
+    enabled: Boolean(clientId) && queryEnabled,
     retry: 1,
   });
 };

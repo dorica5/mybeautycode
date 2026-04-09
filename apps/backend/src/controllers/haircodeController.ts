@@ -17,6 +17,7 @@ export const haircodeController = {
         ? String(req.query.professionCode)
         : undefined;
       const data = await haircodeService.listClientGallery(
+        req.userId!,
         String(clientId),
         professionCode
       );
@@ -45,6 +46,7 @@ export const haircodeController = {
         ? String(req.query.professionCode)
         : undefined;
       const data = await haircodeService.listClientHaircodes(
+        req.userId!,
         String(clientId),
         professionCode
       );

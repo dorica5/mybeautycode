@@ -10,6 +10,7 @@ import {
   View,
   StyleSheet,
   Text,
+  ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
 import SearchInput from "@/src/components/SearchInput";
@@ -42,6 +43,72 @@ import {
   getLastProfessionCode,
   setLastProfessionCode,
 } from "@/src/lib/lastVisitPreference";
+
+type VisitListItem = {
+  id: string;
+  created_at?: string | null;
+  createdAt?: string | null;
+  service_description?: string | null;
+  services?: unknown;
+  price?: string | null;
+  duration?: string | null;
+  client_profile?: VisitClientProfileRaw | null;
+  clientProfile?: VisitClientProfileRaw | null;
+};
+
+type VisitClientProfileRaw = {
+  full_name?: string | null;
+  fullName?: string | null;
+  first_name?: string | null;
+  firstName?: string | null;
+  last_name?: string | null;
+  lastName?: string | null;
+  avatar_url?: string | null;
+  avatarUrl?: string | null;
+  phone_number?: string | null;
+  phoneNumber?: string | null;
+};
+
+function visitCreatedAtIso(item: VisitListItem): string | undefined {
+  const raw = item.created_at ?? item.createdAt ?? undefined;
+  if (raw == null || String(raw).length === 0) return undefined;
+  return String(raw);
+}
+
+function visitClientProfileNormalized(
+  item: VisitListItem
+): { displayName: string; avatarUrl?: string; phone: string } | null {
+  const c = item.client_profile ?? item.clientProfile;
+  if (!c) return null;
+
+  const full =
+    c.full_name?.trim() ||
+    c.fullName?.trim() ||
+    "";
+  const fn = c.first_name?.trim() || c.firstName?.trim() || "";
+  const ln = c.last_name?.trim() || c.lastName?.trim() || "";
+  const displayName = full || `${fn} ${ln}`.trim();
+  if (!displayName) return null;
+
+  const avatarUrl =
+    c.avatar_url?.trim() || c.avatarUrl?.trim() || undefined;
+  const phone =
+    c.phone_number?.trim() || c.phoneNumber?.trim() || "";
+
+  return { displayName, avatarUrl, phone };
+}
+
+function visitClientName(item: VisitListItem): string {
+  return visitClientProfileNormalized(item)?.displayName ?? "Client";
+}
+
+function visitClientAvatarUrl(item: VisitListItem): string | undefined {
+  return visitClientProfileNormalized(item)?.avatarUrl;
+}
+
+function visitClientPhone(item: VisitListItem): string {
+  return visitClientProfileNormalized(item)?.phone ?? "";
+}
 
 const HomeScreen = () => {
   const { profile } = useAuth();
@@ -83,36 +150,42 @@ const HomeScreen = () => {
 
   const clientListData = (showClientSearchResults ? searchResults : []) as never[];
 
-  const formatDate = useCallback((createdAt: string) => {
+  /** Same as `see_haircode` / “View all visits” list. */
+  const formatVisitListDate = useCallback((createdAt: string) => {
     const date = new Date(createdAt);
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
+    return date.toLocaleDateString("nb-NO", {
+      day: "numeric",
+      month: "long",
       year: "numeric",
     });
   }, []);
 
   const { data: latestHaircodes = [] } = useLatestHaircodes(profile?.id);
 
-  const filteredHaircodes = useMemo(
-    () =>
-      latestHaircodes?.filter((item) => {
-        if (!item?.created_at) return false;
-        const createdAt = new Date(item.created_at);
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        return createdAt >= sevenDaysAgo;
-      }) ?? [],
-    [latestHaircodes]
-  );
+  const latestVisitsSorted = useMemo(() => {
+    const raw = latestHaircodes as VisitListItem[];
+    if (!Array.isArray(raw)) return [];
+    const withDates = raw.filter((item) => {
+      const ts = visitCreatedAtIso(item);
+      if (!ts) return false;
+      return !Number.isNaN(new Date(ts).getTime());
+    });
+    return [...withDates].sort(
+      (a, b) =>
+        new Date(visitCreatedAtIso(b)!).getTime() -
+        new Date(visitCreatedAtIso(a)!).getTime()
+    );
+  }, [latestHaircodes]);
+
+  const hasLatestVisits = latestVisitsSorted.length > 0;
 
   const recentVisitIdsToPrefetch = useMemo(
     () =>
-      filteredHaircodes
+      latestVisitsSorted
         .map((item) => item.id)
         .filter((id): id is string => typeof id === "string" && id.length > 0)
         .slice(0, 12),
-    [filteredHaircodes]
+    [latestVisitsSorted]
   );
 
   useEffect(() => {
@@ -122,8 +195,9 @@ const HomeScreen = () => {
   }, [queryClient, recentVisitIdsToPrefetch]);
 
   const openHaircode = useCallback(
-    (item: (typeof filteredHaircodes)[number]) => {
+    (item: VisitListItem) => {
       void prefetchHaircodeWithMedia(queryClient, item.id);
+      const ts = visitCreatedAtIso(item);
       router.push({
         pathname: "/haircodes/single_haircode",
         params: {
@@ -137,15 +211,15 @@ const HomeScreen = () => {
           social_media: profile?.social_media,
           description: item.service_description,
           services: item.services,
-          createdAt: formatDate(item.created_at),
-          full_name: item.client_profile?.full_name,
-          number: item.client_profile?.phone_number,
+          createdAt: ts ? formatVisitListDate(ts) : "",
+          full_name: visitClientName(item),
+          number: visitClientPhone(item),
           price: item.price,
           duration: item.duration,
         },
       });
     },
-    [router, profile, formatDate, queryClient]
+    [router, profile, formatVisitListDate, queryClient]
   );
 
   const [professionLine, setProfessionLine] = useState("Professional account");
@@ -181,6 +255,26 @@ const HomeScreen = () => {
       cancelled = true;
     };
   }, [profile?.id, professionCodesKey]);
+
+  const visitCards = useMemo(
+    () =>
+      latestVisitsSorted.map((item) => (
+        <HaircodeCard
+          key={item.id}
+          name={visitClientName(item)}
+          date={
+            visitCreatedAtIso(item)
+              ? formatVisitListDate(visitCreatedAtIso(item)!)
+              : ""
+          }
+          profilePicture={visitClientAvatarUrl(item)}
+          salon_name=""
+          onPressIn={() => prefetchHaircodeWithMedia(queryClient, item.id)}
+          onPress={() => openHaircode(item)}
+        />
+      )),
+    [latestVisitsSorted, formatVisitListDate, queryClient, openHaircode]
+  );
 
   return (
     <>
@@ -228,16 +322,35 @@ const HomeScreen = () => {
                 />
 
                 {!showClientSearchResults ? (
-                  <View style={styles.idlePromptCard}>
-                    <Text
-                      style={[
-                        Typography.outfitRegular16,
-                        styles.idlePromptText,
-                      ]}
+                  hasLatestVisits ? (
+                    <ScrollView
+                      style={styles.latestVisitsScroll}
+                      contentContainerStyle={styles.latestVisitsScrollContent}
+                      keyboardShouldPersistTaps="handled"
+                      showsVerticalScrollIndicator={false}
                     >
-                      Search for a client to get started
-                    </Text>
-                  </View>
+                      <Text
+                        style={[
+                          Typography.agLabel16,
+                          styles.latestVisitsSectionTitle,
+                        ]}
+                      >
+                        Latest visits
+                      </Text>
+                      {visitCards}
+                    </ScrollView>
+                  ) : (
+                    <View style={styles.idlePromptCard}>
+                      <Text
+                        style={[
+                          Typography.outfitRegular16,
+                          styles.idlePromptText,
+                        ]}
+                      >
+                        Search for a client to get started
+                      </Text>
+                    </View>
+                  )
                 ) : (
                   <View style={[styles.resultsCard, styles.resultsCardFlex]}>
                     <FlatList
@@ -281,7 +394,7 @@ const HomeScreen = () => {
                         )
                       }
                       ListFooterComponent={
-                        filteredHaircodes.length > 0 ? (
+                        latestVisitsSorted.length > 0 ? (
                           <View style={styles.haircodesFooter}>
                             <Text
                               style={[
@@ -289,14 +402,20 @@ const HomeScreen = () => {
                                 styles.sectionLabelInFooter,
                               ]}
                             >
-                              Latest haircodes
+                              Latest visits
                             </Text>
-                            {filteredHaircodes.map((item) => (
+                            {latestVisitsSorted.map((item) => (
                               <HaircodeCard
                                 key={item.id}
-                                name={item.client_profile?.full_name}
-                                date={formatDate(item.created_at)}
-                                profilePicture={item.client_profile?.avatar_url}
+                                name={visitClientName(item)}
+                                date={
+                                  visitCreatedAtIso(item)
+                                    ? formatVisitListDate(
+                                        visitCreatedAtIso(item)!
+                                      )
+                                    : ""
+                                }
+                                profilePicture={visitClientAvatarUrl(item)}
                                 salon_name=""
                                 onPressIn={() =>
                                   prefetchHaircodeWithMedia(queryClient, item.id)
@@ -350,6 +469,20 @@ const styles = StyleSheet.create({
   },
   searchPillOnGreen: {
     marginBottom: responsiveMargin(14),
+  },
+  latestVisitsScroll: {
+    flex: 1,
+    minHeight: 0,
+    alignSelf: "stretch",
+  },
+  latestVisitsScrollContent: {
+    paddingBottom: responsivePadding(24),
+    flexGrow: 1,
+  },
+  latestVisitsSectionTitle: {
+    color: primaryBlack,
+    marginBottom: responsiveMargin(12),
+    alignSelf: "flex-start",
   },
   idlePromptCard: {
     alignSelf: "stretch",

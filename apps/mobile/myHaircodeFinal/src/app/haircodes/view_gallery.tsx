@@ -23,6 +23,7 @@ import InspirationTopNav from "@/src/components/InspirationTopNav";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import { api } from "@/src/lib/apiClient";
+import { useResolvedListProfessionCode } from "@/src/hooks/useResolvedListProfessionCode";
 import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
 import {
   primaryBlack,
@@ -86,12 +87,8 @@ const ViewGallery = () => {
     responsiveScale(520)
   );
 
-  const professionCode =
-    typeof professionCodeParam === "string"
-      ? professionCodeParam
-      : Array.isArray(professionCodeParam)
-      ? professionCodeParam[0]
-      : "";
+  const { code: galleryProfessionCode, ready: galleryProfessionReady } =
+    useResolvedListProfessionCode(professionCodeParam);
 
   const clientIdStr =
     typeof clientId === "string" ? clientId : Array.isArray(clientId) ? clientId[0] : "";
@@ -138,11 +135,15 @@ const ViewGallery = () => {
         setLoading(false);
         return;
       }
+      if (!galleryProfessionReady) {
+        setLoading(true);
+        return;
+      }
       try {
         setLoading(true);
         const q = new URLSearchParams({ clientId: clientIdStr });
-        if (professionCode?.trim()) {
-          q.set("professionCode", professionCode.trim());
+        if (galleryProfessionCode?.trim()) {
+          q.set("professionCode", galleryProfessionCode.trim());
         }
         const media = await api.get<GalleryRow[]>(
           `/api/haircodes/client-gallery?${q.toString()}`
@@ -156,7 +157,7 @@ const ViewGallery = () => {
       }
     };
     void run();
-  }, [clientIdStr, professionCode]);
+  }, [clientIdStr, galleryProfessionCode, galleryProfessionReady]);
 
   useEffect(() => {
     if (!modalVisible) {

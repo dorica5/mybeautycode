@@ -1,10 +1,4 @@
-import {
-  StyleSheet,
-  FlatList,
-  Text,
-  View,
-  Pressable,
-} from "react-native";
+import { StyleSheet, FlatList, Text, View } from "react-native";
 import React, { useState, useCallback, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -18,15 +12,13 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import {
-  responsiveScale,
   responsivePadding,
   responsiveMargin,
   responsiveFontSize,
 } from "@/src/utils/responsive";
-import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
-import { Typography } from "@/src/constants/Typography";
-import { CaretRight } from "phosphor-react-native";
-import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
+import { VisitTimelineCard } from "@/src/components/visits/VisitTimelineCard";
+import { useResolvedListProfessionCode } from "@/src/hooks/useResolvedListProfessionCode";
 
 type ClientHaircodeRow = {
   id: string;
@@ -65,17 +57,14 @@ const SeeHaircode = () => {
   usePrefetchVisibleHaircodes(visibleHaircodeIds);
 
   const clientId = Array.isArray(id) ? id[0] : id;
-  const rawProfession = Array.isArray(professionCodeParam)
-    ? professionCodeParam[0]
-    : professionCodeParam;
-  const professionCode =
-    typeof rawProfession === "string" && rawProfession.trim()
-      ? rawProfession.trim()
-      : "hair";
+
+  const { code: listProfessionCode, ready: listProfessionReady } =
+    useResolvedListProfessionCode(professionCodeParam);
 
   const { data, isLoading } = useListClientHaircodes(
     clientId ?? "",
-    professionCode
+    listProfessionCode,
+    listProfessionReady
   );
 
   const normalizedPhoneNumber =
@@ -136,7 +125,9 @@ const SeeHaircode = () => {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={() => (
               <Text style={styles.emptyText}>
-                {isLoading ? "Loading visits…" : "No visits yet"}
+                {isLoading || !listProfessionReady
+                  ? "Loading visits…"
+                  : "No visits yet"}
               </Text>
             )}
             renderItem={({ item }) => {
@@ -148,11 +139,10 @@ const SeeHaircode = () => {
                 hp?.avatar_url ?? profile?.avatar_url ?? undefined;
 
               return (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.visitCard,
-                    pressed && styles.visitCardPressed,
-                  ]}
+                <VisitTimelineCard
+                  avatarUri={proAvatarUrl}
+                  dateLine={formatVisitDate(item.created_at)}
+                  subtitleLine={displayClientName}
                   onPressIn={() => prefetchHaircodeWithMedia(queryClient, item.id)}
                   onPress={() => {
                     void prefetchHaircodeWithMedia(queryClient, item.id);
@@ -179,34 +169,7 @@ const SeeHaircode = () => {
                       },
                     });
                   }}
-                >
-                  <View style={styles.thumbWrap}>
-                    <AvatarWithSpinner
-                      uri={proAvatarUrl}
-                      size={AVATAR_SIZE}
-                      style={styles.avatar}
-                    />
-                  </View>
-                  <View style={styles.textCol}>
-                    <Text
-                      style={[Typography.anton16Medium, styles.dateLine]}
-                      numberOfLines={1}
-                    >
-                      {formatVisitDate(item.created_at)}
-                    </Text>
-                    <Text
-                      style={Typography.bodyMedium}
-                      numberOfLines={2}
-                    >
-                      {displayClientName}
-                    </Text>
-                  </View>
-                  <CaretRight
-                    size={responsiveScale(22)}
-                    color={primaryBlack}
-                    style={styles.chevron}
-                  />
-                </Pressable>
+                />
               );
             }}
           />
@@ -217,9 +180,6 @@ const SeeHaircode = () => {
 };
 
 export default SeeHaircode;
-
-/** Pro (hairdresser) avatar — matches taller row cards. */
-const AVATAR_SIZE = responsiveScale(64);
 
 const styles = StyleSheet.create({
   root: {
@@ -233,38 +193,6 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: responsivePadding(20),
     paddingBottom: responsivePadding(32),
-  },
-  visitCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: primaryWhite,
-    borderRadius: responsiveScale(20),
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: primaryBlack,
-    minHeight: responsiveScale(108),
-    paddingVertical: responsivePadding(20),
-    paddingHorizontal: responsivePadding(18),
-    marginBottom: responsiveMargin(14),
-  },
-  visitCardPressed: {
-    opacity: 0.92,
-  },
-  thumbWrap: {
-    marginRight: responsiveMargin(16),
-  },
-  avatar: {
-    borderWidth: 1,
-    borderColor: `${primaryBlack}33`,
-  },
-  textCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  dateLine: {
-    marginBottom: responsiveMargin(6),
-  },
-  chevron: {
-    marginLeft: responsiveMargin(8),
   },
   emptyText: {
     textAlign: "center",

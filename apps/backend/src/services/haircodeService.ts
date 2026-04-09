@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
 import { createClient } from "@supabase/supabase-js";
@@ -9,10 +10,23 @@ const supabase = createClient(
 );
 
 export const haircodeService = {
-  async listClientHaircodes(clientUserId: string, professionCode?: string) {
-    const where: { clientUserId: string; professionId?: string } = {
+  /** Professionals only see their own visits for the client (same scope as latest). Clients see the full timeline. */
+  async listClientHaircodes(
+    viewerProfileId: string,
+    clientUserId: string,
+    professionCode?: string
+  ) {
+    const where: Prisma.ServiceRecordWhereInput = {
       clientUserId,
     };
+    if (viewerProfileId !== clientUserId) {
+      const viewerPP = await prisma.professionalProfile.findUnique({
+        where: { profileId: viewerProfileId },
+        select: { id: true },
+      });
+      if (!viewerPP) return [];
+      where.professionalProfileId = viewerPP.id;
+    }
     if (professionCode?.trim()) {
       where.professionId = await professionService.getProfessionIdByCode(
         professionCode.trim()
@@ -151,10 +165,22 @@ export const haircodeService = {
     });
   },
 
-  async listClientGallery(clientUserId: string, professionCode?: string) {
-    const where: { clientUserId: string; professionId?: string } = {
+  async listClientGallery(
+    viewerProfileId: string,
+    clientUserId: string,
+    professionCode?: string
+  ) {
+    const where: Prisma.ServiceRecordWhereInput = {
       clientUserId,
     };
+    if (viewerProfileId !== clientUserId) {
+      const viewerPP = await prisma.professionalProfile.findUnique({
+        where: { profileId: viewerProfileId },
+        select: { id: true },
+      });
+      if (!viewerPP) return [];
+      where.professionalProfileId = viewerPP.id;
+    }
     if (professionCode?.trim()) {
       where.professionId = await professionService.getProfessionIdByCode(
         professionCode.trim()

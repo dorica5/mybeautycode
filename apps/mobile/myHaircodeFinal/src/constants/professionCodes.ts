@@ -72,6 +72,13 @@ export function coerceProfessionCode(
   if (isProfessionCode(underscored)) return underscored;
   if (lower === "hairdresser" || underscored === "hair_dresser") return "hair";
   if (lower === "brows" || lower === "lashes") return "brows_lashes";
+  if (
+    lower === "nail" ||
+    underscored === "nail_technician" ||
+    underscored === "nailtech"
+  ) {
+    return "nails";
+  }
   /** Ignore useless placeholders so callers can fall through to real data. */
   if (
     underscored === "professional" ||
