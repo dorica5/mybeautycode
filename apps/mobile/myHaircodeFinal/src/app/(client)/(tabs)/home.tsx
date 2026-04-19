@@ -77,7 +77,10 @@ const HomeScreen = () => {
             if (hasProfessionalAccount) {
               router.push({
                 pathname: "/(hairdresser)/(tabs)/profile/SwitchAccount",
-                params: { activeSurface: "client" },
+                params: {
+                  activeSurface: "client",
+                  returnTo: "client-home",
+                },
               } as Href);
             } else {
               router.push("/(setup)/ChooseProfession" as Href);

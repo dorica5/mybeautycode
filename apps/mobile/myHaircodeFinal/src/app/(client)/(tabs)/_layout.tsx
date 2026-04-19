@@ -31,6 +31,27 @@ function isClientNotificationsPath(path: string | undefined): boolean {
   );
 }
 
+/**
+ * `usePathname()` can return short leaf paths (e.g. `/userList`) or grouped
+ * paths (`/(client)/(tabs)/userList`). Tab handlers must treat both as the
+ * same tab, or every press calls `router.replace` and confuses the root
+ * navigator (NAVIGATE to `userList` not handled).
+ */
+function isActiveClientTab(
+  pathname: string | undefined,
+  segment: "home" | "notifications" | "userList" | "profile"
+): boolean {
+  if (!pathname) return false;
+  const short = `/${segment}`;
+  const full = `/(client)/(tabs)/${segment}`;
+  return (
+    pathname === short ||
+    pathname === full ||
+    pathname.startsWith(`${short}/`) ||
+    pathname.startsWith(`${full}/`)
+  );
+}
+
 const _layout = () => {
   const { profile } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -42,7 +63,9 @@ const _layout = () => {
 
     try {
       const notifications = await fetchNotifications(profile.id);
-      const count = notifications.filter((n) => !n.read).length;
+      const count = notifications.filter(
+        (n) => !(n as { read?: boolean }).read
+      ).length;
       setUnreadCount(count);
     } catch (error) {
       console.error("Error loading unread notifications:", error);
@@ -58,55 +81,50 @@ const _layout = () => {
     return () => clearInterval(interval);
   }, [loadUnreadNotifications]);
 
-  // Memoize tab press handlers to prevent recreation on every render
-  const homeTabPress = useCallback((e) => {
-  e.preventDefault();
-  const href = "/(client)/(tabs)/home";
-  
-  if (pathname === href) {
-    return; 
-  }
-  
-  router.replace(href);
-}, [pathname]);
+  const homeTabPress = useCallback(
+    (e: { preventDefault: () => void }) => {
+      e.preventDefault();
+      const href = "/(client)/(tabs)/home";
+      if (isActiveClientTab(pathname, "home")) return;
+      router.replace(href);
+    },
+    [pathname]
+  );
 
-  const notificationsTabPress = useCallback((e) => {
-  e.preventDefault();
-  const href = "/notifications";
-  
-  if (pathname === href) {
-    return; 
-  }
-  
-  router.replace(href);
-}, [pathname]);
+  const notificationsTabPress = useCallback(
+    (e: { preventDefault: () => void }) => {
+      e.preventDefault();
+      const href = "/notifications";
+      if (isActiveClientTab(pathname, "notifications")) return;
+      router.replace(href);
+    },
+    [pathname]
+  );
 
-  const userListTabPress = useCallback((e) => {
-  e.preventDefault();
-  const href = "/(client)/(tabs)/userList";
+  const userListTabPress = useCallback(
+    (e: { preventDefault: () => void }) => {
+      e.preventDefault();
+      const href = "/(client)/(tabs)/userList";
+      if (isActiveClientTab(pathname, "userList")) return;
+      router.replace({ pathname: href, params: { fromTab: "1" } });
+    },
+    [pathname]
+  );
 
-  if (pathname === href) {
-    return;
-  }
-
-  router.replace({ pathname: href, params: { fromTab: "1" } });
-}, [pathname]);
-
-  const profileTabPress = useCallback((e) => {
-  e.preventDefault();
-  const href = "/(client)/(tabs)/profile";
-  
-  if (pathname === href) {
-    return; 
-  }
-  
-  router.replace(href);
-}, [pathname]);
+  const profileTabPress = useCallback(
+    (e: { preventDefault: () => void }) => {
+      e.preventDefault();
+      const href = "/(client)/(tabs)/profile";
+      if (isActiveClientTab(pathname, "profile")) return;
+      router.replace(href);
+    },
+    [pathname]
+  );
   const screenOptions = useMemo(
     () => ({
       tabBarShowLabel: false,
       headerShown: false,
-      lazy: true,
+      lazy: false,
       unmountOnBlur: false,
       tabBarActiveTintColor: primaryBlack,
       tabBarInactiveTintColor: "#5d7168",

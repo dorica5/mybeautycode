@@ -9,8 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import { CaretLeft } from "phosphor-react-native";
@@ -35,10 +36,6 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 
-/** `Organic-pattern-5.svg` viewBox — spiral proportions as in design. */
-const ORGANIC_LOGO_VIEWBOX_W = 390;
-const ORGANIC_LOGO_VIEWBOX_H = 226;
-
 type Profession = "hair" | "nails" | "brows";
 
 const CHIPS: { key: Profession; label: string }[] = [
@@ -48,8 +45,14 @@ const CHIPS: { key: Profession; label: string }[] = [
 ];
 
 const FindProfessionalsScreen = () => {
+  const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { fromTab } = useLocalSearchParams<{ fromTab?: string }>();
   const hideBack = fromTab === "1";
+
+  const patternWidth = windowWidth;
+  const heroHeight = patternWidth / 1.77;
+  const heroPatternVerticalNudge = heroHeight * 0.34;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
@@ -121,10 +124,6 @@ const FindProfessionalsScreen = () => {
     });
   }, [presetForMap]);
 
-  const spiralWidth = responsiveScale(200);
-  const spiralHeight =
-    spiralWidth * (ORGANIC_LOGO_VIEWBOX_H / ORGANIC_LOGO_VIEWBOX_W);
-
   return (
     <>
       <StatusBar style="dark" />
@@ -160,59 +159,85 @@ const FindProfessionalsScreen = () => {
               windowSize={10}
               initialNumToRender={10}
               ListHeaderComponent={
-                <View style={styles.headerBlock}>
-                  <View style={styles.topCenter}>
-                    <View style={styles.logoWrap}>
-                      <OrganicPattern width={spiralWidth} height={spiralHeight} />
-                    </View>
-                    <Text style={[Typography.h3, styles.title]}>
-                      Find professionals
-                    </Text>
-
-                    <View style={styles.chipsRow}>
-                      {CHIPS.map(({ key, label }) => {
-                        const on = selected.has(key);
-                        return (
-                          <Pressable
-                            key={key}
-                            onPress={() => toggleChip(key)}
-                            style={[styles.chip, on && styles.chipSelected]}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: on }}
-                          >
-                          <Text style={[styles.chipLabel, on && styles.chipLabelSelected]}>
-                            {label}
-                          </Text>
-                          </Pressable>
-                        );
-                      })}
+                <>
+                  <View
+                    style={[
+                      styles.heroBleed,
+                      {
+                        width: patternWidth,
+                        marginLeft: -insets.left,
+                        marginRight: -insets.right,
+                        height: heroHeight,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.hero, { height: heroHeight }]}>
+                      <OrganicPattern
+                        width={patternWidth}
+                        height={heroHeight}
+                        preserveAspectRatio="xMidYMid slice"
+                        style={{
+                          transform: [{ translateY: -heroPatternVerticalNudge }],
+                        }}
+                      />
                     </View>
                   </View>
+                  <View style={styles.headerBlock}>
+                    <View style={styles.topCenter}>
+                      <Text style={[Typography.h3, styles.title]}>
+                        Find professionals
+                      </Text>
 
-                  <View style={styles.searchSection}>
-                    <Text style={styles.fieldLabel}>
-                      Search for specific professional
-                    </Text>
-                    <SearchInput
-                      variant="whitePill"
-                      onSearch={handleSearch}
-                      initialQuery={searchQuery}
-                      placeholder="Search…"
-                      clearSearch={clearSearch}
-                    />
-                  </View>
+                      <View style={styles.chipsRow}>
+                        {CHIPS.map(({ key, label }) => {
+                          const on = selected.has(key);
+                          return (
+                            <Pressable
+                              key={key}
+                              onPress={() => toggleChip(key)}
+                              style={[styles.chip, on && styles.chipSelected]}
+                              accessibilityRole="button"
+                              accessibilityState={{ selected: on }}
+                            >
+                              <Text
+                                style={[
+                                  styles.chipLabel,
+                                  on && styles.chipLabelSelected,
+                                ]}
+                              >
+                                {label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
 
-                  <View style={styles.mapSection}>
-                    <PaddedLabelButton
-                      title="Go to map"
-                      horizontalPadding={0}
-                      verticalPadding={0}
-                      onPress={goToFilterBeforeMap}
-                      style={styles.mapCta}
-                      textStyle={styles.mapCtaLabel}
-                    />
+                    <View style={styles.searchSection}>
+                      <Text style={styles.fieldLabel}>
+                        Search for specific professional
+                      </Text>
+                      <SearchInput
+                        variant="whitePill"
+                        onSearch={handleSearch}
+                        initialQuery={searchQuery}
+                        placeholder="Search…"
+                        clearSearch={clearSearch}
+                      />
+                    </View>
+
+                    <View style={styles.mapSection}>
+                      <PaddedLabelButton
+                        title="Go to map"
+                        horizontalPadding={0}
+                        verticalPadding={0}
+                        onPress={goToFilterBeforeMap}
+                        style={styles.mapCta}
+                        textStyle={styles.mapCtaLabel}
+                      />
+                    </View>
                   </View>
-                </View>
+                </>
               }
               renderItem={({ item }) => (
                 <SearchResults
@@ -278,6 +303,17 @@ const styles = StyleSheet.create({
     ...Typography.bodyMedium,
     marginLeft: responsivePadding(4),
   },
+  heroBleed: {
+    marginTop: responsiveMargin(8),
+    marginBottom: responsiveMargin(-30),
+    overflow: "hidden",
+    alignSelf: "center",
+  },
+  hero: {
+    backgroundColor: primaryGreen,
+    overflow: "hidden",
+    width: "100%",
+  },
   headerBlock: {
     paddingHorizontal: responsivePadding(16),
     paddingBottom: responsivePadding(8),
@@ -287,10 +323,6 @@ const styles = StyleSheet.create({
   topCenter: {
     alignItems: "center",
     width: "100%",
-  },
-  logoWrap: {
-    marginBottom: responsiveMargin(16),
-    alignItems: "center",
   },
   title: {
     textAlign: "center",

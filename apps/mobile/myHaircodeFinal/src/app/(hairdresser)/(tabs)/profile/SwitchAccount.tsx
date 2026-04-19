@@ -1,5 +1,6 @@
 import {
   ActivityIndicator,
+  BackHandler,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -41,6 +42,29 @@ function rawParamFirst(
   return Array.isArray(v) ? v[0] : v;
 }
 
+/**
+ * Where to go when leaving Switch account without picking a row.
+ * Opening this screen from client uses `router.push` into the hairdresser tree, so
+ * `router.back()` would pop to hairdresser home (wrong surface) instead of client.
+ */
+const RETURN_TO_HREF: Record<string, Href> = {
+  "client-home": "/(client)/(tabs)/home",
+  "client-profile": "/(client)/(tabs)/profile",
+  "pro-profile": "/(hairdresser)/(tabs)/profile",
+};
+
+function resolveReturnHref(
+  returnTo: string | undefined,
+  activeSurface: "professional" | "client"
+): Href {
+  if (returnTo && returnTo in RETURN_TO_HREF) {
+    return RETURN_TO_HREF[returnTo];
+  }
+  return activeSurface === "client"
+    ? "/(client)/(tabs)/home"
+    : "/(hairdresser)/(tabs)/home";
+}
+
 /** This screen lives under (hairdresser)-stack → pathname does not tell if user is on client UI. */
 function resolveActiveSurface(
   param: string | undefined,
@@ -57,9 +81,11 @@ const SwitchAccountScreen = () => {
   const { profile, session, loading } = useAuth();
   const queryClient = useQueryClient();
   const { refreshInspirationImages } = useImageContext();
-  const { activeSurface: activeSurfaceParam } = useLocalSearchParams<{
-    activeSurface?: string | string[];
-  }>();
+  const { activeSurface: activeSurfaceParam, returnTo: returnToParam } =
+    useLocalSearchParams<{
+      activeSurface?: string | string[];
+      returnTo?: string | string[];
+    }>();
 
   const [lastProfessionCode, setLastProfessionCodeState] = useState<
     string | null
@@ -90,6 +116,24 @@ const SwitchAccountScreen = () => {
         Boolean(isHairdresser)
       ),
     [activeSurfaceParam, displayRows.length, isHairdresser]
+  );
+
+  const handleBack = useCallback(() => {
+    const target = resolveReturnHref(
+      rawParamFirst(returnToParam),
+      activeSurface
+    );
+    router.replace(target);
+  }, [returnToParam, activeSurface]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+        handleBack();
+        return true;
+      });
+      return () => sub.remove();
+    }, [handleBack])
   );
 
   const rowIsCurrent = useCallback(
@@ -156,7 +200,11 @@ const SwitchAccountScreen = () => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
           >
-            <TopNav title="My accounts" titleMarginBottom={46} />
+            <TopNav
+              title="My accounts"
+              titleMarginBottom={46}
+              onBackPress={handleBack}
+            />
 
             <View style={styles.mainView}>
               <View style={styles.cardList}>

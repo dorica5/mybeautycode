@@ -4,8 +4,10 @@ import {
   StyleSheet,
   Text,
   Pressable,
+  ScrollView,
+  useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { CaretLeft } from "phosphor-react-native";
 import { StatusBar } from "expo-status-bar";
@@ -18,10 +20,6 @@ import {
   responsivePadding,
   responsiveMargin,
 } from "@/src/utils/responsive";
-
-/** `Organic-pattern-5.svg` viewBox — preserve aspect ratio so the spiral matches design. */
-const ORGANIC_LOGO_VIEWBOX_W = 390;
-const ORGANIC_LOGO_VIEWBOX_H = 226;
 
 type Profession = "hair" | "nails" | "brows";
 
@@ -37,9 +35,15 @@ function parsePreset(p: string | undefined): Profession | undefined {
 }
 
 const FilterBeforeMapScreen = () => {
+  const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const { preset } = useLocalSearchParams<{ preset?: string }>();
   const initial = useMemo(() => parsePreset(preset), [preset]);
   const [selected, setSelected] = useState<Profession | undefined>(initial);
+
+  const patternWidth = windowWidth;
+  const heroHeight = patternWidth / 1.77;
+  const heroPatternVerticalNudge = heroHeight * 0.34;
 
   const onNext = useCallback(() => {
     if (!selected) return;
@@ -49,67 +53,88 @@ const FilterBeforeMapScreen = () => {
     });
   }, [selected]);
 
-  const spiralWidth = responsiveScale(200);
-  const spiralHeight =
-    spiralWidth * (ORGANIC_LOGO_VIEWBOX_H / ORGANIC_LOGO_VIEWBOX_W);
-
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right", "bottom"]}>
       <StatusBar style="dark" />
-      <Pressable
-        onPress={() => router.back()}
-        style={styles.backRow}
-        accessibilityRole="button"
-        accessibilityLabel="Back"
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-        <Text style={styles.backLabel}>Back</Text>
-      </Pressable>
-
-      <View style={styles.content}>
-        <View style={styles.logoWrap}>
-          <OrganicPattern width={spiralWidth} height={spiralHeight} />
-        </View>
-
-        <Text style={[Typography.h3, styles.heading]}>Find professionals</Text>
-        <Text style={[Typography.agLabel16, styles.sub]}>
-          What kind of professional?
-        </Text>
-
-        <View style={styles.options}>
-          {OPTIONS.map(({ key, label }) => {
-            const on = selected === key;
-            return (
-              <Pressable
-                key={key}
-                onPress={() => setSelected(key)}
-                style={[styles.option, on && styles.optionSelected]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-              >
-                <Text
-                  style={[
-                    styles.optionLabel,
-                    on && styles.optionLabelSelected,
-                  ]}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
         <Pressable
-          onPress={onNext}
-          disabled={!selected}
-          style={[styles.nextBtn, !selected && styles.nextBtnDisabled]}
+          onPress={() => router.back()}
+          style={styles.backRow}
           accessibilityRole="button"
-          accessibilityState={{ disabled: !selected }}
+          accessibilityLabel="Back"
         >
-          <Text style={styles.nextLabel}>Next</Text>
+          <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
+          <Text style={styles.backLabel}>Back</Text>
         </Pressable>
-      </View>
+
+        <View
+          style={[
+            styles.heroBleed,
+            {
+              width: patternWidth,
+              marginLeft: -insets.left,
+              marginRight: -insets.right,
+              height: heroHeight,
+            },
+          ]}
+        >
+          <View style={[styles.hero, { height: heroHeight }]}>
+            <OrganicPattern
+              width={patternWidth}
+              height={heroHeight}
+              preserveAspectRatio="xMidYMid slice"
+              style={{
+                transform: [{ translateY: -heroPatternVerticalNudge }],
+              }}
+            />
+          </View>
+        </View>
+
+        <View style={styles.content}>
+          <Text style={[Typography.h3, styles.heading]}>Find professionals</Text>
+          <Text style={[Typography.agLabel16, styles.sub]}>
+            What kind of professional?
+          </Text>
+
+          <View style={styles.options}>
+            {OPTIONS.map(({ key, label }) => {
+              const on = selected === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => setSelected(key)}
+                  style={[styles.option, on && styles.optionSelected]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                >
+                  <Text
+                    style={[
+                      styles.optionLabel,
+                      on && styles.optionLabelSelected,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Pressable
+            onPress={onNext}
+            disabled={!selected}
+            style={[styles.nextBtn, !selected && styles.nextBtnDisabled]}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !selected }}
+          >
+            <Text style={styles.nextLabel}>Next</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -120,6 +145,10 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: primaryGreen,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: responsiveMargin(24),
   },
   backRow: {
     flexDirection: "row",
@@ -132,14 +161,19 @@ const styles = StyleSheet.create({
     ...Typography.bodyMedium,
     marginLeft: responsivePadding(4),
   },
+  heroBleed: {
+    marginTop: responsiveMargin(8),
+    marginBottom: responsiveMargin(-30),
+    overflow: "hidden",
+  },
+  hero: {
+    backgroundColor: primaryGreen,
+    overflow: "hidden",
+    width: "100%",
+  },
   content: {
     flex: 1,
     paddingHorizontal: responsivePadding(20),
-    alignItems: "center",
-  },
-  logoWrap: {
-    marginTop: responsiveMargin(4),
-    marginBottom: responsiveMargin(16),
     alignItems: "center",
   },
   heading: {
