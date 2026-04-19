@@ -114,7 +114,7 @@ const Setup = () => {
                   onPress={() => router.push("/(setup)/TermsAndPrivacy")}
                   style={[styles.consentText, styles.link]}
                 >
-                  terms and conditions
+                  terms and privacy
                 </Text>
               </View>
             </View>

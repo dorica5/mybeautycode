@@ -30,6 +30,35 @@ function normalizeWorkRow(raw: unknown): PublicProfileWorkRow {
   };
 }
 
+/** Signed-in user’s portfolio — uses `/me/…` so the path never collides with `/:id` routing. */
+export async function listMyPublicProfileWork(
+  professionCode: string
+): Promise<PublicProfileWorkRow[]> {
+  const q = new URLSearchParams({ profession: professionCode.trim() || "hair" });
+  const data = await api.get<unknown[]>(
+    `/api/profiles/me/public-work-images?${q}`
+  );
+  return Array.isArray(data) ? data.map(normalizeWorkRow) : [];
+}
+
+export async function addMyPublicProfileWork(body: {
+  profession_code: string;
+  image_url: string;
+  low_res_image_url?: string | null;
+}): Promise<PublicProfileWorkRow> {
+  return api.post<PublicProfileWorkRow>(
+    "/api/profiles/me/public-work-images",
+    body
+  );
+}
+
+export async function deleteMyPublicProfileWork(imageId: string): Promise<void> {
+  await api.delete(
+    `/api/profiles/me/public-work-images/${encodeURIComponent(imageId)}`
+  );
+}
+
+/** Any profile’s portfolio (e.g. public profile viewer). */
 export async function listPublicProfileWork(
   profileUserId: string,
   professionCode: string

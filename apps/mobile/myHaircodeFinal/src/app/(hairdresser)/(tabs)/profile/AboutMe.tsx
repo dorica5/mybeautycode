@@ -61,9 +61,9 @@ import {
 import OptimizedImage from "@/src/components/OptimizedImage";
 import { uploadToStorage } from "@/src/lib/uploadHelpers";
 import {
-  addPublicProfileWork,
-  deletePublicProfileWork,
-  listPublicProfileWork,
+  addMyPublicProfileWork,
+  deleteMyPublicProfileWork,
+  listMyPublicProfileWork,
   type PublicProfileWorkRow,
 } from "@/src/api/publicProfileWork";
 
@@ -162,7 +162,7 @@ const AboutMe = () => {
   const refreshWorkFromServer = useCallback(async () => {
     if (!id) return;
     try {
-      const rows = await listPublicProfileWork(id, professionApi);
+      const rows = await listMyPublicProfileWork(professionApi);
       const capped = rows.slice(0, MAX_WORK_IMAGES);
       setServerWorkRows(capped);
       setDraftWorkItems(
@@ -345,7 +345,7 @@ const AboutMe = () => {
         .filter((r) => !draftSavedIds.has(r.id))
         .map((r) => r.id);
       for (const imageId of toDelete) {
-        await deletePublicProfileWork(id, imageId);
+        await deleteMyPublicProfileWork(imageId);
       }
       const pending = draftWorkItems.filter(
         (x): x is DraftWorkPending => x.draftKind === "pending"
@@ -366,7 +366,7 @@ const AboutMe = () => {
         if (!lowPath || !highPath) {
           throw new Error("Could not upload portfolio image.");
         }
-        await addPublicProfileWork(id, {
+        await addMyPublicProfileWork({
           profession_code: professionApi,
           image_url: highPath,
           low_res_image_url: lowPath,

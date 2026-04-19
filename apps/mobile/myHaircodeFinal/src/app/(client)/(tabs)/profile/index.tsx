@@ -41,6 +41,7 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { BrandAccountSurfacePill } from "@/src/components/BrandAccountSurfacePill";
 import { usePostHog } from "posthog-react-native";
 
 const ProfileScreen = () => {
@@ -99,8 +100,12 @@ const ProfileScreen = () => {
 
               <Text style={styles.myProfileTitle}>My profile</Text>
 
-              <Pressable
-                style={styles.becomeProPill}
+              <BrandAccountSurfacePill
+                label={
+                  hasProfessionalAccount
+                    ? "Switch account"
+                    : "Become a professional"
+                }
                 onPress={() =>
                   hasProfessionalAccount
                     ? router.push({
@@ -110,13 +115,11 @@ const ProfileScreen = () => {
                       } as Href)
                     : router.push("/(setup)/ChooseProfession" as Href)
                 }
-              >
-                <Text style={styles.becomeProText}>
-                  {hasProfessionalAccount
-                    ? "Switch account"
-                    : "Become a professional"}
-                </Text>
-              </Pressable>
+                style={{
+                  marginTop: scalePercent(4),
+                  marginBottom: responsiveScale(46),
+                }}
+              />
 
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterBecomePro]}
@@ -306,24 +309,6 @@ const styles = StyleSheet.create({
     ...Typography.h3,
     textAlign: "center",
     marginTop: responsiveScale(20, 16),
-    color: primaryBlack,
-  },
-  becomeProPill: {
-    alignSelf: "center",
-    marginTop: scalePercent(4),
-    marginBottom: responsiveScale(46),
-    width: responsiveScale(209),
-    height: responsiveScale(44),
-    borderRadius: responsiveScale(44) / 2,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: primaryBlack,
-    backgroundColor: "transparent",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  becomeProText: {
-    ...Typography.outfitRegular16,
-    textAlign: "center",
     color: primaryBlack,
   },
   sectionHeading: {

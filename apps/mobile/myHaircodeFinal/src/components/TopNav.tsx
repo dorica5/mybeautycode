@@ -30,6 +30,8 @@ type TopNavProps = {
   /** Avstand (design-dp) fra tittel til innhold under TopNav; bruker {@link responsiveScale}. */
   titleMarginBottom?: number;
   loading?: boolean;
+  /** Kun tilbake-rad (fast); tittel kan ligge i ScrollView under. */
+  showTitle?: boolean;
 };
 
 const TopNav = ({
@@ -43,6 +45,7 @@ const TopNav = ({
   titleStyle,
   titleLine2Style,
   titleMarginBottom,
+  showTitle = true,
 }: TopNavProps) => {
   const titleBottomGap =
     titleMarginBottom !== undefined
@@ -97,7 +100,7 @@ const TopNav = ({
         )}
       </View>
 
-      {title ? (
+      {title && showTitle ? (
         titleLine2 ? (
           <View
             style={styles.titleArea}

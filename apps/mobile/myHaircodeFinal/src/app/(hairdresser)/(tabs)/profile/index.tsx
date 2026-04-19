@@ -30,6 +30,7 @@ import {
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import Profile from "@/src/components/Profile";
+import { BrandAccountSurfacePill } from "@/src/components/BrandAccountSurfacePill";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { Href, router } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -93,8 +94,8 @@ const ProfileScreen = () => {
 
               <Text style={styles.myProfileTitle}>My profile</Text>
 
-              <Pressable
-                style={styles.switchAccountPill}
+              <BrandAccountSurfacePill
+                label="Switch account"
                 onPress={() =>
                   router.push({
                     pathname:
@@ -102,9 +103,11 @@ const ProfileScreen = () => {
                     params: { activeSurface: "professional" },
                   } as Href)
                 }
-              >
-                <Text style={styles.switchAccountText}>Switch account</Text>
-              </Pressable>
+                style={{
+                  marginTop: scalePercent(4),
+                  marginBottom: responsiveScale(46),
+                }}
+              />
 
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterPill]}
@@ -308,24 +311,6 @@ const styles = StyleSheet.create({
     ...Typography.h3,
     textAlign: "center",
     marginTop: responsiveScale(20, 16),
-    color: primaryBlack,
-  },
-  switchAccountPill: {
-    alignSelf: "center",
-    marginTop: scalePercent(4),
-    marginBottom: 46,
-    width: 155,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: primaryBlack,
-    backgroundColor: primaryGreen,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  switchAccountText: {
-    ...Typography.outfitRegular16,
-    textAlign: "center",
     color: primaryBlack,
   },
   sectionHeading: {

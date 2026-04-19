@@ -1,10 +1,12 @@
 import Constants from "expo-constants";
 import { supabase } from "./supabase";
 
-const API_URL =
+const RAW_API_URL =
   Constants?.expoConfig?.extra?.EXPO_PUBLIC_API_URL ??
   process.env.EXPO_PUBLIC_API_URL ??
   "http://localhost:3001";
+/** Avoid `//api/...` when env has a trailing slash (some hosts then return 404). */
+const API_URL = String(RAW_API_URL).replace(/\/+$/, "");
 
 type GetSession = () => Promise<{ access_token?: string } | null>;
 

@@ -147,6 +147,75 @@ export const profileController = {
     }
   },
 
+  /** Signed-in user’s portfolio (path avoids `/:id` collisions, e.g. literal `me`). */
+  async listMyPublicWorkImages(req: Request, res: Response) {
+    const ownerId = req.userId;
+    const profession =
+      typeof req.query.profession === "string" && req.query.profession.trim()
+        ? req.query.profession.trim()
+        : "hair";
+    if (!ownerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const data = await publicProfileWorkService.listForOwner(
+        ownerId,
+        profession
+      );
+      res.json(data);
+    } catch (err) {
+      console.error("listMyPublicWorkImages error:", err);
+      res.status(500).json({ error: "Failed to fetch portfolio images" });
+    }
+  },
+
+  async addMyPublicWorkImage(req: Request, res: Response) {
+    const ownerId = req.userId;
+    if (!ownerId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    const body = req.body as {
+      profession_code?: string;
+      image_url?: string;
+      low_res_image_url?: string | null;
+    };
+    try {
+      const row = await publicProfileWorkService.addForOwner(
+        ownerId,
+        String(body.profession_code ?? "hair"),
+        String(body.image_url ?? ""),
+        body.low_res_image_url
+      );
+      res.json(row);
+    } catch (err: unknown) {
+      const e = err as Error & { statusCode?: number };
+      if (e.statusCode === 400) {
+        return res.status(400).json({ error: e.message });
+      }
+      console.error("addMyPublicWorkImage error:", err);
+      res.status(500).json({ error: "Failed to add image" });
+    }
+  },
+
+  async deleteMyPublicWorkImage(req: Request, res: Response) {
+    const ownerId = req.userId;
+    const imageId = String(req.params.imageId ?? "").trim();
+    if (!ownerId || !imageId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    try {
+      await publicProfileWorkService.deleteForOwner(ownerId, imageId);
+      res.json({ success: true });
+    } catch (err: unknown) {
+      const e = err as Error & { statusCode?: number };
+      if (e.statusCode === 404) {
+        return res.status(404).json({ error: e.message });
+      }
+      console.error("deleteMyPublicWorkImage error:", err);
+      res.status(500).json({ error: "Failed to delete image" });
+    }
+  },
+
   /** Public portfolio images (any authenticated user). */
   async listPublicWorkImages(req: Request, res: Response) {
     const ownerId = String(req.params.id ?? "").trim();
