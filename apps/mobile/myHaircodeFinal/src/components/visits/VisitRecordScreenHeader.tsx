@@ -34,11 +34,11 @@ export function VisitRecordScreenHeader({
           onPress={() => router.back()}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Tilbake"
+          accessibilityLabel="Back"
           style={styles.backPressable}
         >
           <CaretLeft size={responsiveScale(32)} color={primaryBlack} />
-          <Text style={styles.backLabel}>Tilbake</Text>
+          <Text style={styles.backLabel}>Back</Text>
         </Pressable>
         {rightSlot ? (
           rightSlot

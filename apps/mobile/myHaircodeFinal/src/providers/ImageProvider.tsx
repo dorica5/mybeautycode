@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import { api } from "../lib/apiClient";
 import { useAuth } from "./AuthProvider";
+import { pickActiveProfessionCode } from "../constants/professionCodes";
+import { getLastProfessionCode } from "../lib/lastVisitPreference";
 import {
   fetchSignedStorageUrl,
   fetchSignedStorageUrls,
@@ -77,7 +79,7 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
   const [inspirationImages, setInspirationImages] = useState<InspirationImage[]>([]);
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
   const [imagesLoading, setImagesLoading] = useState(true);
-  const { profile, session } = useAuth();
+  const { profile, session, lastAppSurfacePref } = useAuth();
 
   const fetchImagesFromDB = useCallback(
     async (professionCode: string): Promise<InspirationImage[]> => {
@@ -103,7 +105,7 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
         ...image,
         thumbnail_url: thumbSigned[i] ?? "",
         full_url: "",
-      }));
+      })) as InspirationImage[];
     } catch (error) {
       console.error("Error fetching images:", error);
       return [];
@@ -149,13 +151,21 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
         await api.post("/api/inspirations/delete", body);
       } catch (error) {
         console.error("Error deleting images:", error);
-        await refreshInspirationImages(true);
+        const stored = profile?.id ? await getLastProfessionCode(profile.id) : null;
+        const code =
+          lastAppSurfacePref === "client"
+            ? "hair"
+            : pickActiveProfessionCode(
+                profile?.profession_codes as string[] | null | undefined,
+                stored
+              ) ?? "hair";
+        await refreshInspirationImages(true, code);
         throw error;
       } finally {
         setImagesLoading(false);
       }
     },
-    [refreshInspirationImages]
+    [refreshInspirationImages, lastAppSurfacePref, profile?.id, profile?.profession_codes]
   );
 
   const fetchAvatarImage = useCallback(async () => {
@@ -181,9 +191,24 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
     }
     if (profile?.id) {
       fetchAvatarImage();
-      refreshInspirationImages();
+      void (async () => {
+        const stored = await getLastProfessionCode(profile.id);
+        const code =
+          lastAppSurfacePref === "client"
+            ? "hair"
+            : pickActiveProfessionCode(profile.profession_codes, stored) ??
+              "hair";
+        await refreshInspirationImages(false, code);
+      })();
     }
-  }, [session, profile?.id, refreshInspirationImages, fetchAvatarImage]);
+  }, [
+    session,
+    profile?.id,
+    profile?.profession_codes,
+    lastAppSurfacePref,
+    refreshInspirationImages,
+    fetchAvatarImage,
+  ]);
 
   return (
     <ImageContext.Provider

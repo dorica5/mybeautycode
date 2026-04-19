@@ -10,6 +10,7 @@ import {
 import { profileService } from "../services/profileService";
 import { professionService } from "../services/professionService";
 import { publicProfileWorkService } from "../services/publicProfileWorkService";
+import { readProfessionCodeQuery } from "../lib/readProfessionCodeQuery";
 
 export const profileController = {
   async getById(req: Request, res: Response) {
@@ -75,7 +76,7 @@ export const profileController = {
       if (err instanceof Prisma.PrismaClientKnownRequestError) {
         console.error("profile update Prisma:", err.code, err.message);
         return res.status(500).json({
-          error: `Database error (${err.code}). Run prisma migrations against this database (e.g. business_address on professional_profiles). ${err.message}`,
+          error: `Database error (${err.code}). Run prisma migrations against this database. ${err.message}`,
         });
       }
       console.error("profile update error:", err);
@@ -96,9 +97,16 @@ export const profileController = {
       const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
         String(hairdresserId)
       );
+      const professionCode =
+        typeof req.query.professionCode === "string"
+          ? req.query.professionCode
+          : typeof req.query.profession_code === "string"
+            ? req.query.profession_code
+            : undefined;
       const results = await profileService.searchClients(
         String(q),
-        professionalProfileId
+        professionalProfileId,
+        professionCode
       );
       res.json(results);
     } catch (err) {
@@ -118,9 +126,11 @@ export const profileController = {
       const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
         hairdresserId!
       );
+      const professionCode = readProfessionCodeQuery(req.query);
       const results = await profileService.searchClientsWithRelationship(
         q,
-        professionalProfileId
+        professionalProfileId,
+        professionCode
       );
       res.json(results);
     } catch (err) {

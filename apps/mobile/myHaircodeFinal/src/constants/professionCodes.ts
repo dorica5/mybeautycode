@@ -131,6 +131,18 @@ export function inspirationFilterTabToProfessionCode(
   return tab;
 }
 
+/** Consumer “My inspiration” bucket (distinct from pro hair/nails/brows for the same profile id). */
+export const CLIENT_INSPIRATION_PROFESSION_CODE = "client";
+
+/** Map active professional role to My Inspiration filter tabs. */
+export function professionChoiceCodeToInspirationTab(
+  code: ProfessionChoiceCode | null
+): InspirationFilterTab {
+  if (code === "nails") return "nails";
+  if (code === "brows_lashes") return "brows";
+  return "hair";
+}
+
 /** True when the logged-in user can use the professional (hairdresser) app surface. */
 export function profileHasProfessionalCapability(
   profile:

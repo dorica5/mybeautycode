@@ -111,7 +111,10 @@ const ProfileScreen = () => {
                     ? router.push({
                         pathname:
                           "/(hairdresser)/(tabs)/profile/SwitchAccount",
-                        params: { activeSurface: "client" },
+                        params: {
+                          activeSurface: "client",
+                          returnTo: "client-profile",
+                        },
                       } as Href)
                     : router.push("/(setup)/ChooseProfession" as Href)
                 }

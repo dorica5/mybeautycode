@@ -20,7 +20,10 @@ import {
   socialLinkRowLabel,
 } from "@/src/lib/socialMediaStorage";
 import { parseColorBrands } from "@/src/lib/colorBrandStorage";
-import { profileHasHairProfession } from "@/src/constants/professionCodes";
+import {
+  profileHasHairProfession,
+  type ProfessionChoiceCode,
+} from "@/src/constants/professionCodes";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -76,6 +79,8 @@ export type PublicProfessionalProfileViewProps = {
   socialMediaRaw?: string | null;
   colorBrandRaw?: string | null;
   professionCodes?: string[] | null;
+  /** When set (e.g. self-view with a chosen role), scopes color-brand + work grid to that profession. */
+  activeProfessionCode?: ProfessionChoiceCode | null;
   onBack: () => void;
   /** Client: show Add hairdresser / added state under header */
   showRelationshipCta?: boolean;
@@ -100,6 +105,7 @@ export function PublicProfessionalProfileView({
   socialMediaRaw,
   colorBrandRaw,
   professionCodes,
+  activeProfessionCode,
   onBack,
   showRelationshipCta,
   isRelated,
@@ -111,9 +117,11 @@ export function PublicProfessionalProfileView({
   const businessName = salonName?.trim() ?? "";
   const socialUrls = parseSocialLinks(socialMediaRaw ?? "");
   const colorBrands = parseColorBrands(colorBrandRaw ?? "");
-  const showColorBrands =
-    profileHasHairProfession({ profession_codes: professionCodes }) &&
-    colorBrands.length > 0;
+  const hairInThisView =
+    activeProfessionCode != null
+      ? activeProfessionCode === "hair"
+      : profileHasHairProfession({ profession_codes: professionCodes });
+  const showColorBrands = hairInThisView && colorBrands.length > 0;
 
   const handleCall = useCallback(() => {
     const p = salonPhone?.trim();
@@ -143,10 +151,10 @@ export function PublicProfessionalProfileView({
             style={styles.backPress}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel="Tilbake"
+            accessibilityLabel="Back"
           >
             <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={[Typography.bodyMedium, styles.backText]}>Tilbake</Text>
+            <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
           </Pressable>
           {headerRight ? (
             <View style={styles.headerRightWrap}>{headerRight}</View>
@@ -282,7 +290,12 @@ export function PublicProfessionalProfileView({
             <Text style={[Typography.label, styles.sectionTitle]}>
               {first}&apos;s superpower
             </Text>
-            <View style={styles.superpowerBox}>
+            <View
+              style={[
+                styles.superpowerBox,
+                !aboutMe?.trim() && styles.superpowerBoxPlaceholderShell,
+              ]}
+            >
               <Text
                 style={[
                   Typography.outfitRegular16,
@@ -305,6 +318,7 @@ export function PublicProfessionalProfileView({
             <PublicProfileWorkGrid
               profileUserId={profileUserId}
               showTitle={false}
+              professionCode={activeProfessionCode ?? undefined}
             />
           </View>
         </View>
@@ -442,7 +456,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: primaryBlack,
     padding: responsivePadding(16),
-    minHeight: responsiveScale(120),
+  },
+  /** Empty / placeholder: modest minimum so the prompt still feels like a field. */
+  superpowerBoxPlaceholderShell: {
+    minHeight: responsiveScale(88),
   },
   superpowerText: {
     color: primaryBlack,

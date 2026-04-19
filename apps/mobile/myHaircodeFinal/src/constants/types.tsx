@@ -16,6 +16,17 @@ export type ClientProfile = {
   grey_hair_percentage: string | null;
 };
 
+/** Per-profession salon / bio / social from API (`professions_detail`). */
+export type ProfessionDetailApi = {
+  profession_code: string | null;
+  business_name: string | null;
+  business_number: string | null;
+  business_address: string | null;
+  about_me: string | null;
+  social_media: string | null;
+  booking_site: string | null;
+};
+
 export type Profile = {
   id: string;
   updated_at: string | null;
@@ -40,6 +51,8 @@ export type Profile = {
   professional_profile_id?: string | null;
   /** From API: profession rows linked to this professional profile, sorted by `sort_order`. */
   profession_codes?: string[];
+  /** Per-role business fields; top-level `salon_name` / `about_me` mirror the default profession (hair if present). */
+  professions_detail?: ProfessionDetailApi[];
   about_me: string | null;
   social_media: string | null;
   booking_site: string | null;

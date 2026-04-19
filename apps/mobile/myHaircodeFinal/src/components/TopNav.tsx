@@ -32,6 +32,8 @@ type TopNavProps = {
   loading?: boolean;
   /** Kun tilbake-rad (fast); tittel kan ligge i ScrollView under. */
   showTitle?: boolean;
+  /** When set, Back calls this instead of `router.back()` (e.g. cross-stack return). */
+  onBackPress?: () => void;
 };
 
 const TopNav = ({
@@ -46,6 +48,7 @@ const TopNav = ({
   titleLine2Style,
   titleMarginBottom,
   showTitle = true,
+  onBackPress,
 }: TopNavProps) => {
   const titleBottomGap =
     titleMarginBottom !== undefined
@@ -65,7 +68,9 @@ const TopNav = ({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Go back"
-            onPress={() => router.back()}
+            onPress={() =>
+              onBackPress ? onBackPress() : router.back()
+            }
             style={[styles.navHalf, styles.navHalfStart]}
             hitSlop={12}
           >

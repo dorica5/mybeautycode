@@ -14,6 +14,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useClientSearch, requestClientLink } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { useCallback, useEffect, useState } from "react";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
@@ -96,7 +97,8 @@ const UserProfile = () => {
       }
     : undefined;
 
-  const { session } = useAuth();
+  const { session, profile: myProfile } = useAuth();
+  const { activeProfessionCode } = useActiveProfessionState(myProfile);
   const [loading, setLoading] = useState(false);
   const [linkState, setLinkState] = useState<ClientLinkUiStatus | null>(null);
   const [isBlockedUser, setIsBlockedUser] = useState(false);
@@ -119,14 +121,15 @@ const UserProfile = () => {
     try {
       const s = await getClientLinkUiStatus(
         String(hairdresser_id),
-        client_id
+        client_id,
+        activeProfessionCode
       );
       setLinkState(s);
     } catch (error) {
       console.error("Error loading client link state:", error);
       setLinkState("none");
     }
-  }, [hairdresser_id, client_id]);
+  }, [hairdresser_id, client_id, activeProfessionCode]);
 
   useFocusEffect(
     useCallback(() => {
@@ -151,7 +154,7 @@ const UserProfile = () => {
       return;
     setLoading(true);
     try {
-      await requestClientLink(client_id);
+      await requestClientLink(client_id, activeProfessionCode);
       setLinkState("pending");
       await queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
       setAlertVisible(true);
@@ -171,7 +174,7 @@ const UserProfile = () => {
   const deleteClient = async (cid: string) => {
     if (!hairdresser_id) return;
     try {
-      await removeRelationship(hairdresser_id, cid);
+      await removeRelationship(hairdresser_id, cid, activeProfessionCode);
       await queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
       await queryClient.invalidateQueries({
         queryKey: ["latest_haircodes", hairdresser_id],

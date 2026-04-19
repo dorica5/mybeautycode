@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma";
+import { pickDefaultProfessionRow } from "../lib/professionBusinessHelpers";
 
 /** Default profession code for hair (backward compatibility) */
 const DEFAULT_PROFESSION_CODE = "hair";
@@ -11,6 +12,7 @@ export function normalizeProfessionCodeInput(raw: string): string {
   if (t === "nail" || t === "nail_technician" || t === "nailtech") return "nails";
   if (t === "hairdresser" || t === "hair_dresser") return "hair";
   if (t === "brow" || t === "lashes" || t === "brow_stylist") return "brows_lashes";
+  if (t === "consumer" || t === "personal") return "client";
   return t;
 }
 
@@ -89,6 +91,80 @@ export const professionService = {
         isActive: true,
       })),
     });
+  },
+
+  /**
+   * Code to use for legacy / default salon+bio updates when `profession_code` is omitted
+   * (prefers `hair`, else lowest `sort_order`).
+   */
+  async getDefaultProfessionCodeForProfessionalProfile(
+    professionalProfileId: string
+  ): Promise<string | null> {
+    const rows = await prisma.professionalProfession.findMany({
+      where: { professionalProfileId },
+      include: { profession: { select: { code: true, sortOrder: true } } },
+    });
+    const picked = pickDefaultProfessionRow(rows);
+    return picked?.profession?.code ?? null;
+  },
+
+  /**
+   * Which `professional_professions` row to use for lane-isolated APIs (visits, client links).
+   * When the client sends a lane code, we **materialize** a missing `professional_professions` row
+   * (`ensureProfessionsForProfile`) so “hair” vs “nails” never silently resolves to the wrong DB row.
+   */
+  async resolveActiveProfessionScopeForProfessionalProfile(
+    professionalProfileId: string,
+    professionCodeFromRequest: string | undefined | null
+  ): Promise<{ professionId: string; normalizedCode: string } | null> {
+    const raw = professionCodeFromRequest?.trim();
+
+    if (raw) {
+      try {
+        const canonical = normalizeProfessionCodeInput(raw);
+        await this.ensureProfessionsForProfile(professionalProfileId, [canonical]);
+      } catch {
+        /** Invalid / unknown profession code — do not create rows. */
+      }
+    }
+
+    const rows = await prisma.professionalProfession.findMany({
+      where: { professionalProfileId, isActive: { not: false } },
+      include: { profession: { select: { code: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (rows.length === 0) {
+      if (!raw) return null;
+      try {
+        const professionId = await this.getProfessionIdByCode(raw);
+        return {
+          professionId,
+          normalizedCode: normalizeProfessionCodeInput(raw),
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    if (raw) {
+      const normalized = normalizeProfessionCodeInput(raw);
+      const match = rows.find(
+        (r) => normalizeProfessionCodeInput(r.profession.code) === normalized
+      );
+      if (!match) return null;
+      return {
+        professionId: match.professionId,
+        normalizedCode: match.profession.code,
+      };
+    }
+
+    /** No lane in request: single active row only (legacy clients / internal callers). */
+    if (rows.length === 1) {
+      const r = rows[0];
+      return { professionId: r.professionId, normalizedCode: r.profession.code };
+    }
+    return null;
   },
 
   /** Get or create professional profile for a profile ID. Returns professionalProfileId. */

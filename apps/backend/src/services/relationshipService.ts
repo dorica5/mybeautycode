@@ -9,9 +9,16 @@ export const relationshipService = {
    * Professional initiates a client link: `client_professional_links` row with status `pending`
    * and a `link_request` notification to the client. Idempotent if already pending.
    */
-  async requestClientLink(hairdresserProfileUserId: string, clientUserId: string) {
+  async requestClientLink(
+    hairdresserProfileUserId: string,
+    clientUserId: string,
+    professionCode: string = "hair"
+  ) {
     const professionalProfileId =
       await professionService.getOrCreateProfessionalProfileId(hairdresserProfileUserId);
+    const professionId = await professionService.getProfessionIdByCode(
+      professionCode.trim() || "hair"
+    );
 
     const prof = await prisma.professionalProfile.findUnique({
       where: { id: professionalProfileId },
@@ -25,7 +32,7 @@ export const relationshipService = {
     }
 
     const existing = await prisma.clientProfessionalLink.findFirst({
-      where: { professionalProfileId, clientUserId },
+      where: { professionalProfileId, clientUserId, professionId },
     });
 
     if (existing?.status === "active") {
@@ -59,6 +66,7 @@ export const relationshipService = {
         data: {
           professionalProfileId,
           clientUserId,
+          professionId,
           status: "pending",
           createdByUserId: prof.profileId,
         },
@@ -85,7 +93,14 @@ export const relationshipService = {
     return { success: true, clientProfessionalLinkId: linkId };
   },
 
-  async add(professionalProfileIdOrProfileId: string | string[], clientUserId: string) {
+  async add(
+    professionalProfileIdOrProfileId: string | string[],
+    clientUserId: string,
+    professionCode: string = "hair"
+  ) {
+    const professionId = await professionService.getProfessionIdByCode(
+      professionCode.trim() || "hair"
+    );
     const ids = Array.isArray(professionalProfileIdOrProfileId)
       ? professionalProfileIdOrProfileId
       : [professionalProfileIdOrProfileId];
@@ -99,6 +114,7 @@ export const relationshipService = {
         where: {
           professionalProfileId,
           clientUserId,
+          professionId,
         },
       });
       if (!existing) {
@@ -106,6 +122,7 @@ export const relationshipService = {
           data: {
             professionalProfileId,
             clientUserId,
+            professionId,
             status: "active",
             createdByUserId: clientUserId,
           },
@@ -115,24 +132,50 @@ export const relationshipService = {
     return { success: true };
   },
 
-  async remove(professionalProfileId: string, clientUserId: string) {
-    await prisma.clientProfessionalLink.deleteMany({
-      where: { professionalProfileId, clientUserId },
-    });
+  async remove(
+    professionalProfileId: string,
+    clientUserId: string,
+    professionCode?: string | null
+  ) {
+    if (professionCode?.trim()) {
+      const professionId = await professionService.getProfessionIdByCode(
+        professionCode.trim()
+      );
+      await prisma.clientProfessionalLink.deleteMany({
+        where: { professionalProfileId, clientUserId, professionId },
+      });
+    } else {
+      await prisma.clientProfessionalLink.deleteMany({
+        where: { professionalProfileId, clientUserId },
+      });
+    }
     return { success: true };
   },
 
-  async checkExists(professionalProfileIdOrProfileId: string, clientUserId: string) {
+  async checkExists(
+    professionalProfileIdOrProfileId: string,
+    clientUserId: string,
+    professionCode?: string | null
+  ) {
     try {
       const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
         professionalProfileIdOrProfileId
       );
-      const existing = await prisma.clientProfessionalLink.findFirst({
-        where: {
+      const scope =
+        await professionService.resolveActiveProfessionScopeForProfessionalProfile(
           professionalProfileId,
-          clientUserId,
-          status: "active",
-        },
+          professionCode
+        );
+      if (!scope) return false;
+
+      const where: Prisma.ClientProfessionalLinkWhereInput = {
+        professionalProfileId,
+        clientUserId,
+        status: "active",
+        professionId: scope.professionId,
+      };
+      const existing = await prisma.clientProfessionalLink.findFirst({
+        where,
       });
       return !!existing;
     } catch (e) {
@@ -147,12 +190,24 @@ export const relationshipService = {
     }
   },
 
-  async listByProfessional(professionalProfileId: string) {
-    const rels = await prisma.clientProfessionalLink.findMany({
-      where: {
+  async listByProfessional(
+    professionalProfileId: string,
+    professionCode?: string | null
+  ) {
+    const scope =
+      await professionService.resolveActiveProfessionScopeForProfessionalProfile(
         professionalProfileId,
-        status: "active",
-      },
+        professionCode
+      );
+    if (!scope) return [];
+
+    const where: Prisma.ClientProfessionalLinkWhereInput = {
+      professionalProfileId,
+      status: "active",
+      professionId: scope.professionId,
+    };
+    const rels = await prisma.clientProfessionalLink.findMany({
+      where,
       select: { clientUserId: true, createdAt: true },
     });
     const clientIds = rels.map((r) => r.clientUserId);
@@ -195,12 +250,25 @@ export const relationshipService = {
   /** For professional UI: link row with this client, if any. */
   async getClientLinkUiState(
     hairdresserUserId: string,
-    clientUserId: string
+    clientUserId: string,
+    professionCode?: string | null
   ): Promise<"none" | "pending" | "active"> {
     const professionalProfileId =
       await professionService.getOrCreateProfessionalProfileId(hairdresserUserId);
+    const scope =
+      await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+        professionalProfileId,
+        professionCode
+      );
+    if (!scope) return "none";
+
+    const where: Prisma.ClientProfessionalLinkWhereInput = {
+      professionalProfileId,
+      clientUserId,
+      professionId: scope.professionId,
+    };
     const link = await prisma.clientProfessionalLink.findFirst({
-      where: { professionalProfileId, clientUserId },
+      where,
       select: { status: true },
     });
     if (!link) return "none";
@@ -215,9 +283,18 @@ export const relationshipService = {
         clientUserId,
         status: "active",
       },
-      select: { professionalProfileId: true, createdAt: true },
+      select: {
+        id: true,
+        createdAt: true,
+        professionalProfileId: true,
+        profession: { select: { code: true } },
+      },
     });
-    const profProfileIds = rels.map((r) => r.professionalProfileId);
+    if (rels.length === 0) return [];
+
+    const profProfileIds = [
+      ...new Set(rels.map((r) => r.professionalProfileId)),
+    ];
     const blocked = await prisma.blockedUser.findMany({
       where: { blockedId: clientUserId },
       select: { blockerId: true },
@@ -232,15 +309,31 @@ export const relationshipService = {
         },
       },
     });
-    const available = profProfiles.filter((pp) => !blockerIds.has(pp.profileId));
-    return available.map((pp) => {
-      const rel = rels.find((r) => r.professionalProfileId === pp.id);
-      return {
+    const ppById = new Map(profProfiles.map((pp) => [pp.id, pp]));
+
+    const out: {
+      link_id: string;
+      id: string;
+      profession_code: string;
+      full_name: string | null;
+      avatar_url: string | null;
+      lastInteraction: Date;
+    }[] = [];
+
+    for (const rel of rels) {
+      const pp = ppById.get(rel.professionalProfileId);
+      if (!pp) continue;
+      if (blockerIds.has(pp.profileId)) continue;
+      out.push({
+        link_id: rel.id,
         id: pp.profile.id,
+        profession_code: rel.profession.code,
         full_name: pp.displayName ?? profileDisplayName(pp.profile),
         avatar_url: pp.profile.avatarUrl,
-        lastInteraction: rel?.createdAt,
-      };
-    });
+        lastInteraction: rel.createdAt,
+      });
+    }
+
+    return out;
   },
 };

@@ -8,8 +8,6 @@ import {
   Platform,
 } from "react-native";
 import React, { useState, useRef } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "@/src/constants/Colors";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import TopNav from "@/src/components/TopNav";
@@ -27,9 +25,14 @@ import {
   scalePercent,
   verticalScale,
 } from "@/src/utils/responsive";
-import { StatusBar } from "expo-status-bar";
+import { MintProfileScreenShell } from "@/src/components/MintProfileScreenShell";
+import { Typography } from "@/src/constants/Typography";
+import { primaryBlack } from "@/src/constants/Colors";
 
-/** Client hair baseline / About Me — not the professional “Get discovered” editor (`(hairdresser)/.../AboutMe`). */
+/**
+ * Client hair baseline / About Me — original dropdown layout; sage bg + section title
+ * typography match professional profile editors (`Typography.label`, `primaryBlack`).
+ */
 const HairProfile = () => {
   const { profile } = useAuth();
 
@@ -106,117 +109,111 @@ const HairProfile = () => {
   };
 
   return (
-    <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <SafeAreaView style={styles.container} edges={["top"]}>
-          <TopNav title="About me" />
+    <MintProfileScreenShell>
+      <TopNav title="About me" />
 
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ flex: 1 }}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 20}
-          >
-            <ScrollView
-              ref={scrollViewRef}
-              contentContainerStyle={styles.scrollViewContent}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              scrollEventThrottle={16}
-              bounces={true}
-              keyboardDismissMode="interactive"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 20}
+      >
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.scrollViewContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          bounces={true}
+          keyboardDismissMode="interactive"
+        >
+          <Pressable onPress={dismissKeyboard} style={{ flex: 1 }}>
+            <ResponsiveText
+              size={14}
+              weight="SemiBold"
+              style={styles.SelectionTextHeader}
             >
-              <Pressable onPress={dismissKeyboard} style={{ flex: 1 }}>
-                <ResponsiveText
-                  size={14}
-                  weight="SemiBold"
-                  style={styles.SelectionTextHeader}
-                >
-                  Hair structure
-                </ResponsiveText>
+              Hair structure
+            </ResponsiveText>
 
-                <Dropdown
-                  onSelect={updateHairStructure}
-                  listMode={Platform.OS === "android" ? "MODAL" : "SCROLLVIEW"}
-                  zIndex={4000}
-                  zIndexInverse={3000}
-                  item={hairStructureItems}
-                  initialValue={profile.hair_structure}
-                />
-                <ResponsiveText
-                  size={14}
-                  weight="SemiBold"
-                  style={styles.SelectionTextHeader}
-                >
-                  Hair thickness
-                </ResponsiveText>
-                <Dropdown
-                  onSelect={updateHairThickness}
-                  listMode={Platform.OS === "android" ? "MODAL" : "SCROLLVIEW"}
-                  zIndex={4000}
-                  zIndexInverse={3000}
-                  item={hairThicknessItems}
-                  initialValue={profile.hair_thickness}
-                />
+            <Dropdown
+              onSelect={updateHairStructure}
+              listMode={Platform.OS === "android" ? "MODAL" : "SCROLLVIEW"}
+              zIndex={4000}
+              zIndexInverse={3000}
+              item={hairStructureItems}
+              initialValue={profile.hair_structure}
+            />
+            <ResponsiveText
+              size={14}
+              weight="SemiBold"
+              style={styles.SelectionTextHeader}
+            >
+              Hair thickness
+            </ResponsiveText>
+            <Dropdown
+              onSelect={updateHairThickness}
+              listMode={Platform.OS === "android" ? "MODAL" : "SCROLLVIEW"}
+              zIndex={4000}
+              zIndexInverse={3000}
+              item={hairThicknessItems}
+              initialValue={profile.hair_thickness}
+            />
 
-                <ResponsiveText
-                  size={14}
-                  weight="SemiBold"
-                  style={styles.SelectionTextHeader}
-                >
-                  Natural hair color
-                </ResponsiveText>
-                <Dropdown
-                  onSelect={updateHairColor}
-                  listMode={Platform.OS === "android" ? "MODAL" : "SCROLLVIEW"}
-                  zIndex={4000}
-                  zIndexInverse={3000}
-                  item={naturalHairColorItems}
-                  initialValue={profile.natural_hair_color}
-                />
+            <ResponsiveText
+              size={14}
+              weight="SemiBold"
+              style={styles.SelectionTextHeader}
+            >
+              Natural hair color
+            </ResponsiveText>
+            <Dropdown
+              onSelect={updateHairColor}
+              listMode={Platform.OS === "android" ? "MODAL" : "SCROLLVIEW"}
+              zIndex={4000}
+              zIndexInverse={3000}
+              item={naturalHairColorItems}
+              initialValue={profile.natural_hair_color}
+            />
 
-                <ResponsiveText
-                  size={14}
-                  weight="SemiBold"
-                  style={styles.SelectionTextHeader}
-                >
-                  Grey hair percentage
-                </ResponsiveText>
-                <Dropdown
-                  onSelect={updategreyHairPercentage}
-                  listMode={Platform.OS === "android" ? "MODAL" : "SCROLLVIEW"}
-                  zIndex={4000}
-                  zIndexInverse={3000}
-                  item={greyHairPercentageItems}
-                  initialValue={profile.grey_hair_percentage}
-                />
+            <ResponsiveText
+              size={14}
+              weight="SemiBold"
+              style={styles.SelectionTextHeader}
+            >
+              Grey hair percentage
+            </ResponsiveText>
+            <Dropdown
+              onSelect={updategreyHairPercentage}
+              listMode={Platform.OS === "android" ? "MODAL" : "SCROLLVIEW"}
+              zIndex={4000}
+              zIndexInverse={3000}
+              item={greyHairPercentageItems}
+              initialValue={profile.grey_hair_percentage}
+            />
 
-                <View style={{ height: verticalScale(100) }} />
-              </Pressable>
-            </ScrollView>
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </View>
-    </>
+            <View style={{ height: verticalScale(100) }} />
+          </Pressable>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </MintProfileScreenShell>
   );
 };
 
 export default HairProfile;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    margin: scalePercent(5),
-    marginBottom: "0%",
-  },
   scrollViewContent: {
     flexGrow: 1,
     paddingBottom: responsiveScale(50, 40),
+    marginHorizontal: scalePercent(5),
+    marginBottom: "0%",
   },
+  /** Section labels: pro-style (`Typography.label`) + black on sage. */
   SelectionTextHeader: {
+    ...Typography.label,
     marginTop: responsiveScale(29, 20),
     marginVertical: responsiveScale(9, 6),
-    color: Colors.dark.dark,
+    color: primaryBlack,
     fontSize: responsiveFontSize(14, 12),
   },
 });

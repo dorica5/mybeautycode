@@ -100,7 +100,10 @@ const ProfileScreen = () => {
                   router.push({
                     pathname:
                       "/(hairdresser)/(tabs)/profile/SwitchAccount",
-                    params: { activeSurface: "professional" },
+                    params: {
+                      activeSurface: "professional",
+                      returnTo: "pro-profile",
+                    },
                   } as Href)
                 }
                 style={{

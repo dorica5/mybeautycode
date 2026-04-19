@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { haircodeService } from "../services/haircodeService";
 import { serviceRecordAccessService } from "../services/serviceRecordAccessService";
+import { readProfessionCodeQuery } from "../lib/readProfessionCodeQuery";
 
 export const haircodeController = {
   async listClientGallery(req: Request, res: Response) {
@@ -9,13 +10,12 @@ export const haircodeController = {
       return res.status(400).json({ error: "clientId required" });
     }
     try {
+      const professionCode = readProfessionCodeQuery(req.query);
       await serviceRecordAccessService.assertCanAccessClientTimeline(
         req.userId!,
-        String(clientId)
+        String(clientId),
+        { professionCode }
       );
-      const professionCode = req.query.professionCode
-        ? String(req.query.professionCode)
-        : undefined;
       const data = await haircodeService.listClientGallery(
         req.userId!,
         String(clientId),
@@ -38,13 +38,12 @@ export const haircodeController = {
       return res.status(400).json({ error: "clientId required" });
     }
     try {
+      const professionCode = readProfessionCodeQuery(req.query);
       await serviceRecordAccessService.assertCanAccessClientTimeline(
         req.userId!,
-        String(clientId)
+        String(clientId),
+        { professionCode }
       );
-      const professionCode = req.query.professionCode
-        ? String(req.query.professionCode)
-        : undefined;
       const data = await haircodeService.listClientHaircodes(
         req.userId!,
         String(clientId),
@@ -64,7 +63,11 @@ export const haircodeController = {
   async listLatestHaircodes(req: Request, res: Response) {
     const hairdresserId = req.userId!;
     try {
-      const data = await haircodeService.listLatestHaircodes(hairdresserId);
+      const professionCode = readProfessionCodeQuery(req.query);
+      const data = await haircodeService.listLatestHaircodes(
+        hairdresserId,
+        professionCode
+      );
       res.json(data);
     } catch (err) {
       console.error("haircode listLatestHaircodes error:", err);

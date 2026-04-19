@@ -141,12 +141,6 @@ model ProfessionalProfile {
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime? @map("updated_at") @db.Timestamptz
   displayName      String?  @map("display_name") @db.Text
-  businessName      String?  @map("business_name") @db.Text
-  businessNumber    String?  @map("business_number") @db.Text
-  businessAddress   String?  @map("business_address") @db.Text
-  aboutMe          String?  @map("about_me") @db.Text
-  socialMedia      String?  @map("social_media") @db.Text
-  bookingSite      String?  @map("booking_site") @db.Text
 
   profile           Profile           @relation(fields: [profileId], references: [id], onDelete: Cascade)
   professionalProfessions ProfessionalProfession[]
@@ -194,6 +188,7 @@ model Profession {
 
   professionalProfessions ProfessionalProfession[]
   clientProfessionProfiles ClientProfessionProfile[]
+  clientProfessionalLinks  ClientProfessionalLink[]
   serviceRecords           ServiceRecord[]
   inspirations             Inspiration[]
   sharedInspirations       SharedInspiration[]
@@ -209,6 +204,13 @@ model ProfessionalProfession {
   isActive               Boolean?  @default(true) @map("is_active")
   createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime? @map("updated_at") @db.Timestamptz
+  /// Salon / business name for this profession (e.g. different venues per role).
+  businessName    String?  @map("business_name") @db.Text
+  businessNumber  String?  @map("business_number") @db.Text
+  businessAddress String?  @map("business_address") @db.Text
+  aboutMe         String?  @map("about_me") @db.Text
+  socialMedia     String?  @map("social_media") @db.Text
+  bookingSite     String?  @map("booking_site") @db.Text
 
   professionalProfile ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
   profession          Profession          @relation(fields: [professionId], references: [id], onDelete: Cascade)
@@ -221,11 +223,12 @@ model ProfessionalProfession {
 // CLIENT <-> PROFESSIONAL RELATIONSHIP
 // =============================================================================
 
-/// Links a client (user) to a professional. Status, created_by, timestamps for audit.
+/// Links a client (user) to a professional **per profession lane** (brow vs nail are separate “accounts”).
 model ClientProfessionalLink {
   id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   clientUserId          String   @map("client_user_id") @db.Uuid
   professionalProfileId String   @map("professional_profile_id") @db.Uuid
+  professionId          String   @map("profession_id") @db.Uuid
   status                ClientProfessionalLinkStatus @default(pending)
   createdByUserId       String?  @map("created_by_user_id") @db.Uuid
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz
@@ -234,12 +237,14 @@ model ClientProfessionalLink {
 
   clientUser           Profile           @relation("ClientLinks", fields: [clientUserId], references: [id], onDelete: Cascade)
   professionalProfile  ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+  profession           Profession        @relation(fields: [professionId], references: [id], onDelete: Cascade)
   createdByUser        Profile?          @relation("ClientLinkCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   serviceRecords       ServiceRecord[]
 
-  @@unique([clientUserId, professionalProfileId])
+  @@unique([clientUserId, professionalProfileId, professionId])
   @@index([clientUserId])
   @@index([professionalProfileId])
+  @@index([professionId])
   @@index([status])
   @@map("client_professional_links")
 }

@@ -2,7 +2,7 @@ import React from "react";
 import { View, StyleSheet, ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { router, type Href } from "expo-router";
+import { type Href, router } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
@@ -15,7 +15,6 @@ import {
   primaryWhite,
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
-import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
 import {
   isTablet,
   responsiveMargin,
@@ -32,7 +31,10 @@ const HomeScreen = () => {
     profile?.full_name ||
     "";
   const username = profile?.username?.trim() ?? "";
-  const hasProfessionalAccount = profileHasProfessionalCapability(profile);
+
+  const userTypeRaw =
+    profile?.user_type ?? (profile as { userType?: string } | undefined)?.userType;
+  const hasProfessionalAccount = userTypeRaw === "HAIRDRESSER";
 
   const avatarSize = responsiveScale(120, 144);
 

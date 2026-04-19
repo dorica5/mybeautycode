@@ -164,19 +164,32 @@ export const useHaircodeWithMedia = (haircode_id: string) => {
   });
 };
 
-export const useLatestHaircodes = (hairdresserId: string) => {
-  const queryClient = useQueryClient();
+export const useLatestHaircodes = (
+  hairdresserId: string | undefined,
+  professionCode: string | null | undefined,
+  options?: { activeProfessionReady?: boolean }
+) => {
+  const code =
+    professionCode && professionCode.trim() ? professionCode.trim() : null;
+  const ready = options?.activeProfessionReady !== false;
 
   return useQuery({
-    queryKey: ["latest_haircodes", hairdresserId],
-    queryFn: () => api.get<unknown[]>("/api/haircodes/latest"),
+    /** `v2` + lane suffix drops stale caches from builds that used `…, "all"` without a scoped fetch. */
+    queryKey: ["latest_haircodes", "v2", hairdresserId, code ?? "pending"],
+    queryFn: async () => {
+      const q = code
+        ? `?professionCode=${encodeURIComponent(code)}`
+        : "";
+      return api.get<unknown[]>(`/api/haircodes/latest${q}`);
+    },
     staleTime: 0,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     refetchOnMount: true,
     refetchInterval: 30000,
-    enabled: Boolean(hairdresserId),
+    enabled:
+      Boolean(hairdresserId) && Boolean(code) && ready,
     retry: 1,
   });
 };

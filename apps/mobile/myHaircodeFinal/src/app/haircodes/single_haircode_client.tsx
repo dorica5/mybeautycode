@@ -16,8 +16,6 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { allBlockerIds } from "@/src/api/moderation";
 import {
   moderateScale,
-  responsiveMargin,
-  responsiveScale,
   scale,
   scalePercent,
   verticalScale,
@@ -69,10 +67,6 @@ const SingleHaircodeClient = () => {
     createdAt: paramCreatedAt,
     salon_name: paramSalonName,
     hairdresser_profile_pic: paramHairdresserProfilePic,
-    salonPhoneNumber: paramSalonPhoneNumber,
-    about_me: paramAboutMe,
-    booking_site: paramBookingSite,
-    social_media: paramSocialMedia,
     hairdresser_id: paramHairdresserId,
   } = useLocalSearchParams();
 
@@ -125,24 +119,6 @@ const SingleHaircodeClient = () => {
     typeof paramHairdresserProfilePic === "string"
       ? paramHairdresserProfilePic
       : hairdresserProfile?.avatarUrl ?? "";
-  const salonPhoneNumber =
-    typeof paramSalonPhoneNumber === "string"
-      ? paramSalonPhoneNumber
-      : hairdresserProfile?.salonPhoneNumber ?? "";
-  const about_me =
-    typeof paramAboutMe === "string"
-      ? paramAboutMe
-      : hairdresserProfile?.aboutMe ?? "";
-  const booking_site =
-    typeof paramBookingSite === "string"
-      ? paramBookingSite
-      : hairdresserProfile?.bookingSite ?? "";
-  const social_media =
-    typeof paramSocialMedia === "string"
-      ? paramSocialMedia
-      : typeof hairdresserProfile?.socialMedia === "string"
-      ? hairdresserProfile.socialMedia
-      : JSON.stringify(hairdresserProfile?.socialMedia ?? {});
   const hairdresser_id =
     typeof paramHairdresserId === "string"
       ? paramHairdresserId
@@ -211,19 +187,10 @@ const SingleHaircodeClient = () => {
   };
 
   const handleHairdresserPress = () => {
-    if (!isBlockedByHairdresser) {
+    if (!isBlockedByHairdresser && hairdresser_id) {
       router.push({
         pathname: "./other_professional_profile",
-        params: {
-          hairdresserName: hairdresserName,
-          salon_name: salon_name,
-          hairdresser_profile_pic: hairdresser_profile_pic,
-          salonPhoneNumber,
-          about_me,
-          booking_site,
-          social_media,
-          hairdresser_id,
-        },
+        params: { hairdresser_id: String(hairdresser_id) },
       });
     }
   };

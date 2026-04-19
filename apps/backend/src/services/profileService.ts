@@ -24,8 +24,10 @@ const PROFILE_FIELDS = [
   "updatedAt",
 ] as const;
 
-const PROFESSIONAL_FIELDS = [
-  "displayName",
+const DISPLAY_NAME_FIELDS = ["displayName"] as const;
+
+/** Salon / bio / social — stored on `professional_professions`, not `professional_profiles`. */
+const PROFESSION_BUSINESS_FIELDS = [
   "businessName",
   "businessNumber",
   "businessAddress",
@@ -83,7 +85,8 @@ export const profileService = {
 
   async update(id: string, data: Record<string, unknown>) {
     const filtered: Record<string, unknown> = {};
-    const professionalData: Record<string, unknown> = {};
+    const displayNameData: Record<string, unknown> = {};
+    const professionBusinessData: Record<string, unknown> = {};
     const body = { ...data };
 
     let colorBrandUpdate: string | null | undefined;
@@ -136,8 +139,16 @@ export const profileService = {
       const key = (SNAKE_TO_CAMEL[k] ?? k) as string;
       if (PROFILE_FIELDS.includes(key as (typeof PROFILE_FIELDS)[number])) {
         filtered[key] = v;
-      } else if (PROFESSIONAL_FIELDS.includes(key as (typeof PROFESSIONAL_FIELDS)[number])) {
-        professionalData[key] = v;
+      } else if (
+        DISPLAY_NAME_FIELDS.includes(key as (typeof DISPLAY_NAME_FIELDS)[number])
+      ) {
+        displayNameData[key] = v;
+      } else if (
+        PROFESSION_BUSINESS_FIELDS.includes(
+          key as (typeof PROFESSION_BUSINESS_FIELDS)[number]
+        )
+      ) {
+        professionBusinessData[key] = v;
       }
     }
     filtered.updatedAt = new Date();
@@ -171,27 +182,62 @@ export const profileService = {
       }
     }
 
-    if (Object.keys(professionalData).length > 0) {
-      const profProfileId = await professionService.getOrCreateProfessionalProfileId(id);
-      professionalData.updatedAt = new Date();
-      await prisma.professionalProfile.update({
-        where: { id: profProfileId },
-        data: professionalData as never,
-      });
-    }
-
     try {
       const updated = await prisma.profile.update({
         where: { id },
         data: filtered as never,
       });
 
-      if (shouldApplyProfession) {
-        const profProfileId =
-          await professionService.getOrCreateProfessionalProfileId(id);
+      const needProfessionalProfile =
+        shouldApplyProfession ||
+        Object.keys(displayNameData).length > 0 ||
+        Object.keys(professionBusinessData).length > 0;
+
+      const profProfileId = needProfessionalProfile
+        ? await professionService.getOrCreateProfessionalProfileId(id)
+        : null;
+
+      if (shouldApplyProfession && profProfileId) {
         await professionService.ensureProfessionsForProfile(profProfileId, [
           professionCode!,
         ]);
+      }
+
+      if (profProfileId && Object.keys(displayNameData).length > 0) {
+        displayNameData.updatedAt = new Date();
+        await prisma.professionalProfile.update({
+          where: { id: profProfileId },
+          data: displayNameData as never,
+        });
+      }
+
+      if (profProfileId && Object.keys(professionBusinessData).length > 0) {
+        const codeForBusiness =
+          professionCode ??
+          (await professionService.getDefaultProfessionCodeForProfessionalProfile(
+            profProfileId
+          ));
+        if (!codeForBusiness) {
+          throw Object.assign(
+            new Error(
+              "Add at least one profession before salon or bio details, or send profession_code with your update."
+            ),
+            { statusCode: 400 }
+          );
+        }
+        const professionId = await professionService.getProfessionIdByCode(
+          codeForBusiness
+        );
+        professionBusinessData.updatedAt = new Date();
+        await prisma.professionalProfession.update({
+          where: {
+            professionalProfileId_professionId: {
+              professionalProfileId: profProfileId,
+              professionId,
+            },
+          },
+          data: professionBusinessData as never,
+        });
       }
 
       if (colorBrandUpdate !== undefined) {
@@ -257,11 +303,23 @@ export const profileService = {
     }
   },
 
-  async searchClients(searchQuery: string, professionalProfileId: string) {
+  async searchClients(
+    searchQuery: string,
+    professionalProfileId: string,
+    professionCode?: string | null
+  ) {
+    const scope =
+      await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+        professionalProfileId,
+        professionCode
+      );
+    if (!scope) return [];
+
     const rels = await prisma.clientProfessionalLink.findMany({
       where: {
         professionalProfileId,
         status: "active",
+        professionId: scope.professionId,
       },
       select: { clientUserId: true },
     });
@@ -295,7 +353,8 @@ export const profileService = {
    */
   async searchClientsWithRelationship(
     searchQuery: string,
-    professionalProfileId: string
+    professionalProfileId: string,
+    professionCode?: string | null
   ) {
     const q = searchQuery.trim();
 
@@ -306,23 +365,36 @@ export const profileService = {
     const myProfileId = profProfile?.profileId;
     if (!myProfileId) return [];
 
+    const scope =
+      await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+        professionalProfileId,
+        professionCode
+      );
+
+    /** Without a resolved lane, do not return a global directory (multi-lane pros would see unrelated profiles). */
+    if (!scope) return [];
+
+    let linkedClientIds = new Set<string>();
+    let pendingClientIds = new Set<string>();
     const activeRels = await prisma.clientProfessionalLink.findMany({
       where: {
         professionalProfileId,
         status: "active",
+        professionId: scope.professionId,
       },
       select: { clientUserId: true },
     });
-    const linkedClientIds = new Set(activeRels.map((r) => r.clientUserId));
+    linkedClientIds = new Set(activeRels.map((r) => r.clientUserId));
 
     const pendingRels = await prisma.clientProfessionalLink.findMany({
       where: {
         professionalProfileId,
         status: "pending",
+        professionId: scope.professionId,
       },
       select: { clientUserId: true },
     });
-    const pendingClientIds = new Set(pendingRels.map((r) => r.clientUserId));
+    pendingClientIds = new Set(pendingRels.map((r) => r.clientUserId));
 
     const blocked = await prisma.blockedUser.findMany({
       where: { blockerId: myProfileId },
