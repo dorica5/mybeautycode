@@ -47,6 +47,11 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
     }
 
     const queryTrimmed = q.toLowerCase().trim();
+    if (queryTrimmed.length === 0) {
+      return <Text style={baseNameStyle}>{text}</Text>;
+    }
+
+    const textLower = text.toLowerCase();
 
     const boldSpan = (match: string) =>
       isProClientRow ? (
@@ -57,51 +62,29 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
         </ResponsiveText>
       );
 
-    if (queryTrimmed.includes(" ")) {
-      const textLower = text.toLowerCase();
-      if (textLower.startsWith(queryTrimmed)) {
-        const match = text.slice(0, queryTrimmed.length);
-        const after = text.slice(queryTrimmed.length);
-        return (
-          <Text style={baseNameStyle}>
-            {boldSpan(match)}
-            {after}
-          </Text>
-        );
+    /** Case-insensitive substring matches anywhere in the name (e.g. "Ma" in "Amanda" and "Manda"). */
+    const fragments: React.ReactNode[] = [];
+    let last = 0;
+    let matchAt = textLower.indexOf(queryTrimmed, last);
+
+    while (matchAt !== -1) {
+      if (matchAt > last) {
+        fragments.push(text.slice(last, matchAt));
       }
+      const end = matchAt + queryTrimmed.length;
+      fragments.push(boldSpan(text.slice(matchAt, end)));
+      last = end;
+      matchAt = textLower.indexOf(queryTrimmed, last);
+    }
+
+    if (fragments.length === 0) {
       return <Text style={baseNameStyle}>{text}</Text>;
     }
-
-    const nameParts = text.split(/\s+/);
-    let matchStartIndex = -1;
-    let matchEndIndex = -1;
-    let currentIndex = 0;
-    for (let i = 0; i < nameParts.length; i++) {
-      const part = nameParts[i];
-      const partLower = part.toLowerCase();
-      if (partLower.startsWith(queryTrimmed)) {
-        matchStartIndex = currentIndex;
-        matchEndIndex = currentIndex + queryTrimmed.length;
-        break;
-      }
-      currentIndex += part.length + 1;
+    if (last < text.length) {
+      fragments.push(text.slice(last));
     }
 
-    if (matchStartIndex === -1) {
-      return <Text style={baseNameStyle}>{text}</Text>;
-    }
-
-    const before = text.slice(0, matchStartIndex);
-    const match = text.slice(matchStartIndex, matchEndIndex);
-    const after = text.slice(matchEndIndex);
-
-    return (
-      <Text style={baseNameStyle}>
-        {before}
-        {boldSpan(match)}
-        {after}
-      </Text>
-    );
+    return <Text style={baseNameStyle}>{fragments}</Text>;
   };
 
   const hasRelationship = item.relationship_exists ?? item.has_relationship;
