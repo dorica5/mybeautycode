@@ -54,17 +54,6 @@ type ApiRecord = Record<string, unknown> & {
   };
 };
 
-function creatorProfessionCodesFromApiRecord(
-  record: ApiRecord | undefined
-): string[] | undefined {
-  const rows = record?.professionalProfile?.professionalProfessions;
-  if (!rows?.length) return undefined;
-  const codes = rows
-    .map((r) => r.profession?.code)
-    .filter((c): c is string => typeof c === "string" && c.trim().length > 0);
-  return codes.length ? codes : undefined;
-}
-
 function recordServices(r: ApiRecord | undefined, fallback: string): string {
   if (!r) return fallback;
   const rd = r.recordData as { services?: string } | undefined;
@@ -111,13 +100,8 @@ const SingleHaircode = () => {
     number,
     salon_name,
     hairdresser_profile_pic,
-    salonPhoneNumber,
-    about_me,
-    booking_site,
-    social_media,
     price,
     duration,
-    relationship,
   } = useLocalSearchParams();
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -202,31 +186,11 @@ const SingleHaircode = () => {
     const pid =
       typeof createdByUserId === "string" && createdByUserId ? createdByUserId : "";
     if (!pid) return;
-    const isSelf = profile?.id === pid;
     router.push({
       pathname: "/haircodes/other_professional_profile",
-      params: {
-        hairdresser_id: pid,
-        hairdresserName: proName,
-        salon_name: proSalon,
-        hairdresser_profile_pic: proPic,
-        salonPhoneNumber: isSelf ? profile?.salon_phone_number ?? "" : "",
-        about_me: isSelf ? profile?.about_me ?? "" : "",
-        booking_site: isSelf ? profile?.booking_site ?? "" : "",
-        social_media: isSelf ? profile?.social_media ?? "{}" : "{}",
-      },
+      params: { hairdresser_id: pid },
     });
-  }, [
-    createdByUserId,
-    profile?.id,
-    profile?.about_me,
-    profile?.booking_site,
-    profile?.social_media,
-    profile?.salon_phone_number,
-    proName,
-    proPic,
-    proSalon,
-  ]);
+  }, [createdByUserId]);
 
   useEffect(() => {
     let cancelled = false;
