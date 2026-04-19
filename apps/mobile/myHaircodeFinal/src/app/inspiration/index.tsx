@@ -20,7 +20,6 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import InspirationTopNav from "@/src/components/InspirationTopNav";
-import MarkCancelButton from "@/src/components/MarkCancelButton";
 import { Images, Plus, X } from "phosphor-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -55,7 +54,6 @@ import { usePostHog } from "posthog-react-native";
 import {
   type InspirationFilterTab,
   inspirationFilterTabToProfessionCode,
-  CLIENT_INSPIRATION_PROFESSION_CODE,
   profileHasProfessionalCapability,
 } from "@/src/constants/professionCodes";
 
@@ -97,7 +95,6 @@ const MyInspiration = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [startingIndex, setStartingIndex] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
-  const [deleteAlertVisible, setDeleteAlertVisible] = useState(false);
   const [detailDeleteAlertVisible, setDetailDeleteAlertVisible] =
     useState(false);
   /** Storage path for the image currently focused in the detail carousel (for reliable delete). */
@@ -129,11 +126,6 @@ const MyInspiration = () => {
   }, [inspirationCategory]);
 
   const {
-    setMarked,
-    selectedImages,
-    setSelectedImages,
-    buttonText,
-    setButtonText,
     selectedImage,
     setSelectedImage,
     imageGallery,
@@ -194,13 +186,8 @@ const MyInspiration = () => {
   const { profile, lastAppSurfacePref } = useAuth();
   const owner_id = profile?.id;
 
-  /**
-   * Hair / Nails / Brows are always available on the pro surface — you pick the shelf.
-   * Data is still per logged-in profile + profession row (API); switching nail↔brow lane does not hide tabs.
-   * Client surface keeps a single personal bucket (no category tabs).
-   */
-  const visibleFilterTabs =
-    lastAppSurfacePref === "client" ? [] : CATEGORY_TABS;
+  /** Hair / Nails / Brows on both client and pro — data is per owner + profession (`/api/inspirations`). */
+  const visibleFilterTabs = CATEGORY_TABS;
 
   /** Invalidate inspiration cache only when switching client ↔ pro (not when switching pro lane). */
   const prevSurfaceRef = useRef<"client" | "pro" | null>(null);
@@ -279,19 +266,6 @@ const MyInspiration = () => {
         }
         prevSurfaceRef.current = surfaceKey;
 
-        if (lastAppSurfacePref === "client") {
-          inspirationCategoryRef.current = "hair";
-          setInspirationCategory("hair");
-          setFetchingCategory(null);
-          const fresh = await refreshInspirationImages(
-            true,
-            CLIENT_INSPIRATION_PROFESSION_CODE
-          );
-          if (cancelled) return;
-          setImageGallery(fresh);
-          return;
-        }
-
         const cat = inspirationCategoryRef.current;
         const cached = inspirationCacheRef.current[cat];
         setImageGallery(cached ?? []);
@@ -326,21 +300,6 @@ const MyInspiration = () => {
     ])
   );
 
-  useEffect(() => {
-    if (selectedImages.length === 0 || buttonText === "Mark images") {
-      setMarked(false);
-    } else {
-      setMarked(true);
-    }
-  }, [selectedImages, buttonText, setMarked]);
-
-  useEffect(() => {
-    if (buttonText === "Mark images") {
-      setSelectedImages([]);
-      setMarked(false);
-    }
-  }, [buttonText, setSelectedImages, setMarked]);
-
   const closeImageDetailModal = useCallback(() => {
     setModalVisible(false);
     setSelectedImage(null);
@@ -362,10 +321,7 @@ const MyInspiration = () => {
         id ? { ids: [id] } : { imageUrls: [path] }
       );
       const cat = inspirationCategoryRef.current;
-      const code =
-        lastAppSurfacePref === "client"
-          ? CLIENT_INSPIRATION_PROFESSION_CODE
-          : inspirationFilterTabToProfessionCode(cat);
+      const code = inspirationFilterTabToProfessionCode(cat);
       const fresh = await refreshInspirationImages(true, code);
       inspirationCacheRef.current[cat] = fresh;
       setImageGallery(fresh);
@@ -381,31 +337,7 @@ const MyInspiration = () => {
     refreshInspirationImages,
     setImageGallery,
     closeImageDetailModal,
-    lastAppSurfacePref,
   ]);
-
-  const performDelete = async () => {
-    try {
-      console.log("About to delete:", selectedImages);
-
-      const updatedGallery = imageGallery.filter(
-        (img) => !selectedImages.includes(img.image_url)
-      );
-      setImageGallery(updatedGallery);
-      inspirationCacheRef.current[inspirationCategoryRef.current] =
-        updatedGallery;
-      setButtonText("Mark images");
-      setMarked(false);
-      setSelectedImages([]);
-
-      await deleteInspirationImages(selectedImages);
-
-      console.log("Delete completed");
-    } catch (error) {
-      console.error("Delete error:", error);
-      Alert.alert("Error", "Failed to delete images");
-    }
-  };
 
   const resizeImage = async (uri: string, width: number, quality: number) => {
     return await ImageManipulator.manipulateAsync(
@@ -448,10 +380,7 @@ const MyInspiration = () => {
         image_url: highResPath,
         low_res_image_url: lowResPath,
         high_middle_res_url: lowResPath,
-        profession_code:
-          lastAppSurfacePref === "client"
-            ? CLIENT_INSPIRATION_PROFESSION_CODE
-            : inspirationFilterTabToProfessionCode(filterTab),
+        profession_code: inspirationFilterTabToProfessionCode(filterTab),
       });
 
       setUploadProgress((prev) => ({ ...prev, [tempId]: 100 }));
@@ -579,9 +508,7 @@ const MyInspiration = () => {
     if (successfulUploads.length > 0) {
       setTimeout(async () => {
         const refreshCode =
-          lastAppSurfacePref === "client"
-            ? CLIENT_INSPIRATION_PROFESSION_CODE
-            : inspirationFilterTabToProfessionCode(professionLocked);
+          inspirationFilterTabToProfessionCode(professionLocked);
         const freshImages = await refreshInspirationImages(true, refreshCode);
         inspirationCacheRef.current[professionLocked] = freshImages;
 
@@ -600,28 +527,20 @@ const MyInspiration = () => {
 
   const handleImagePress = (item: any) => {
     if (!item) return;
-    if (buttonText === "Cancel") {
-      setSelectedImages((prev) =>
-        prev.includes(item.image_url)
-          ? prev.filter((image) => image !== item.image_url)
-          : [...prev, item.image_url]
-      );
-    } else {
-      const index = imageGallery.findIndex(
-        (img) => img.image_url === item.image_url
-      );
-      const start = index >= 0 ? index : 0;
-      setStartingIndex(start);
-      setCurrentIndex(start);
-      setSelectedImage(item);
-      setDetailDeleteTargetPath(
-        typeof item.image_url === "string" ? item.image_url : null
-      );
-      setDetailDeleteTargetId(
-        item.id != null && !item.isTemp ? String(item.id) : null
-      );
-      setModalVisible(true);
-    }
+    const index = imageGallery.findIndex(
+      (img) => img.image_url === item.image_url
+    );
+    const start = index >= 0 ? index : 0;
+    setStartingIndex(start);
+    setCurrentIndex(start);
+    setSelectedImage(item);
+    setDetailDeleteTargetPath(
+      typeof item.image_url === "string" ? item.image_url : null
+    );
+    setDetailDeleteTargetId(
+      item.id != null && !item.isTemp ? String(item.id) : null
+    );
+    setModalVisible(true);
   };
 
   /**
@@ -679,42 +598,10 @@ const MyInspiration = () => {
           </View>
         ) : null}
 
-        <Pressable
-          style={[
-            styles.addImageButton,
-            buttonText !== "Mark images" && styles.addImageButtonDisabled,
-          ]}
-          onPress={buttonText === "Mark images" ? pickImage : undefined}
-          disabled={buttonText !== "Mark images"}
-        >
+        <Pressable style={styles.addImageButton} onPress={pickImage}>
           <Plus size={responsiveScale(22)} color={primaryBlack} weight="bold" />
           <Text style={styles.addImageButtonText}>Add image</Text>
         </Pressable>
-
-        {safeGallery.length > 0 && (
-          <View style={styles.markCancelRow}>
-            <MarkCancelButton
-              onButtonChangetext={setButtonText}
-              onDelete={() => {
-                if (selectedImages.length > 0) {
-                  setDeleteAlertVisible(true);
-                }
-              }}
-            />
-          </View>
-        )}
-
-        <CustomAlert
-          visible={deleteAlertVisible}
-          title="Confirm Deletion"
-          message={`Delete ${selectedImages.length} selected image(s)?`}
-          onClose={() => setDeleteAlertVisible(false)}
-          fromDelete={true}
-          onDelete={() => {
-            setDeleteAlertVisible(false);
-            performDelete();
-          }}
-        />
 
         <Modal
           animationType="slide"
@@ -914,12 +801,7 @@ const MyInspiration = () => {
             key="inspiration-grid"
             style={styles.galleryList}
             data={safeGallery}
-            extraData={[
-              uploadingImages,
-              uploadProgress,
-              selectedImages,
-              carouselFullUrls,
-            ]}
+            extraData={[uploadingImages, uploadProgress, carouselFullUrls]}
             initialNumToRender={8}
             maxToRenderPerBatch={8}
             windowSize={7}
@@ -956,9 +838,6 @@ const MyInspiration = () => {
                         {
                           width: cellSize,
                           height: cellSize,
-                          opacity: selectedImages.includes(item.image_url)
-                            ? 0.5
-                            : 1,
                         },
                       ]}
                     />
@@ -980,9 +859,6 @@ const MyInspiration = () => {
                         {
                           width: cellSize,
                           height: cellSize,
-                          opacity: selectedImages.includes(item.image_url)
-                            ? 0.5
-                            : 1,
                         },
                       ]}
                       contentFit="cover"
@@ -1116,19 +992,10 @@ const styles = StyleSheet.create({
     borderColor: primaryBlack,
     backgroundColor: "transparent",
   },
-  addImageButtonDisabled: {
-    opacity: 0.35,
-  },
   addImageButtonText: {
     fontFamily: "Inter-Medium",
     fontSize: responsiveFontSize(16, 14),
     color: primaryBlack,
-  },
-  markCancelRow: {
-    alignItems: "flex-end",
-    paddingHorizontal: scalePercent(5),
-    marginTop: responsiveScale(10),
-    minHeight: responsiveScale(36),
   },
   galleryContainer: {
     flex: 1,

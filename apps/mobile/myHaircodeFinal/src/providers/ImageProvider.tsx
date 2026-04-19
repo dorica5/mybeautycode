@@ -154,7 +154,7 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
         const stored = profile?.id ? await getLastProfessionCode(profile.id) : null;
         const code =
           lastAppSurfacePref === "client"
-            ? "client"
+            ? "hair"
             : pickActiveProfessionCode(
                 profile?.profession_codes as string[] | null | undefined,
                 stored
@@ -195,7 +195,7 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
         const stored = await getLastProfessionCode(profile.id);
         const code =
           lastAppSurfacePref === "client"
-            ? "client"
+            ? "hair"
             : pickActiveProfessionCode(profile.profession_codes, stored) ??
               "hair";
         await refreshInspirationImages(false, code);

@@ -28,10 +28,7 @@ import {
   type AccountSurfaceRow,
 } from "@/src/lib/linkedAccountsStorage";
 import { getLastProfessionCode, setLastProfessionCode } from "@/src/lib/lastVisitPreference";
-import {
-  pickActiveProfessionCode,
-  CLIENT_INSPIRATION_PROFESSION_CODE,
-} from "@/src/constants/professionCodes";
+import { pickActiveProfessionCode } from "@/src/constants/professionCodes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useImageContext } from "@/src/providers/ImageProvider";
 
@@ -165,7 +162,7 @@ const SwitchAccountScreen = () => {
 
       if (row.surface === "client") {
         /** Don’t await: inspiration fetch + signing blocks the transition; home loads in background. */
-        void refreshInspirationImages(true, CLIENT_INSPIRATION_PROFESSION_CODE);
+        void refreshInspirationImages(true, "hair");
         router.replace("/(client)/(tabs)/home");
         return;
       }
