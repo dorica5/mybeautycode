@@ -1,10 +1,13 @@
 import type { Profile, ProfessionalProfile } from "@prisma/client";
 import { profileDisplayName } from "./profileDisplay";
+import {
+  pickDefaultProfessionRow,
+  professionsDetailSnakeCase,
+  type ProfessionJoinRow,
+} from "./professionBusinessHelpers";
 
 type ProfessionalProfileWithProfessions = ProfessionalProfile & {
-  professionalProfessions?: {
-    profession: { code: string; sortOrder: number };
-  }[];
+  professionalProfessions?: ProfessionJoinRow[];
   professionalHairProfile?: { colorBrand: string | null } | null;
 };
 
@@ -77,6 +80,7 @@ export function serializeProfileForApi(
       professional_profile_id: null,
       profession_codes: [] as string[],
       display_name: null,
+      professions_detail: [] as Record<string, unknown>[],
       business_name: null,
       business_number: null,
       business_address: null,
@@ -94,6 +98,10 @@ export function serializeProfileForApi(
       ? fromNested
       : (options?.professionCodesSqlFallback ?? []);
 
+  const rows = prof.professionalProfessions ?? [];
+  const defaultRow = pickDefaultProfessionRow(rows);
+  const professions_detail = professionsDetailSnakeCase(rows);
+
   /** Public “salon color lines” — shown on pro public profile to any viewer when target lists `hair`. */
   const targetHasHairProfession = profession_codes.includes("hair");
   const color_brand = targetHasHairProfession
@@ -105,15 +113,17 @@ export function serializeProfileForApi(
     professional_profile_id: prof.id,
     profession_codes,
     display_name: prof.displayName ?? null,
-    business_name: prof.businessName ?? null,
-    business_number: prof.businessNumber ?? null,
-    business_address: prof.businessAddress ?? null,
-    about_me: prof.aboutMe ?? null,
-    social_media: prof.socialMedia ?? null,
-    booking_site: prof.bookingSite ?? null,
-    /** Legacy aliases from pre–professional_profiles naming */
-    salon_name: prof.businessName ?? null,
-    salon_phone_number: prof.businessNumber ?? null,
+    /** Per-profession salon / bio / social (use `profession_code` on PATCH to target a row). */
+    professions_detail,
+    business_name: defaultRow?.businessName ?? null,
+    business_number: defaultRow?.businessNumber ?? null,
+    business_address: defaultRow?.businessAddress ?? null,
+    about_me: defaultRow?.aboutMe ?? null,
+    social_media: defaultRow?.socialMedia ?? null,
+    booking_site: defaultRow?.bookingSite ?? null,
+    /** Legacy aliases — same values as default profession row (hair if present, else lowest sort_order). */
+    salon_name: defaultRow?.businessName ?? null,
+    salon_phone_number: defaultRow?.businessNumber ?? null,
     color_brand,
   };
 }

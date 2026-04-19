@@ -16,6 +16,8 @@ function normalizeProfessionCodeForInspiration(
   const c = (code ?? "").trim().toLowerCase();
   if (!c) return "hair";
   if (c === "brows" || c === "lashes") return "brows_lashes";
+  /** Consumer-only surface (same profile id as pro; separate from hair/nails/brows buckets). */
+  if (c === "consumer" || c === "personal") return "client";
   return c;
 }
 

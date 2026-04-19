@@ -55,9 +55,9 @@ import { usePostHog } from "posthog-react-native";
 import {
   type InspirationFilterTab,
   inspirationFilterTabToProfessionCode,
+  CLIENT_INSPIRATION_PROFESSION_CODE,
   profileHasProfessionalCapability,
 } from "@/src/constants/professionCodes";
-import { setLastProfessionCode } from "@/src/lib/lastVisitPreference";
 
 const NUM_COLUMNS = 2;
 
@@ -193,6 +193,17 @@ const MyInspiration = () => {
   const { mutateAsync: saveInspirationMutation } = useSaveInspirationToDatabase();
   const { profile, lastAppSurfacePref } = useAuth();
   const owner_id = profile?.id;
+
+  /**
+   * Hair / Nails / Brows are always available on the pro surface — you pick the shelf.
+   * Data is still per logged-in profile + profession row (API); switching nail↔brow lane does not hide tabs.
+   * Client surface keeps a single personal bucket (no category tabs).
+   */
+  const visibleFilterTabs =
+    lastAppSurfacePref === "client" ? [] : CATEGORY_TABS;
+
+  /** Invalidate inspiration cache only when switching client ↔ pro (not when switching pro lane). */
+  const prevSurfaceRef = useRef<"client" | "pro" | null>(null);
   const posthog = usePostHog()
 
   const [uploadingImages, setUploadingImages] = useState<string[]>([]);
@@ -253,18 +264,44 @@ const MyInspiration = () => {
   useFocusEffect(
     useCallback(() => {
       if (uploadingImages.length > 0) return;
-
-      const cat = inspirationCategoryRef.current;
-      const cached = inspirationCacheRef.current[cat];
-      setImageGallery(cached ?? []);
+      if (!owner_id) return;
 
       let cancelled = false;
 
-      if (cached === undefined) {
-        setFetchingCategory(cat);
-      }
-
       void (async () => {
+        const surfaceKey: "client" | "pro" =
+          lastAppSurfacePref === "client" ? "client" : "pro";
+        if (
+          prevSurfaceRef.current !== null &&
+          prevSurfaceRef.current !== surfaceKey
+        ) {
+          inspirationCacheRef.current = {};
+        }
+        prevSurfaceRef.current = surfaceKey;
+
+        if (lastAppSurfacePref === "client") {
+          inspirationCategoryRef.current = "hair";
+          setInspirationCategory("hair");
+          setFetchingCategory(null);
+          const fresh = await refreshInspirationImages(
+            true,
+            CLIENT_INSPIRATION_PROFESSION_CODE
+          );
+          if (cancelled) return;
+          setImageGallery(fresh);
+          return;
+        }
+
+        const cat = inspirationCategoryRef.current;
+        const cached = inspirationCacheRef.current[cat];
+        setImageGallery(cached ?? []);
+
+        if (cached === undefined) {
+          setFetchingCategory(cat);
+        } else {
+          setFetchingCategory(null);
+        }
+
         const fresh = await refreshInspirationImages(
           true,
           inspirationFilterTabToProfessionCode(cat)
@@ -280,7 +317,13 @@ const MyInspiration = () => {
       return () => {
         cancelled = true;
       };
-    }, [refreshInspirationImages, setImageGallery, uploadingImages.length])
+    }, [
+      refreshInspirationImages,
+      setImageGallery,
+      uploadingImages.length,
+      owner_id,
+      lastAppSurfacePref,
+    ])
   );
 
   useEffect(() => {
@@ -319,10 +362,11 @@ const MyInspiration = () => {
         id ? { ids: [id] } : { imageUrls: [path] }
       );
       const cat = inspirationCategoryRef.current;
-      const fresh = await refreshInspirationImages(
-        true,
-        inspirationFilterTabToProfessionCode(cat)
-      );
+      const code =
+        lastAppSurfacePref === "client"
+          ? CLIENT_INSPIRATION_PROFESSION_CODE
+          : inspirationFilterTabToProfessionCode(cat);
+      const fresh = await refreshInspirationImages(true, code);
       inspirationCacheRef.current[cat] = fresh;
       setImageGallery(fresh);
       closeImageDetailModal();
@@ -337,6 +381,7 @@ const MyInspiration = () => {
     refreshInspirationImages,
     setImageGallery,
     closeImageDetailModal,
+    lastAppSurfacePref,
   ]);
 
   const performDelete = async () => {
@@ -403,7 +448,10 @@ const MyInspiration = () => {
         image_url: highResPath,
         low_res_image_url: lowResPath,
         high_middle_res_url: lowResPath,
-        profession_code: inspirationFilterTabToProfessionCode(filterTab),
+        profession_code:
+          lastAppSurfacePref === "client"
+            ? CLIENT_INSPIRATION_PROFESSION_CODE
+            : inspirationFilterTabToProfessionCode(filterTab),
       });
 
       setUploadProgress((prev) => ({ ...prev, [tempId]: 100 }));
@@ -530,10 +578,11 @@ const MyInspiration = () => {
     );
     if (successfulUploads.length > 0) {
       setTimeout(async () => {
-        const freshImages = await refreshInspirationImages(
-          true,
-          inspirationFilterTabToProfessionCode(professionLocked)
-        );
+        const refreshCode =
+          lastAppSurfacePref === "client"
+            ? CLIENT_INSPIRATION_PROFESSION_CODE
+            : inspirationFilterTabToProfessionCode(professionLocked);
+        const freshImages = await refreshInspirationImages(true, refreshCode);
         inspirationCacheRef.current[professionLocked] = freshImages;
 
         if (inspirationCategoryRef.current === professionLocked) {
@@ -583,30 +632,17 @@ const MyInspiration = () => {
   const goHome = () => {
     const clientHome = "/(client)/(tabs)/home" as Href;
     const proHome = "/(hairdresser)/(tabs)/home" as Href;
-    const uid = profile?.id;
     const proCapable = profileHasProfessionalCapability(profile ?? null);
 
-    void (async () => {
-      if (!proCapable) {
-        router.replace(clientHome);
-        return;
-      }
-      if (lastAppSurfacePref === "client") {
-        router.replace(clientHome);
-        return;
-      }
-      if (uid) {
-        try {
-          await setLastProfessionCode(
-            uid,
-            inspirationFilterTabToProfessionCode(inspirationCategory)
-          );
-        } catch (e) {
-          console.warn("goHome: setLastProfessionCode", e);
-        }
-      }
-      router.replace(proHome);
-    })();
+    if (!proCapable) {
+      router.replace(clientHome);
+      return;
+    }
+    if (lastAppSurfacePref === "client") {
+      router.replace(clientHome);
+      return;
+    }
+    router.replace(proHome);
   };
 
   const safeGallery = Array.isArray(imageGallery) ? imageGallery : [];
@@ -619,27 +655,29 @@ const MyInspiration = () => {
           <InspirationTopNav title="My inspiration" goHome={goHome} />
         </View>
 
-        <View style={styles.filtersRow}>
-          {CATEGORY_TABS.map((tab) => {
-            const active = inspirationCategory === tab.code;
-            return (
-              <Pressable
-                key={tab.code}
-                style={[styles.filterPill, active && styles.filterPillActive]}
-                onPress={() => selectCategory(tab.code)}
-              >
-                <Text
-                  style={[
-                    styles.filterPillText,
-                    active && styles.filterPillTextActive,
-                  ]}
+        {visibleFilterTabs.length > 0 ? (
+          <View style={styles.filtersRow}>
+            {visibleFilterTabs.map((tab) => {
+              const active = inspirationCategory === tab.code;
+              return (
+                <Pressable
+                  key={tab.code}
+                  style={[styles.filterPill, active && styles.filterPillActive]}
+                  onPress={() => selectCategory(tab.code)}
                 >
-                  {tab.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[
+                      styles.filterPillText,
+                      active && styles.filterPillTextActive,
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
 
         <Pressable
           style={[

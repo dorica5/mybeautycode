@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
 import { createClient } from "@supabase/supabase-js";
 import { professionService } from "./professionService";
+import { pickDefaultProfessionRow } from "../lib/professionBusinessHelpers";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -38,7 +39,14 @@ export const haircodeService = {
       orderBy: { createdAt: "desc" },
       include: {
         professionalProfile: {
-          include: { profile: true },
+          include: {
+            profile: true,
+            professionalProfessions: {
+              include: {
+                profession: { select: { id: true, code: true, sortOrder: true } },
+              },
+            },
+          },
         },
         media: {
           take: 1,
@@ -51,17 +59,21 @@ export const haircodeService = {
       const pp = r.professionalProfile;
       const p = pp?.profile;
       const thumb = r.media[0];
+      const profRows = pp?.professionalProfessions ?? [];
+      const matched = profRows.find((row) => row.professionId === r.professionId);
+      const biz = matched ?? pickDefaultProfessionRow(profRows);
       const profPayload = pp
         ? {
             avatar_url: p?.avatarUrl,
-            business_name: pp.businessName,
-            business_number: pp.businessNumber,
-            business_address: pp.businessAddress,
-            about_me: pp.aboutMe,
-            booking_site: pp.bookingSite,
-            social_media: pp.socialMedia,
-            salon_name: pp.businessName ?? pp.displayName ?? undefined,
-            salon_phone_number: pp.businessNumber ?? undefined,
+            business_name: biz?.businessName ?? undefined,
+            business_number: biz?.businessNumber ?? undefined,
+            business_address: biz?.businessAddress ?? undefined,
+            about_me: biz?.aboutMe ?? undefined,
+            booking_site: biz?.bookingSite ?? undefined,
+            social_media: biz?.socialMedia ?? undefined,
+            salon_name:
+              biz?.businessName ?? pp.displayName ?? undefined,
+            salon_phone_number: biz?.businessNumber ?? undefined,
           }
         : null;
       return {
@@ -83,18 +95,19 @@ export const haircodeService = {
     });
   },
 
-  async listLatestHaircodes(professionalProfileIdOrProfileId: string) {
+  async listLatestHaircodes(
+    professionalProfileIdOrProfileId: string,
+    professionCode?: string | null
+  ) {
     const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
       professionalProfileIdOrProfileId
     );
-    const rels = await prisma.clientProfessionalLink.findMany({
-      where: {
+    const scope =
+      await professionService.resolveActiveProfessionScopeForProfessionalProfile(
         professionalProfileId,
-        status: "active",
-      },
-      select: { clientUserId: true },
-    });
-    const activeClientIds = rels.map((r) => r.clientUserId);
+        professionCode
+      );
+    if (!scope) return [];
 
     const profProfile = await prisma.professionalProfile.findUnique({
       where: { id: professionalProfileId },
@@ -113,14 +126,18 @@ export const haircodeService = {
       if (b.blockerId === profileId) blockedIds.add(b.blockedId);
       else blockedIds.add(b.blockerId);
     });
-    const validClientIds = activeClientIds.filter((id) => !blockedIds.has(id));
-    if (validClientIds.length === 0) return [];
+
+    /** Latest visits = this lane’s service records; lane is `profession_id` on the visit. Do not require a per-lane link row (legacy data may only have older links). Still exclude blocked clients. */
+    const where: Prisma.ServiceRecordWhereInput = {
+      professionalProfileId,
+      professionId: scope.professionId,
+    };
+    if (blockedIds.size > 0) {
+      where.clientUserId = { notIn: [...blockedIds] };
+    }
 
     const records = await prisma.serviceRecord.findMany({
-      where: {
-        professionalProfileId,
-        clientUserId: { in: validClientIds },
-      },
+      where,
       orderBy: { createdAt: "desc" },
       take: 20,
       include: {
@@ -139,12 +156,21 @@ export const haircodeService = {
     const record = await prisma.serviceRecord.findUnique({
       where: { id: serviceRecordId },
       include: {
-        profession: { select: { code: true } },
+        profession: { select: { code: true, id: true } },
         professionalProfile: {
-          select: {
+          include: {
+            profile: {
+              select: {
+                firstName: true,
+                lastName: true,
+                avatarUrl: true,
+              },
+            },
             professionalProfessions: {
-              where: { isActive: true },
-              select: { profession: { select: { code: true } } },
+              where: { isActive: { not: false } },
+              include: {
+                profession: { select: { id: true, code: true, sortOrder: true } },
+              },
             },
           },
         },
@@ -155,7 +181,40 @@ export const haircodeService = {
       where: { serviceRecordId },
       select: { mediaUrl: true, mediaType: true, serviceRecordId: true },
     });
-    return { ...record, media };
+
+    const pp = record.professionalProfile;
+    const p = pp?.profile;
+    const profRows = pp?.professionalProfessions ?? [];
+    const matched = profRows.find((row) => row.professionId === record.professionId);
+    const biz = matched ?? pickDefaultProfessionRow(profRows);
+    const profPayload = pp
+      ? {
+          avatar_url: p?.avatarUrl ?? undefined,
+          business_name: biz?.businessName ?? undefined,
+          business_number: biz?.businessNumber ?? undefined,
+          business_address: biz?.businessAddress ?? undefined,
+          about_me: biz?.aboutMe ?? undefined,
+          booking_site: biz?.bookingSite ?? undefined,
+          social_media: biz?.socialMedia ?? undefined,
+          salon_name: biz?.businessName ?? pp.displayName ?? undefined,
+          salon_phone_number: biz?.businessNumber ?? undefined,
+        }
+      : null;
+
+    const hairdresserName =
+      pp?.displayName ?? (p ? profileDisplayName(p) : null);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { professionalProfile: _ppStrip, ...recordRest } = record;
+
+    return {
+      ...recordRest,
+      media,
+      hairdresser_id: pp?.profileId,
+      hairdresser_name: hairdresserName,
+      professional_profile: profPayload,
+      hairdresser_profile: profPayload,
+    };
   },
 
   async getMedia(serviceRecordId: string) {
@@ -230,6 +289,7 @@ export const haircodeService = {
       where: {
         clientUserId: data.client_id,
         professionalProfileId,
+        professionId,
         status: "active",
       },
       select: { id: true },

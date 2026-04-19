@@ -9,13 +9,14 @@ export const haircodeController = {
       return res.status(400).json({ error: "clientId required" });
     }
     try {
-      await serviceRecordAccessService.assertCanAccessClientTimeline(
-        req.userId!,
-        String(clientId)
-      );
       const professionCode = req.query.professionCode
         ? String(req.query.professionCode)
         : undefined;
+      await serviceRecordAccessService.assertCanAccessClientTimeline(
+        req.userId!,
+        String(clientId),
+        { professionCode }
+      );
       const data = await haircodeService.listClientGallery(
         req.userId!,
         String(clientId),
@@ -38,13 +39,14 @@ export const haircodeController = {
       return res.status(400).json({ error: "clientId required" });
     }
     try {
-      await serviceRecordAccessService.assertCanAccessClientTimeline(
-        req.userId!,
-        String(clientId)
-      );
       const professionCode = req.query.professionCode
         ? String(req.query.professionCode)
         : undefined;
+      await serviceRecordAccessService.assertCanAccessClientTimeline(
+        req.userId!,
+        String(clientId),
+        { professionCode }
+      );
       const data = await haircodeService.listClientHaircodes(
         req.userId!,
         String(clientId),
@@ -64,7 +66,13 @@ export const haircodeController = {
   async listLatestHaircodes(req: Request, res: Response) {
     const hairdresserId = req.userId!;
     try {
-      const data = await haircodeService.listLatestHaircodes(hairdresserId);
+      const professionCode = req.query.professionCode
+        ? String(req.query.professionCode)
+        : undefined;
+      const data = await haircodeService.listLatestHaircodes(
+        hairdresserId,
+        professionCode
+      );
       res.json(data);
     } catch (err) {
       console.error("haircode listLatestHaircodes error:", err);

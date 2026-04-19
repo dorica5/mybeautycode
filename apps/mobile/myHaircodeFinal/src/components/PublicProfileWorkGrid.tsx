@@ -31,6 +31,11 @@ type Props = {
   profileUserId: string;
   /** When false, omit the built-in "My work" label (use when the parent already shows a section title). @default true */
   showTitle?: boolean;
+  /**
+   * When set (e.g. viewer’s active professional role), loads that lane’s public work only.
+   * When omitted, legacy: first linked profession on the profile.
+   */
+  professionCode?: string | null;
 };
 
 /**
@@ -39,6 +44,7 @@ type Props = {
 export function PublicProfileWorkGrid({
   profileUserId,
   showTitle = true,
+  professionCode: professionCodeProp,
 }: Props) {
   const [rows, setRows] = useState<PublicProfileWorkRow[]>([]);
   const width = Dimensions.get("window").width;
@@ -57,12 +63,16 @@ export function PublicProfileWorkGrid({
     let cancelled = false;
     void (async () => {
       try {
-        const p = await api.get<{ profession_codes?: string[] }>(
-          `/api/profiles/${encodeURIComponent(id)}`
-        );
-        if (cancelled) return;
-        const code =
-          coerceProfessionCode(p.profession_codes?.[0] ?? null) ?? "hair";
+        let code =
+          coerceProfessionCode(professionCodeProp ?? null) ?? null;
+        if (!code) {
+          const p = await api.get<{ profession_codes?: string[] }>(
+            `/api/profiles/${encodeURIComponent(id)}`
+          );
+          if (cancelled) return;
+          code =
+            coerceProfessionCode(p.profession_codes?.[0] ?? null) ?? "hair";
+        }
         const list = await listPublicProfileWork(id, code);
         if (cancelled) return;
         setRows(list.slice(0, 6));
@@ -73,7 +83,7 @@ export function PublicProfileWorkGrid({
     return () => {
       cancelled = true;
     };
-  }, [profileUserId]);
+  }, [profileUserId, professionCodeProp]);
 
   if (rows.length === 0) return null;
 

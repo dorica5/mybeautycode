@@ -15,7 +15,17 @@ export const relationshipController = {
       return res.status(400).json({ error: "Invalid client_id" });
     }
     try {
-      const result = await relationshipService.requestClientLink(userId, client_id);
+      const profession_code =
+        typeof req.body.profession_code === "string"
+          ? req.body.profession_code
+          : typeof req.body.professionCode === "string"
+            ? req.body.professionCode
+            : "hair";
+      const result = await relationshipService.requestClientLink(
+        userId,
+        client_id,
+        profession_code
+      );
       res.json(result);
     } catch (err) {
       const e = err as Error & { statusCode?: number };
@@ -44,7 +54,12 @@ export const relationshipController = {
   },
 
   async remove(req: Request, res: Response) {
-    const { hairdresserId, clientId } = req.body;
+    const { hairdresserId, clientId, profession_code, professionCode } = req.body as {
+      hairdresserId?: string;
+      clientId?: string;
+      profession_code?: string;
+      professionCode?: string;
+    };
     if (!hairdresserId || !clientId) {
       return res.status(400).json({ error: "hairdresserId and clientId required" });
     }
@@ -52,7 +67,13 @@ export const relationshipController = {
       const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
         hairdresserId
       );
-      await relationshipService.remove(professionalProfileId, clientId);
+      const pc =
+        typeof profession_code === "string"
+          ? profession_code
+          : typeof professionCode === "string"
+            ? professionCode
+            : undefined;
+      await relationshipService.remove(professionalProfileId, clientId, pc);
       res.json({ success: true });
     } catch (err) {
       console.error("relationship remove error:", err);
@@ -80,9 +101,16 @@ export const relationshipController = {
         return res.status(403).json({ error: "Forbidden" });
       }
       try {
+        const profession_code =
+          typeof req.query.profession_code === "string"
+            ? req.query.profession_code
+            : typeof req.query.professionCode === "string"
+              ? req.query.professionCode
+              : undefined;
         const status = await relationshipService.getClientLinkUiState(
           hairdresserId,
-          clientId
+          clientId,
+          profession_code
         );
         return res.json({
           status,
@@ -101,7 +129,17 @@ export const relationshipController = {
       return res.status(400).json({ error: "Invalid hairdresser_id or client_id" });
     }
     try {
-      const exists = await relationshipService.checkExists(hairdresserId, clientId);
+      const profession_code =
+        typeof req.query.profession_code === "string"
+          ? req.query.profession_code
+          : typeof req.query.professionCode === "string"
+            ? req.query.professionCode
+            : undefined;
+      const exists = await relationshipService.checkExists(
+        hairdresserId,
+        clientId,
+        profession_code
+      );
       res.json({ exists });
     } catch (err) {
       console.error("relationship checkExists error:", err);
@@ -118,7 +156,16 @@ export const relationshipController = {
       const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
         String(hairdresserId)
       );
-      const data = await relationshipService.listByProfessional(professionalProfileId);
+      const profession_code =
+        typeof req.query.profession_code === "string"
+          ? req.query.profession_code
+          : typeof req.query.professionCode === "string"
+            ? req.query.professionCode
+            : undefined;
+      const data = await relationshipService.listByProfessional(
+        professionalProfileId,
+        profession_code
+      );
       res.json(data);
     } catch (err) {
       console.error("relationship listByHairdresser error:", err);

@@ -56,8 +56,10 @@ import {
 } from "@/src/lib/socialMediaStorage";
 import {
   coerceProfessionCode,
-  profileHasHairProfession,
+  type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import type { ProfessionDetailApi } from "@/src/constants/types";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import { uploadToStorage } from "@/src/lib/uploadHelpers";
 import {
@@ -112,20 +114,67 @@ type DraftWorkItem = DraftWorkSaved | DraftWorkPending;
 
 const AboutMe = () => {
   const { profile } = useAuth();
-  const originalAboutMe = profile.about_me ?? "";
-  const originalSocialMedia = profile.social_media;
-  const originalBookingSite = profile.booking_site ?? "";
+  const { storedProfessionReady, activeProfessionCode } =
+    useActiveProfessionState(profile);
+
+  const detailForActive = useMemo((): ProfessionDetailApi | null => {
+    if (!activeProfessionCode || !profile.professions_detail?.length) {
+      return null;
+    }
+    return (
+      profile.professions_detail.find(
+        (d: ProfessionDetailApi) =>
+          coerceProfessionCode(d.profession_code) === activeProfessionCode
+      ) ?? null
+    );
+  }, [profile.professions_detail, activeProfessionCode]);
+
+  const baselineAboutMe = useMemo(
+    () => detailForActive?.about_me ?? profile.about_me ?? "",
+    [detailForActive, profile.about_me]
+  );
+  const baselineSocialMedia = useMemo(
+    () => detailForActive?.social_media ?? profile.social_media,
+    [detailForActive, profile.social_media]
+  );
+  const baselineBookingSite = useMemo(
+    () => detailForActive?.booking_site ?? profile.booking_site ?? "",
+    [detailForActive, profile.booking_site]
+  );
   const originalColorBrand = profile.color_brand ?? "";
   const id = profile.id;
 
-  const [about_me, setAboutMe] = useState(originalAboutMe);
+  const [about_me, setAboutMe] = useState(() => baselineAboutMe);
   const [socialLinks, setSocialLinks] = useState<string[]>(() =>
-    parseSocialLinks(originalSocialMedia)
+    parseSocialLinks(baselineSocialMedia)
   );
-  const [booking_site, setBookingSite] = useState(originalBookingSite);
+  const [booking_site, setBookingSite] = useState(baselineBookingSite);
   const [colorBrands, setColorBrands] = useState<string[]>(() =>
     parseColorBrands(originalColorBrand)
   );
+
+  const professionApi = useMemo((): ProfessionChoiceCode | null => {
+    if (!storedProfessionReady || activeProfessionCode == null) return null;
+    return activeProfessionCode;
+  }, [storedProfessionReady, activeProfessionCode]);
+
+  useEffect(() => {
+    if (professionApi == null) return;
+    const d = profile.professions_detail?.find(
+      (x: ProfessionDetailApi) =>
+        coerceProfessionCode(x.profession_code) === professionApi
+    );
+    setAboutMe(d?.about_me ?? profile.about_me ?? "");
+    setSocialLinks(parseSocialLinks(d?.social_media ?? profile.social_media));
+    setBookingSite(d?.booking_site ?? profile.booking_site ?? "");
+  }, [
+    professionApi,
+    profile.id,
+    profile.professions_detail,
+    profile.about_me,
+    profile.social_media,
+    profile.booking_site,
+  ]);
 
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -141,26 +190,18 @@ const AboutMe = () => {
   const [draftWorkItems, setDraftWorkItems] = useState<DraftWorkItem[]>([]);
   const [preparingWorkImages, setPreparingWorkImages] = useState(false);
 
-  const professionApi = useMemo(() => {
-    return (
-      coerceProfessionCode(profile.profession_codes?.[0] ?? null) ?? "hair"
-    );
-  }, [profile.profession_codes]);
-
-  const hasHairProfession = useMemo(
-    () => profileHasHairProfession(profile),
-    [profile]
-  );
+  /** Color brands apply only while editing the hair professional surface. */
+  const hasHairSurface = activeProfessionCode === "hair";
 
   useEffect(() => {
-    if (!hasHairProfession) {
+    if (!hasHairSurface) {
       setColorBrandModal(null);
       setAlertVisible(false);
     }
-  }, [hasHairProfession]);
+  }, [hasHairSurface]);
 
   const refreshWorkFromServer = useCallback(async () => {
-    if (!id) return;
+    if (!id || professionApi == null) return;
     try {
       const rows = await listPublicProfileWork(id, professionApi);
       const capped = rows.slice(0, MAX_WORK_IMAGES);
@@ -334,6 +375,10 @@ const AboutMe = () => {
       Alert.alert("User not found");
       return;
     }
+    if (professionApi == null) {
+      Alert.alert("Loading", "Please wait a moment and try again.");
+      return;
+    }
     setLoading(true);
     try {
       const draftSavedIds = new Set(
@@ -375,10 +420,11 @@ const AboutMe = () => {
 
       await updateProfileAsync({
         id,
+        profession_code: professionApi,
         about_me: about_me.trim() || null,
         social_media: serializedSocial || null,
         booking_site: booking_site.trim() || null,
-        ...(hasHairProfession
+        ...(hasHairSurface
           ? { color_brand: serializeColorBrands(colorBrands) }
           : {}),
       });
@@ -396,26 +442,26 @@ const AboutMe = () => {
 
   useEffect(() => {
     setChanged(
-      about_me !== originalAboutMe ||
+      about_me !== baselineAboutMe ||
         normalizeLinksForCompare(serializedSocial) !==
-          normalizeLinksForCompare(originalSocialMedia) ||
-        booking_site !== originalBookingSite ||
+          normalizeLinksForCompare(baselineSocialMedia ?? "") ||
+        booking_site !== baselineBookingSite ||
         workDirty ||
-        (hasHairProfession &&
+        (hasHairSurface &&
           serializeColorBrands(colorBrands) !==
             serializeColorBrands(parseColorBrands(originalColorBrand)))
     );
   }, [
     about_me,
-    originalAboutMe,
+    baselineAboutMe,
     serializedSocial,
-    originalSocialMedia,
+    baselineSocialMedia,
     booking_site,
-    originalBookingSite,
+    baselineBookingSite,
     colorBrands,
     originalColorBrand,
     workDirty,
-    hasHairProfession,
+    hasHairSurface,
   ]);
 
   const scrollToInput = (y: number) => {
@@ -681,7 +727,7 @@ const AboutMe = () => {
             </Pressable>
           </View>
 
-          {hasHairProfession ? (
+          {hasHairSurface ? (
             <>
               <View
                 style={[
@@ -988,7 +1034,7 @@ const AboutMe = () => {
         </Pressable>
       </Modal>
 
-      {hasHairProfession ? (
+      {hasHairSurface ? (
         <Modal
           visible={colorBrandModal != null}
           transparent

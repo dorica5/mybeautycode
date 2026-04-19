@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { StyleSheet, View, Alert, Pressable } from "react-native";
 import { DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -31,6 +31,10 @@ import { responsiveScale } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
 import { isUuid } from "@/src/utils/isUuid";
+import {
+  coerceProfessionCode,
+  type ProfessionChoiceCode,
+} from "@/src/constants/professionCodes";
 
 /**
  * Same public profile UI as `(client)/(tabs)/userList/professionalProfile/[id]` and
@@ -39,10 +43,19 @@ import { isUuid } from "@/src/utils/isUuid";
 const OtherProfessionalProfileScreen = () => {
   const raw = useLocalSearchParams<{
     hairdresser_id?: string | string[];
+    profession_code?: string | string[];
   }>();
   const hairdresser_id = Array.isArray(raw.hairdresser_id)
     ? raw.hairdresser_id[0]
     : raw.hairdresser_id;
+
+  const professionCodeFromVisit = useMemo((): ProfessionChoiceCode | null => {
+    const v = Array.isArray(raw.profession_code)
+      ? raw.profession_code[0]
+      : raw.profession_code;
+    if (typeof v !== "string" || !v.trim()) return null;
+    return coerceProfessionCode(v);
+  }, [raw.profession_code]);
 
   const { session, profile } = useAuth();
   const client_id = session?.user.id;
@@ -53,18 +66,30 @@ const OtherProfessionalProfileScreen = () => {
     hairdresser_id
   );
   const p = profileData as Profile | undefined;
+
+  const scopedDetail = useMemo(() => {
+    if (!p?.professions_detail?.length || !professionCodeFromVisit) return null;
+    return (
+      p.professions_detail.find(
+        (row) =>
+          coerceProfessionCode(row.profession_code ?? undefined) ===
+          professionCodeFromVisit
+      ) ?? null
+    );
+  }, [p?.professions_detail, professionCodeFromVisit]);
+
   const data = p
     ? {
         full_name: p.full_name,
         first_name: p.first_name,
         username: p.username,
         avatar_url: p.avatar_url,
-        about_me: p.about_me,
-        salon_name: p.salon_name,
-        business_address: p.business_address,
-        salon_phone_number: p.salon_phone_number,
-        booking_site: p.booking_site,
-        social_media: p.social_media,
+        about_me: scopedDetail?.about_me ?? p.about_me,
+        salon_name: scopedDetail?.business_name ?? p.salon_name,
+        business_address: scopedDetail?.business_address ?? p.business_address,
+        salon_phone_number: scopedDetail?.business_number ?? p.salon_phone_number,
+        booking_site: scopedDetail?.booking_site ?? p.booking_site,
+        social_media: scopedDetail?.social_media ?? p.social_media,
         color_brand: p.color_brand,
         profession_codes: p.profession_codes,
       }
@@ -378,6 +403,7 @@ const OtherProfessionalProfileScreen = () => {
         professionCodes={
           Array.isArray(data.profession_codes) ? data.profession_codes : null
         }
+        activeProfessionCode={professionCodeFromVisit}
         onBack={() => router.back()}
         showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}

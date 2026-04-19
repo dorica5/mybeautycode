@@ -1,32 +1,37 @@
-import { Alert, Image, Pressable, StyleSheet, View } from "react-native";
+import {
+  Alert,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  ScrollView,
+} from "react-native";
 import React, { useState, useEffect } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import TopNav from "@/src/components/TopNav";
 import { useImageContext } from "@/src/providers/ImageProvider";
-import { Profile } from "@/src/constants/types";
-import { ResponsiveText } from "@/src/components/ResponsiveText";
-import {
-  responsiveScale,
-  responsiveFontSize,
-  scalePercent,
-} from "@/src/utils/responsive";
-import { StatusBar } from "expo-status-bar";
+import { responsiveFontSize, scale } from "@/src/utils/responsive";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import {
+  MintProfileScreenShell,
+  mintProfileScrollContent,
+} from "@/src/components/MintProfileScreenShell";
+import { Typography } from "@/src/constants/Typography";
+import { Profile } from "@/src/constants/types";
 
 const ProfilePicture = () => {
   const { profile, setProfile } = useAuth();
-  const originalImage = profile.avatar_url;
+  const { avatarImage } = useImageContext();
+  const originalImage = avatarImage;
   const id = profile.id;
-
   const [image, setImage] = useState<string | null>(originalImage);
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { avatarImage } = useImageContext();
   const { mutate: updateProfile } = useUpdateSupabaseProfile();
 
   const updateUserProfile = async () => {
@@ -39,7 +44,10 @@ const ProfilePicture = () => {
     const avatar_url = await uploadImage();
 
     updateProfile(
-      { id, avatar_url },
+      {
+        id,
+        avatar_url,
+      },
       {
         onSuccess: () => {
           setProfile((prev: Profile) => ({
@@ -72,84 +80,94 @@ const ProfilePicture = () => {
       quality: 1,
     });
 
-    if (!result.canceled && result.assets?.length > 0) {
+    if (!result.canceled && result.assets && result.assets.length > 0) {
       setImage(result.assets[0].uri);
     }
   };
 
   useEffect(() => {
     setChanged(image !== originalImage);
-  }, [image]);
+  }, [image, originalImage]);
 
   return (
-    <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <SafeAreaView style={styles.container}>
-          <TopNav
-            title="Profile Picture"
-            showSaveButton={true}
-            saveAction={updateUserProfile}
-            loading={loading}
-            saveChanged={changed}
-          />
-          <Pressable style={styles.pickerContainer} onPress={pickImage}>
-            {image?.startsWith("file://") || !image ? (
+    <MintProfileScreenShell>
+      <TopNav
+        title="Profile picture"
+        showSaveButton
+        saveAction={updateUserProfile}
+        loading={loading}
+        saveChanged={changed}
+      />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[mintProfileScrollContent, styles.scrollInner]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable style={styles.pickerContainer} onPress={pickImage}>
+          {image?.startsWith("file://") || !image ? (
+            image ? (
               <Image
                 source={{ uri: image }}
                 style={styles.pickerCircle}
                 resizeMode="cover"
               />
             ) : (
-              <AvatarWithSpinner
-                uri={avatarImage}
-                size={responsiveScale(145, 190)}
-                style={styles.profilePic}
-              />
-            )}
-            {!changed && (
-              <ResponsiveText
-                size={16}
-                tabletSize={14}
-                weight="SemiBold"
-                style={styles.pickerText}
-              >
-                Change Profile Picture
-              </ResponsiveText>
-            )}
-          </Pressable>
-        </SafeAreaView>
-      </View>
-    </>
+              <View style={styles.pickerCircle} />
+            )
+          ) : (
+            <AvatarWithSpinner
+              uri={avatarImage}
+              size={scale(150)}
+              style={styles.profilePic}
+            />
+          )}
+          {!changed ? (
+            <Text
+              style={[
+                Typography.bodyMedium,
+                styles.pickerText,
+                { fontSize: responsiveFontSize(16, 12) },
+              ]}
+            >
+              Change profile picture
+            </Text>
+          ) : null}
+        </Pressable>
+      </ScrollView>
+    </MintProfileScreenShell>
   );
 };
 
 export default ProfilePicture;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    margin: scalePercent(5),
+  scroll: { flex: 1 },
+  scrollInner: {
+    alignItems: "center",
   },
   pickerContainer: {
     alignItems: "center",
-    marginTop: responsiveScale(18, 14),
+    marginTop: 24,
   },
   pickerText: {
-    color: "red",
+    color: "#C62828",
     textAlign: "center",
-    marginTop: scalePercent(4),
-    fontSize: responsiveFontSize(16, 14),
+    marginTop: 16,
   },
   pickerCircle: {
-    width: responsiveScale(145, 190),
-    height: responsiveScale(145, 190),
-    borderRadius: responsiveScale(145, 190) / 2,
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
     backgroundColor: "#D9D9D9",
     justifyContent: "center",
     alignItems: "center",
   },
   profilePic: {
-    borderRadius: responsiveScale(145, 190) / 2,
+    width: scale(150),
+    height: scale(150),
+    borderRadius: scale(75),
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

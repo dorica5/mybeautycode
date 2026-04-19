@@ -34,15 +34,7 @@ import {
   primaryGreen,
   primaryWhite,
 } from "@/src/constants/Colors";
-import {
-  coerceProfessionCode,
-  pickActiveProfessionCode,
-  professionHomeAccountLabel,
-} from "@/src/constants/professionCodes";
-import {
-  getLastProfessionCode,
-  setLastProfessionCode,
-} from "@/src/lib/lastVisitPreference";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 
 type VisitListItem = {
   id: string;
@@ -119,10 +111,17 @@ const HomeScreen = () => {
   const [clientSearchFieldFocused, setClientSearchFieldFocused] =
     useState(false);
 
+  const { activeProfessionCode, professionLine, storedProfessionReady } =
+    useActiveProfessionState(profile);
+
   const {
     data: searchResults = [],
     isLoading,
-  } = useListAllClientSearch(debouncedQuery, profile?.id);
+  } = useListAllClientSearch(
+    debouncedQuery,
+    profile?.id,
+    activeProfessionCode
+  );
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedQuery(searchQuery), 200);
@@ -160,7 +159,11 @@ const HomeScreen = () => {
     });
   }, []);
 
-  const { data: latestHaircodes = [] } = useLatestHaircodes(profile?.id);
+  const { data: latestHaircodes = [] } = useLatestHaircodes(
+    profile?.id,
+    activeProfessionCode,
+    { activeProfessionReady: storedProfessionReady }
+  );
 
   const latestVisitsSorted = useMemo(() => {
     const raw = latestHaircodes as VisitListItem[];
@@ -202,15 +205,14 @@ const HomeScreen = () => {
         pathname: "/haircodes/single_haircode",
         params: {
           haircodeId: item.id,
-          hairdresserName: profile?.full_name,
-          hairdresser_profile_pic: profile?.avatar_url,
-          salon_name: profile?.salon_name,
-          salonPhoneNumber: profile?.salon_phone_number,
-          about_me: profile?.about_me,
-          booking_site: profile?.booking_site,
-          social_media: profile?.social_media,
+          /** Pro/business fields come from `/api/haircodes/:id` (visit’s profession). Do not pass active account here. */
           description: item.service_description,
-          services: item.services,
+          services:
+            item.services == null
+              ? ""
+              : typeof item.services === "string"
+                ? item.services
+                : JSON.stringify(item.services),
           createdAt: ts ? formatVisitListDate(ts) : "",
           full_name: visitClientName(item),
           number: visitClientPhone(item),
@@ -219,42 +221,8 @@ const HomeScreen = () => {
         },
       });
     },
-    [router, profile, formatVisitListDate, queryClient]
+    [router, formatVisitListDate, queryClient]
   );
-
-  const [professionLine, setProfessionLine] = useState("Professional account");
-
-  const professionCodesFromProfile =
-    profile?.profession_codes ??
-    (profile as { professionCodes?: string[] })?.professionCodes;
-
-  const professionCodesKey = useMemo(
-    () => professionCodesFromProfile?.join(",") ?? "",
-    [professionCodesFromProfile]
-  );
-
-  useEffect(() => {
-    const uid = profile?.id;
-    if (!uid) return;
-    const codes = professionCodesFromProfile;
-    let cancelled = false;
-    (async () => {
-      const stored = await getLastProfessionCode(uid);
-      if (cancelled) return;
-      const picked = pickActiveProfessionCode(codes, stored);
-      const firstListRaw =
-        codes?.find((c) => coerceProfessionCode(c) != null) ?? codes?.[0];
-      setProfessionLine(professionHomeAccountLabel(picked, firstListRaw));
-      const codeToStore =
-        picked ??
-        coerceProfessionCode(firstListRaw ?? undefined) ??
-        coerceProfessionCode(stored ?? undefined);
-      if (codeToStore) await setLastProfessionCode(uid, codeToStore);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.id, professionCodesKey]);
 
   const visitCards = useMemo(
     () =>

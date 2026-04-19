@@ -1,4 +1,6 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { professionService } from "./professionService";
 
 /** Strip legacy public/signed URL to object path (same idea as mobile `normalizeStorageObjectPath`). */
 function normalizeHaircodeStoragePath(urlOrPath: string): string {
@@ -37,7 +39,11 @@ export const serviceRecordAccessService = {
    */
   async canAccessServiceRecord(
     viewerProfileId: string,
-    record: { clientUserId: string; professionalProfileId: string }
+    record: {
+      clientUserId: string;
+      professionalProfileId: string;
+      professionId?: string | null;
+    }
   ): Promise<boolean> {
     if (record.clientUserId === viewerProfileId) return true;
 
@@ -53,12 +59,16 @@ export const serviceRecordAccessService = {
 
     if (record.professionalProfileId === viewerPP.id) return true;
 
+    const linkWhere: Prisma.ClientProfessionalLinkWhereInput = {
+      clientUserId: record.clientUserId,
+      professionalProfileId: viewerPP.id,
+      status: "active",
+    };
+    if (record.professionId) {
+      linkWhere.professionId = record.professionId;
+    }
     const link = await prisma.clientProfessionalLink.findFirst({
-      where: {
-        clientUserId: record.clientUserId,
-        professionalProfileId: viewerPP.id,
-        status: "active",
-      },
+      where: linkWhere,
       select: { id: true },
     });
     return !!link;
@@ -70,7 +80,11 @@ export const serviceRecordAccessService = {
   ): Promise<void> {
     const record = await prisma.serviceRecord.findUnique({
       where: { id: serviceRecordId },
-      select: { clientUserId: true, professionalProfileId: true },
+      select: {
+        clientUserId: true,
+        professionalProfileId: true,
+        professionId: true,
+      },
     });
     if (!record) {
       throw Object.assign(new Error("Service record not found"), {
@@ -86,7 +100,8 @@ export const serviceRecordAccessService = {
   /** Caller may see this client's visit list / gallery: self or an active linked professional (not blocked). */
   async assertCanAccessClientTimeline(
     viewerProfileId: string,
-    clientUserId: string
+    clientUserId: string,
+    options?: { professionCode?: string | null }
   ): Promise<void> {
     if (viewerProfileId === clientUserId) return;
 
@@ -102,12 +117,19 @@ export const serviceRecordAccessService = {
       throw Object.assign(new Error("Forbidden"), { statusCode: 403 as const });
     }
 
+    const linkWhere: Prisma.ClientProfessionalLinkWhereInput = {
+      clientUserId,
+      professionalProfileId: viewerPP.id,
+      status: "active",
+    };
+    if (options?.professionCode?.trim()) {
+      linkWhere.professionId = await professionService.getProfessionIdByCode(
+        options.professionCode.trim()
+      );
+    }
+
     const link = await prisma.clientProfessionalLink.findFirst({
-      where: {
-        clientUserId,
-        professionalProfileId: viewerPP.id,
-        status: "active",
-      },
+      where: linkWhere,
       select: { id: true },
     });
     if (!link) {
@@ -128,7 +150,11 @@ export const serviceRecordAccessService = {
       where: { mediaUrl: { in: pathVariants } },
       select: {
         serviceRecord: {
-          select: { clientUserId: true, professionalProfileId: true },
+          select: {
+            clientUserId: true,
+            professionalProfileId: true,
+            professionId: true,
+          },
         },
       },
     });

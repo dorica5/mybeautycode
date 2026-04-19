@@ -84,7 +84,15 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
       fragments.push(text.slice(last));
     }
 
-    return <Text style={baseNameStyle}>{fragments}</Text>;
+    return (
+      <Text style={baseNameStyle}>
+        {fragments.map((node, i) => (
+          <React.Fragment key={`nm-${i}`}>
+            {node}
+          </React.Fragment>
+        ))}
+      </Text>
+    );
   };
 
   const hasRelationship = item.relationship_exists ?? item.has_relationship;

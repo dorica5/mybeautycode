@@ -6,10 +6,10 @@ import {
   Text,
   View,
 } from "react-native";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CaretRight, Check, Plus } from "phosphor-react-native";
-import { Href, router, useLocalSearchParams } from "expo-router";
+import { Href, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import {
   primaryBlack,
   primaryGreen,
@@ -23,16 +23,16 @@ import { StatusBar } from "expo-status-bar";
 import {
   expandAccountRows,
   linkedAccountEntryFromSession,
-  roleLabelForProfile,
-  type LinkedAccountEntry,
+  professionCodesList,
+  type AccountSurfaceRow,
 } from "@/src/lib/linkedAccountsStorage";
-import { getLastProfessionCode } from "@/src/lib/lastVisitPreference";
-
-type AccountRow = {
-  entry: LinkedAccountEntry;
-  surface: "professional" | "client";
-  rowKey: string;
-};
+import { getLastProfessionCode, setLastProfessionCode } from "@/src/lib/lastVisitPreference";
+import {
+  pickActiveProfessionCode,
+  CLIENT_INSPIRATION_PROFESSION_CODE,
+} from "@/src/constants/professionCodes";
+import { useQueryClient } from "@tanstack/react-query";
+import { useImageContext } from "@/src/providers/ImageProvider";
 
 function rawParamFirst(
   v: string | string[] | undefined
@@ -41,7 +41,7 @@ function rawParamFirst(
   return Array.isArray(v) ? v[0] : v;
 }
 
-/** Denne skjermen ligger alltid under (hairdresser)-stack → pathname sier ikke om brukeren bruker klient-UI. */
+/** This screen lives under (hairdresser)-stack → pathname does not tell if user is on client UI. */
 function resolveActiveSurface(
   param: string | undefined,
   rowCount: number,
@@ -55,50 +55,28 @@ function resolveActiveSurface(
 
 const SwitchAccountScreen = () => {
   const { profile, session, loading } = useAuth();
+  const queryClient = useQueryClient();
+  const { refreshInspirationImages } = useImageContext();
   const { activeSurface: activeSurfaceParam } = useLocalSearchParams<{
     activeSurface?: string | string[];
   }>();
 
-  const displayRows = useMemo((): AccountRow[] => {
-    const entry = linkedAccountEntryFromSession(session, profile);
-    if (!entry) return [];
-    return expandAccountRows(entry).map(({ entry: e, surface }) => ({
-      entry: e,
-      surface,
-      rowKey: `${e.id}-${surface}`,
-    }));
-  }, [session, profile]);
+  const [lastProfessionCode, setLastProfessionCodeState] = useState<
+    string | null
+  >(null);
 
-  const professionCodesKey = useMemo(() => {
-    const c =
-      profile?.profession_codes ??
-      (profile as { professionCodes?: string[] | null } | null)
-        ?.professionCodes;
-    return Array.isArray(c) ? c.join("\0") : "";
-  }, [profile]);
-
-  const [professionalRoleLabel, setProfessionalRoleLabel] = useState(() =>
-    profile ? roleLabelForProfile(profile) : "Professional"
+  useFocusEffect(
+    useCallback(() => {
+      if (!profile?.id) return;
+      void getLastProfessionCode(profile.id).then(setLastProfessionCodeState);
+    }, [profile?.id])
   );
 
-  useEffect(() => {
-    if (!profile) return;
-    if (profile.user_type === "CLIENT") {
-      setProfessionalRoleLabel("Professional");
-      return;
-    }
-    setProfessionalRoleLabel(roleLabelForProfile(profile));
-    const uid = profile.id;
-    let cancelled = false;
-    void (async () => {
-      const last = await getLastProfessionCode(uid);
-      if (cancelled) return;
-      setProfessionalRoleLabel(roleLabelForProfile(profile, last));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile, professionCodesKey]);
+  const displayRows = useMemo((): AccountSurfaceRow[] => {
+    const entry = linkedAccountEntryFromSession(session, profile);
+    if (!entry || !profile) return [];
+    return expandAccountRows(entry, profile);
+  }, [session, profile]);
 
   const isHairdresser =
     profile?.user_type === "HAIRDRESSER" ||
@@ -114,23 +92,52 @@ const SwitchAccountScreen = () => {
     [activeSurfaceParam, displayRows.length, isHairdresser]
   );
 
-  const rowIsCurrent = (
-    entry: LinkedAccountEntry,
-    surface: "professional" | "client"
-  ) => {
-    if (!session?.user?.id || entry.id !== session.user.id) return false;
-    return surface === activeSurface;
-  };
+  const rowIsCurrent = useCallback(
+    (row: AccountSurfaceRow) => {
+      if (!session?.user?.id || row.entry.id !== session.user.id) return false;
+      if (row.surface === "client") {
+        return activeSurface === "client";
+      }
+      if (activeSurface !== "professional") return false;
+      const codes = professionCodesList(profile!);
+      const active = pickActiveProfessionCode(codes, lastProfessionCode);
+      if (row.professionCode == null) {
+        return codes.length === 0 && active == null;
+      }
+      return active === row.professionCode;
+    },
+    [session?.user?.id, activeSurface, profile, lastProfessionCode]
+  );
 
-  const onSelectRow = (surface: "professional" | "client") => {
-    const entry = linkedAccountEntryFromSession(session, profile);
-    if (!entry || rowIsCurrent(entry, surface)) return;
-    if (surface === "client") {
-      router.replace("/(client)/(tabs)/home");
-      return;
-    }
-    router.replace("/(hairdresser)/(tabs)/home");
-  };
+  const onSelectRow = useCallback(
+    async (row: AccountSurfaceRow) => {
+      const entry = linkedAccountEntryFromSession(session, profile);
+      if (!entry || rowIsCurrent(row)) return;
+      const uid = session?.user?.id;
+      if (!uid) return;
+      if (row.surface === "client") {
+        await refreshInspirationImages(true, CLIENT_INSPIRATION_PROFESSION_CODE);
+        void queryClient.invalidateQueries({ queryKey: ["latest_haircodes"] });
+        void queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
+        router.replace("/(client)/(tabs)/home");
+        return;
+      }
+      if (row.professionCode) {
+        await setLastProfessionCode(uid, row.professionCode);
+        setLastProfessionCodeState(row.professionCode);
+        await refreshInspirationImages(true, row.professionCode);
+        void queryClient.invalidateQueries({ queryKey: ["latest_haircodes"] });
+        void queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
+      }
+      router.replace("/(hairdresser)/(tabs)/home");
+    },
+    [session, profile, rowIsCurrent, queryClient, refreshInspirationImages]
+  );
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    void getLastProfessionCode(profile.id).then(setLastProfessionCodeState);
+  }, [profile?.id, profile?.profession_codes, profile?.professions_detail]);
 
   if (loading || !profile || !session) {
     return (
@@ -153,33 +160,32 @@ const SwitchAccountScreen = () => {
 
             <View style={styles.mainView}>
               <View style={styles.cardList}>
-                {displayRows.map(({ entry: acc, surface, rowKey }) => {
-                  const isCurrent = rowIsCurrent(acc, surface);
-                  const roleLabel =
-                    surface === "professional"
-                      ? professionalRoleLabel
-                      : "Client";
-                  const detailLine =
-                    surface === "professional" ? acc.meta.detail : "";
+                {displayRows.map((row) => {
+                  const isCurrent = rowIsCurrent(row);
                   return (
                     <Pressable
-                      key={rowKey}
-                      onPress={() => onSelectRow(surface)}
+                      key={row.rowKey}
+                      onPress={() => onSelectRow(row)}
                       disabled={isCurrent}
                       accessibilityRole="button"
-                      accessibilityState={{ selected: isCurrent, disabled: isCurrent }}
-                      accessibilityLabel={`${roleLabel} ${acc.meta.name}${detailLine ? ` ${detailLine}` : ""}${isCurrent ? " current" : ""}`}
+                      accessibilityState={{
+                        selected: isCurrent,
+                        disabled: isCurrent,
+                      }}
+                      accessibilityLabel={`${row.roleLabel} ${row.entry.meta.name}${
+                        row.detailLine ? ` ${row.detailLine}` : ""
+                      }${isCurrent ? " current" : ""}`}
                       style={({ pressed }) => [
                         styles.accountCard,
                         !isCurrent && pressed && styles.accountCardPressed,
                       ]}
                     >
                       <View style={styles.accountCardTextCol}>
-                        <Text style={styles.roleLabel}>{roleLabel}</Text>
-                        <Text style={styles.nameLine}>{acc.meta.name}</Text>
-                        {detailLine ? (
+                        <Text style={styles.roleLabel}>{row.roleLabel}</Text>
+                        <Text style={styles.nameLine}>{row.entry.meta.name}</Text>
+                        {row.detailLine ? (
                           <Text style={styles.detailLine} numberOfLines={2}>
-                            {detailLine}
+                            {row.detailLine}
                           </Text>
                         ) : null}
                       </View>
@@ -282,7 +288,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
     marginTop: responsiveScale(4),
   },
-  /** Fast bredde slik at kort uten hake ikke hopper i layout. */
+  /** Fixed width so cards without a check don't jump. */
   checkSlot: {
     width: responsiveScale(36),
     height: responsiveScale(36),

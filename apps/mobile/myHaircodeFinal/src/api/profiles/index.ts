@@ -5,12 +5,20 @@ import { Alert } from "react-native";
 import { supabase } from "@/src/lib/supabase";
 import { isUuid } from "@/src/utils/isUuid";
 
-export async function requestClientLink(clientId: string) {
+export async function requestClientLink(
+  clientId: string,
+  professionCode?: string | null
+) {
   return api.post<{
     success: boolean;
     clientProfessionalLinkId?: string;
     alreadyPending?: boolean;
-  }>("/api/relationships/request-client", { client_id: clientId });
+  }>("/api/relationships/request-client", {
+    client_id: clientId,
+    ...(professionCode?.trim()
+      ? { profession_code: professionCode.trim() }
+      : {}),
+  });
 }
 
 export const useUpdateSupabaseProfile = () => {
@@ -51,29 +59,55 @@ export const useDeleteUser = () => {
 
 export const useListClientSearch = (
   searchQuery: string,
-  hairdresserId: string | null
+  hairdresserId: string | null,
+  professionCode?: string | null,
+  /** When false, search without `professionCode` (non–hairdresser surfaces). */
+  scopeProfession: boolean = true
 ) => {
+  const code =
+    professionCode && professionCode.trim() ? professionCode.trim() : null;
   return useQuery({
-    queryKey: ["clientSearch", searchQuery, hairdresserId],
-    queryFn: () =>
-      api.get<unknown[]>(
-        `/api/profiles/search/clients?q=${encodeURIComponent(searchQuery)}&hairdresserId=${hairdresserId}`
-      ),
-    enabled: !!searchQuery && !!hairdresserId,
+    queryKey: [
+      "clientSearch",
+      searchQuery,
+      hairdresserId,
+      scopeProfession ? code ?? "all" : "any",
+    ],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        q: searchQuery,
+        hairdresserId: String(hairdresserId),
+      });
+      if (scopeProfession && code) params.set("professionCode", code);
+      return api.get<unknown[]>(
+        `/api/profiles/search/clients?${params.toString()}`
+      );
+    },
+    enabled:
+      !!searchQuery &&
+      !!hairdresserId &&
+      (!scopeProfession || code != null),
   });
 };
 
 export const useListAllClientSearch = (
   searchQuery: string,
-  hairdresser_id: string | undefined
+  hairdresser_id: string | undefined,
+  professionCode: string | null | undefined
 ) => {
   const q = searchQuery.trim();
+  const code =
+    professionCode && professionCode.trim() ? professionCode.trim() : null;
   return useQuery({
-    queryKey: ["clientSearch", q, "all", hairdresser_id],
-    queryFn: () =>
-      api.get<unknown[]>(
-        `/api/profiles/search/clients-with-relationship?q=${encodeURIComponent(q)}`
-      ),
+    queryKey: ["clientSearch", q, "all", hairdresser_id, code ?? "any"],
+    queryFn: () => {
+      const params = new URLSearchParams({ q });
+      if (code) params.set("professionCode", code);
+      return api.get<unknown[]>(
+        `/api/profiles/search/clients-with-relationship?${params.toString()}`
+      );
+    },
+    /** Directory search must run whenever `q` is non-empty; `professionCode` only scopes relationship flags. */
     enabled: !!hairdresser_id && q.length > 0,
   });
 };
@@ -131,14 +165,23 @@ export const useManageHairdresser = (client_id: string) => {
   });
 };
 
+export type RemoveRelationshipPayload =
+  | string
+  | { hairdresserId: string; professionCode?: string | null };
+
 export const useRemoveRelationships = (clientId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (hairdresserIds: string[]) => {
-      for (const hairdresserId of hairdresserIds) {
+    mutationFn: async (items: RemoveRelationshipPayload[]) => {
+      for (const raw of items) {
+        const hairdresserId =
+          typeof raw === "string" ? raw : raw.hairdresserId;
+        const professionCode =
+          typeof raw === "string" ? undefined : raw.professionCode ?? undefined;
         await api.delete("/api/relationships", {
           hairdresserId,
           clientId,
+          ...(professionCode ? { professionCode } : {}),
         });
       }
     },

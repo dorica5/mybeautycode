@@ -3,10 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 
 export async function checkRelationship(
   hairdresserId: string,
-  clientId: string
+  clientId: string,
+  professionCode?: string | null
 ): Promise<boolean> {
+  const q = new URLSearchParams({
+    hairdresser_id: hairdresserId,
+    client_id: clientId,
+  });
+  if (professionCode?.trim()) q.set("profession_code", professionCode.trim());
   const res = await api.get<{ exists: boolean }>(
-    `/api/relationships/check?hairdresser_id=${encodeURIComponent(hairdresserId)}&client_id=${encodeURIComponent(clientId)}`
+    `/api/relationships/check?${q.toString()}`
   );
   return res?.exists ?? false;
 }
@@ -19,15 +25,20 @@ export type ClientLinkUiStatus = "none" | "pending" | "active";
  */
 export async function getClientLinkUiStatus(
   hairdresserId: string,
-  clientId: string
+  clientId: string,
+  professionCode?: string | null
 ): Promise<ClientLinkUiStatus> {
   try {
+    const q = new URLSearchParams({
+      hairdresser_id: hairdresserId,
+      client_id: clientId,
+      link_ui: "1",
+    });
+    if (professionCode?.trim()) q.set("profession_code", professionCode.trim());
     const res = await api.get<{
       status?: ClientLinkUiStatus;
       exists?: boolean;
-    }>(
-      `/api/relationships/check?hairdresser_id=${encodeURIComponent(hairdresserId)}&client_id=${encodeURIComponent(clientId)}&link_ui=1`
-    );
+    }>(`/api/relationships/check?${q.toString()}`);
     if (res?.status) return res.status;
     if (typeof res?.exists === "boolean") {
       return res.exists ? "active" : "none";
@@ -39,27 +50,37 @@ export async function getClientLinkUiStatus(
     }
   }
 
-  const exists = await checkRelationship(hairdresserId, clientId);
+  const exists = await checkRelationship(
+    hairdresserId,
+    clientId,
+    professionCode
+  );
   return exists ? "active" : "none";
 }
 
 export function useRelationshipCheck(
   clientId?: string,
-  hairdresserId?: string
+  hairdresserId?: string,
+  professionCode?: string | null
 ) {
   return useQuery({
-    queryKey: ["relationship", clientId, hairdresserId],
-    queryFn: () => checkRelationship(hairdresserId!, clientId!),
+    queryKey: ["relationship", clientId, hairdresserId, professionCode ?? "all"],
+    queryFn: () =>
+      checkRelationship(hairdresserId!, clientId!, professionCode),
     enabled: !!clientId && !!hairdresserId,
   });
 }
 
 export async function removeRelationship(
   hairdresserId: string,
-  clientId: string
+  clientId: string,
+  professionCode?: string | null
 ) {
   return api.delete("/api/relationships", {
     hairdresserId,
     clientId,
+    ...(professionCode?.trim()
+      ? { profession_code: professionCode.trim() }
+      : {}),
   });
 }

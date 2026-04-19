@@ -9,7 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   DotsThree,
   PencilSimple,
@@ -49,10 +49,61 @@ import { IMAGE_CROP_VIEWPORT_HEIGHT_RATIO } from "@/src/components/ImageCropModa
 type ApiRecord = Record<string, unknown> & {
   media?: unknown[];
   profession?: { code?: string };
+  hairdresser_name?: string;
+  hairdresser_id?: string;
+  hairdresser_profile?: ProPublicPayload;
+  professional_profile?: ProPublicPayload;
   professionalProfile?: {
     professionalProfessions?: { profession?: { code?: string } }[];
   };
 };
+
+type ProPublicPayload = {
+  salon_name?: string;
+  business_name?: string;
+  avatar_url?: string;
+};
+
+function strField(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const t = v.trim();
+  return t.length > 0 ? t : undefined;
+}
+
+/** GET payload: snake_case; tolerate camelCase. */
+function readHairdresserProfilePayload(
+  r: ApiRecord | undefined
+): ProPublicPayload | undefined {
+  if (!r) return undefined;
+  const raw =
+    r.hairdresser_profile ??
+    r.professional_profile ??
+    (r as { hairdresserProfile?: unknown }).hairdresserProfile ??
+    (r as { professionalProfile?: unknown }).professionalProfile;
+  if (!raw || typeof raw !== "object") return undefined;
+  const o = raw as Record<string, unknown>;
+  return {
+    salon_name: strField(o.salon_name) ?? strField(o.salonName),
+    business_name: strField(o.business_name) ?? strField(o.businessName),
+    avatar_url: strField(o.avatar_url) ?? strField(o.avatarUrl),
+  };
+}
+
+function apiHairdresserDisplayName(r: ApiRecord | undefined): string {
+  if (!r) return "";
+  const n =
+    strField(r.hairdresser_name) ??
+    strField((r as { hairdresserName?: unknown }).hairdresserName);
+  return n ?? "";
+}
+
+/** Professional’s public profile id (visit’s pro), not `created_by` (may be client). */
+function recordHairdresserProfileId(r: ApiRecord | undefined): string | undefined {
+  if (!r) return undefined;
+  const id =
+    r.hairdresser_id ?? (r as { hairdresserId?: unknown }).hairdresserId;
+  return typeof id === "string" && id.trim().length > 0 ? id.trim() : undefined;
+}
 
 function recordServices(r: ApiRecord | undefined, fallback: string): string {
   if (!r) return fallback;
@@ -115,7 +166,6 @@ const SingleHaircode = () => {
   const record = haircodeWithMedia as ApiRecord | undefined;
 
   const { profile } = useAuth();
-  const insets = useSafeAreaInsets();
   const { mutate: deleteHaircode } = useDeleteHaircodeHairdresser();
 
   const screenHeight = Dimensions.get("window").height;
@@ -182,15 +232,45 @@ const SingleHaircode = () => {
     profile?.profession_codes
   );
 
+  /** Visit row is scoped to `service_records.profession_id`; route params can be stale across pushes — after fetch, trust API for pro row. */
+  const proHp = readHairdresserProfilePayload(record);
+  const apiHairdresserName = apiHairdresserDisplayName(record);
+  const visitDetailReady = !isLoading && record != null;
+
+  const displayProName = visitDetailReady
+    ? apiHairdresserName || proName
+    : apiHairdresserName.length > 0
+      ? apiHairdresserName
+      : proName;
+
+  const displayProSalonRaw =
+    proHp?.salon_name?.trim() ||
+    proHp?.business_name?.trim() ||
+    proSalon.trim();
+  const displayProSalon =
+    displayProSalonRaw.length > 0 ? displayProSalonRaw : "";
+
+  const displayProPic = visitDetailReady
+    ? proHp?.avatar_url?.trim() ?? ""
+    : proHp?.avatar_url?.trim() || proPic;
+
+  const hairdresserPublicProfileId = recordHairdresserProfileId(record);
+
   const openProfessionalPublicProfile = useCallback(() => {
     const pid =
-      typeof createdByUserId === "string" && createdByUserId ? createdByUserId : "";
+      hairdresserPublicProfileId ??
+      (typeof createdByUserId === "string" && createdByUserId
+        ? createdByUserId
+        : "");
     if (!pid) return;
     router.push({
       pathname: "/haircodes/other_professional_profile",
-      params: { hairdresser_id: pid },
+      params: {
+        hairdresser_id: pid,
+        profession_code: professionCode,
+      },
     });
-  }, [createdByUserId]);
+  }, [hairdresserPublicProfileId, createdByUserId, professionCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -246,11 +326,11 @@ const SingleHaircode = () => {
           duration: mergedDuration,
           media: JSON.stringify(record?.media ?? []),
           clientId: String(haircode.clientUserId ?? haircode.client_user_id ?? ""),
-          hairdresserName: proName,
+          hairdresserName: displayProName,
           full_name: displayClientName,
           number: rawNumber != null ? String(rawNumber) : "",
-          salon_name: proSalon,
-          hairdresser_profile_pic: proPic,
+          salon_name: displayProSalon,
+          hairdresser_profile_pic: displayProPic,
         },
       });
     } catch (error) {
@@ -330,6 +410,18 @@ const SingleHaircode = () => {
     </View>
   );
 
+  const headerMenuSlot = canManage ? (
+    <Pressable
+      onPress={toggleModal}
+      style={styles.headerMenuButton}
+      hitSlop={12}
+      accessibilityRole="button"
+      accessibilityLabel="Visit actions"
+    >
+      <DotsThree size={responsiveScale(32)} color={primaryBlack} />
+    </Pressable>
+  ) : undefined;
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -337,6 +429,7 @@ const SingleHaircode = () => {
         <VisitRecordScreenHeader
           title={displayClientName}
           subtitle={phoneLine || undefined}
+          rightSlot={headerMenuSlot}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={primaryBlack} />
@@ -358,20 +451,6 @@ const SingleHaircode = () => {
         onClose={() => setAlertVisible(false)}
       />
       <View style={styles.body}>
-        {canManage ? (
-          <Pressable
-            onPress={toggleModal}
-            style={[
-              styles.menuFab,
-              { top: Math.max(insets.top, responsivePadding(6)) },
-            ]}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Visit actions"
-          >
-            <DotsThree size={responsiveScale(32)} color={primaryBlack} />
-          </Pressable>
-        ) : null}
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -380,6 +459,7 @@ const SingleHaircode = () => {
           <VisitRecordScreenHeader
             title={displayClientName}
             subtitle={phoneLine || undefined}
+            rightSlot={headerMenuSlot}
           />
 
           <VisitRecordDetailView
@@ -392,9 +472,9 @@ const SingleHaircode = () => {
           priceText={mergedPrice}
           professionCode={professionCode}
           professional={{
-            full_name: proName,
-            salon_name: proSalon?.trim() ? proSalon : undefined,
-            avatar_url: proPic || undefined,
+            full_name: displayProName,
+            salon_name: displayProSalon ? displayProSalon : undefined,
+            avatar_url: displayProPic || undefined,
           }}
           mediaSlides={signedMedia}
           carouselHeight={carouselHeight}
@@ -422,7 +502,6 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    position: "relative",
   },
   scroll: {
     flex: 1,
@@ -431,11 +510,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
   },
-  menuFab: {
-    position: "absolute",
-    right: responsivePadding(12),
-    zIndex: 4,
-    padding: responsivePadding(8),
+  headerMenuButton: {
+    padding: responsivePadding(4),
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingContainer: {
     flex: 1,

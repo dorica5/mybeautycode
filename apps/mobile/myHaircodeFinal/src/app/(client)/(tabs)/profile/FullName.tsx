@@ -2,30 +2,27 @@ import {
   Alert,
   Keyboard,
   StyleSheet,
-  TextInput,
-  View,
-  TouchableWithoutFeedback,
   Text,
+  ScrollView,
+  KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import React, { useEffect, useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "@/src/constants/Colors";
+import { BrandOutlineField } from "@/src/components/BrandOutlineField";
+import {
+  MintProfileScreenShell,
+  mintProfileScrollContent,
+} from "@/src/components/MintProfileScreenShell";
 import TopNav from "@/src/components/TopNav";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
-import {
-  moderateScale,
-  responsiveFontSize,
-  scale,
-  scalePercent,
-} from "@/src/utils/responsive";
+import { Typography } from "@/src/constants/Typography";
+import { scale } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
-import { StatusBar } from "expo-status-bar";
 
 const FullName = () => {
   const { profile, setProfile } = useAuth();
-  const originalName = profile.full_name;
+  const originalName = profile.full_name ?? "";
   const id = profile.id;
 
   const [full_name, setFull_Name] = useState(originalName);
@@ -45,7 +42,6 @@ const FullName = () => {
       return false;
     }
 
-    // Allow letters, accents, dots, hyphens, apostrophes, and spaces
     const nameRegex = /^[a-zA-ZÀ-ÿæøåÆØÅ.\s'’-]{2,50}$/;
     if (!nameRegex.test(trimmed)) {
       setErrorMessage(
@@ -67,11 +63,6 @@ const FullName = () => {
     }
   };
 
-  const getInputStyle = () => {
-    if (!attemptedSubmit) return styles.input;
-    return [styles.input, error ? styles.errorInput : styles.validInput];
-  };
-
   const updateUserProfile = () => {
     setAttemptedSubmit(true);
 
@@ -85,15 +76,16 @@ const FullName = () => {
       return;
     }
 
+    const trimmed = full_name.trim();
     setLoading(true);
 
     updateProfile(
-      { id, full_name },
+      { id, full_name: trimmed },
       {
         onSuccess: () => {
           setProfile((prev: Profile) => ({
             ...prev,
-            full_name,
+            full_name: trimmed,
           }));
 
           setChanged(false);
@@ -101,9 +93,9 @@ const FullName = () => {
           setError(false);
           Keyboard.dismiss();
         },
-        onError: (error) => {
+        onError: (err) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", error.message);
+          Alert.alert("Failed to update profile", err.message);
         },
       }
     );
@@ -114,62 +106,50 @@ const FullName = () => {
   }, [full_name, originalName]);
 
   return (
-    <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <SafeAreaView style={styles.container}>
-            <TopNav
-              title="Full Name"
-              showSaveButton={true}
-              saveChanged={changed}
-              saveAction={updateUserProfile}
-              loading={loading}
-            />
-            <View style={getInputStyle()}>
-              <TextInput
-                value={full_name}
-                placeholder="Name"
-                placeholderTextColor={Colors.dark.dark}
-                onChangeText={handleNameChange}
-                style={{ fontSize: responsiveFontSize(16, 12) }}
-              />
-            </View>
-            {attemptedSubmit && error && (
-              <Text style={styles.errorText}>{errorMessage}</Text>
-            )}
-          </SafeAreaView>
-        </TouchableWithoutFeedback>
-      </View>
-    </>
+    <MintProfileScreenShell>
+      <TopNav
+        title="Full name"
+        showSaveButton
+        saveChanged={changed}
+        saveAction={updateUserProfile}
+        loading={loading}
+      />
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={mintProfileScrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+        >
+          <BrandOutlineField
+            accessibilityLabel="Full name"
+            placeholder="Name"
+            value={full_name}
+            onChangeText={handleNameChange}
+            autoCapitalize="words"
+          />
+          {attemptedSubmit && error ? (
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          ) : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </MintProfileScreenShell>
   );
 };
 
 export default FullName;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    margin: scalePercent(5),
-  },
-  input: {
-    marginTop: scalePercent(10),
-    padding: Platform.OS === "android" ? scale(7) : scale(20),
-    backgroundColor: Colors.dark.yellowish,
-    borderRadius: 20,
-  },
-  errorInput: {
-    borderColor: "red",
-    borderWidth: scale(1),
-  },
-  validInput: {
-    borderColor: "green",
-    borderWidth: scale(1),
-  },
+  keyboard: { flex: 1 },
+  scroll: { flex: 1 },
   errorText: {
-    color: "red",
-    fontSize: moderateScale(12),
-    marginTop: scale(5),
-    marginLeft: scale(10),
+    ...Typography.outfitRegular16,
+    color: "#C62828",
+    marginTop: scale(8),
   },
 });
