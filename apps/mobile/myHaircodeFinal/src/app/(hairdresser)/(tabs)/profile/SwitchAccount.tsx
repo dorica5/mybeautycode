@@ -159,19 +159,22 @@ const SwitchAccountScreen = () => {
       if (!entry || rowIsCurrent(row)) return;
       const uid = session?.user?.id;
       if (!uid) return;
+
+      void queryClient.invalidateQueries({ queryKey: ["latest_haircodes"] });
+      void queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
+
       if (row.surface === "client") {
-        await refreshInspirationImages(true, CLIENT_INSPIRATION_PROFESSION_CODE);
-        void queryClient.invalidateQueries({ queryKey: ["latest_haircodes"] });
-        void queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
+        /** Don’t await: inspiration fetch + signing blocks the transition; home loads in background. */
+        void refreshInspirationImages(true, CLIENT_INSPIRATION_PROFESSION_CODE);
         router.replace("/(client)/(tabs)/home");
         return;
       }
+
       if (row.professionCode) {
+        /** One fast storage write so the destination reads the right profession; avoid awaiting network refresh. */
         await setLastProfessionCode(uid, row.professionCode);
         setLastProfessionCodeState(row.professionCode);
-        await refreshInspirationImages(true, row.professionCode);
-        void queryClient.invalidateQueries({ queryKey: ["latest_haircodes"] });
-        void queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
+        void refreshInspirationImages(true, row.professionCode);
       }
       router.replace("/(hairdresser)/(tabs)/home");
     },

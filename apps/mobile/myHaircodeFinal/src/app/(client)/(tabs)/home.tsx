@@ -1,8 +1,8 @@
 import React from "react";
-import { View, StyleSheet, ScrollView, Text, Pressable } from "react-native";
+import { View, StyleSheet, ScrollView, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { router, type Href } from "expo-router";
+import { router } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
@@ -14,7 +14,6 @@ import {
   primaryWhite,
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
-import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
 import {
   isTablet,
   responsiveMargin,
@@ -31,7 +30,6 @@ const HomeScreen = () => {
     profile?.full_name ||
     "";
   const username = profile?.username?.trim() ?? "";
-  const hasProfessionalAccount = profileHasProfessionalCapability(profile);
 
   const avatarSize = responsiveScale(120, 144);
 
@@ -70,30 +68,6 @@ const HomeScreen = () => {
         {username ? (
           <Text style={[Typography.anton24, styles.username]}>{username}</Text>
         ) : null}
-
-        <Pressable
-          style={styles.accountPill}
-          onPress={() => {
-            if (hasProfessionalAccount) {
-              router.push({
-                pathname: "/(hairdresser)/(tabs)/profile/SwitchAccount",
-                params: {
-                  activeSurface: "client",
-                  returnTo: "client-home",
-                },
-              } as Href);
-            } else {
-              router.push("/(setup)/ChooseProfession" as Href);
-            }
-          }}
-          accessibilityRole="button"
-        >
-          <Text style={styles.accountPillText}>
-            {hasProfessionalAccount
-              ? "Switch account"
-              : "Become a professional"}
-          </Text>
-        </Pressable>
 
         <View style={styles.searchCard}>
           <Text
@@ -158,21 +132,6 @@ const styles = StyleSheet.create({
     color: primaryBlack,
     textAlign: "center",
     marginBottom: responsiveMargin(12),
-  },
-  accountPill: {
-    alignSelf: "center",
-    marginBottom: responsiveMargin(16),
-    paddingHorizontal: responsivePadding(20),
-    paddingVertical: responsivePadding(12),
-    borderRadius: responsiveScale(999),
-    borderWidth: 1,
-    borderColor: primaryBlack,
-    backgroundColor: primaryWhite,
-  },
-  accountPillText: {
-    ...Typography.bodyMedium,
-    color: primaryBlack,
-    textAlign: "center",
   },
   searchCard: {
     width: "100%",
