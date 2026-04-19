@@ -30,9 +30,11 @@ type SearchResultProps = {
   };
   context?: string;
   query?: string;
+  /** Active professional lane — required for `/haircodes/[id]` relationship checks. */
+  professionCode?: string | null;
 };
 
-const SearchResults = ({ item, context, query }: SearchResultProps) => {
+const SearchResults = ({ item, context, query, professionCode }: SearchResultProps) => {
   const isProClientRow = context === "hairdresser";
   const baseNameStyle = isProClientRow
     ? Typography.bodySmall
@@ -119,6 +121,9 @@ const SearchResults = ({ item, context, query }: SearchResultProps) => {
             phone_number: item.phone_number,
             relationship: String(hasRelationship),
             client_id: clientId,
+            ...(professionCode?.trim()
+              ? { professionCode: professionCode.trim() }
+              : {}),
           },
         });
         return;

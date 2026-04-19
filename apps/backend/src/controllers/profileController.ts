@@ -10,6 +10,7 @@ import {
 import { profileService } from "../services/profileService";
 import { professionService } from "../services/professionService";
 import { publicProfileWorkService } from "../services/publicProfileWorkService";
+import { readProfessionCodeQuery } from "../lib/readProfessionCodeQuery";
 
 export const profileController = {
   async getById(req: Request, res: Response) {
@@ -125,12 +126,7 @@ export const profileController = {
       const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
         hairdresserId!
       );
-      const professionCode =
-        typeof req.query.professionCode === "string"
-          ? req.query.professionCode
-          : typeof req.query.profession_code === "string"
-            ? req.query.profession_code
-            : undefined;
+      const professionCode = readProfessionCodeQuery(req.query);
       const results = await profileService.searchClientsWithRelationship(
         q,
         professionalProfileId,

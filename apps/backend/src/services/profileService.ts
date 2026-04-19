@@ -371,29 +371,30 @@ export const profileService = {
         professionCode
       );
 
+    /** Without a resolved lane, do not return a global directory (multi-lane pros would see unrelated profiles). */
+    if (!scope) return [];
+
     let linkedClientIds = new Set<string>();
     let pendingClientIds = new Set<string>();
-    if (scope) {
-      const activeRels = await prisma.clientProfessionalLink.findMany({
-        where: {
-          professionalProfileId,
-          status: "active",
-          professionId: scope.professionId,
-        },
-        select: { clientUserId: true },
-      });
-      linkedClientIds = new Set(activeRels.map((r) => r.clientUserId));
+    const activeRels = await prisma.clientProfessionalLink.findMany({
+      where: {
+        professionalProfileId,
+        status: "active",
+        professionId: scope.professionId,
+      },
+      select: { clientUserId: true },
+    });
+    linkedClientIds = new Set(activeRels.map((r) => r.clientUserId));
 
-      const pendingRels = await prisma.clientProfessionalLink.findMany({
-        where: {
-          professionalProfileId,
-          status: "pending",
-          professionId: scope.professionId,
-        },
-        select: { clientUserId: true },
-      });
-      pendingClientIds = new Set(pendingRels.map((r) => r.clientUserId));
-    }
+    const pendingRels = await prisma.clientProfessionalLink.findMany({
+      where: {
+        professionalProfileId,
+        status: "pending",
+        professionId: scope.professionId,
+      },
+      select: { clientUserId: true },
+    });
+    pendingClientIds = new Set(pendingRels.map((r) => r.clientUserId));
 
     const blocked = await prisma.blockedUser.findMany({
       where: { blockerId: myProfileId },

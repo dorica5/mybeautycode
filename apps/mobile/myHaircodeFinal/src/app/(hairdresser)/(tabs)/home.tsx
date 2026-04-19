@@ -343,6 +343,7 @@ const HomeScreen = () => {
                           item={item}
                           context="hairdresser"
                           query={debouncedQuery}
+                          professionCode={activeProfessionCode}
                         />
                       )}
                       ListEmptyComponent={

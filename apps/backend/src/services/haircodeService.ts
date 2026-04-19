@@ -27,8 +27,15 @@ export const haircodeService = {
       });
       if (!viewerPP) return [];
       where.professionalProfileId = viewerPP.id;
-    }
-    if (professionCode?.trim()) {
+      /** Lane isolation: never return nail/brow visits when the active lane is hair (etc.). */
+      const scope =
+        await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+          viewerPP.id,
+          professionCode
+        );
+      if (!scope) return [];
+      where.professionId = scope.professionId;
+    } else if (professionCode?.trim()) {
       where.professionId = await professionService.getProfessionIdByCode(
         professionCode.trim()
       );
@@ -144,12 +151,18 @@ export const haircodeService = {
         clientUser: {
           select: { id: true, firstName: true, lastName: true, avatarUrl: true },
         },
+        profession: { select: { code: true } },
       },
     });
-    return records.map((r) => ({
-      ...r,
-      client_profile: r.clientUser,
-    }));
+    /** Extra filter in case of bad rows; each payload carries `profession_code` for the client. */
+    const laneCode = scope.normalizedCode;
+    return records
+      .filter((r) => r.professionId === scope.professionId)
+      .map((r) => ({
+        ...r,
+        profession_code: r.profession?.code ?? laneCode,
+        client_profile: r.clientUser,
+      }));
   },
 
   async getWithMedia(serviceRecordId: string) {
@@ -239,8 +252,14 @@ export const haircodeService = {
       });
       if (!viewerPP) return [];
       where.professionalProfileId = viewerPP.id;
-    }
-    if (professionCode?.trim()) {
+      const scope =
+        await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+          viewerPP.id,
+          professionCode
+        );
+      if (!scope) return [];
+      where.professionId = scope.professionId;
+    } else if (professionCode?.trim()) {
       where.professionId = await professionService.getProfessionIdByCode(
         professionCode.trim()
       );

@@ -86,6 +86,7 @@ const SearchPage = () => {
                   item={item as never}
                   context="hairdresser"
                   query={debouncedQuery}
+                  professionCode={activeProfessionCode}
                 />
               )}
               contentContainerStyle={styles.resultsContainer}

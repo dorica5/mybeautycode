@@ -117,16 +117,21 @@ export const serviceRecordAccessService = {
       throw Object.assign(new Error("Forbidden"), { statusCode: 403 as const });
     }
 
+    const scope =
+      await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+        viewerPP.id,
+        options?.professionCode
+      );
+    if (!scope) {
+      throw Object.assign(new Error("Forbidden"), { statusCode: 403 as const });
+    }
+
     const linkWhere: Prisma.ClientProfessionalLinkWhereInput = {
       clientUserId,
       professionalProfileId: viewerPP.id,
       status: "active",
+      professionId: scope.professionId,
     };
-    if (options?.professionCode?.trim()) {
-      linkWhere.professionId = await professionService.getProfessionIdByCode(
-        options.professionCode.trim()
-      );
-    }
 
     const link = await prisma.clientProfessionalLink.findFirst({
       where: linkWhere,

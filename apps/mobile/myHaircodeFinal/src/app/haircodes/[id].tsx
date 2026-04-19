@@ -59,7 +59,10 @@ const HaircodeList = () => {
     full_name,
     relationship,
     price,
-  } = useLocalSearchParams();
+    professionCode: professionCodeParam,
+  } = useLocalSearchParams<{
+    professionCode?: string | string[];
+  }>();
 
   const { data: profileData } = useClientSearch(client_id);
   const data = profileData
@@ -77,13 +80,26 @@ const HaircodeList = () => {
   const hairdresser_id = session?.user.id;
 
   const { code: navProfessionCode, ready: navProfessionReady } =
-    useResolvedListProfessionCode(undefined);
+    useResolvedListProfessionCode(
+      Array.isArray(professionCodeParam)
+        ? professionCodeParam[0]
+        : professionCodeParam
+    );
 
   const queryClient = useQueryClient();
-  const { data: isRelated = false, isFetching: relLoading } = useRelationshipCheck(
-    client_id as string,
-    hairdresser_id ?? undefined
+  const relationshipQueryEnabled = Boolean(
+    client_id &&
+      hairdresser_id &&
+      navProfessionReady &&
+      navProfessionCode
   );
+  const { data: isRelated = false, isFetching: relLoading } =
+    useRelationshipCheck(
+      client_id as string,
+      hairdresser_id ?? undefined,
+      navProfessionCode,
+      { enabled: relationshipQueryEnabled }
+    );
 
   const normalizedPhoneNumber = Array.isArray(phone_number)
     ? phone_number[0]
@@ -128,7 +144,11 @@ const HaircodeList = () => {
 
   const deleteClient = async (clientId: string) => {
     try {
-      await removeRelationship(hairdresser_id, clientId);
+      await removeRelationship(
+        hairdresser_id,
+        clientId,
+        navProfessionCode
+      );
       queryClient.invalidateQueries({
         queryKey: ["listAllClientSearch", hairdresser_id],
       });

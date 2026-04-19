@@ -61,13 +61,23 @@ export async function getClientLinkUiStatus(
 export function useRelationshipCheck(
   clientId?: string,
   hairdresserId?: string,
-  professionCode?: string | null
+  professionCode?: string | null,
+  options?: { enabled?: boolean }
 ) {
+  const enabled =
+    options?.enabled !== undefined
+      ? options.enabled
+      : Boolean(clientId && hairdresserId);
   return useQuery({
-    queryKey: ["relationship", clientId, hairdresserId, professionCode ?? "all"],
+    queryKey: [
+      "relationship",
+      clientId,
+      hairdresserId,
+      professionCode ?? "unspecified",
+    ],
     queryFn: () =>
       checkRelationship(hairdresserId!, clientId!, professionCode),
-    enabled: !!clientId && !!hairdresserId,
+    enabled,
   });
 }
 

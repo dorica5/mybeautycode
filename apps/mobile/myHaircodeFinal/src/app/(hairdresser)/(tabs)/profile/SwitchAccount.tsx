@@ -157,6 +157,8 @@ const SwitchAccountScreen = () => {
       const uid = session?.user?.id;
       if (!uid) return;
 
+      void queryClient.removeQueries({ queryKey: ["latest_haircodes"] });
+      void queryClient.removeQueries({ queryKey: ["clientSearch"] });
       void queryClient.invalidateQueries({ queryKey: ["latest_haircodes"] });
       void queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
 

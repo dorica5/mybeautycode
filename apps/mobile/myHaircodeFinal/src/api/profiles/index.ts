@@ -107,8 +107,8 @@ export const useListAllClientSearch = (
         `/api/profiles/search/clients-with-relationship?${params.toString()}`
       );
     },
-    /** Directory search must run whenever `q` is non-empty; `professionCode` only scopes relationship flags. */
-    enabled: !!hairdresser_id && q.length > 0,
+    /** Same lane contract as latest visits: never call unscoped (would list unrelated profiles server-side). */
+    enabled: !!hairdresser_id && q.length > 0 && !!code,
   });
 };
 

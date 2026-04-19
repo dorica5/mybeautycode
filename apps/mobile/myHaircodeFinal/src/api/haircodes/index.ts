@@ -174,8 +174,9 @@ export const useLatestHaircodes = (
   const ready = options?.activeProfessionReady !== false;
 
   return useQuery({
-    queryKey: ["latest_haircodes", hairdresserId, code ?? "all"],
-    queryFn: () => {
+    /** `v2` + lane suffix drops stale caches from builds that used `…, "all"` without a scoped fetch. */
+    queryKey: ["latest_haircodes", "v2", hairdresserId, code ?? "pending"],
+    queryFn: async () => {
       const q = code
         ? `?professionCode=${encodeURIComponent(code)}`
         : "";

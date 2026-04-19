@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { relationshipService } from "../services/relationshipService";
 import { professionService } from "../services/professionService";
 import { isUuid } from "../lib/isUuid";
+import { readProfessionCodeQuery } from "../lib/readProfessionCodeQuery";
 
 export const relationshipController = {
   /** Professional asks to link with a client (pending row + notification). */
@@ -101,12 +102,7 @@ export const relationshipController = {
         return res.status(403).json({ error: "Forbidden" });
       }
       try {
-        const profession_code =
-          typeof req.query.profession_code === "string"
-            ? req.query.profession_code
-            : typeof req.query.professionCode === "string"
-              ? req.query.professionCode
-              : undefined;
+        const profession_code = readProfessionCodeQuery(req.query);
         const status = await relationshipService.getClientLinkUiState(
           hairdresserId,
           clientId,
@@ -129,12 +125,7 @@ export const relationshipController = {
       return res.status(400).json({ error: "Invalid hairdresser_id or client_id" });
     }
     try {
-      const profession_code =
-        typeof req.query.profession_code === "string"
-          ? req.query.profession_code
-          : typeof req.query.professionCode === "string"
-            ? req.query.professionCode
-            : undefined;
+      const profession_code = readProfessionCodeQuery(req.query);
       const exists = await relationshipService.checkExists(
         hairdresserId,
         clientId,
@@ -156,12 +147,7 @@ export const relationshipController = {
       const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
         String(hairdresserId)
       );
-      const profession_code =
-        typeof req.query.profession_code === "string"
-          ? req.query.profession_code
-          : typeof req.query.professionCode === "string"
-            ? req.query.professionCode
-            : undefined;
+      const profession_code = readProfessionCodeQuery(req.query);
       const data = await relationshipService.listByProfessional(
         professionalProfileId,
         profession_code

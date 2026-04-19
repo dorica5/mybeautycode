@@ -110,22 +110,31 @@ export const professionService = {
 
   /**
    * Which `professional_professions` row to use for lane-isolated APIs (visits, client links).
-   * Single-role accounts: always that row (optional request code).
-   * Multi-role: requires `professionCodeFromRequest` matching an active row; otherwise `null`
-   * — callers must return empty data, never merge links across professions.
+   * When the client sends a lane code, we **materialize** a missing `professional_professions` row
+   * (`ensureProfessionsForProfile`) so “hair” vs “nails” never silently resolves to the wrong DB row.
    */
   async resolveActiveProfessionScopeForProfessionalProfile(
     professionalProfileId: string,
     professionCodeFromRequest: string | undefined | null
   ): Promise<{ professionId: string; normalizedCode: string } | null> {
+    const raw = professionCodeFromRequest?.trim();
+
+    if (raw) {
+      try {
+        const canonical = normalizeProfessionCodeInput(raw);
+        await this.ensureProfessionsForProfile(professionalProfileId, [canonical]);
+      } catch {
+        /** Invalid / unknown profession code — do not create rows. */
+      }
+    }
+
     const rows = await prisma.professionalProfession.findMany({
       where: { professionalProfileId, isActive: { not: false } },
       include: { profession: { select: { code: true } } },
       orderBy: { createdAt: "asc" },
     });
-    /** No rows yet (sync lag / legacy DB): scope by requested code so visits & links still work. */
+
     if (rows.length === 0) {
-      const raw = professionCodeFromRequest?.trim();
       if (!raw) return null;
       try {
         const professionId = await this.getProfessionIdByCode(raw);
@@ -137,16 +146,25 @@ export const professionService = {
         return null;
       }
     }
+
+    if (raw) {
+      const normalized = normalizeProfessionCodeInput(raw);
+      const match = rows.find(
+        (r) => normalizeProfessionCodeInput(r.profession.code) === normalized
+      );
+      if (!match) return null;
+      return {
+        professionId: match.professionId,
+        normalizedCode: match.profession.code,
+      };
+    }
+
+    /** No lane in request: single active row only (legacy clients / internal callers). */
     if (rows.length === 1) {
       const r = rows[0];
       return { professionId: r.professionId, normalizedCode: r.profession.code };
     }
-    const raw = professionCodeFromRequest?.trim();
-    if (!raw) return null;
-    const normalized = normalizeProfessionCodeInput(raw);
-    const match = rows.find((r) => r.profession.code === normalized);
-    if (!match) return null;
-    return { professionId: match.professionId, normalizedCode: match.profession.code };
+    return null;
   },
 
   /** Get or create professional profile for a profile ID. Returns professionalProfileId. */

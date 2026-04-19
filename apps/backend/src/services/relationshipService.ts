@@ -161,16 +161,19 @@ export const relationshipService = {
       const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
         professionalProfileIdOrProfileId
       );
+      const scope =
+        await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+          professionalProfileId,
+          professionCode
+        );
+      if (!scope) return false;
+
       const where: Prisma.ClientProfessionalLinkWhereInput = {
         professionalProfileId,
         clientUserId,
         status: "active",
+        professionId: scope.professionId,
       };
-      if (professionCode?.trim()) {
-        where.professionId = await professionService.getProfessionIdByCode(
-          professionCode.trim()
-        );
-      }
       const existing = await prisma.clientProfessionalLink.findFirst({
         where,
       });
@@ -191,15 +194,18 @@ export const relationshipService = {
     professionalProfileId: string,
     professionCode?: string | null
   ) {
+    const scope =
+      await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+        professionalProfileId,
+        professionCode
+      );
+    if (!scope) return [];
+
     const where: Prisma.ClientProfessionalLinkWhereInput = {
       professionalProfileId,
       status: "active",
+      professionId: scope.professionId,
     };
-    if (professionCode?.trim()) {
-      where.professionId = await professionService.getProfessionIdByCode(
-        professionCode.trim()
-      );
-    }
     const rels = await prisma.clientProfessionalLink.findMany({
       where,
       select: { clientUserId: true, createdAt: true },
@@ -249,15 +255,18 @@ export const relationshipService = {
   ): Promise<"none" | "pending" | "active"> {
     const professionalProfileId =
       await professionService.getOrCreateProfessionalProfileId(hairdresserUserId);
+    const scope =
+      await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+        professionalProfileId,
+        professionCode
+      );
+    if (!scope) return "none";
+
     const where: Prisma.ClientProfessionalLinkWhereInput = {
       professionalProfileId,
       clientUserId,
+      professionId: scope.professionId,
     };
-    if (professionCode?.trim()) {
-      where.professionId = await professionService.getProfessionIdByCode(
-        professionCode.trim()
-      );
-    }
     const link = await prisma.clientProfessionalLink.findFirst({
       where,
       select: { status: true },
