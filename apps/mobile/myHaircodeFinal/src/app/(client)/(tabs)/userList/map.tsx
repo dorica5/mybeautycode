@@ -19,6 +19,7 @@ import {
   Modal,
   ActivityIndicator,
   StatusBar as RNStatusBar,
+  useWindowDimensions,
 } from "react-native";
 import {
   SafeAreaView,
@@ -66,8 +67,6 @@ import {
   type MapCluster,
 } from "@/src/utils/mapClustering";
 
-const ORGANIC_LOGO_VIEWBOX_W = 390;
-const ORGANIC_LOGO_VIEWBOX_H = 226;
 const SECTION_GAP = 46;
 const ROW_HEIGHT = 52;
 /** Location search pill on map (design dp). */
@@ -105,13 +104,13 @@ function iosGoogleMapsConfigured(): boolean {
 function mapScreenTitle(profession?: string): string {
   switch (profession) {
     case "hair":
-      return "Select hairdresser";
+      return "Discover hairdressers";
     case "nails":
-      return "Select nail technician";
+      return "Discover nail technicians";
     case "brows":
-      return "Select brow stylist";
+      return "Discover brow stylists";
     default:
-      return "Select salon";
+      return "Discover salons";
   }
 }
 
@@ -130,8 +129,39 @@ function parseValidProfession(raw?: string): MapProfession | undefined {
   return undefined;
 }
 
+function clusterProfessionLabel(
+  profession: MapProfession,
+  count: number
+): string {
+  const plural = count !== 1;
+  switch (profession) {
+    case "hair":
+      return plural ? "hairdressers" : "hairdresser";
+    case "nails":
+      return plural ? "nail technicians" : "nail technician";
+    case "brows":
+      return plural ? "brow stylists" : "brow stylist";
+  }
+}
+
+function clusterSummaryLine(
+  profession: MapProfession,
+  count: number,
+  sameAddress: boolean
+): string {
+  const label = clusterProfessionLabel(profession, count);
+  if (sameAddress) {
+    return `${count} ${label} at the same address`;
+  }
+  return `${count} ${label} in this area`;
+}
+
 const MapLocationScreen = () => {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const patternWidth = windowWidth;
+  const heroHeight = patternWidth / 1.77;
+  const heroPatternVerticalNudge = heroHeight * 0.34;
 
   const { profession } = useLocalSearchParams<{
     profession?: string | string[];
@@ -340,10 +370,6 @@ const MapLocationScreen = () => {
     setSelectedClusterMembers(null);
     setSelectedMapProfessional(pro);
   }, []);
-
-  const spiralWidth = responsiveScale(200);
-  const spiralHeight =
-    spiralWidth * (ORGANIC_LOGO_VIEWBOX_H / ORGANIC_LOGO_VIEWBOX_W);
 
   /** Modal is a separate window: SafeAreaView often mis-insets; pad explicitly like other screens. */
   const mapModalInsetTop =
@@ -568,9 +594,11 @@ const MapLocationScreen = () => {
                           />
                         </Pressable>
                         <Text style={styles.pinDetailLine}>
-                          {sameAddressForAll(selectedClusterMembers)
-                            ? `${selectedClusterMembers.length} på samme adresse`
-                            : `${selectedClusterMembers.length} behandlere i dette området`}
+                          {clusterSummaryLine(
+                            professionKey,
+                            selectedClusterMembers.length,
+                            sameAddressForAll(selectedClusterMembers)
+                          )}
                         </Text>
                         <ScrollView
                           style={styles.clusterListScroll}
@@ -630,43 +658,64 @@ const MapLocationScreen = () => {
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.logoWrap}>
-                <OrganicPattern width={spiralWidth} height={spiralHeight} />
+              <View
+                style={[
+                  styles.heroBleed,
+                  {
+                    width: patternWidth,
+                    marginLeft: -insets.left,
+                    marginRight: -insets.right,
+                    height: heroHeight,
+                  },
+                ]}
+              >
+                <View style={[styles.hero, { height: heroHeight }]}>
+                  <OrganicPattern
+                    width={patternWidth}
+                    height={heroHeight}
+                    preserveAspectRatio="xMidYMid slice"
+                    style={{
+                      transform: [{ translateY: -heroPatternVerticalNudge }],
+                    }}
+                  />
+                </View>
               </View>
 
-              <Text style={[Typography.h3, styles.title]}>{screenTitle}</Text>
+              <View style={styles.mapScrollBody}>
+                <Text style={[Typography.h3, styles.title]}>{screenTitle}</Text>
 
-              <Text style={styles.locationSectionLabel}>
-                Use my current location
-              </Text>
-              <Pressable
-                onPress={onCheckLocation}
-                style={styles.outlineBtn}
-                accessibilityRole="button"
-              >
-                <Text style={styles.outlineBtnLabel}>Check my location</Text>
-              </Pressable>
-
-              <Text style={styles.locationSectionLabel}>
-                Or search for location
-              </Text>
-              <View style={styles.locationSearchBlock}>
-                <SearchInput
-                  variant="whitePill"
-                  whitePillWidth={LOCATION_SEARCH_FIELD_W}
-                  whitePillHeight={LOCATION_SEARCH_FIELD_H}
-                  onSearch={setLocationQuery}
-                  initialQuery={locationQuery}
-                  placeholder=""
-                  clearSearch={() => setLocationQuery("")}
-                />
+                <Text style={styles.locationSectionLabel}>
+                  Use my current location
+                </Text>
                 <Pressable
-                  onPress={onSearchLocation}
-                  style={styles.searchSubmitBtn}
+                  onPress={onCheckLocation}
+                  style={styles.outlineBtn}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.searchSubmitLabel}>Search</Text>
+                  <Text style={styles.outlineBtnLabel}>Check my location</Text>
                 </Pressable>
+
+                <Text style={styles.locationSectionLabel}>
+                  Or search for location
+                </Text>
+                <View style={styles.locationSearchBlock}>
+                  <SearchInput
+                    variant="whitePill"
+                    whitePillWidth={LOCATION_SEARCH_FIELD_W}
+                    whitePillHeight={LOCATION_SEARCH_FIELD_H}
+                    onSearch={setLocationQuery}
+                    initialQuery={locationQuery}
+                    placeholder=""
+                    clearSearch={() => setLocationQuery("")}
+                  />
+                  <Pressable
+                    onPress={onSearchLocation}
+                    style={styles.searchSubmitBtn}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.searchSubmitLabel}>Search</Text>
+                  </Pressable>
+                </View>
               </View>
             </ScrollView>
           </SafeAreaView>
@@ -816,17 +865,27 @@ const styles = StyleSheet.create({
     marginLeft: responsivePadding(4),
   },
   scrollContent: {
-    paddingHorizontal: responsivePadding(20),
+    flexGrow: 1,
     paddingBottom: responsiveMargin(32),
-    alignItems: "center",
   },
-  logoWrap: {
-    marginTop: responsiveMargin(4),
-    marginBottom: responsiveMargin(16),
+  heroBleed: {
+    marginTop: responsiveMargin(8),
+    marginBottom: responsiveMargin(-30),
+    overflow: "hidden",
+    alignSelf: "center",
+  },
+  hero: {
+    backgroundColor: primaryGreen,
+    overflow: "hidden",
+    width: "100%",
+  },
+  mapScrollBody: {
+    paddingHorizontal: responsivePadding(20),
     alignItems: "center",
   },
   title: {
     textAlign: "center",
+    alignSelf: "stretch",
     marginBottom: responsiveScale(SECTION_GAP),
   },
   locationSectionLabel: {

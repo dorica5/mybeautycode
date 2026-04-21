@@ -36,7 +36,12 @@ import OptimizedImage from "@/src/components/OptimizedImage";
 import ImageCropModal from "@/src/components/ImageCropModal";
 import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
 import Carousel from "react-native-reanimated-carousel";
-import CustomAlert from "@/src/components/CustomAlert";
+import {
+  MintBrandModal,
+  MintBrandModalFooterRow,
+  MintBrandModalPrimaryButton,
+  MintBrandModalSecondaryButton,
+} from "@/src/components/MintBrandModal";
 import {
   primaryBlack,
   primaryGreen,
@@ -783,15 +788,25 @@ const MyInspiration = () => {
               </View>
             </SafeAreaView>
 
-            <CustomAlert
+            <MintBrandModal
               visible={detailDeleteAlertVisible}
-              title="Delete inspiration"
-              message="Delete this image? This cannot be undone."
               onClose={() => setDetailDeleteAlertVisible(false)}
-              fromDelete={true}
-              onDelete={() => {
-                void performDetailDelete();
-              }}
+              title="Delete inspiration"
+              message="Delete this image?"
+              footer={
+                <MintBrandModalFooterRow>
+                  <MintBrandModalSecondaryButton
+                    label="Cancel"
+                    onPress={() => setDetailDeleteAlertVisible(false)}
+                  />
+                  <MintBrandModalPrimaryButton
+                    label="Delete"
+                    onPress={() => {
+                      void performDetailDelete();
+                    }}
+                  />
+                </MintBrandModalFooterRow>
+              }
             />
           </View>
         </Modal>
