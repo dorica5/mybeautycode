@@ -41,7 +41,7 @@ export const serviceRecordAccessService = {
     viewerProfileId: string,
     record: {
       clientUserId: string;
-      professionalProfileId: string;
+      professionalProfileId: string | null;
       professionId?: string | null;
     }
   ): Promise<boolean> {
@@ -57,7 +57,12 @@ export const serviceRecordAccessService = {
     });
     if (!viewerPP) return false;
 
-    if (record.professionalProfileId === viewerPP.id) return true;
+    if (
+      record.professionalProfileId &&
+      record.professionalProfileId === viewerPP.id
+    ) {
+      return true;
+    }
 
     const linkWhere: Prisma.ClientProfessionalLinkWhereInput = {
       clientUserId: record.clientUserId,

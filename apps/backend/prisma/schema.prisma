@@ -281,7 +281,8 @@ model ClientProfessionProfile {
 model ServiceRecord {
   id                         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   clientUserId               String   @map("client_user_id") @db.Uuid
-  professionalProfileId      String   @map("professional_profile_id") @db.Uuid
+  /// Nullable so deleting the professional preserves the client's visit history.
+  professionalProfileId      String?  @map("professional_profile_id") @db.Uuid
   professionId               String   @map("profession_id") @db.Uuid
   clientProfessionalLinkId   String?  @map("client_professional_link_id") @db.Uuid
   serviceName                String?  @map("service_name") @db.Text
@@ -295,7 +296,7 @@ model ServiceRecord {
   updatedAt                  DateTime? @map("updated_at") @db.Timestamptz
 
   clientUser              Profile                 @relation("ServiceRecordClient", fields: [clientUserId], references: [id], onDelete: Cascade)
-  professionalProfile     ProfessionalProfile     @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+  professionalProfile     ProfessionalProfile?    @relation(fields: [professionalProfileId], references: [id], onDelete: SetNull)
   profession              Profession              @relation(fields: [professionId], references: [id], onDelete: Cascade)
   clientProfessionalLink  ClientProfessionalLink? @relation(fields: [clientProfessionalLinkId], references: [id], onDelete: SetNull)
   createdByUser           Profile?                @relation("ServiceRecordCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
