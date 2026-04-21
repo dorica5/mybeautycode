@@ -6,14 +6,24 @@ import {
   getNotification,
   respondToFriendRequest,
 } from "@/src/api/notifications/api";
-import MyButton from "@/src/components/MyButton";
 import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { Colors } from "@/src/constants/Colors";
 import { SafeAreaView } from "react-native-safe-area-context";
-import TopNav from "@/src/components/TopNav";
 import { isBlocked } from "@/src/api/moderation";
-import { responsiveScale, responsiveFontSize, scalePercent } from "@/src/utils/responsive";
+import { CaretLeft } from "phosphor-react-native";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
+import {
+  responsiveMargin,
+  responsivePadding,
+  responsiveScale,
+  scalePercent,
+} from "@/src/utils/responsive";
+import {
+  MintBrandModalFooterRow,
+  MintBrandModalPrimaryButton,
+  MintBrandModalSecondaryButton,
+} from "@/src/components/MintBrandModal";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 
@@ -100,6 +110,11 @@ export const FriendRequest = () => {
       }
 
       setIsHandled(true);
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace("/notifications");
+      }
     } catch (error) {
       console.error("Error handling friend request:", error);
       Alert.alert("Error", "Failed to process request");
@@ -110,20 +125,26 @@ export const FriendRequest = () => {
 
   if (isCheckingStatus) {
     return (
-      <SafeAreaView style={styles.container}>
-        <TopNav title="" />
-      </SafeAreaView>
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]} />
     );
   }
 
   if (isClientRequest) {
     return (
       <>
-        <StatusBar style="dark" backgroundColor="#fff" />
-        <View style={{ flex: 1, backgroundColor: "#fff" }}>
-          <SafeAreaView style={styles.container}>
-            <TopNav title="New Client" />
-            <View style={styles.subContainer}>
+        <StatusBar style="dark" />
+        <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+          <Pressable
+            onPress={() => router.back()}
+            style={styles.backRow}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+            <Text style={styles.backLabel}>Back</Text>
+          </Pressable>
+
+          <View style={styles.content}>
               <Pressable
                 style={styles.profileColumn}
                 onPress={
@@ -138,28 +159,35 @@ export const FriendRequest = () => {
               >
                 <AvatarWithSpinner
                   uri={profile_pic}
-                  size={responsiveScale(55)}
-                  style={styles.profileImage}
+                  size={responsiveScale(86)}
+                  style={styles.avatar}
                 />
-                <Text style={[styles.name, {fontSize: responsiveFontSize(16, 14)}]}>{senderName}</Text>
+                <Text style={[Typography.h3, styles.name]}>{senderName}</Text>
               </Pressable>
-              <Text style={[styles.message, {fontSize: responsiveFontSize(16, 12)}]}>
-                has added you as their hairdresser.
-              </Text>
-            </View>
-          </SafeAreaView>
-        </View>
+            <Text style={[Typography.bodyMedium, styles.message]}>
+              wants to connect with you.
+            </Text>
+          </View>
+        </SafeAreaView>
       </>
     );
   }
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
-        <SafeAreaView style={styles.container}>
-          <TopNav title="Haircode Request" />
-          <View style={styles.subContainer}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backRow}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+          <Text style={styles.backLabel}>Back</Text>
+        </Pressable>
+
+        <View style={styles.content}>
             <Pressable
               style={styles.profileColumn}
               onPress={
@@ -177,83 +205,88 @@ export const FriendRequest = () => {
             >
               <AvatarWithSpinner
                 uri={profile_pic}
-                size={responsiveScale(55)}
-                style={styles.profileImage}
+                size={responsiveScale(86)}
+                style={styles.avatar}
               />
-              <Text style={[styles.name, {fontSize: responsiveFontSize(16, 14)}]}>{senderName}</Text>
+              <Text style={[Typography.h3, styles.name]}>{senderName}</Text>
             </Pressable>
 
-            <Text style={[styles.message, {fontSize: responsiveFontSize(16, 12)}]}>wants access to your haircodes.</Text>
+          <Text style={[Typography.bodyMedium, styles.message]}>
+            wants access to your visits.
+          </Text>
 
-            {!isHandled && (
-              <View style={styles.buttonContainer}>
-                <MyButton
-                  text="Accept"
-                  textSize={18}
-                  textTabletSize={14}
-                  onPress={() => handleResponse(true)}
-                  disabled={loading}
-                  style={styles.acceptButton}
-                />
-                <MyButton
-                  text="Decline"
-                  textSize={18}
-                  textTabletSize={14}
+          {!isHandled && (
+            <View style={styles.actions}>
+              <MintBrandModalFooterRow>
+                <MintBrandModalSecondaryButton
+                  label="Decline"
                   onPress={() => handleResponse(false)}
-                  disabled={loading}
-                  style={styles.declineButton}
+                  accessibilityLabel="Decline request"
                 />
-              </View>
-            )}
-          </View>
-        </SafeAreaView>
-      </View>
+                <MintBrandModalPrimaryButton
+                  label={loading ? "Please wait" : "Accept"}
+                  onPress={() => handleResponse(true)}
+                  accessibilityLabel="Accept request"
+                />
+              </MintBrandModalFooterRow>
+            </View>
+          )}
+        </View>
+      </SafeAreaView>
     </>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    padding: responsiveScale(20),
+    backgroundColor: primaryGreen,
   },
-  subContainer: {
+  backRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: responsivePadding(16),
+    paddingVertical: responsiveMargin(12),
+    alignSelf: "flex-start",
+    gap: responsiveScale(4),
+  },
+  backLabel: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
+  },
+  content: {
     flex: 1,
     alignItems: "center",
+    paddingHorizontal: responsivePadding(24),
+    paddingTop: responsiveMargin(12),
   },
   profileColumn: {
     flexDirection: "column",
     alignItems: "center",
-    marginTop: scalePercent(10),
-    gap: responsiveScale(8),
+    marginTop: scalePercent(6),
+    gap: responsiveScale(10),
   },
-  profileImage: {
-    width: responsiveScale(55),
-    height: responsiveScale(55),
-    borderRadius: responsiveScale(30),
-    backgroundColor: Colors.dark.yellowish,
+  avatar: {
+    borderRadius: responsiveScale(999),
+    backgroundColor: primaryWhite,
+    borderWidth: 1,
+    borderColor: primaryBlack,
   },
   name: {
-    fontFamily: "Inter-SemiBold",
-    lineHeight: responsiveFontSize(24, 20),
     textAlign: "center",
   },
   message: {
-    fontFamily: "Inter-Regular",
     textAlign: "center",
-    marginTop: scalePercent(5),
+    marginTop: responsiveMargin(16),
+    maxWidth: 360,
+    color: primaryBlack,
+    opacity: 0.92,
   },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: responsiveScale(10),
-    marginTop: scalePercent(20),
-  },
-  acceptButton: {
-    flex: 1,
-  },
-  declineButton: {
-    flex: 1,
+  actions: {
+    marginTop: responsiveMargin(26),
+    alignSelf: "stretch",
+    maxWidth: 420,
+    paddingHorizontal: responsivePadding(4),
   },
 });
 

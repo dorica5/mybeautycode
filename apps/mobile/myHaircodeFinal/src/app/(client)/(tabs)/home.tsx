@@ -7,7 +7,6 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { BrandHomeNavLink } from "@/src/components/BrandHomeNavLink";
-import { BrandAccountSurfacePill } from "@/src/components/BrandAccountSurfacePill";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import {
   primaryBlack,
@@ -31,10 +30,6 @@ const HomeScreen = () => {
     profile?.full_name ||
     "";
   const username = profile?.username?.trim() ?? "";
-
-  const userTypeRaw =
-    profile?.user_type ?? (profile as { userType?: string } | undefined)?.userType;
-  const hasProfessionalAccount = userTypeRaw === "HAIRDRESSER";
 
   const avatarSize = responsiveScale(120, 144);
 
@@ -73,24 +68,6 @@ const HomeScreen = () => {
         {username ? (
           <Text style={[Typography.anton24, styles.username]}>{username}</Text>
         ) : null}
-
-        <BrandAccountSurfacePill
-          label={
-            hasProfessionalAccount
-              ? "Switch account"
-              : "Become a professional"
-          }
-          onPress={() => {
-            if (hasProfessionalAccount) {
-              router.push({
-                pathname: "/(hairdresser)/(tabs)/profile/SwitchAccount",
-                params: { activeSurface: "client" },
-              } as Href);
-            } else {
-              router.push("/(setup)/ChooseProfession" as Href);
-            }
-          }}
-        />
 
         <View style={styles.searchCard}>
           <Text
