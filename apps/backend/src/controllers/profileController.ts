@@ -145,10 +145,23 @@ export const profileController = {
     if (!q || !clientId) {
       return res.status(400).json({ error: "q required" });
     }
+    // Optional lane filter: searches are scoped per profession account
+    // (a pro's hair / nails / brows profiles are independent entities).
+    const professionCodeRaw =
+      typeof req.query.profession_code === "string"
+        ? req.query.profession_code
+        : typeof req.query.professionCode === "string"
+          ? req.query.professionCode
+          : undefined;
+    const professionCode =
+      professionCodeRaw && professionCodeRaw.trim()
+        ? professionCodeRaw.trim()
+        : undefined;
     try {
       const results = await profileService.searchProfessionalsWithRelationship(
         String(q),
-        clientId!
+        clientId!,
+        professionCode
       );
       res.json(results);
     } catch (err) {

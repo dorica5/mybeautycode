@@ -16,9 +16,15 @@ export const relationshipService = {
   ) {
     const professionalProfileId =
       await professionService.getOrCreateProfessionalProfileId(hairdresserProfileUserId);
+    const normalizedCode = professionCode.trim() || "hair";
     const professionId = await professionService.getProfessionIdByCode(
-      professionCode.trim() || "hair"
+      normalizedCode
     );
+    // Materialize the lane on the pro so they become discoverable in this
+    // profession's search (evidence that survives link deletion).
+    await professionService.ensureProfessionsForProfile(professionalProfileId, [
+      normalizedCode,
+    ]);
 
     const prof = await prisma.professionalProfile.findUnique({
       where: { id: professionalProfileId },
@@ -98,8 +104,9 @@ export const relationshipService = {
     clientUserId: string,
     professionCode: string = "hair"
   ) {
+    const normalizedCode = professionCode.trim() || "hair";
     const professionId = await professionService.getProfessionIdByCode(
-      professionCode.trim() || "hair"
+      normalizedCode
     );
     const ids = Array.isArray(professionalProfileIdOrProfileId)
       ? professionalProfileIdOrProfileId
@@ -109,6 +116,13 @@ export const relationshipService = {
       const professionalProfileId = id.length === 36 && id.includes("-")
         ? await professionService.getOrCreateProfessionalProfileId(id)
         : id;
+
+      // Materialize the lane on the pro so they stay discoverable in this
+      // profession's search even if this link is later removed.
+      await professionService.ensureProfessionsForProfile(
+        professionalProfileId,
+        [normalizedCode]
+      );
 
       const existing = await prisma.clientProfessionalLink.findFirst({
         where: {

@@ -271,6 +271,9 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
           phone_number: item.phone_number,
           relationship: hasRelationship,
           client_id: item.client_id,
+          ...(professionCode?.trim()
+            ? { profession: professionCode.trim() }
+            : {}),
         },
       }}
       style={styles.resultItem}

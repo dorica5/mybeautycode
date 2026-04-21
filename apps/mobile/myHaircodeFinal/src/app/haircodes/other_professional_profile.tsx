@@ -96,7 +96,11 @@ const OtherProfessionalProfileScreen = () => {
     : undefined;
 
   const { data: isRelated = false, isFetching: relLoading } =
-    useRelationshipCheck(client_id ?? undefined, hairdresser_id);
+    useRelationshipCheck(
+      client_id ?? undefined,
+      hairdresser_id,
+      professionCodeFromVisit
+    );
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
   const [isBlockedUser, setIsBlockedUser] = useState(false);
@@ -109,7 +113,8 @@ const OtherProfessionalProfileScreen = () => {
   const [loading, setLoading] = useState(false);
   const { mutateAsync: addHairdresserDB } = useAddHairdresser(
     hairdresser_id,
-    client_id
+    client_id,
+    professionCodeFromVisit
   );
 
   const showRelationshipCta = Boolean(
@@ -144,7 +149,9 @@ const OtherProfessionalProfileScreen = () => {
   const deleteHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
     try {
-      await removeRelationships.mutateAsync([hairdresser_id]);
+      await removeRelationships.mutateAsync([
+        { hairdresserId: hairdresser_id, professionCode: professionCodeFromVisit },
+      ]);
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["relationship", client_id, hairdresser_id],
@@ -159,7 +166,13 @@ const OtherProfessionalProfileScreen = () => {
       console.error(error);
       Alert.alert("Error", "Failed to delete user.");
     }
-  }, [client_id, hairdresser_id, queryClient, removeRelationships]);
+  }, [
+    client_id,
+    hairdresser_id,
+    professionCodeFromVisit,
+    queryClient,
+    removeRelationships,
+  ]);
 
   const addHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;

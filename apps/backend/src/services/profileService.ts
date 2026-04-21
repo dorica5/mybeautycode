@@ -433,30 +433,84 @@ export const profileService = {
     }));
   },
 
+  /**
+   * Discovery search for professionals a client might want to connect with.
+   *
+   * Each profession (hair / nails / brows) is a separate professional account:
+   * when a `professionCode` is provided, only pros with that profession account
+   * are returned (if a pro has only a hair account, they won't show up in the
+   * brows lane). The `has_relationship` / `link_pending` flags reflect the
+   * existing link state *in the same profession lane*, so removing a link
+   * naturally makes the pro searchable again (until the client re-connects).
+   *
+   * Blocked users (either direction) are always excluded.
+   */
   async searchProfessionalsWithRelationship(
     searchQuery: string,
-    clientUserId: string
+    clientUserId: string,
+    professionCode?: string | null
   ) {
-    const rels = await prisma.clientProfessionalLink.findMany({
-      where: {
-        clientUserId,
-        status: "active",
-      },
-      select: { professionalProfileId: true },
-    });
-    const profProfileIds = rels.map((r) => r.professionalProfileId);
-    if (profProfileIds.length === 0) return [];
+    const normalizedCode = professionCode?.trim() || undefined;
+    let professionId: string | undefined;
+    if (normalizedCode) {
+      professionId = await professionService.getProfessionIdByCode(
+        normalizedCode
+      );
+    }
 
-    const blocked = await prisma.blockedUser.findMany({
-      where: { blockerId: clientUserId },
-      select: { blockedId: true },
+    // Mutual-block filter: don't surface anyone the client blocked, and don't
+    // surface anyone who blocked the client.
+    const blocks = await prisma.blockedUser.findMany({
+      where: {
+        OR: [{ blockerId: clientUserId }, { blockedId: clientUserId }],
+      },
+      select: { blockerId: true, blockedId: true },
     });
-    const blockedIds = new Set(blocked.map((b) => b.blockedId));
+    const blockedProfileIds = new Set<string>();
+    for (const b of blocks) {
+      if (b.blockerId === clientUserId) blockedProfileIds.add(b.blockedId);
+      else blockedProfileIds.add(b.blockerId);
+    }
+
+    // "Pro has this lane" is evidenced by any of:
+    //  1. an active (or legacy-null) ProfessionalProfession row for the lane
+    //  2. a lane-specific profile row (hair / nails) for the lane
+    //  3. any existing ClientProfessionalLink with that professionId
+    // This lets us honor the "accounts are independent" rule while still
+    // finding pros whose data pre-dates the link-flow materialization below.
+    const laneFilter: Prisma.ProfessionalProfileWhereInput | undefined =
+      professionId
+        ? {
+            OR: [
+              {
+                professionalProfessions: {
+                  some: {
+                    professionId,
+                    OR: [{ isActive: true }, { isActive: null }],
+                  },
+                },
+              },
+              ...(normalizedCode === "hair"
+                ? [{ professionalHairProfile: { isNot: null } as const }]
+                : []),
+              ...(normalizedCode === "nails"
+                ? [{ professionalNailsProfile: { isNot: null } as const }]
+                : []),
+              {
+                clientProfessionalLinks: {
+                  some: { professionId },
+                },
+              },
+            ],
+          }
+        : undefined;
 
     const profProfiles = await prisma.professionalProfile.findMany({
       where: {
-        id: { in: profProfileIds },
+        // Don't surface yourself in a client-side search.
+        profileId: { not: clientUserId },
         profile: nameSearch(searchQuery),
+        ...(laneFilter ?? {}),
       },
       include: {
         profile: {
@@ -465,13 +519,36 @@ export const profileService = {
       },
     });
 
-    const valid = profProfiles.filter((pp) => !blockedIds.has(pp.profileId));
-    return valid.map((pp) => ({
+    const visible = profProfiles.filter(
+      (pp) => !blockedProfileIds.has(pp.profileId)
+    );
+    if (visible.length === 0) return [];
+
+    // Annotate each result with the existing link state for this client
+    // (scoped to the chosen lane when provided).
+    const links = await prisma.clientProfessionalLink.findMany({
+      where: {
+        clientUserId,
+        professionalProfileId: { in: visible.map((pp) => pp.id) },
+        ...(professionId ? { professionId } : {}),
+      },
+      select: { professionalProfileId: true, status: true },
+    });
+    const activeProIds = new Set<string>();
+    const pendingProIds = new Set<string>();
+    for (const l of links) {
+      if (l.status === "active") activeProIds.add(l.professionalProfileId);
+      else if (l.status === "pending") pendingProIds.add(l.professionalProfileId);
+    }
+
+    return visible.map((pp) => ({
       professional_profile_id: pp.id,
       profile_id: pp.profileId,
+      hairdresser_id: pp.profileId,
       full_name: pp.displayName ?? profileDisplayName(pp.profile),
       avatar_url: pp.profile.avatarUrl,
-      has_relationship: true,
+      has_relationship: activeProIds.has(pp.id),
+      link_pending: pendingProIds.has(pp.id),
     }));
   },
 };

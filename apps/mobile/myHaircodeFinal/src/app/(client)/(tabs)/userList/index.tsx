@@ -63,7 +63,8 @@ const FindProfessionalsScreen = () => {
 
   const { data: searchResults = [], isLoading } = useListAllHairdresserSearch(
     debouncedQuery,
-    profile?.id
+    profile?.id,
+    professionKey
   );
 
   useEffect(() => {
@@ -205,6 +206,7 @@ const FindProfessionalsScreen = () => {
                   item={item}
                   context="client"
                   query={debouncedQuery}
+                  professionCode={professionKey}
                 />
               )}
               ListEmptyComponent={

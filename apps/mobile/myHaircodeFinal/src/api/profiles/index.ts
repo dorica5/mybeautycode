@@ -122,28 +122,36 @@ export const useClientSearch = (client_id: string | undefined) => {
 
 export const useListAllHairdresserSearch = (
   searchQuery: string,
-  clientId: string
+  clientId: string,
+  professionCode?: string | null
 ) => {
+  const code = professionCode?.trim() || undefined;
   return useQuery({
-    queryKey: ["hairdresserSearch", searchQuery],
-    queryFn: () =>
-      api.get<unknown[]>(
-        `/api/profiles/search/hairdressers-with-relationship?q=${encodeURIComponent(searchQuery)}`
-      ),
+    queryKey: ["hairdresserSearch", searchQuery, code ?? "any"],
+    queryFn: () => {
+      const params = new URLSearchParams({ q: searchQuery });
+      if (code) params.set("profession_code", code);
+      return api.get<unknown[]>(
+        `/api/profiles/search/hairdressers-with-relationship?${params.toString()}`
+      );
+    },
     enabled: !!searchQuery,
   });
 };
 
 export const useAddHairdresser = (
   hairdresser_id: string | string[],
-  client_id: string | undefined
+  client_id: string | undefined,
+  professionCode?: string | null
 ) => {
   const queryClient = useQueryClient();
+  const code = professionCode?.trim() || undefined;
   return useMutation({
     mutationFn: () =>
       api.post("/api/relationships", {
         hairdresser_id,
         client_id: client_id ?? undefined,
+        ...(code ? { profession_code: code } : {}),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({});
