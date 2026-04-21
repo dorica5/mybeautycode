@@ -1,12 +1,14 @@
-import { StyleSheet, Text, View, Pressable } from "react-native";
-import React from "react";
+import { StyleSheet, Text, View, Pressable, ActivityIndicator, Alert } from "react-native";
+import React, { useState } from "react";
 import { Link, router, type Href } from "expo-router";
-import { Clock } from "phosphor-react-native";
 import { ResponsiveText } from "./ResponsiveText";
 import { AvatarWithSpinner } from "./avatarSpinner";
-import { AddClientRowIcon } from "./AddClientRowIcon";
+import { AddClientRowIcon, PendingClockRowIcon } from "./AddClientRowIcon";
 import { FONT_FAMILY, Typography } from "@/src/constants/Typography";
 import { primaryBlack } from "@/src/constants/Colors";
+import { useAuth } from "@/src/providers/AuthProvider";
+import { useQueryClient } from "@tanstack/react-query";
+import { requestClientLink } from "@/src/api/profiles";
 import {
   responsiveScale,
   responsivePadding,
@@ -35,6 +37,10 @@ type SearchResultProps = {
 };
 
 const SearchResults = ({ item, context, query, professionCode }: SearchResultProps) => {
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
+  const [actionBusyClientId, setActionBusyClientId] = useState<string | null>(null);
+
   const isProClientRow = context === "hairdresser";
   const baseNameStyle = isProClientRow
     ? Typography.bodySmall
@@ -105,10 +111,18 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
 
   if (isProClientRow) {
     const clientId = item.client_id ?? item.id;
-    const showTrailing = !hasRelationship;
-    /** AddClientRowIcon uses a 24×24 viewBox; Phosphor Clock uses 256×256 with an ~208px ring — scale so the rings match. */
+    const hairdresserId = profile?.id;
+    const laneReady = Boolean(professionCode?.trim());
+    const showQuickLinkActions =
+      Boolean(hairdresserId) && laneReady && isUuid(clientId);
+    /** Trailing add / pending only — no icon once the client has approved (active). */
+    const showTrailingSlot = showQuickLinkActions && !hasRelationship;
     const trailingIconDp = responsiveScale(24);
-    const pendingClockDp = trailingIconDp * (15 / 13);
+
+    const invalidateAfterLinkChange = async () => {
+      await queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
+      await queryClient.invalidateQueries({ queryKey: ["latest_haircodes"] });
+    };
 
     const navigateToClient = () => {
       if (!isUuid(clientId)) return;
@@ -140,7 +154,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
       });
     };
 
-    const navigateToAddClientProfile = () => {
+    const navigateToPendingClientProfile = () => {
       if (!isUuid(clientId)) return;
       router.push({
         pathname: "/(hairdresser)/clientProfile/[id]" as Href,
@@ -153,6 +167,8 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
         },
       });
     };
+
+    const rowActionBusy = actionBusyClientId === clientId;
 
     return (
       <View style={styles.resultItemPro}>
@@ -172,35 +188,61 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
             {highlightMatch(displayName, query ?? "")}
           </View>
         </Pressable>
-        {showTrailing && (
-          <Pressable
-            style={({ pressed }) => [
-              styles.plusWrap,
-              { opacity: pressed ? 0.5 : 1 },
-            ]}
-            onPress={navigateToAddClientProfile}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel={
-              linkPending
-                ? "Open client profile, request pending"
-                : "Open client profile to add client"
-            }
-          >
-            {linkPending ? (
-              <Clock
-                size={pendingClockDp}
-                color={primaryBlack}
-                weight="regular"
-              />
-            ) : (
-              <AddClientRowIcon
+        {showTrailingSlot ? (
+          linkPending ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.plusWrap,
+                { opacity: pressed ? 0.5 : 1 },
+              ]}
+              onPress={navigateToPendingClientProfile}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Request pending, open client profile"
+            >
+              <PendingClockRowIcon
                 size={trailingIconDp}
                 color={primaryBlack}
               />
-            )}
-          </Pressable>
-        )}
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [
+                styles.plusWrap,
+                { opacity: pressed && !rowActionBusy ? 0.5 : 1 },
+              ]}
+              onPress={async () => {
+                if (rowActionBusy || !laneReady || !isUuid(clientId)) return;
+                setActionBusyClientId(clientId);
+                try {
+                  await requestClientLink(clientId, professionCode);
+                  await invalidateAfterLinkChange();
+                } catch (err) {
+                  const msg =
+                    err instanceof Error
+                      ? err.message
+                      : "Could not send the request.";
+                  Alert.alert("Request failed", msg);
+                } finally {
+                  setActionBusyClientId(null);
+                }
+              }}
+              disabled={rowActionBusy}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Add client"
+            >
+              {rowActionBusy ? (
+                <ActivityIndicator color={primaryBlack} />
+              ) : (
+                <AddClientRowIcon
+                  size={trailingIconDp}
+                  color={primaryBlack}
+                />
+              )}
+            </Pressable>
+          )
+        ) : null}
       </View>
     );
   }
@@ -290,6 +332,8 @@ const styles = StyleSheet.create({
     marginLeft: responsiveMargin(8),
     justifyContent: "center",
     alignItems: "center",
+    minWidth: responsiveScale(36),
+    minHeight: responsiveScale(36),
   },
   resultText: {
     fontSize: responsiveFontSize(20, 18),

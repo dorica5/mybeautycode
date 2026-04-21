@@ -45,7 +45,7 @@ import {
   moderationDetailCopy,
 } from "@/src/components/moderation/ModerationSheetParts";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
-import CustomAlert from "@/src/components/CustomAlert";
+import { ClientLinkRequestSentModal } from "@/src/components/ClientLinkRequestSentModal";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   responsiveScale,
@@ -452,11 +452,10 @@ const UserProfile = () => {
             )}
           </ScrollView>
 
-          <CustomAlert
+          <ClientLinkRequestSentModal
             visible={alertVisible}
-            title="Request sent"
-            message="Waiting for the client to accept your request."
             onClose={() => setAlertVisible(false)}
+            clientName={data?.full_name?.trim() || navFullName?.trim() || null}
           />
         </SafeAreaView>
       </>
