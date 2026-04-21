@@ -20,6 +20,7 @@ export type NotificationItemProps = {
     read?: boolean;
     message?: string;
     type?: string;
+    status?: string;
     sender_id?: string;
     sender?: { avatar_url?: string; full_name?: string };
     data?: Record<string, unknown>;
@@ -34,6 +35,54 @@ export const NotificationItem = ({
 }: NotificationItemProps) => {
   const [isRead, setIsRead] = useState(notification.read);
   const senderAvatar = notification.sender?.avatar_url;
+  const senderName =
+    (typeof notification.sender?.full_name === "string" &&
+    notification.sender.full_name.trim()
+      ? notification.sender.full_name.trim()
+      : null) ??
+    (typeof notification.data?.senderName === "string" &&
+    notification.data.senderName.trim()
+      ? notification.data.senderName.trim()
+      : null) ??
+    null;
+
+  const isHandled =
+    notification.status === "accepted" ||
+    notification.status === "rejected" ||
+    notification.data?.status === "accepted" ||
+    notification.data?.status === "rejected";
+
+  const professionCodeRaw =
+    (notification.data?.profession_code ?? notification.data?.professionCode) as
+      | string
+      | undefined;
+  const professionCode =
+    typeof professionCodeRaw === "string" && professionCodeRaw.trim()
+      ? professionCodeRaw.trim()
+      : null;
+  const roleLabel = (() => {
+    switch (professionCode) {
+      case "hair":
+        return "hairdresser";
+      case "nails":
+        return "nail technician";
+      case "brows":
+      case "brows_lashes":
+        return "brow stylist";
+      default:
+        return "hairdresser";
+    }
+  })();
+
+  const displayMessage = (() => {
+    if (notification.type === "FRIEND_REQUEST" || notification.type === "link_request") {
+      if (isHandled && (notification.status === "accepted" || notification.data?.status === "accepted")) {
+        return `${senderName ?? "Someone"} are now your ${roleLabel}`;
+      }
+      return `${senderName ?? "Someone"} wants to connect with you`;
+    }
+    return notification.message;
+  })();
 
   const markAsRead = async () => {
     if (!isRead) {
@@ -97,6 +146,7 @@ export const NotificationItem = ({
   };
 
   const handlePress = async () => {
+    if (isHandled) return;
     await markAsRead();
     console.log("Handling notification type:", notification.type);
 
@@ -195,8 +245,11 @@ export const NotificationItem = ({
     }
   };
 
+  const effectiveTone: NotificationCardTone | undefined =
+    cardTone && isHandled ? "dark" : cardTone;
+
   const iconColor =
-    cardTone === "dark" ? primaryWhite : primaryBlack;
+    effectiveTone === "dark" ? primaryWhite : primaryBlack;
 
   const avatarOrIcon = senderAvatar ? (
     <AvatarWithSpinner
@@ -212,7 +265,7 @@ export const NotificationItem = ({
       style={[
         styles.profileImage,
         styles.iconPlaceholder,
-        cardTone === "dark" && styles.iconPlaceholderDark,
+        effectiveTone === "dark" && styles.iconPlaceholderDark,
       ]}
     >
       {cardTone ? (
@@ -228,11 +281,13 @@ export const NotificationItem = ({
       style={[
         cardTone === "light" && styles.clientCardLight,
         cardTone === "dark" && styles.clientCardDark,
+        isHandled && cardTone && styles.clientCardHandled,
         !cardTone && styles.container,
         !cardTone && !isRead && styles.unread,
       ]}
       onPress={handlePress}
-      activeOpacity={0.85}
+      disabled={isHandled}
+      activeOpacity={isHandled ? 1 : 0.85}
     >
       <View
         style={[
@@ -246,11 +301,11 @@ export const NotificationItem = ({
             style={[
               styles.message,
               { fontSize: responsiveFontSize(14, 12) },
-              cardTone === "light" && styles.messageLight,
-              cardTone === "dark" && styles.messageDark,
+              effectiveTone === "light" && styles.messageLight,
+              effectiveTone === "dark" && styles.messageDark,
             ]}
           >
-            {notification.message}
+            {displayMessage}
           </Text>
         </View>
       </View>
@@ -287,6 +342,10 @@ const styles = StyleSheet.create({
     backgroundColor: CLIENT_CARD_DARK,
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: CLIENT_CARD_DARK,
+  },
+  clientCardHandled: {
+    backgroundColor: primaryBlack,
+    borderColor: primaryBlack,
   },
   contentContainerClient: {
     gap: 0,

@@ -4,7 +4,6 @@ import {
   StyleSheet,
   View,
   FlatList,
-  Modal,
   Text,
 } from "react-native";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
@@ -18,19 +17,23 @@ import {
 } from "@/src/api/profiles";
 import { useAuth } from "@/src/providers/AuthProvider";
 import CustomAlert from "@/src/components/CustomAlert";
-import { XCircle } from "phosphor-react-native";
 import { Href, router } from "expo-router";
 import {
   responsiveFontSize,
   responsiveScale,
   responsivePadding,
   responsiveBorderRadius,
-  scale,
   scalePercent,
 } from "@/src/utils/responsive";
 import { MintProfileScreenShell } from "@/src/components/MintProfileScreenShell";
 import { Typography } from "@/src/constants/Typography";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
+import {
+  MintBrandModal,
+  MintBrandModalFooterRow,
+  MintBrandModalPrimaryButton,
+  MintBrandModalSecondaryButton,
+} from "@/src/components/MintBrandModal";
 
 type ProRow = {
   link_id: string;
@@ -233,36 +236,27 @@ const ManageProfessionals = () => {
         onClose={() => setAlertVisible(false)}
       />
 
-      <Modal
+      <MintBrandModal
         visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.modalContent}>
-            <Pressable onPress={() => setModalVisible(false)} style={styles.close}>
-              <XCircle style={styles.closeButton} />
-            </Pressable>
-            <Text style={styles.modalMessage}>
-              Are you sure you want to remove this professional? They will no
-              longer see your haircodes.
-            </Text>
-
-            <PaddedLabelButton
-              title="Delete"
-              horizontalPadding={32}
-              verticalPadding={16}
+        onClose={() => setModalVisible(false)}
+        title="Delete professional"
+        message="Are you sure you want to remove this professional?"
+        footer={
+          <MintBrandModalFooterRow>
+            <MintBrandModalSecondaryButton
+              label="Cancel"
+              onPress={() => setModalVisible(false)}
+            />
+            <MintBrandModalPrimaryButton
+              label="Delete"
               onPress={() => {
                 setModalVisible(false);
                 void confirmDelete();
               }}
-              style={styles.modalDeleteCta}
-              textStyle={primaryCtaTextStyle}
             />
-          </View>
-        </View>
-      </Modal>
+          </MintBrandModalFooterRow>
+        }
+      />
     </MintProfileScreenShell>
   );
 };
@@ -277,7 +271,7 @@ const styles = StyleSheet.create({
     gap: responsiveScale(10),
     paddingHorizontal: scalePercent(5),
     marginTop: responsiveScale(8),
-    marginBottom: responsiveScale(6),
+    marginBottom: responsiveScale(18),
   },
   filterPill: {
     paddingVertical: responsiveScale(10),
@@ -348,39 +342,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: responsiveScale(24, 16),
   },
-  overlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    width: scalePercent(100),
-    height: responsiveScale(326, 250),
-    backgroundColor: primaryWhite,
-    borderTopLeftRadius: responsiveScale(20, 16),
-    borderTopRightRadius: responsiveScale(20, 16),
-    padding: scale(20),
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  modalMessage: {
-    ...Typography.bodyMedium,
-    textAlign: "center",
-    color: primaryBlack,
-    marginTop: responsiveScale(14, 10),
-    fontSize: responsiveFontSize(16, 14),
-  },
-  close: {
-    position: "absolute",
-    top: scale(10),
-    right: scale(20),
-    borderRadius: scale(15),
-    width: scale(30),
-    height: scale(30),
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  closeButton: {
-    color: Colors.dark.dark,
-  },
+  // Legacy bottom-sheet delete modal styles removed in favor of MintBrandModal.
 });

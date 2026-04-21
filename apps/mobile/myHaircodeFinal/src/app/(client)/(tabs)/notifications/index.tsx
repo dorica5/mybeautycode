@@ -29,6 +29,9 @@ type NotifRow = {
   created_at?: string;
   createdAt?: string;
   id: string;
+  type?: string;
+  status?: string | null;
+  data?: Record<string, unknown> | null;
 };
 
 type Grouped = { date: string; items: NotifRow[] };
@@ -94,7 +97,13 @@ const Notifications = () => {
         const notifications = (await fetchNotifications(
           profile.id
         )) as NotifRow[];
-        setGroupedNotifications(sortGroups(groupByDate(notifications)));
+        const visible = notifications.filter((n) => {
+          const t = String(n.type ?? "");
+          const s = String(n.status ?? (n.data as any)?.status ?? "");
+          const isLinkRequest = t === "FRIEND_REQUEST" || t === "link_request";
+          return !(isLinkRequest && s === "rejected");
+        });
+        setGroupedNotifications(sortGroups(groupByDate(visible)));
       } catch (error) {
         console.error("Error loading notifications:", error);
       } finally {
