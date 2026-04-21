@@ -188,7 +188,9 @@ const ManageProfessionals = () => {
                     horizontalPadding={32}
                     verticalPadding={16}
                     onPress={() => {
-                      router.replace("/(client)/(tabs)/userList" as Href);
+                      router.replace(
+                        "/(client)/(tabs)/userList/filter-before-map" as Href
+                      );
                     }}
                     style={styles.primaryCta}
                     textStyle={primaryCtaTextStyle}

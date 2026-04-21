@@ -104,8 +104,14 @@ const _layout = () => {
   const userListTabPress = useCallback(
     (e: { preventDefault: () => void }) => {
       e.preventDefault();
-      const href = "/(client)/(tabs)/userList";
-      if (isActiveClientTab(pathname, "userList")) return;
+      const href = "/(client)/(tabs)/userList/filter-before-map";
+      // Already on the filter entry? Do nothing (avoid re-navigation).
+      if (
+        pathname === href ||
+        pathname === "/userList/filter-before-map"
+      ) {
+        return;
+      }
       router.replace({ pathname: href, params: { fromTab: "1" } });
     },
     [pathname]
@@ -170,7 +176,7 @@ const _layout = () => {
       <Tabs.Screen
         name="userList"
         options={{
-          href: "/(client)/(tabs)/userList",
+          href: "/(client)/(tabs)/userList/filter-before-map",
           tabBarIcon: ({ focused, color }) => (
             <MagnifyingGlass
               size={32}

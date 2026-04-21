@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -38,17 +38,16 @@ import {
 
 type Profession = "hair" | "nails" | "brows";
 
-const CHIPS: { key: Profession; label: string }[] = [
-  { key: "hair", label: "Hair" },
-  { key: "nails", label: "Nails" },
-  { key: "brows", label: "Brows" },
-];
+function parseProfession(p: string | undefined): Profession | undefined {
+  if (p === "hair" || p === "nails" || p === "brows") return p;
+  return undefined;
+}
 
 const FindProfessionalsScreen = () => {
   const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { fromTab } = useLocalSearchParams<{ fromTab?: string }>();
-  const hideBack = fromTab === "1";
+  const { profession } = useLocalSearchParams<{ profession?: string }>();
+  const professionKey = parseProfession(profession);
 
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
@@ -57,7 +56,6 @@ const FindProfessionalsScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const [displayedResults, setDisplayedResults] = useState([]);
-  const [selected, setSelected] = useState<Set<Profession>>(new Set());
 
   const { profile } = useAuth();
   const isFocused = useIsFocused();
@@ -74,7 +72,6 @@ const FindProfessionalsScreen = () => {
         setSearchQuery("");
         setDebouncedQuery("");
         setDisplayedResults([]);
-        setSelected(new Set());
       }
     });
 
@@ -103,26 +100,18 @@ const FindProfessionalsScreen = () => {
     setDisplayedResults([]);
   }, []);
 
-  const toggleChip = useCallback((key: Profession) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-
-  const presetForMap = useMemo(() => {
-    if (selected.size !== 1) return undefined;
-    return Array.from(selected)[0];
-  }, [selected]);
-
-  const goToFilterBeforeMap = useCallback(() => {
-    router.push({
-      pathname: "/(client)/(tabs)/userList/filter-before-map",
-      params: presetForMap ? { preset: presetForMap } : {},
-    });
-  }, [presetForMap]);
+  const goToMap = useCallback(() => {
+    // Profession already chosen on the previous (filter) step -> jump straight to the map.
+    // Fallback (no param): bounce to the filter screen so the user picks one first.
+    if (professionKey) {
+      router.push({
+        pathname: "/(client)/(tabs)/userList/map",
+        params: { profession: professionKey },
+      });
+    } else {
+      router.push("/(client)/(tabs)/userList/filter-before-map");
+    }
+  }, [professionKey]);
 
   return (
     <>
@@ -133,19 +122,15 @@ const FindProfessionalsScreen = () => {
           style={{ flex: 1 }}
         >
           <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-            {!hideBack ? (
-              <Pressable
-                onPress={() => router.back()}
-                style={styles.backRow}
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-              >
-                <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-                <Text style={styles.backLabel}>Back</Text>
-              </Pressable>
-            ) : (
-              <View style={styles.backPlaceholder} />
-            )}
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.backRow}
+              accessibilityRole="button"
+              accessibilityLabel="Back"
+            >
+              <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
+              <Text style={styles.backLabel}>Back</Text>
+            </Pressable>
 
             <FlatList
               data={debouncedQuery ? displayedResults : []}
@@ -187,30 +172,6 @@ const FindProfessionalsScreen = () => {
                       <Text style={[Typography.h3, styles.title]}>
                         Find professionals
                       </Text>
-
-                      <View style={styles.chipsRow}>
-                        {CHIPS.map(({ key, label }) => {
-                          const on = selected.has(key);
-                          return (
-                            <Pressable
-                              key={key}
-                              onPress={() => toggleChip(key)}
-                              style={[styles.chip, on && styles.chipSelected]}
-                              accessibilityRole="button"
-                              accessibilityState={{ selected: on }}
-                            >
-                              <Text
-                                style={[
-                                  styles.chipLabel,
-                                  on && styles.chipLabelSelected,
-                                ]}
-                              >
-                                {label}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
                     </View>
 
                     <View style={styles.searchSection}>
@@ -231,7 +192,7 @@ const FindProfessionalsScreen = () => {
                         title="Go to map"
                         horizontalPadding={0}
                         verticalPadding={0}
-                        onPress={goToFilterBeforeMap}
+                        onPress={goToMap}
                         style={styles.mapCta}
                         textStyle={styles.mapCtaLabel}
                       />
@@ -296,9 +257,6 @@ const styles = StyleSheet.create({
     paddingVertical: responsivePadding(8),
     alignSelf: "flex-start",
   },
-  backPlaceholder: {
-    height: responsiveScale(40),
-  },
   backLabel: {
     ...Typography.bodyMedium,
     marginLeft: responsivePadding(4),
@@ -327,43 +285,6 @@ const styles = StyleSheet.create({
   title: {
     textAlign: "center",
     marginBottom: responsiveScale(46),
-  },
-  chipsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: responsivePadding(10),
-    marginBottom: responsiveScale(46),
-    paddingHorizontal: responsivePadding(4),
-  },
-  chip: {
-    width: responsiveScale(52),
-    height: responsiveScale(26),
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-    borderRadius: 9999,
-    borderWidth: 1,
-    borderColor: primaryBlack,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chipSelected: {
-    borderWidth: 1,
-    borderColor: primaryBlack,
-    backgroundColor: primaryBlack,
-  },
-  chipLabel: {
-    fontFamily: "Outfit_300Light",
-    fontSize: responsiveFontSize(14, 14),
-    fontWeight: "400",
-    letterSpacing: 0,
-    color: primaryBlack,
-    textAlign: "center",
-  },
-  chipLabelSelected: {
-    color: primaryWhite,
   },
   searchSection: {
     width: "100%",

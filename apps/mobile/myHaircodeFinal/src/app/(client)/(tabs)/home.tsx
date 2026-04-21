@@ -104,7 +104,7 @@ const HomeScreen = () => {
             horizontalPadding={32}
             verticalPadding={16}
             onPress={() =>
-              router.push("/(client)/(tabs)/userList")
+              router.push("/(client)/(tabs)/userList/filter-before-map")
             }
             style={styles.searchCta}
             textStyle={styles.searchCtaLabel}
