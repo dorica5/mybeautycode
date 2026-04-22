@@ -33,6 +33,7 @@ import {
 import {
   isBlocked,
   unblockUser,
+  UNBLOCK_RELATIONSHIP_RESET_ALERT,
   blockUser,
   reportUserEnhanced,
   REPORT_REASONS,
@@ -422,7 +423,10 @@ const UserProfile = () => {
                       queryClient
                     );
                     setIsBlockedUser(false);
-                    Alert.alert("User unblocked");
+                    Alert.alert(
+                      UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
+                      UNBLOCK_RELATIONSHIP_RESET_ALERT.message
+                    );
                   }}
                 />
               </View>
@@ -522,8 +526,8 @@ const UserProfile = () => {
                     );
                     setIsBlockedUser(false);
                     Alert.alert(
-                      "User unblocked",
-                      "You can now access this user's profile."
+                      UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
+                      UNBLOCK_RELATIONSHIP_RESET_ALERT.message
                     );
                   }}
                 />

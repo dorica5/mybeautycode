@@ -76,7 +76,7 @@ const Setup = () => {
           <Spacer vertical={isTablet() ? 12 : 36} />
 
           <Text style={welcomeTitleStyle}>Welcome to</Text>
-          <Text style={welcomeTitleStyle}>myBeautycode!</Text>
+          <Text style={welcomeTitleStyle}>myne!</Text>
 
           <Spacer vertical={isTablet() ? 56 : 48} />
 

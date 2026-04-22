@@ -75,9 +75,21 @@ export const blockUser = async (
   if (queryClient) {
     queryClient.invalidateQueries({ queryKey: ["latest_haircodes", blocker_id] });
     queryClient.invalidateQueries({ queryKey: ["latest_haircodes", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["relationship"] });
+    queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocker_id] });
   }
   return { success: true };
 };
+
+/** After unblock, server clears `client_professional_links` — use for success alerts. */
+export const UNBLOCK_RELATIONSHIP_RESET_ALERT = {
+  title: "Unblocked",
+  message:
+    "The block is removed. Your client link was ended — use Add client or a link request if you want to work together again.",
+} as const;
 
 export const unblockUser = async (
   blocker_id: string,
@@ -88,6 +100,11 @@ export const unblockUser = async (
   if (queryClient) {
     queryClient.invalidateQueries({ queryKey: ["latest_haircodes", blocker_id] });
     queryClient.invalidateQueries({ queryKey: ["latest_haircodes", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["relationship"] });
+    queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocker_id] });
   }
   return { success: true };
 };

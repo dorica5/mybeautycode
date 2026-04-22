@@ -46,6 +46,19 @@ export const moderationService = {
     await prisma.blockedUser.deleteMany({
       where: { blockerId, blockedId },
     });
+    /** After unblock, client–professional link must not remain — they add each other again if they want to reconnect. */
+    const blockerProfId =
+      await professionService.getOrCreateProfessionalProfileId(blockerId);
+    const blockedProfId =
+      await professionService.getOrCreateProfessionalProfileId(blockedId);
+    await prisma.clientProfessionalLink.deleteMany({
+      where: {
+        OR: [
+          { professionalProfileId: blockerProfId, clientUserId: blockedId },
+          { professionalProfileId: blockedProfId, clientUserId: blockerId },
+        ],
+      },
+    });
     return { success: true };
   },
 

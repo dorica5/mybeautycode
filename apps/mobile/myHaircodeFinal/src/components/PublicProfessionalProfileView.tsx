@@ -357,6 +357,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: responsivePadding(16),
     marginTop: responsiveMargin(4),
+    paddingBottom: responsivePadding(6),
   },
   avatar: {
     backgroundColor: primaryWhite,
@@ -370,11 +371,14 @@ const styles = StyleSheet.create({
   username: {
     color: primaryBlack,
     textAlign: "center",
-    marginBottom: responsiveMargin(28),
+    marginBottom: responsiveMargin(20),
   },
   businessName: {
     color: primaryBlack,
     textAlign: "center",
+    marginTop: 0,
+    paddingVertical: responsivePadding(2),
+    lineHeight: responsiveScale(28),
   },
   ctaWrap: {
     paddingHorizontal: responsivePadding(20),

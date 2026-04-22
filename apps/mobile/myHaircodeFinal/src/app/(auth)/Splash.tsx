@@ -40,13 +40,17 @@ const Splash = () => {
         {/* Lower half: headline starts ~mid-screen, then body, CTA, footer */}
         <View style={styles.lowerHalf}>
           <View style={styles.mainTextBlock}>
-            <Text style={[Typography.h1, styles.textOnGreen, styles.headline]}>
-              Welcome to MyBeautycode!
-            </Text>
+            <View style={styles.headlineWrap}>
+              <Text style={[Typography.h3, styles.textOnGreen, styles.headlineLine]}>
+                Welcome to
+              </Text>
+              <Text style={[Typography.h1, styles.textOnGreen, styles.headlineLine]}>
+                myne!
+              </Text>
+            </View>
 
             <Text style={[Typography.bodyLarge, styles.textOnGreen, styles.body]}>
-              We empower hairdressers and clients with seamless client history.
-              Anytime, anywhere.
+              my care, my way
             </Text>
 
             <PaddedLabelButton
@@ -116,15 +120,21 @@ const styles = StyleSheet.create({
     marginTop: -responsiveMargin(178),
   },
   lowerSpacer: {
-    flex: 1,
-    minHeight: responsiveMargin(16),
+    flex: 0.45,
+    minHeight: responsiveMargin(8),
   },
   textOnGreen: {
     color: primaryBlack,
     textAlign: "center",
   },
-  headline: {
+  headlineWrap: {
     marginBottom: responsiveMargin(48),
+    width: "100%",
+    alignItems: "center",
+  },
+  headlineLine: {
+    textAlign: "center",
+    width: "100%",
   },
   body: {
     marginBottom: responsiveMargin(48),
