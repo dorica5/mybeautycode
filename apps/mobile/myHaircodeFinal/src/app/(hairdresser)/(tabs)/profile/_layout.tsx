@@ -10,6 +10,7 @@ const _layout = () => {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="Billing" />
       <Stack.Screen name="FirstName" />
       <Stack.Screen name="LastName" />
       <Stack.Screen name="Username" />

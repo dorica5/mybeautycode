@@ -5,6 +5,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Pressable,
+  Alert,
 } from "react-native";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,6 +20,8 @@ import {
   At,
   PlusCircle,
   MinusCircle,
+  CreditCard,
+  ArrowCounterClockwise,
 } from "phosphor-react-native";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import { ProfileMenuNameIcon } from "@/src/components/profileMenuIcons";
@@ -36,7 +39,10 @@ import { Href, router } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import SignOutButton from "@/src/components/SignOutButton";
 import { useImageContext } from "@/src/providers/ImageProvider";
-import { responsiveScale, scalePercent } from "@/src/utils/responsive";
+import {
+  responsiveScale,
+  scalePercent,
+} from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { usePostHog } from "posthog-react-native";
@@ -206,6 +212,24 @@ const ProfileScreen = () => {
                 bottom
                 lightMarginBottom={46}
                 onPress={() => router.push("/(auth)/Delete")}
+              />
+
+              <Text
+                style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
+              >
+                Billing
+              </Text>
+
+              <Profile
+                title="Subscription"
+                Icon={CreditCard}
+                tileStyle="light"
+                top
+                bottom
+                lightMarginBottom={46}
+                onPress={() =>
+                  router.push("/(hairdresser)/(tabs)/profile/Billing")
+                }
               />
 
               <Text
