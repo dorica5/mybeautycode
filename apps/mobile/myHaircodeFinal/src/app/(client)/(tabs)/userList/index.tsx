@@ -93,7 +93,10 @@ const FindProfessionalsScreen = () => {
     }
   }, [isLoading, searchResults, debouncedQuery]);
 
-  const handleSearch = (query: string) => setSearchQuery(query);
+  const handleSearch = useCallback(
+    (query: string) => setSearchQuery(query),
+    []
+  );
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
@@ -181,6 +184,14 @@ const FindProfessionalsScreen = () => {
                       </Text>
                       <SearchInput
                         variant="whitePill"
+                        /**
+                         * Controlled: parent owns the text. Short-circuits
+                         * the uncontrolled effect chain in SearchInput that
+                         * otherwise interacts with TextInput's internal
+                         * useLayoutEffect and trips the "Maximum update
+                         * depth" guard on rapid typing.
+                         */
+                        value={searchQuery}
                         onSearch={handleSearch}
                         initialQuery={searchQuery}
                         placeholder="Search…"

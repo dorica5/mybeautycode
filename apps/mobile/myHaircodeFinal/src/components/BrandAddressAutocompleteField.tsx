@@ -5,7 +5,6 @@ import {
   responsivePadding,
   responsiveScale,
 } from "@/src/utils/responsive";
-import Constants from "expo-constants";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,98 +16,30 @@ import {
   ViewStyle,
 } from "react-native";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
+import {
+  AutocompletePrediction,
+  ResolvedPlace,
+  fetchAutocomplete,
+  fetchPlaceDetails,
+  getGooglePlacesKey,
+} from "@/src/lib/googlePlaces";
 
-type Prediction = { description: string; place_id: string };
+type Prediction = AutocompletePrediction;
 
-function getPlacesApiKey(): string {
-  const extra = Constants.expoConfig?.extra as
-    | { googlePlacesApiKey?: string }
-    | undefined;
-  return (extra?.googlePlacesApiKey ?? "").trim();
-}
-
-/** Bias place-result language (street names, etc.) toward the user’s region. */
-function placesLanguageForCountry(countryCode?: string): string {
-  const c = countryCode?.toUpperCase() ?? "";
-  const map: Record<string, string> = {
-    NO: "no",
-    SE: "sv",
-    DK: "da",
-    FI: "fi",
-    IS: "is",
-    DE: "de",
-    NL: "nl",
-    FR: "fr",
-    ES: "es",
-    IT: "it",
-    PT: "pt",
-    PL: "pl",
-    GB: "en",
-    US: "en",
-  };
-  return map[c] ?? "en";
-}
-
-/**
- * Same class of results as the Maps search box: do not restrict to `types=address`
- * (that misses many partial street / area queries). Optional country filter only.
- */
-async function fetchAutocomplete(
-  input: string,
-  apiKey: string,
-  countryCode?: string
-): Promise<Prediction[]> {
-  const q = input.trim();
-  if (!q || q.length < 2) return [];
-  const params = new URLSearchParams({
-    input: q,
-    key: apiKey,
-    language: placesLanguageForCountry(countryCode),
-  });
-  if (countryCode && countryCode.length === 2) {
-    params.append("components", `country:${countryCode.toLowerCase()}`);
-  }
-  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params.toString()}`;
-  const res = await fetch(url);
-  const json = (await res.json()) as {
-    predictions?: Prediction[];
-    status: string;
-    error_message?: string;
-  };
-  if (json.status !== "OK" && json.status !== "ZERO_RESULTS") {
-    if (__DEV__ && json.error_message) {
-      console.warn("[Places Autocomplete]", json.status, json.error_message);
-    }
-    return [];
-  }
-  return json.predictions ?? [];
-}
-
-async function fetchFormattedAddress(
-  placeId: string,
-  apiKey: string,
-  countryCode?: string
-): Promise<string | null> {
-  const params = new URLSearchParams({
-    place_id: placeId,
-    fields: "formatted_address",
-    key: apiKey,
-    language: placesLanguageForCountry(countryCode),
-  });
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?${params.toString()}`;
-  const res = await fetch(url);
-  const json = (await res.json()) as {
-    result?: { formatted_address?: string };
-    status: string;
-  };
-  if (json.status !== "OK" || !json.result?.formatted_address) return null;
-  return json.result.formatted_address;
-}
+/** Back-compat alias — callers imported this before the helpers moved. */
+export type PlaceDetails = ResolvedPlace;
 
 export type BrandAddressAutocompleteFieldProps = {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
+  /**
+   * Called when the user picks a prediction and we resolve full place details.
+   * Use this to capture `placeId` + lat/lng alongside the formatted address
+   * (e.g. to send `business_place_id` on the profile PUT). Receives `null` when
+   * the user manually edits the text after picking (so stale coords aren't saved).
+   */
+  onPlaceSelected?: (details: PlaceDetails | null) => void;
   /** ISO 3166-1 alpha-2 (e.g. profile.country) to bias autocomplete */
   countryCode?: string;
   containerStyle?: ViewStyle;
@@ -122,10 +53,11 @@ export function BrandAddressAutocompleteField({
   label,
   value,
   onChangeText,
+  onPlaceSelected,
   countryCode,
   containerStyle,
 }: BrandAddressAutocompleteFieldProps) {
-  const apiKey = getPlacesApiKey();
+  const apiKey = getGooglePlacesKey();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -141,7 +73,7 @@ export function BrandAddressAutocompleteField({
       }
       setLoading(true);
       try {
-        const next = await fetchAutocomplete(q, apiKey, countryCode);
+        const next = await fetchAutocomplete(q, apiKey, { countryCode });
         setPredictions(next.slice(0, 6));
       } catch {
         setPredictions([]);
@@ -163,21 +95,47 @@ export function BrandAddressAutocompleteField({
     };
   }, [value, apiKey, runAutocomplete]);
 
+  // True while we are programmatically applying a pick's formatted_address via
+  // onChangeText, so the "user edited manually" effect below doesn't fire.
+  const applyingPickRef = useRef(false);
+
   const onPick = async (p: Prediction) => {
     if (!apiKey) return;
     setPicking(true);
     setPredictions([]);
     try {
-      const formatted = await fetchFormattedAddress(
-        p.place_id,
-        apiKey,
-        countryCode
-      );
-      onChangeText(formatted ?? p.description);
+      const details = await fetchPlaceDetails(p.place_id, apiKey, {
+        countryCode,
+      });
+      if (details) {
+        applyingPickRef.current = true;
+        onChangeText(details.formattedAddress);
+        onPlaceSelected?.(details);
+      } else {
+        applyingPickRef.current = true;
+        onChangeText(p.description);
+        onPlaceSelected?.(null);
+      }
     } finally {
       setPicking(false);
+      // Release on the next tick so the effect tied to `value` sees the flag.
+      requestAnimationFrame(() => {
+        applyingPickRef.current = false;
+      });
     }
   };
+
+  // If the user types after having picked, clear the cached coords (the
+  // formatted address no longer matches the place).
+  const prevValueRef = useRef(value);
+  useEffect(() => {
+    if (prevValueRef.current !== value) {
+      if (!applyingPickRef.current) {
+        onPlaceSelected?.(null);
+      }
+      prevValueRef.current = value;
+    }
+  }, [value, onPlaceSelected]);
 
   const clearBlurTimer = () => {
     if (blurTimer.current) clearTimeout(blurTimer.current);

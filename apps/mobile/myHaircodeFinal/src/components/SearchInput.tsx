@@ -1,5 +1,5 @@
 import { Alert, StyleSheet, TextInput, View, Pressable } from "react-native";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { MagnifyingGlass, XCircle } from "phosphor-react-native";
 import { Colors, primaryBlack } from "../constants/Colors";
@@ -69,15 +69,29 @@ const SearchInput = ({
   const pillW = whitePillWidth ?? SEARCH_BAR_WIDTH;
   const pillH = whitePillHeight ?? SEARCH_BAR_HEIGHT;
 
+  /**
+   * Keep the latest `onSearch` in a ref so downstream callbacks/effects don't
+   * take it as a dependency. A fresh function identity on every parent render
+   * used to churn this component's effects, which in turn flipped the
+   * `value` prop on the native `TextInput` mid-commit and tripped React's
+   * "Maximum update depth" guard during `useLayoutEffect`.
+   */
+  const onSearchRef = useRef(onSearch);
   useEffect(() => {
-    if (!isControlled) {
-      onSearch(internalQuery);
-    }
-  }, [internalQuery, onSearch, isControlled]);
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
 
+  /**
+   * Clear internal text on tab/route focus (original behavior for
+   * uncontrolled consumers like the pro client directory). We also notify
+   * the parent once via `onSearch("")` so its derived state resets too.
+   * This effect only reacts to navigation focus, never to `onSearch`
+   * identity, so it can't become a feedback loop.
+   */
   useEffect(() => {
     if (!isControlled && routeFocused) {
       setInternalQuery("");
+      onSearchRef.current("");
     }
   }, [routeFocused, isControlled]);
 
@@ -88,23 +102,18 @@ const SearchInput = ({
         "Please input something to search results across database"
       );
     }
-    onSearch(query);
+    onSearchRef.current(query);
   };
 
   const clearQuery = useCallback(() => {
     if (isControlled) {
-      onSearch("");
+      onSearchRef.current("");
     } else {
       setInternalQuery("");
+      onSearchRef.current("");
     }
     clearSearch?.();
-  }, [clearSearch, isControlled, onSearch]);
-
-  useEffect(() => {
-    if (!isControlled) {
-      setInternalQuery(initialQuery);
-    }
-  }, [initialQuery, isControlled]);
+  }, [clearSearch, isControlled]);
 
   return (
     <View
@@ -146,10 +155,18 @@ const SearchInput = ({
         placeholder={placeholder}
         placeholderTextColor={variant === "whitePill" ? `${SEARCH_BAR_STROKE}99` : "#687076"}
         onChangeText={(e) => {
+          /**
+           * Call `onSearch` directly from here instead of via a useEffect
+           * on `internalQuery`. Forwarding through an effect with
+           * `onSearch` in its deps used to re-fire on every parent render
+           * (unstable callback identity) and interact badly with
+           * TextInput's native-sync layout effect.
+           */
           if (isControlled) {
-            onSearch(e);
+            onSearchRef.current(e);
           } else {
             setInternalQuery(e);
+            onSearchRef.current(e);
           }
         }}
         onFocus={onFocusProp}
