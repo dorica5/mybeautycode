@@ -22,6 +22,7 @@ import {
   ReportReason,
   reportUserEnhanced,
   unblockUser,
+  UNBLOCK_RELATIONSHIP_RESET_ALERT,
 } from "@/src/api/moderation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRelationshipCheck } from "@/src/api/relationships";
@@ -219,9 +220,12 @@ const OtherProfessionalProfileScreen = () => {
   const handleUnblock = async () => {
     if (!client_id || !hairdresser_id) return;
     try {
-      await unblockUser(client_id, hairdresser_id);
+      await unblockUser(client_id, hairdresser_id, queryClient);
       setIsBlockedUser(false);
-      Alert.alert("User unblocked");
+      Alert.alert(
+        UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
+        UNBLOCK_RELATIONSHIP_RESET_ALERT.message
+      );
     } catch (error) {
       console.error("Error unblocking user:", error);
       Alert.alert("Error", "Failed to unblock user");

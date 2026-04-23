@@ -31,12 +31,18 @@ import { Typography } from "@/src/constants/Typography";
 import { useClientSearch } from "@/src/api/profiles";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import {
+  MintBrandModal,
+  MintBrandModalFooterRow,
+  MintBrandModalSecondaryButton,
+} from "@/src/components/MintBrandModal";
+import {
   blockUser,
   isBlocked,
   reportUserEnhanced,
-  unblockUser,
   REPORT_REASONS,
   type ReportReason,
+  UNBLOCK_RELATIONSHIP_RESET_ALERT,
+  unblockUser,
 } from "@/src/api/moderation";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useResolvedListProfessionCode } from "@/src/hooks/useResolvedListProfessionCode";
@@ -49,6 +55,7 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { MintFullScreenSpinner } from "@/src/components/MintSpinningWheel";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -248,75 +255,18 @@ const HaircodeList = () => {
     </View>
   );
 
-  const renderSecondaryModal = () => {
-    const copy =
-      activeAction === "Delete"
-        ? moderationDetailCopy.removeClient
-        : activeAction === "Block"
-          ? moderationDetailCopy.block
-          : activeAction === "Report"
-            ? moderationDetailCopy.report
-            : { title: "", subtitle: "" };
+  const moderationStepCopy =
+    activeAction === "Delete"
+      ? moderationDetailCopy.removeClient
+      : activeAction === "Block"
+        ? moderationDetailCopy.block
+        : activeAction === "Report"
+          ? moderationDetailCopy.report
+          : null;
 
-    return (
-      <View>
-        {copy.title ? (
-          <ModerationSheetHeading title={copy.title} subtitle={copy.subtitle} />
-        ) : null}
-
-        {activeAction === "Delete" && (
-          <>
-            <ModerationReasonRow
-              label="Remove client"
-              danger
-              onPress={async () => {
-                await deleteClient(client_id);
-                setActiveAction(null);
-              }}
-            />
-            <ModerationReasonRow
-              label="Not now"
-              onPress={() => setActiveAction(null)}
-            />
-          </>
-        )}
-        {activeAction === "Block" &&
-          ["No reason", "Spam, fake profile", "Inappropriate content"].map(
-            (reason, idx) => (
-              <ModerationReasonRow
-                key={`${reason}-${idx}`}
-                label={reason}
-                onPress={async () => {
-                  await blockUser(
-                    hairdresser_id,
-                    client_id,
-                    reason,
-                    queryClient
-                  );
-                  Alert.alert(
-                    "Account blocked",
-                    `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
-                  );
-                  setActiveAction(null);
-                  setIsBlockedUser(true);
-                }}
-              />
-            )
-          )}
-
-        {activeAction === "Report" &&
-          REPORT_REASONS.map((reason) => (
-            <ModerationReasonRow
-              key={reason.value}
-              label={reason.label}
-              onPress={() => handleReport(reason.value)}
-            />
-          ))}
-      </View>
-    );
-  };
-
-  if (relLoading) return null;
+  if (relLoading) {
+    return <MintFullScreenSpinner />;
+  }
 
   return (
     <>
@@ -410,8 +360,8 @@ const HaircodeList = () => {
                   await unblockUser(hairdresser_id, client_id, queryClient);
                   setIsBlockedUser(false);
                   Alert.alert(
-                    "User unblocked",
-                    "You can now access this user's profile."
+                    UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
+                    UNBLOCK_RELATIONSHIP_RESET_ALERT.message
                   );
                 }}
               />
@@ -517,12 +467,80 @@ const HaircodeList = () => {
           renderContent={modalContent}
         />
 
-        <SmallDraggableModal
-          isVisible={!!activeAction}
+        <MintBrandModal
+          visible={moderationStepCopy != null}
           onClose={() => setActiveAction(null)}
-          modalHeight={screenHeight * 0.72}
-          sheetVariant="brand"
-          renderContent={renderSecondaryModal()}
+          title={moderationStepCopy?.title ?? ""}
+          message={
+            moderationStepCopy ? (
+              <View style={styles.mintModerationMessage}>
+                <Text
+                  style={[Typography.bodySmall, styles.mintModerationSubtitle]}
+                >
+                  {moderationStepCopy.subtitle}
+                </Text>
+                <View style={styles.mintModerationRows}>
+                  {activeAction === "Delete" && (
+                    <>
+                      <ModerationReasonRow
+                        label="Remove client"
+                        danger
+                        onPress={async () => {
+                          await deleteClient(client_id);
+                          setActiveAction(null);
+                        }}
+                      />
+                      <ModerationReasonRow
+                        label="Not now"
+                        onPress={() => setActiveAction(null)}
+                      />
+                    </>
+                  )}
+                  {activeAction === "Block" &&
+                    ["No reason", "Spam, fake profile", "Inappropriate content"].map(
+                      (reason, idx) => (
+                        <ModerationReasonRow
+                          key={`${reason}-${idx}`}
+                          label={reason}
+                          onPress={async () => {
+                            await blockUser(
+                              hairdresser_id,
+                              client_id,
+                              reason,
+                              queryClient
+                            );
+                            Alert.alert(
+                              "Account blocked",
+                              `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
+                            );
+                            setActiveAction(null);
+                            setIsBlockedUser(true);
+                          }}
+                        />
+                      )
+                    )}
+                  {activeAction === "Report" &&
+                    REPORT_REASONS.map((reason) => (
+                      <ModerationReasonRow
+                        key={reason.value}
+                        label={reason.label}
+                        onPress={() => handleReport(reason.value)}
+                      />
+                    ))}
+                </View>
+              </View>
+            ) : null
+          }
+          footer={
+            moderationStepCopy ? (
+              <MintBrandModalFooterRow>
+                <MintBrandModalSecondaryButton
+                  label="Cancel"
+                  onPress={() => setActiveAction(null)}
+                />
+              </MintBrandModalFooterRow>
+            ) : null
+          }
         />
       </SafeAreaView>
     </>
@@ -668,5 +686,19 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     width: "95%",
     alignSelf: "center",
+  },
+  mintModerationMessage: {
+    alignSelf: "stretch",
+    width: "100%",
+  },
+  mintModerationSubtitle: {
+    textAlign: "center",
+    opacity: 0.72,
+    marginBottom: responsiveMargin(16),
+    lineHeight: responsiveScale(22),
+  },
+  mintModerationRows: {
+    alignSelf: "stretch",
+    width: "100%",
   },
 });

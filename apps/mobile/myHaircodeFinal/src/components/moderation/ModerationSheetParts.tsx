@@ -29,7 +29,7 @@ export const moderationDetailCopy = {
   },
   block: {
     title: "Block this account",
-    subtitle: `They won't be able to reach you through ${BRAND_DISPLAY_NAME}. You can unblock anytime from this profile.`,
+    subtitle: `They won't be able to reach you through ${BRAND_DISPLAY_NAME}. Blocking ends your active client link. If you unblock later, you will need to add or request a connection again to work together.`,
   },
   report: {
     title: `Report to ${BRAND_DISPLAY_NAME}`,

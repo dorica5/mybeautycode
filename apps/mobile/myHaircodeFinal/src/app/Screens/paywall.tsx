@@ -1,282 +1,255 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  StyleSheet,
-  View,
-  TouchableOpacity,
   Alert,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { ResponsiveText } from "@/src/components/ResponsiveText";
-import { 
-  responsiveScale, 
-  scalePercent, 
-  responsivePadding, 
-  responsiveMargin, 
-  responsiveBorderRadius 
-} from "@/src/utils/responsive";
-import { Colors } from "@/src/constants/Colors";
-import MyButton from "@/src/components/MyButton";
-import { MaterialIcons } from "@expo/vector-icons";
-import Purchases from "react-native-purchases";
-import {
-  getOfferingsSafe,
-  findPackage,
-  hasActiveEntitlement,
-} from "@/src/lib/revenuecat";
-import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "@/src/lib/supabase";
-import { useAuth } from "@/src/providers/AuthProvider";
+import { StatusBar } from "expo-status-bar";
+import { CaretLeft, CheckCircle } from "phosphor-react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import Logo from "../../../assets/images/myBeautyCode_logo.svg";
+import { Typography } from "@/src/constants/Typography";
+import {
+  primaryBlack,
+  primaryGreen,
+  primaryWhite,
+  secondaryGreen,
+} from "@/src/constants/Colors";
+import {
+  responsiveBorderRadius,
+  responsiveMargin,
+  responsivePadding,
+  responsiveScale,
+} from "@/src/utils/responsive";
+import {
+  MintBrandModalFooterRow,
+  MintBrandModalPrimaryButton,
+  MintBrandModalSecondaryButton,
+} from "@/src/components/MintBrandModal";
+import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
 
 type Plan = "monthly" | "annual" | "lifetime";
 
+const PRICES_NOK: Record<Plan, string> = {
+  monthly: "NOK 199 / month",
+  annual: "NOK 1,999 / year",
+  lifetime: "NOK 4,999 one-time",
+};
+
 const Paywall = () => {
+  const logoSize = useBeautyCodeLogoSize();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const [selectedPlan, setSelectedPlan] = useState<Plan>("annual");
-  const [loading, setLoading] = useState(false);
-  const [offerings, setOfferings] = useState<any>(null);
-  const [initializing, setInitializing] = useState(true);
-  const router = useRouter();
-  const { signOut } = useAuth();
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const o = await getOfferingsSafe();
-      if (!alive) return;
-      setOfferings(o);
-      setInitializing(false);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  const primaryCta = useMemo(() => {
+    if (selectedPlan === "lifetime") return "Unlock lifetime access";
+    return "Start 7-day free trial";
+  }, [selectedPlan]);
 
-  const monthlyPkg = useMemo(() => findPackage(offerings, "monthly"), [offerings]);
-  const annualPkg  = useMemo(() => findPackage(offerings, "annual"),  [offerings]);
-  const lifePkg    = useMemo(() => findPackage(offerings, "lifetime"),[offerings]);
+  const afterTrialLine = useMemo(() => {
+    if (selectedPlan === "lifetime") return "One-time payment. No subscription.";
+    if (selectedPlan === "annual") return "After trial: NOK 1,999/year until canceled.";
+    return "After trial: NOK 199/month until canceled.";
+  }, [selectedPlan]);
 
-  const priceOf = (pkg: any | null | undefined) =>
-    pkg?.product?.priceString ?? "";
-
-  const hasIntroOrTrial = (pkg: any | null | undefined) =>
-    Boolean(
-      pkg?.product?.introductoryPrice ||
-      pkg?.product?.introductoryPriceString ||
-      pkg?.product?.discounts?.length
-    );
-
-  const selectedPkg = useMemo(
-    () => findPackage(offerings, selectedPlan),
-    [offerings, selectedPlan]
-  );
-
-  const handlePurchase = async () => {
+  const openLink = async (url: string) => {
     try {
-      if (!selectedPkg) {
-        Alert.alert("Unavailable", "This plan is not available right now.");
-        return;
-      }
-      setLoading(true);
-
-      const { customerInfo } = await Purchases.purchasePackage(selectedPkg);
-
-      // 🔹 Force refresh with RevenueCat
-      await Purchases.syncPurchases();
-      const latestInfo = await Purchases.getCustomerInfo();
-
-      if (hasActiveEntitlement(latestInfo)) {
-        console.log("Purchase succeeded: entitlement active");
-        router.replace("/(client)/(tabs)/home");
-      } else {
-        Alert.alert(
-          "Not Activated",
-          "Your purchase didn't activate. Please contact support."
-        );
-      }
-    } catch (e: any) {
-      if (e?.userCancelled) return;
-      if (e?.code === "PURCHASE_PENDING") {
-        Alert.alert(
-          "Pending",
-          "Your purchase is pending. You'll get access once it's approved."
-        );
-        return;
-      }
-      Alert.alert("Purchase failed", e?.message ?? "Something went wrong.");
-    } finally {
-      setLoading(false);
+      const ok = await Linking.canOpenURL(url);
+      if (ok) await Linking.openURL(url);
+      else Alert.alert("Cannot open link");
+    } catch {
+      Alert.alert("Cannot open link");
     }
   };
 
-  const handleRestore = async () => {
+  const handlePrimary = async () => {
+    setBusy(true);
     try {
-      setLoading(true);
-      const { customerInfo } = await Purchases.restorePurchases();
-
-      await Purchases.syncPurchases();
-      const latestInfo = await Purchases.getCustomerInfo();
-
-      if (hasActiveEntitlement(latestInfo)) {
-        console.log("Restore succeeded: entitlement active");
-        router.replace("/(client)/(tabs)/home");
-      } else {
-        Alert.alert("No purchases found", "We couldn't find an active purchase.");
+      // UI-only paywall for now (backend / billing integration later).
+      Alert.alert(
+        "Coming soon",
+        "Billing will be added later. This screen is the final design + flow."
+      );
+      // While developing, let pro continue after onboarding.
+      if (from === "professional-setup") {
+        router.replace("/(hairdresser)/(tabs)/home");
       }
-    } catch (e: any) {
-      Alert.alert("Restore failed", e?.message ?? "Something went wrong.");
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  const renderPlanOption = (
-    label: string,
-    price: string,
-    plan: Plan,
-    options?: { badge?: string; showTrialChip?: boolean }
-  ) => {
-    const isSelected = selectedPlan === plan;
+  const PlanCard = ({
+    plan,
+    title,
+    subtitle,
+    badge,
+  }: {
+    plan: Plan;
+    title: string;
+    subtitle: string;
+    badge?: string;
+  }) => {
+    const selected = selectedPlan === plan;
     return (
-      <TouchableOpacity
+      <Pressable
         onPress={() => setSelectedPlan(plan)}
-        activeOpacity={0.9}
-        style={[styles.card, isSelected && styles.cardSelected]}
+        style={({ pressed }) => [
+          styles.planCard,
+          selected && styles.planCardSelected,
+          pressed && { opacity: 0.92 },
+        ]}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+        accessibilityLabel={`${title}. ${subtitle}`}
       >
-        {options?.badge && (
-          <View style={styles.floatingBadge}>
-            <ResponsiveText 
-              size={11} 
-              tabletSize={10} 
-              weight="Bold" 
-              style={styles.badgeText}
-            >
-              {options.badge}
-            </ResponsiveText>
+        {badge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeLabel}>{badge}</Text>
           </View>
+        ) : null}
+
+        <View style={styles.planRow}>
+          <View style={styles.planLeft}>
+            <CheckCircle
+              size={responsiveScale(22)}
+              weight={selected ? "fill" : "regular"}
+              color={selected ? primaryBlack : `${primaryBlack}55`}
+            />
+            <View style={styles.planText}>
+              <Text style={styles.planTitle}>{title}</Text>
+              <Text style={styles.planSubtitle}>{subtitle}</Text>
+            </View>
+          </View>
+          <Text style={styles.planPrice}>{PRICES_NOK[plan]}</Text>
+        </View>
+
+        {plan !== "lifetime" ? (
+          <View style={styles.trialChip}>
+            <Text style={styles.trialChipLabel}>7-day free trial</Text>
+          </View>
+        ) : (
+          <View style={styles.trialChip} />
         )}
-
-        <View style={styles.left}>
-          <View
-            style={[styles.checkboxBox, isSelected && styles.checkboxSelected]}
-          >
-            {isSelected && (
-              <MaterialIcons 
-                name="check" 
-                size={responsiveScale(14)} 
-                color="black" 
-              />
-            )}
-          </View>
-
-          <ResponsiveText 
-            weight="SemiBold" 
-            size={18} 
-            tabletSize={14} 
-            style={styles.optionText}
-          >
-            {label}
-          </ResponsiveText>
-        </View>
-
-        <View style={styles.rightSide}>
-          <ResponsiveText 
-            weight="SemiBold" 
-            size={15} 
-            tabletSize={13}
-          >
-            {price || "—"}
-          </ResponsiveText>
-
-          {options?.showTrialChip && (
-            <ResponsiveText 
-              size={12} 
-              tabletSize={10} 
-              style={styles.trialChip}
-            >
-              Free trial available
-            </ResponsiveText>
-          )}
-        </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   };
-
-  const offeringsReady =
-    !initializing && (monthlyPkg || annualPkg || lifePkg);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.fullWidth}>
-        <ResponsiveText 
-          weight="SemiBold" 
-          size={20} 
-          tabletSize={16} 
-          style={styles.title}
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <StatusBar style="dark" />
+
+      <View style={styles.topBar}>
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backRow}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
         >
-          Choose your plan
-        </ResponsiveText>
-
-        {!offeringsReady ? (
-          <>
-            {renderPlanOption("Yearly", "", "annual")}
-            {renderPlanOption("Monthly", "", "monthly")}
-            {renderPlanOption("Lifetime", "", "lifetime")}
-          </>
-        ) : (
-          <>
-            {renderPlanOption(
-              "Yearly",
-              priceOf(annualPkg),
-              "annual",
-              {
-                badge: "Save 57%",
-                showTrialChip: hasIntroOrTrial(annualPkg),
-              }
-            )}
-            {renderPlanOption(
-              "Monthly",
-              priceOf(monthlyPkg),
-              "monthly",
-              { showTrialChip: hasIntroOrTrial(monthlyPkg) }
-            )}
-            {renderPlanOption(
-              "Lifetime",
-              priceOf(lifePkg),
-              "lifetime"
-            )}
-          </>
-        )}
-
-        <MyButton
-          onPress={handlePurchase}
-          text={loading ? "Processing..." : "Continue"}
-          textSize={18}
-          textTabletSize={14}
-          style={styles.btn}
-          disabled={loading || !selectedPkg}
-        />
-
-        <TouchableOpacity
-          onPress={handleRestore}
-          disabled={loading}
-          style={styles.restoreButton}
-        >
-          <ResponsiveText 
-            size={14} 
-            tabletSize={12} 
-            style={styles.restoreText}
-          >
-            Restore purchases
-          </ResponsiveText>
-        </TouchableOpacity>
-
-        <MyButton 
-          text="Sign Out" 
-          textSize={18}
-          textTabletSize={14}
-          style={styles.button} 
-          onPress={signOut}
-        />
+          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
       </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Logo width={logoSize.width * 0.72} height={logoSize.height * 0.72} />
+
+          <Text style={[Typography.h3, styles.h1]}>
+            Try myne Pro free for 7 days
+          </Text>
+          <Text style={[Typography.bodyMedium, styles.subhead]}>
+            No charge today. Cancel anytime before the trial ends.
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <PlanCard
+            plan="annual"
+            title="Yearly"
+            subtitle="Best value for professionals"
+            badge="Save"
+          />
+          <PlanCard
+            plan="monthly"
+            title="Monthly"
+            subtitle="Flexible. Cancel anytime"
+          />
+          <PlanCard
+            plan="lifetime"
+            title="Lifetime"
+            subtitle="One-time payment"
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[Typography.label, styles.sectionTitle]}>
+            Included with Pro
+          </Text>
+          {[
+            "Manage clients and visits",
+            "Gallery for each client",
+            "View client history regardless of previous salon",
+            "Professional profile so new clients can discover you on the map and you can market yourself",
+          ].map((line) => (
+            <View key={line} style={styles.bulletRow}>
+              <View style={styles.bulletDot} />
+              <Text style={[Typography.bodyMedium, styles.bulletText]}>
+                {line}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.ctaBlock}>
+          <MintBrandModalFooterRow>
+            <MintBrandModalPrimaryButton
+              label={busy ? "Please wait..." : primaryCta}
+              onPress={busy ? () => {} : handlePrimary}
+              accessibilityLabel={primaryCta}
+            />
+            <MintBrandModalSecondaryButton
+              label="Restore purchases"
+              onPress={() =>
+                Alert.alert(
+                  "Restore purchases",
+                  "Restore will be enabled when billing is integrated."
+                )
+              }
+            />
+          </MintBrandModalFooterRow>
+
+          <Text style={[Typography.bodySmall, styles.afterTrial]}>
+            {afterTrialLine}
+          </Text>
+
+          <View style={styles.linkRow}>
+            <Pressable
+              onPress={() => openLink("https://example.com/terms")}
+              accessibilityRole="link"
+            >
+              <Text style={styles.link}>Terms</Text>
+            </Pressable>
+            <Text style={styles.linkSep}>·</Text>
+            <Pressable
+              onPress={() => openLink("https://example.com/privacy")}
+              accessibilityRole="link"
+            >
+              <Text style={styles.link}>Privacy</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -284,101 +257,173 @@ const Paywall = () => {
 export default Paywall;
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(16),
+  safe: {
+    flex: 1,
+    backgroundColor: primaryGreen,
   },
-  fullWidth: { 
-    width: scalePercent(93), 
+  topBar: {
+    paddingHorizontal: responsivePadding(8),
+    paddingTop: responsiveMargin(6),
+  },
+  backRow: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: responsiveScale(4),
+    paddingHorizontal: responsivePadding(12),
+    paddingVertical: responsivePadding(10),
+    alignSelf: "flex-start",
+  },
+  backText: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
+  },
+  scroll: {
+    paddingHorizontal: responsivePadding(24),
+    paddingBottom: responsiveMargin(28),
+  },
+  header: {
+    alignItems: "center",
+    marginTop: responsiveMargin(6),
+    marginBottom: responsiveMargin(22),
+  },
+  h1: {
+    textAlign: "center",
+    marginTop: responsiveMargin(18),
+  },
+  subhead: {
+    textAlign: "center",
+    marginTop: responsiveMargin(10),
+    maxWidth: 360,
+    opacity: 0.82,
+  },
+  section: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
+    marginBottom: responsiveMargin(22),
+  },
+  sectionTitle: {
+    color: primaryBlack,
+    marginBottom: responsiveMargin(12),
+  },
+  planCard: {
+    backgroundColor: primaryWhite,
+    borderRadius: responsiveBorderRadius(18),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: `${primaryBlack}18`,
+    padding: responsivePadding(16),
+    marginBottom: responsiveMargin(12),
+    overflow: "hidden",
+  },
+  planCardSelected: {
+    borderColor: primaryBlack,
+    backgroundColor: `${secondaryGreen}66`,
+  },
+  badge: {
+    position: "absolute",
+    top: responsiveMargin(10),
+    right: responsiveMargin(10),
+    backgroundColor: primaryBlack,
+    borderRadius: responsiveScale(999),
+    paddingHorizontal: responsivePadding(10),
+    paddingVertical: responsivePadding(6),
+  },
+  badgeLabel: {
+    ...Typography.bodySmall,
+    color: primaryWhite,
+    opacity: 0.95,
+  },
+  planRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: responsiveMargin(12),
+  },
+  planLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveMargin(10),
+    flex: 1,
+    paddingRight: responsivePadding(6),
+  },
+  planText: {
+    flex: 1,
+  },
+  planTitle: {
+    ...Typography.bodyLarge,
+    color: primaryBlack,
+  },
+  planSubtitle: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
+    opacity: 0.65,
+    marginTop: responsiveMargin(4),
+    lineHeight: responsiveScale(20),
+  },
+  planPrice: {
+    ...Typography.bodyMedium,
+    color: primaryBlack,
+  },
+  trialChip: {
+    marginTop: responsiveMargin(12),
+    alignSelf: "flex-start",
+    borderRadius: responsiveScale(999),
+    paddingHorizontal: responsivePadding(10),
+    paddingVertical: responsivePadding(6),
+    backgroundColor: `${secondaryGreen}CC`,
+  },
+  trialChipLabel: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
+    opacity: 0.85,
+  },
+  bulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: responsiveMargin(10),
+    marginBottom: responsiveMargin(10),
+  },
+  bulletDot: {
+    width: responsiveScale(6),
+    height: responsiveScale(6),
+    borderRadius: responsiveScale(3),
+    backgroundColor: primaryBlack,
+    marginTop: responsiveMargin(8),
+    opacity: 0.6,
+  },
+  bulletText: {
+    flex: 1,
+    color: primaryBlack,
+    opacity: 0.9,
+    lineHeight: responsiveScale(22),
+  },
+  ctaBlock: {
+    width: "100%",
+    maxWidth: 480,
     alignSelf: "center",
   },
-  title: { 
-    textAlign: "center", 
-    marginTop: responsiveMargin(20), 
-    marginBottom: responsiveMargin(60),
+  afterTrial: {
+    textAlign: "center",
+    color: primaryBlack,
+    opacity: 0.62,
+    marginTop: responsiveMargin(14),
+    lineHeight: responsiveScale(20),
   },
-  card: {
+  linkRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    paddingVertical: responsivePadding(18),
-    paddingHorizontal: responsivePadding(20),
-    backgroundColor: Colors.dark.yellowish,
-    borderRadius: responsiveBorderRadius(20),
-    marginBottom: responsiveMargin(20),
-    alignItems: "center",
-    borderColor: "transparent",
-    borderWidth: responsiveScale(1),
-    position: "relative",
-  },
-  cardSelected: { 
-    borderColor: Colors.dark.warmGreen,
-    borderWidth: responsiveScale(2),
-  },
-  left: { 
-    flexDirection: "row", 
-    alignItems: "center",
-    flex: 1,
-  },
-  rightSide: { 
-    alignItems: "flex-end",
-    minWidth: responsiveScale(80),
-  },
-  optionText: { 
-    marginLeft: responsiveMargin(10),
-    flex: 1,
-  },
-  checkboxBox: {
-    width: responsiveScale(20),
-    height: responsiveScale(20),
-    borderRadius: responsiveBorderRadius(15),
-    borderWidth: responsiveScale(2),
-    borderColor: Colors.dark.dark,
-    alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "transparent",
+    alignItems: "center",
+    gap: responsiveMargin(10),
+    marginTop: responsiveMargin(14),
   },
-  checkboxSelected: {
-    backgroundColor: Colors.dark.warmGreen,
-    borderColor: Colors.dark.dark,
+  linkSep: {
+    color: primaryBlack,
+    opacity: 0.35,
   },
-  floatingBadge: {
-    position: "absolute",
-    top: -responsiveScale(10),
-    right: responsiveScale(20),
-    backgroundColor: Colors.dark.warmGreen,
-    borderRadius: responsiveBorderRadius(10),
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsivePadding(4),
-    zIndex: 1,
-  },
-  badgeText: { 
-    color: "white",
-  },
-  trialChip: { 
-    marginTop: responsiveMargin(2), 
-    opacity: 0.9,
-  },
-  btn: {
-    marginTop: responsiveMargin(60),
-    width: "100%",
-    height: responsiveScale(50),
-    justifyContent: "center",
-  },
-  restoreButton: {
-    marginTop: responsiveMargin(16),
-  },
-  restoreText: {
+  link: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
     textDecorationLine: "underline",
-  },
-  button: {
-    width: scalePercent(40),
-    height: responsiveScale(50),
-    backgroundColor: "transparent",
-    borderColor: Colors.dark.warmGreen,
-    borderWidth: responsiveScale(1),
-    marginTop: responsiveMargin(35),
+    opacity: 0.78,
   },
 });

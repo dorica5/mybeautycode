@@ -83,12 +83,47 @@ const ProfessionalSetup = () => {
         !prev.bookingSite &&
         !prev.aboutMe;
       if (!empty) return prev;
+      const detailForProfession =
+        Array.isArray((profile as { professions_detail?: unknown }).professions_detail)
+          ? (
+              (profile as {
+                professions_detail?: Array<{
+                  profession_code?: string | null;
+                  business_name?: string | null;
+                  business_number?: string | null;
+                  business_address?: string | null;
+                  social_media?: string | null;
+                  booking_site?: string | null;
+                  about_me?: string | null;
+                }>;
+              }).professions_detail ?? []
+            ).find((row) => row?.profession_code === professionCode) ?? null
+          : null;
+
+      /**
+       * Important: when creating an additional professional surface (e.g. nails / brows),
+       * do NOT prefill from the default hair fields. Only prefill when a per-profession
+       * detail row exists (editing an existing profession).
+       */
+      if (professionCode !== "hair" && !detailForProfession) {
+        return prev;
+      }
+
       const bizName =
-        profile.business_name ?? (profile as { salon_name?: string }).salon_name ?? "";
+        detailForProfession?.business_name ??
+        (professionCode === "hair"
+          ? profile.business_name ??
+            (profile as { salon_name?: string }).salon_name ??
+            ""
+          : "");
+
       const bizPhone =
-        profile.business_number ??
-        (profile as { salon_phone_number?: string }).salon_phone_number ??
-        "";
+        detailForProfession?.business_number ??
+        (professionCode === "hair"
+          ? profile.business_number ??
+            (profile as { salon_phone_number?: string }).salon_phone_number ??
+            ""
+          : "");
       let phoneDisplay = bizPhone;
       if (bizPhone && profile.country) {
         try {
@@ -101,13 +136,21 @@ const ProfessionalSetup = () => {
       return {
         businessName: bizName,
         businessPhone: phoneDisplay,
-        businessAddress: profile.business_address ?? "",
-        socialMedia: profile.social_media ?? "",
-        bookingSite: profile.booking_site ?? "",
-        aboutMe: profile.about_me ?? "",
+        businessAddress:
+          detailForProfession?.business_address ??
+          (professionCode === "hair" ? profile.business_address ?? "" : ""),
+        socialMedia:
+          detailForProfession?.social_media ??
+          (professionCode === "hair" ? profile.social_media ?? "" : ""),
+        bookingSite:
+          detailForProfession?.booking_site ??
+          (professionCode === "hair" ? profile.booking_site ?? "" : ""),
+        aboutMe:
+          detailForProfession?.about_me ??
+          (professionCode === "hair" ? profile.about_me ?? "" : ""),
       };
     });
-  }, [profile]);
+  }, [profile, professionCode]);
 
   const posthog = usePostHog();
   const profileCountry = profile?.country?.trim() || "";
@@ -269,7 +312,10 @@ const ProfessionalSetup = () => {
       }
 
       setLoadingSetup(false);
-      router.replace("/(hairdresser)/(tabs)/home");
+      router.replace({
+        pathname: "/Screens/paywall",
+        params: { from: "professional-setup" },
+      });
     } catch (error) {
       console.error("Error during setup:", error);
       setLoadingSetup(false);

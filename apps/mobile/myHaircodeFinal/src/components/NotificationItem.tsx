@@ -1,7 +1,7 @@
 /* eslint-disable no-case-declarations */
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { Colors, primaryBlack, primaryWhite } from "../constants/Colors";
 import { api } from "@/src/lib/apiClient";
 import { markNotificationAsRead } from "@/src/providers/useNotifcations";
@@ -169,6 +169,42 @@ export const NotificationItem = ({
           },
         });
         break;
+
+      /** Client accepted link — open pro client hub (new visit, view gallery, …). Sender = client. */
+      case "FRIEND_ACCEPTED":
+      case "link_accepted": {
+        const clientId =
+          typeof notification.sender_id === "string" &&
+          notification.sender_id.trim()
+            ? notification.sender_id.trim()
+            : null;
+        if (!clientId) {
+          Alert.alert(
+            "Cannot open",
+            "This notification is missing client information."
+          );
+          break;
+        }
+        const professionFromData =
+          (notification.data?.profession_code ??
+            notification.data?.professionCode) as string | undefined;
+        const professionCodeNav =
+          typeof professionFromData === "string" && professionFromData.trim()
+            ? professionFromData.trim()
+            : undefined;
+        router.push({
+          pathname: "/haircodes/[id]" as Href,
+          params: {
+            id: clientId,
+            full_name: senderName ?? notification.sender?.full_name ?? "",
+            relationship: "true",
+            ...(professionCodeNav
+              ? { professionCode: professionCodeNav }
+              : {}),
+          },
+        });
+        break;
+      }
 
       case "INSPIRATION_SHARED":
         console.log("imageUrls", notification.data?.imageUrls);

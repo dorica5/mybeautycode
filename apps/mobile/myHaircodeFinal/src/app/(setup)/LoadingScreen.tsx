@@ -1,17 +1,12 @@
-import {
-  StyleSheet,
-  Text,
-  Animated,
-  View,
-  Easing,
-} from "react-native";
-import React, { useState, useEffect, useRef } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import Logo from "../../../assets/images/myBeautyCode_logo.svg";
-import { primaryBlack, primaryGreen, secondaryGreen } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
+import { MintSpinningWheel } from "@/src/components/MintSpinningWheel";
 import { Typography } from "@/src/constants/Typography";
 import { useLocalSearchParams, usePathname } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -27,29 +22,9 @@ const LoadingScreen = () => {
   const [isSetUp, setIsSetUp] = useState(false);
   const { from } = useLocalSearchParams();
   const { profile, setLoadingSetup } = useAuth();
-  const rotation = useRef(new Animated.Value(0)).current;
   const pathname = usePathname();
   const logoSize = useBeautyCodeLogoSize();
   const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    const animateWheel = () => {
-      Animated.loop(
-        Animated.timing(rotation, {
-          toValue: 1,
-          duration: 2000, 
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      ).start();
-    };
-    animateWheel();
-  }, [rotation]);
-
-  const spin = rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
 
   useEffect(() => {
     const isSetupMode =
@@ -103,12 +78,7 @@ const LoadingScreen = () => {
               )}
             </View>
 
-            <Animated.View
-              style={[
-                styles.loadingWheel,
-                { transform: [{ rotate: spin }] },
-              ]}
-            />
+            <MintSpinningWheel />
           </View>
         </View>
       </View>
@@ -158,13 +128,5 @@ const styles = StyleSheet.create({
     color: primaryBlack,
     marginTop: responsiveMargin(10),
     fontFamily: "Outfit_700Bold",
-  },
-  loadingWheel: {
-    width: responsiveScale(44, 52),
-    height: responsiveScale(44, 52),
-    borderWidth: responsiveScale(3, 4),
-    borderRadius: responsiveScale(999),
-    borderColor: secondaryGreen,
-    borderTopColor: primaryBlack,
   },
 });

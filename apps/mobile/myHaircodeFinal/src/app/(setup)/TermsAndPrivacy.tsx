@@ -104,7 +104,7 @@ const TermsAndConditionsScreen = () => {
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
             We reserve the right to modify these terms at any time. Continued use
             of the app after changes constitutes acceptance of the new terms. For
-            questions or support, contact us at hello@mybeautycode.com.
+            questions or support, contact us at hello@myne.com.
           </Text>
           </View>
         </ScrollView>
