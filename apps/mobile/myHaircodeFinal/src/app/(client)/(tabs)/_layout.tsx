@@ -57,12 +57,14 @@ const _layout = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
 
-  // Fetch unread notifications
+  // Badge only counts unread items in the *client* inbox (notifications sent
+  // to this user as a client). Pro-account inboxes are surfaced from the
+  // hairdresser tab shell instead.
   const loadUnreadNotifications = useCallback(async () => {
     if (!profile?.id) return;
 
     try {
-      const notifications = await fetchNotifications(profile.id);
+      const notifications = await fetchNotifications(profile.id, null);
       const count = notifications.filter(
         (n) => !(n as { read?: boolean }).read
       ).length;

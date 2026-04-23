@@ -144,6 +144,8 @@ const ProfessionalProfileScreen = () => {
       await addHairdresserDB();
 
       const message = `${profile?.full_name} has added you as their hairdresser.`;
+      // Deliver to the pro's specific profession-account inbox (hair, nails
+      // or brows) so "added you on nails" doesn't leak into their hair inbox.
       await sendPushNotification(
         hairdresser_id as string,
         client_id as string,
@@ -153,8 +155,10 @@ const ProfessionalProfileScreen = () => {
           isClient: true,
           senderName: profile?.full_name,
           senderAvatar: profile?.avatar_url,
+          ...(professionCode ? { profession_code: professionCode } : {}),
         },
-        "New Client Added"
+        "New Client Added",
+        professionCode ?? undefined
       );
 
       await queryClient.invalidateQueries({

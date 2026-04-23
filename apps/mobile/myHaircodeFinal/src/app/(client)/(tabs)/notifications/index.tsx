@@ -94,8 +94,10 @@ const Notifications = () => {
       if (!profile?.id) return;
       if (fromUserPull) setRefreshing(true);
       try {
+        // Client shell = client inbox only.
         const notifications = (await fetchNotifications(
-          profile.id
+          profile.id,
+          null
         )) as NotifRow[];
         const visible = notifications.filter((n) => {
           const t = String(n.type ?? "");

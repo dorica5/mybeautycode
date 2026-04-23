@@ -60,6 +60,10 @@ export const NotificationItem = ({
     typeof professionCodeRaw === "string" && professionCodeRaw.trim()
       ? professionCodeRaw.trim()
       : null;
+  // Profession-account aware copy: a request from a pro's hair account makes
+  // them "your hairdresser", nails -> "nail technician", brows -> "brow stylist".
+  // If the lane is unknown (pre-profession-code notifications), we fall back
+  // to the generic "professional" so we don't mislabel nails / brows as hair.
   const roleLabel = (() => {
     switch (professionCode) {
       case "hair":
@@ -70,14 +74,14 @@ export const NotificationItem = ({
       case "brows_lashes":
         return "brow stylist";
       default:
-        return "hairdresser";
+        return "professional";
     }
   })();
 
   const displayMessage = (() => {
     if (notification.type === "FRIEND_REQUEST" || notification.type === "link_request") {
       if (isHandled && (notification.status === "accepted" || notification.data?.status === "accepted")) {
-        return `${senderName ?? "Someone"} are now your ${roleLabel}`;
+        return `${senderName ?? "Someone"} is now your ${roleLabel}`;
       }
       return `${senderName ?? "Someone"} wants to connect with you`;
     }

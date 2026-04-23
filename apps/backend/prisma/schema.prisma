@@ -288,12 +288,17 @@ model Notification {
   senderId  String?           @map("sender_id") @db.Uuid
   status    String?
   data      Json?
+  /// Inbox scope: NULL = client inbox, "hair" / "nails" / "brows" = that
+  /// profession account's inbox. Pros with multiple profession accounts only
+  /// see a notification in the lane it was sent to.
+  professionCode String?      @map("profession_code")
   createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   sender    Profile?          @relation("NotificationSender", fields: [senderId], references: [id])
   user      Profile           @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([read])
+  @@index([userId, professionCode])
   @@map("notifications")
 }
 
