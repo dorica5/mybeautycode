@@ -17,6 +17,7 @@ import { storageRoutes } from "./routes/storage";
 import { userRoutes } from "./routes/users";
 import { sharedInspirationRoutes } from "./routes/sharedInspirations";
 import { supportRoutes } from "./routes/support";
+import { salonRoutes } from "./routes/salons";
 
 const app = express();
 const httpServer = createServer(app);
@@ -65,6 +66,7 @@ app.use("/api/storage", storageRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/shared-inspirations", sharedInspirationRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/salons", salonRoutes);
 
 app.set("io", io);
 

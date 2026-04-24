@@ -19,6 +19,7 @@ const _layout = () => {
       <Stack.Screen name="AboutMe" />
       <Stack.Screen name="professional_profile" />
       <Stack.Screen name="salon_name" />
+      <Stack.Screen name="salon_address" />
       <Stack.Screen name="SwitchAccount" />
     </Stack>
   );

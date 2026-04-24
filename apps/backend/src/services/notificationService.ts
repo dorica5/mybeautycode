@@ -1,6 +1,14 @@
-import { NotificationType } from "@prisma/client";
+import { NotificationType, Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
+
+/**
+ * Inbox filter for `list`:
+ *  - `undefined` -> all (legacy, no filtering)
+ *  - `null`      -> only client inbox (`profession_code IS NULL`)
+ *  - string      -> only that lane (`profession_code = "<lane>"`)
+ */
+export type NotificationInboxFilter = string | null | undefined;
 
 /** Maps API / mobile semantic types to DB enum values. */
 const NOTIFICATION_TYPE_MAP: Record<string, NotificationType> = {
@@ -27,9 +35,24 @@ export const notificationService = {
       message: string;
       title?: string;
       extraData?: Record<string, unknown>;
+      /**
+       * Which inbox the notification is delivered to:
+       *   - `null` / `undefined` -> recipient's client inbox
+       *   - `"hair"` / `"nails"` / `"brows"` -> that profession account's inbox
+       */
+      professionCode?: string | null;
     }
   ) {
     const mappedType = resolveDbNotificationType(params.type);
+    const normalizedLane =
+      typeof params.professionCode === "string" && params.professionCode.trim()
+        ? params.professionCode.trim()
+        : null;
+    // Mirror the lane in `data` too so legacy UI (NotificationItem) that reads
+    // `data.profession_code` keeps working for copy purposes.
+    const mergedExtra: Record<string, unknown> | undefined = normalizedLane
+      ? { ...(params.extraData ?? {}), profession_code: normalizedLane }
+      : params.extraData;
     const notification = await prisma.notification.create({
       data: {
         userId: recipientId,
@@ -37,7 +60,8 @@ export const notificationService = {
         type: mappedType,
         senderId,
         status: params.type === "FRIEND_REQUEST" ? "pending" : null,
-        data: (params.extraData ?? undefined) as object | undefined,
+        data: (mergedExtra ?? undefined) as object | undefined,
+        professionCode: normalizedLane,
       },
     });
     const pushToken = await prisma.pushToken.findFirst({
@@ -54,7 +78,7 @@ export const notificationService = {
           data: {
             notificationId: notification.id,
             type: params.type,
-            ...params.extraData,
+            ...(mergedExtra ?? {}),
           },
           sound: "default",
           priority: "high",
@@ -84,9 +108,15 @@ export const notificationService = {
     return { success: true };
   },
 
-  async list(userId: string) {
+  async list(userId: string, inbox: NotificationInboxFilter = undefined) {
+    const where: Prisma.NotificationWhereInput = { userId };
+    if (inbox === null) {
+      where.professionCode = null;
+    } else if (typeof inbox === "string" && inbox.trim()) {
+      where.professionCode = inbox.trim();
+    }
     const notifications = await prisma.notification.findMany({
-      where: { userId },
+      where,
       orderBy: { createdAt: "desc" },
     });
     const senderIds = [
@@ -161,6 +191,18 @@ export const notificationService = {
         ? rawData.clientProfessionalLinkId
         : null;
 
+    // Resolve the profession lane upfront (before any delete on decline) so
+    // we can stamp it onto the accepted notification's `data` and use it as
+    // the echo-inbox for the follow-up notification to the pro.
+    let linkProfessionCode: string | null = null;
+    if (linkId) {
+      const existingLink = await prisma.clientProfessionalLink.findUnique({
+        where: { id: linkId },
+        select: { profession: { select: { code: true } } },
+      });
+      linkProfessionCode = existingLink?.profession?.code?.trim() || null;
+    }
+
     let linkResponded = false;
     if (linkId) {
       const link = await prisma.clientProfessionalLink.findFirst({
@@ -189,9 +231,23 @@ export const notificationService = {
       }
     }
 
+    // Enrich the accepted notification's data with the lane so UI copy
+    // renders "X is now your hairdresser / nail technician / brow stylist"
+    // even if the original request predates profession-code propagation.
+    const enrichedData: Record<string, unknown> = {
+      ...(rawData ?? {}),
+    };
+    if (linkProfessionCode && !enrichedData.profession_code) {
+      enrichedData.profession_code = linkProfessionCode;
+    }
+
     await prisma.notification.updateMany({
       where: { id: notificationId, userId },
-      data: { status: accepted ? "accepted" : "rejected", read: true },
+      data: {
+        status: accepted ? "accepted" : "rejected",
+        read: true,
+        data: enrichedData as object,
+      },
     });
 
     if (linkResponded && n.type === "link_request" && n.senderId) {
@@ -200,18 +256,21 @@ export const notificationService = {
         select: { firstName: true, lastName: true },
       });
       const clientName = profileDisplayName(clientProfile ?? {});
+      const proInboxLane = linkProfessionCode;
       if (accepted) {
         await notificationService.send(userId, n.senderId, {
           type: "FRIEND_ACCEPTED",
           message: `${clientName} accepted your connection request`,
           title: "Request accepted",
           extraData: { clientProfessionalLinkId: linkId },
+          professionCode: proInboxLane,
         });
       } else {
         await notificationService.send(userId, n.senderId, {
           type: "FRIEND_DECLINED",
           message: `${clientName} declined your connection request`,
           title: "Request declined",
+          professionCode: proInboxLane,
         });
       }
     }

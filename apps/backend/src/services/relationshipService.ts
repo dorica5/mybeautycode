@@ -86,6 +86,9 @@ export const relationshipService = {
     });
     const proName = profileDisplayName(proProfile ?? {});
 
+    // Connection requests to a client always land in that user's client
+    // inbox (professionCode: null). We still carry the requested lane in
+    // extraData for UI copy ("X wants to connect on their <lane> account").
     await notificationService.send(prof.profileId, clientUserId, {
       type: "FRIEND_REQUEST",
       message: `${proName} wants to connect with you on MyHaircode`,
@@ -93,7 +96,9 @@ export const relationshipService = {
       extraData: {
         clientProfessionalLinkId: linkId,
         isClient: false,
+        profession_code: normalizedCode,
       },
+      professionCode: null,
     });
 
     return { success: true, clientProfessionalLinkId: linkId };

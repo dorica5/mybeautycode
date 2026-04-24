@@ -13,6 +13,7 @@ import {
   UserCircle,
   Phone,
   HouseLine,
+  MapPin,
   PencilSimple,
   LockKey,
   FileText,
@@ -163,6 +164,14 @@ const ProfileScreen = () => {
                 tileStyle="light"
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/salon_name")
+                }
+              />
+              <Profile
+                title="Salon address"
+                Icon={MapPin}
+                tileStyle="light"
+                onPress={() =>
+                  router.push("/(hairdresser)/(tabs)/profile/salon_address")
                 }
               />
               <Profile

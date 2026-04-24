@@ -82,14 +82,24 @@ export const registerForPushNotificationAsync = async (userId: string) => {
   }
 };
 
+/**
+ * `professionCode`:
+ *   - `null` / `undefined` -> client inbox (default)
+ *   - `"hair"` / `"nails"` / `"brows"` -> pro's profession-account inbox
+ */
 export const sendPushNotification = async (
   recipientId: string,
   userId: string,
   type: string,
   message: string,
   extraData: Record<string, unknown> = {},
-  title = "Good News"
+  title = "Good News",
+  professionCode?: string | null
 ) => {
+  const code =
+    typeof professionCode === "string" && professionCode.trim()
+      ? professionCode.trim()
+      : null;
   try {
     await api.post("/api/notifications/send", {
       recipient_id: recipientId,
@@ -97,15 +107,34 @@ export const sendPushNotification = async (
       message,
       title,
       extra_data: extraData,
+      ...(code ? { profession_code: code } : {}),
     });
   } catch (error) {
     console.error("Error in sendPushNotification:", error);
   }
 };
 
-export const fetchNotifications = async (_userId: string) => {
+/**
+ * `inbox`:
+ *   - `undefined` -> return everything (legacy / global count)
+ *   - `null`      -> only client-inbox notifications (for the client tab shell)
+ *   - string      -> only that profession-account inbox
+ */
+export const fetchNotifications = async (
+  _userId: string,
+  inbox?: string | null
+) => {
   try {
-    const data = await api.get<unknown[]>("/api/notifications");
+    const params = new URLSearchParams();
+    if (inbox === null) {
+      params.set("profession_code", "client");
+    } else if (typeof inbox === "string" && inbox.trim()) {
+      params.set("profession_code", inbox.trim());
+    }
+    const qs = params.toString();
+    const data = await api.get<unknown[]>(
+      qs ? `/api/notifications?${qs}` : "/api/notifications"
+    );
     return data ?? [];
   } catch (error) {
     console.error("Error fetching notifications:", error);

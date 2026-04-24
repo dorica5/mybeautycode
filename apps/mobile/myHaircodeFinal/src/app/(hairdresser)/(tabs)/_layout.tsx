@@ -5,24 +5,32 @@ import { Tabs, router, usePathname } from "expo-router";
 import { House, Bell, Images, User } from "phosphor-react-native";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { fetchNotifications } from "@/src/providers/useNotifcations";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 
 const _layout = () => {
   const { profile } = useAuth();
+  const { activeProfessionCode } = useActiveProfessionState(profile);
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
 
+  // Pro shell badge counts the active profession-account inbox only (hair,
+  // nails or brows). Notifications for other accounts don't bleed across.
   const loadUnreadNotifications = useCallback(async () => {
     if (!profile?.id) return;
+    if (!activeProfessionCode) return;
 
     try {
-      const notifications = await fetchNotifications(profile.id);
+      const notifications = await fetchNotifications(
+        profile.id,
+        activeProfessionCode
+      );
       const count = notifications.filter((n) => !n.read).length;
       setUnreadCount(count);
     } catch (error) {
       console.error("Error loading unread notifications:", error);
     }
-  }, [profile?.id]);
+  }, [profile?.id, activeProfessionCode]);
 
   useEffect(() => {
     loadUnreadNotifications();

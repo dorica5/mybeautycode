@@ -58,6 +58,40 @@ const SNAKE_TO_CAMEL: Record<string, string> = {
   salon_phone_number: "businessNumber",
 };
 
+/** Salon identity from the client, used to upsert a canonical Salon row and link it via salonId. */
+type SalonInput = {
+  placeIdTouched: boolean;
+  placeId: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+function extractSalonInputFromBody(body: Record<string, unknown>): SalonInput {
+  const placeIdTouched =
+    Object.prototype.hasOwnProperty.call(body, "business_place_id") ||
+    Object.prototype.hasOwnProperty.call(body, "businessPlaceId");
+  const rawPlaceId = body.business_place_id ?? body.businessPlaceId;
+  const rawLat = body.business_latitude ?? body.businessLatitude;
+  const rawLng = body.business_longitude ?? body.businessLongitude;
+  delete body.business_place_id;
+  delete body.businessPlaceId;
+  delete body.business_latitude;
+  delete body.businessLatitude;
+  delete body.business_longitude;
+  delete body.businessLongitude;
+
+  const placeId =
+    typeof rawPlaceId === "string" && rawPlaceId.trim()
+      ? rawPlaceId.trim()
+      : null;
+  const latitude =
+    typeof rawLat === "number" && Number.isFinite(rawLat) ? rawLat : null;
+  const longitude =
+    typeof rawLng === "number" && Number.isFinite(rawLng) ? rawLng : null;
+
+  return { placeIdTouched, placeId, latitude, longitude };
+}
+
 export const profileService = {
   async getById(id: string) {
     const profile = await prisma.profile.findUnique({
@@ -109,6 +143,10 @@ export const profileService = {
         : null;
     delete body.profession_code;
     delete body.professionCode;
+
+    // Pull salon identity (place_id, lat, lng) off the body so the generic field
+    // loop doesn't try to store them on ProfessionalProfession.
+    const salonInput = extractSalonInputFromBody(body);
 
     /** Only persist profession when finishing professional onboarding in one request (with setup complete). */
     const completingSetup =
@@ -211,7 +249,17 @@ export const profileService = {
         });
       }
 
-      if (profProfileId && Object.keys(professionBusinessData).length > 0) {
+      const addressTouched = Object.prototype.hasOwnProperty.call(
+        professionBusinessData,
+        "businessAddress"
+      );
+      const needSalonWrite =
+        salonInput.placeIdTouched || addressTouched || salonInput.placeId != null;
+
+      if (
+        profProfileId &&
+        (Object.keys(professionBusinessData).length > 0 || needSalonWrite)
+      ) {
         const codeForBusiness =
           professionCode ??
           (await professionService.getDefaultProfessionCodeForProfessionalProfile(
@@ -228,7 +276,63 @@ export const profileService = {
         const professionId = await professionService.getProfessionIdByCode(
           codeForBusiness
         );
+
+        // Resolve Salon link:
+        //  - place_id + lat/lng + address present → upsert canonical salon, link via salonId
+        //  - place_id explicitly null/empty, or businessAddress cleared → null salonId (unlink)
+        //  - otherwise: leave salonId unchanged
+        const businessAddress =
+          typeof professionBusinessData.businessAddress === "string"
+            ? (professionBusinessData.businessAddress as string).trim()
+            : (professionBusinessData.businessAddress as string | null | undefined);
+        const businessName =
+          typeof professionBusinessData.businessName === "string"
+            ? (professionBusinessData.businessName as string).trim() || null
+            : undefined;
+
+        let salonIdUpdate: string | null | undefined;
+        if (
+          salonInput.placeId &&
+          salonInput.latitude != null &&
+          salonInput.longitude != null &&
+          typeof businessAddress === "string" &&
+          businessAddress.length > 0
+        ) {
+          const salon = await prisma.salon.upsert({
+            where: { googlePlaceId: salonInput.placeId },
+            create: {
+              googlePlaceId: salonInput.placeId,
+              formattedAddress: businessAddress,
+              latitude: salonInput.latitude,
+              longitude: salonInput.longitude,
+              name: businessName ?? null,
+            },
+            update: {
+              formattedAddress: businessAddress,
+              latitude: salonInput.latitude,
+              longitude: salonInput.longitude,
+              updatedAt: new Date(),
+              ...(businessName ? { name: businessName } : {}),
+            },
+            select: { id: true },
+          });
+          salonIdUpdate = salon.id;
+        } else if (
+          // Explicit clear: address set to empty/null, or place_id explicitly cleared
+          (addressTouched &&
+            (businessAddress === null ||
+              businessAddress === undefined ||
+              (typeof businessAddress === "string" && businessAddress.length === 0))) ||
+          (salonInput.placeIdTouched && salonInput.placeId == null)
+        ) {
+          salonIdUpdate = null;
+        }
+
         professionBusinessData.updatedAt = new Date();
+        if (salonIdUpdate !== undefined) {
+          (professionBusinessData as Record<string, unknown>).salonId =
+            salonIdUpdate;
+        }
         await prisma.professionalProfession.update({
           where: {
             professionalProfileId_professionId: {

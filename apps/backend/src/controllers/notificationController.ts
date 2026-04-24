@@ -1,5 +1,29 @@
 import { Request, Response } from "express";
-import { notificationService } from "../services/notificationService";
+import {
+  notificationService,
+  type NotificationInboxFilter,
+} from "../services/notificationService";
+
+function readProfessionCodeBody(body: Record<string, unknown>): string | null {
+  const raw = body.profession_code ?? body.professionCode;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  return null;
+}
+
+/**
+ * Parses the inbox query param for `GET /api/notifications`:
+ *  - missing           -> undefined (return everything; legacy behavior)
+ *  - "client"          -> null (only client-inbox notifications)
+ *  - "hair"/"nails"/.. -> that lane
+ */
+function readInboxQuery(q: Record<string, unknown>): NotificationInboxFilter {
+  const raw = q.profession_code ?? q.professionCode ?? q.inbox;
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.toLowerCase() === "client") return null;
+  return trimmed;
+}
 
 export const notificationController = {
   async send(req: Request, res: Response) {
@@ -8,12 +32,14 @@ export const notificationController = {
     if (!recipient_id || !message) {
       return res.status(400).json({ error: "recipient_id and message required" });
     }
+    const professionCode = readProfessionCodeBody(req.body);
     try {
       await notificationService.send(senderId, recipient_id, {
         type: type ?? "GENERAL",
         message,
         title,
         extraData: extra_data,
+        professionCode,
       });
       res.json({ success: true });
     } catch (err) {
@@ -39,8 +65,9 @@ export const notificationController = {
 
   async list(req: Request, res: Response) {
     const userId = req.userId!;
+    const inbox = readInboxQuery(req.query as Record<string, unknown>);
     try {
-      const data = await notificationService.list(userId);
+      const data = await notificationService.list(userId, inbox);
       res.json(data);
     } catch (err) {
       console.error("notification list error:", err);

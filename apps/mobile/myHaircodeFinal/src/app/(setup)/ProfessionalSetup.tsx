@@ -12,7 +12,10 @@ import React, { useEffect, useState } from "react";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { CaretLeft } from "phosphor-react-native";
-import { BrandAddressAutocompleteField } from "@/src/components/BrandAddressAutocompleteField";
+import {
+  BrandAddressAutocompleteField,
+  type PlaceDetails,
+} from "@/src/components/BrandAddressAutocompleteField";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
@@ -66,6 +69,12 @@ const ProfessionalSetup = () => {
     bookingSite: "",
     aboutMe: "",
   });
+  /**
+   * Canonical place identity from Google Places — captured when the user picks
+   * a suggestion; cleared when they edit the address text manually. Sent on
+   * save so the backend can upsert a Salon row and link this professional to it.
+   */
+  const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
   const [errorMessages, setErrorMessages] = useState({
     businessName: "",
     phone_number: "",
@@ -267,11 +276,20 @@ const ProfessionalSetup = () => {
     const social = fields.socialMedia.trim();
     const booking = fields.bookingSite.trim();
 
+    /** Only send place identity when the current address text matches the last
+     *  picked suggestion. Typing free-form afterwards clears placeDetails via
+     *  BrandAddressAutocompleteField's onPlaceSelected(null). */
+    const placeStillMatches =
+      placeDetails && placeDetails.formattedAddress.trim() === bizAddr;
+
     await updateProfile({
       id: userId,
       business_name: fields.businessName.trim(),
       business_number: formatBusinessPhoneE164(),
       business_address: bizAddr,
+      business_place_id: placeStillMatches ? placeDetails!.placeId : null,
+      business_latitude: placeStillMatches ? placeDetails!.latitude : null,
+      business_longitude: placeStillMatches ? placeDetails!.longitude : null,
       social_media: social.length > 0 ? social : null,
       booking_site: booking.length > 0 ? booking : null,
       about_me: fields.aboutMe.trim(),
@@ -429,6 +447,7 @@ const ProfessionalSetup = () => {
               onChangeText={(value) =>
                 handleFieldChange("businessAddress", value)
               }
+              onPlaceSelected={setPlaceDetails}
               countryCode={
                 profileCountry.length === 2 ? profileCountry : undefined
               }

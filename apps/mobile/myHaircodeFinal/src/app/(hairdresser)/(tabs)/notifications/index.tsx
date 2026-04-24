@@ -16,6 +16,7 @@ import {
   type NotificationItemProps,
 } from "@/src/components/NotificationItem";
 import { fetchNotifications } from "@/src/providers/useNotifcations";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { StatusBar } from "expo-status-bar";
 import { Typography } from "@/src/constants/Typography";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
@@ -84,18 +85,26 @@ function toneForSection(date: string): NotificationCardTone {
 
 const Notifications = () => {
   const { profile } = useAuth();
+  const { activeProfessionCode } = useActiveProfessionState(profile);
   const [groupedNotifications, setGroupedNotifications] = useState<Grouped[]>(
     []
   );
   const [refreshing, setRefreshing] = useState(false);
 
+  // Pro inbox: show only notifications for the currently active profession
+  // account. Switching lanes (hair <-> nails) shows a different inbox.
   const loadNotifications = useCallback(
     async (fromUserPull: boolean) => {
       if (!profile?.id) return;
+      if (!activeProfessionCode) {
+        setGroupedNotifications([]);
+        return;
+      }
       if (fromUserPull) setRefreshing(true);
       try {
         const notifications = (await fetchNotifications(
-          profile.id
+          profile.id,
+          activeProfessionCode
         )) as NotifRow[];
         const visible = notifications.filter((n) => {
           const t = String(n.type ?? "");
@@ -110,7 +119,7 @@ const Notifications = () => {
         if (fromUserPull) setRefreshing(false);
       }
     },
-    [profile?.id]
+    [profile?.id, activeProfessionCode]
   );
 
   useEffect(() => {

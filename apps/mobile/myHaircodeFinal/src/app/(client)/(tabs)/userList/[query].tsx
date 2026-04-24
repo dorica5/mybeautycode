@@ -64,7 +64,10 @@ const SearchHairdresserPage = () => {
     }
   }, [isLoading, searchResults, debouncedQuery]);
 
-  const handleSearch = (query: string) => setSearchQuery(query);
+  const handleSearch = useCallback(
+    (query: string) => setSearchQuery(query),
+    []
+  );
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
@@ -92,6 +95,14 @@ const SearchHairdresserPage = () => {
               </ResponsiveText>
 
               <SearchInput
+                /**
+                 * Controlled: parent owns the text so external resets (tab
+                 * press, `clearSearch`) flow into the input. Avoids the
+                 * infinite-loop interaction between uncontrolled
+                 * SearchInput effects and TextInput's native-sync layout
+                 * effect on rapid typing.
+                 */
+                value={searchQuery}
                 onSearch={handleSearch}
                 initialQuery={searchQuery}
                 placeholder="Search for hairdressers"
