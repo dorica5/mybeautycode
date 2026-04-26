@@ -172,11 +172,9 @@ export const salonService = {
       },
     });
 
-    // Hide the viewer from their own salon listing, and de-dupe when the same
-    // pro has multiple (e.g. hair + nails) professions at the place.
+    // De-dupe when the same pro has multiple (e.g. hair + nails) professions at the place.
     const byProId = new Map<string, (typeof rows)[number]>();
     for (const r of rows) {
-      if (r.professionalProfile.profile.id === viewerProfileId) continue;
       const existing = byProId.get(r.professionalProfile.id);
       if (!existing) byProId.set(r.professionalProfile.id, r);
     }

@@ -72,6 +72,13 @@ const ProfessionalProfileScreen = () => {
     useRelationshipCheck(client_id ?? undefined, hairdresser_id, professionCode);
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
+  const isOwnProfile = Boolean(
+    hairdresser_id &&
+      ((client_id && client_id === hairdresser_id) ||
+        (profile?.id && profile.id === hairdresser_id))
+  );
+  const showRelationshipCta = !isOwnProfile && !isRelated;
+
   const [isBlockedUser, setIsBlockedUser] = useState(false);
   const [blockCheckComplete, setBlockCheckComplete] = useState(false);
 
@@ -388,7 +395,7 @@ const ProfessionalProfileScreen = () => {
           Array.isArray(data.profession_codes) ? data.profession_codes : null
         }
         onBack={() => router.back()}
-        showRelationshipCta
+        showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}
         addLoading={loading}
         onAddHairdresser={addHairdresser}

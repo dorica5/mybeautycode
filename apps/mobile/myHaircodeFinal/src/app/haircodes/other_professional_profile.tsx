@@ -122,7 +122,8 @@ const OtherProfessionalProfileScreen = () => {
     profile?.user_type === "CLIENT" &&
       profile?.id &&
       hairdresser_id &&
-      profile.id !== hairdresser_id
+      profile.id !== hairdresser_id &&
+      !isRelated
   );
 
   useEffect(() => {

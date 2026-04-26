@@ -20,6 +20,7 @@ import {
   ActivityIndicator,
   StatusBar as RNStatusBar,
   useWindowDimensions,
+  InteractionManager,
 } from "react-native";
 import {
   SafeAreaView,
@@ -231,6 +232,55 @@ function placeToRegion(
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
+
+/**
+ * Stable native marker identity (key stays `salon.id`) plus a short
+ * `tracksViewChanges` pulse when selection changes so the pin bitmap updates
+ * without remounting — remounting was hiding pins until the next map interaction.
+ */
+const SalonMapMarker = React.memo(function SalonMapMarker({
+  salon,
+  selected,
+  onSalonPress,
+}: {
+  salon: SalonPin;
+  selected: boolean;
+  onSalonPress: (salon: SalonPin) => void;
+}) {
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  useEffect(() => {
+    setTracksViewChanges(true);
+    const t = setTimeout(() => setTracksViewChanges(false), 450);
+    return () => clearTimeout(t);
+  }, [selected]);
+
+  const accessibility = salon.name
+    ? `${salon.name}, ${salon.formatted_address}`
+    : salon.formatted_address;
+
+  return (
+    <Marker
+      coordinate={{
+        latitude: salon.latitude,
+        longitude: salon.longitude,
+      }}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={tracksViewChanges}
+      stopPropagation
+      accessibilityLabel={accessibility}
+      onPress={() => onSalonPress(salon)}
+    >
+      {salon.professional_count >= 1 ? (
+        <ClusterMapBubble
+          count={salon.professional_count}
+          selected={selected}
+        />
+      ) : (
+        <ProfessionalMapPinBubble selected={selected} />
+      )}
+    </Marker>
+  );
+});
 
 const MapLocationScreen = () => {
   const insets = useSafeAreaInsets();
@@ -519,17 +569,70 @@ const MapLocationScreen = () => {
   const { data: salonProfessionals = [], isFetching: salonProsLoading } =
     useSalonProfessionals(selectedSalon?.id ?? null, backendProfessionCode);
 
+  /**
+   * If the API omits the logged-in professional (stale cache, lane edge cases),
+   * merge them in when the map lane matches their `profession_codes`, or when
+   * the pin is a single-professional salon and the list came back empty.
+   */
+  const salonProfessionalsDisplay = useMemo(() => {
+    if (salonProsLoading) return salonProfessionals;
+    if (!selectedSalon || !profile?.id || !profile.professional_profile_id) {
+      return salonProfessionals;
+    }
+    if (salonProfessionals.some((p) => p.hairdresser_id === profile.id)) {
+      return salonProfessionals;
+    }
+    const codes = profile.profession_codes ?? [];
+    const code = backendProfessionCode;
+    const laneMatches =
+      !code ||
+      codes.some((c) =>
+        code === "brows_lashes" ? c === "brows_lashes" : c === code
+      );
+    const soloFallback =
+      salonProfessionals.length === 0 &&
+      selectedSalon.professional_count === 1;
+    if (!laneMatches && !soloFallback) return salonProfessionals;
+
+    const displayName =
+      profile.full_name?.trim() ||
+      profile.display_name?.trim() ||
+      [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
+      null;
+    const synthetic: SalonProfessional = {
+      professional_profile_id: profile.professional_profile_id,
+      profile_id: profile.id,
+      hairdresser_id: profile.id,
+      full_name: displayName,
+      avatar_url: profile.avatar_url ?? null,
+      has_relationship: false,
+      link_pending: false,
+      business_name: profile.business_name ?? null,
+    };
+    return [...salonProfessionals, synthetic].sort((a, b) =>
+      (a.full_name ?? "").localeCompare(b.full_name ?? "", undefined, {
+        sensitivity: "base",
+      })
+    );
+  }, [
+    salonProsLoading,
+    salonProfessionals,
+    selectedSalon,
+    profile,
+    backendProfessionCode,
+  ]);
+
   const sheetBottomReserve = useMemo(() => {
     if (!selectedSalon) return 0;
     const header = responsiveScale(92);
     const row = responsiveScale(56);
     const footer = responsiveScale(36);
-    const rows = Math.max(1, salonProfessionals.length);
+    const rows = Math.max(1, salonProfessionalsDisplay.length);
     return Math.min(
       responsiveScale(420),
       header + rows * row + footer
     );
-  }, [selectedSalon, salonProfessionals.length]);
+  }, [selectedSalon, salonProfessionalsDisplay.length]);
 
   /** Keep Google legal / logo above the mint bottom sheet when a pin is selected. */
   const mapChromeBottomPad = useMemo(() => {
@@ -561,7 +664,7 @@ const MapLocationScreen = () => {
 
   const handleSalonMarkerPress = useCallback((salon: SalonPin) => {
     markerPressConsumesMapPressRef.current = true;
-    setSelectedSalon((current) => (current?.id === salon.id ? null : salon));
+    setSelectedSalon(salon);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         markerPressConsumesMapPressRef.current = false;
@@ -586,15 +689,24 @@ const MapLocationScreen = () => {
 
   const openProfessionalProfile = useCallback(
     (pro: SalonProfessional) => {
-      router.push({
-        pathname: "/(client)/(tabs)/userList/professionalProfile/[id]",
+      /**
+       * The map runs inside a React Native `Modal`. `router.push` updates the
+       * stack underneath, so the profile stays hidden until the modal closes.
+       * Dismiss the modal first, then navigate once the close has committed.
+       */
+      closeMapModal();
+      const href = {
+        pathname: "/(client)/(tabs)/userList/professionalProfile/[id]" as const,
         params: {
           id: pro.hairdresser_id,
           ...(backendProfessionCode ? { profession: backendProfessionCode } : {}),
         },
+      };
+      InteractionManager.runAfterInteractions(() => {
+        router.push(href);
       });
     },
-    [backendProfessionCode]
+    [backendProfessionCode, closeMapModal]
   );
 
   /** Modal is a separate window: SafeAreaView often mis-insets; pad explicitly like other screens. */
@@ -692,35 +804,14 @@ const MapLocationScreen = () => {
                       left: responsiveScale(12),
                     }}
                   >
-                    {salons.map((salon) => {
-                      const selected = selectedSalon?.id === salon.id;
-                      const accessibility = salon.name
-                        ? `${salon.name}, ${salon.formatted_address}`
-                        : salon.formatted_address;
-                      return (
-                        <Marker
-                          key={`${salon.id}-${selected ? "s" : "u"}`}
-                          coordinate={{
-                            latitude: salon.latitude,
-                            longitude: salon.longitude,
-                          }}
-                          anchor={{ x: 0.5, y: 0.5 }}
-                          tracksViewChanges={false}
-                          stopPropagation
-                          accessibilityLabel={accessibility}
-                          onPress={() => handleSalonMarkerPress(salon)}
-                        >
-                          {salon.professional_count > 1 ? (
-                            <ClusterMapBubble
-                              count={salon.professional_count}
-                              selected={selected}
-                            />
-                          ) : (
-                            <ProfessionalMapPinBubble selected={selected} />
-                          )}
-                        </Marker>
-                      );
-                    })}
+                    {salons.map((salon) => (
+                      <SalonMapMarker
+                        key={salon.id}
+                        salon={salon}
+                        selected={selectedSalon?.id === salon.id}
+                        onSalonPress={handleSalonMarkerPress}
+                      />
+                    ))}
                   </MapView>
                   {selectedSalon ? (
                     <View
@@ -754,7 +845,7 @@ const MapLocationScreen = () => {
                         </Text>
                         {salonProsLoading && salonProfessionals.length === 0 ? (
                           <ActivityIndicator color={primaryBlack} />
-                        ) : salonProfessionals.length === 0 ? (
+                        ) : salonProfessionalsDisplay.length === 0 ? (
                           <Text style={styles.clusterRowAddress}>
                             No professionals at this salon yet.
                           </Text>
@@ -763,7 +854,7 @@ const MapLocationScreen = () => {
                             <Text style={styles.clusterRowAddress}>
                               {salonSummaryLine(
                                 professionKey,
-                                salonProfessionals.length,
+                                salonProfessionalsDisplay.length,
                                 selectedSalon.name ?? "this salon"
                               )}
                             </Text>
@@ -772,7 +863,7 @@ const MapLocationScreen = () => {
                               keyboardShouldPersistTaps="handled"
                               showsVerticalScrollIndicator={false}
                             >
-                              {salonProfessionals.map((pro) => (
+                              {salonProfessionalsDisplay.map((pro) => (
                                 <Pressable
                                   key={pro.professional_profile_id}
                                   style={styles.clusterRow}
