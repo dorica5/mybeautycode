@@ -178,10 +178,60 @@ export const salonService = {
       const existing = byProId.get(r.professionalProfile.id);
       if (!existing) byProId.set(r.professionalProfile.id, r);
     }
-    const filtered = Array.from(byProId.values());
-    if (filtered.length === 0) return [];
+    let merged = Array.from(byProId.values());
 
-    const proProfileIds = filtered.map((r) => r.professionalProfile.id);
+    /**
+     * Map pins count everyone with an active row at this salon for the lane.
+     * In rare cases the list query can omit the signed-in professional (e.g. JWT
+     * `sub` vs `profiles.id` drift in older clients, or replication lag). If they
+     * truly have a row here, merge them so the sheet matches the pin.
+     */
+    const viewerProfessionalProfile = await prisma.professionalProfile.findFirst({
+      where: {
+        OR: [{ profileId: viewerProfileId }, { id: viewerProfileId }],
+      },
+      select: { id: true },
+    });
+    if (viewerProfessionalProfile) {
+      const alreadyListed = merged.some(
+        (r) => r.professionalProfile.id === viewerProfessionalProfile.id
+      );
+      if (!alreadyListed) {
+        const viewerMembership = await prisma.professionalProfession.findFirst({
+          where: {
+            salonId,
+            professionalProfileId: viewerProfessionalProfile.id,
+            ...(professionId ? { professionId } : {}),
+            OR: [{ isActive: true }, { isActive: null }],
+          },
+          select: {
+            professionId: true,
+            businessName: true,
+            professionalProfile: {
+              select: {
+                id: true,
+                displayName: true,
+                profile: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        if (viewerMembership) {
+          merged.push(viewerMembership);
+        }
+      }
+    }
+
+    if (merged.length === 0) return [];
+
+    const proProfileIds = merged.map((r) => r.professionalProfile.id);
 
     // Link state (per lane when filtered, else any lane) so the UI can show
     // "connected" badges in the salon sheet.
@@ -200,7 +250,7 @@ export const salonService = {
       else if (l.status === "pending") pendingSet.add(l.professionalProfileId);
     }
 
-    return filtered.map((r) => {
+    return merged.map((r) => {
       const pp = r.professionalProfile;
       return {
         professional_profile_id: pp.id,

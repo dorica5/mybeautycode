@@ -20,13 +20,12 @@ import {
   ActivityIndicator,
   StatusBar as RNStatusBar,
   useWindowDimensions,
-  InteractionManager,
 } from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { CaretLeft, X } from "phosphor-react-native";
 import { StatusBar } from "expo-status-bar";
 import MapView, {
@@ -355,51 +354,50 @@ const MapLocationScreen = () => {
    * the ref covers iOS where `action` may be absent.
    */
   const markerPressConsumesMapPressRef = useRef(false);
+  /** After opening a pro profile from the map, reopen the map modal on back (keep pins / camera). */
+  const restoreMapModalAfterProfileRef = useRef(false);
 
   const useStyledGoogleMap =
     Platform.OS === "android" || iosGoogleMapsConfigured();
 
   const closeMapModal = useCallback(() => {
+    restoreMapModalAfterProfileRef.current = false;
     setSelectedSalon(null);
     setBoundsRegion(null);
     setMapModalVisible(false);
   }, []);
 
   const onCheckLocation = useCallback(async () => {
-    setMapModalVisible(true);
-    setMapLoading(true);
-    setMapRegion(null);
-    setShowUserOnMap(false);
     setSelectedSalon(null);
-    setBoundsRegion(null);
-
-    let region: Region = BERGEN_REGION;
-    let showUser = false;
+    setShowUserOnMap(false);
+    // Show the map immediately; refine the camera when GPS returns (avoids ~multi‑second blank wait).
+    setMapRegion(BERGEN_REGION);
+    setBoundsRegion(BERGEN_REGION);
+    setMapModalVisible(true);
+    setMapLoading(false);
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === PermissionStatus.GRANTED) {
         const pos = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
+          accuracy: Location.Accuracy.Low,
         });
-        region = {
+        const region: Region = {
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
           latitudeDelta: 0.04,
           longitudeDelta: 0.04,
         };
-        showUser = true;
+        setMapRegion(region);
+        setBoundsRegion(region);
+        setShowUserOnMap(true);
+        mapViewRef.current?.animateToRegion(region, 350);
       }
     } catch {
       Alert.alert(
         "Location",
         "Could not read your position. Showing the map around Bergen."
       );
-    } finally {
-      setMapRegion(region);
-      setBoundsRegion(region);
-      setShowUserOnMap(showUser);
-      setMapLoading(false);
     }
   }, []);
 
@@ -569,70 +567,17 @@ const MapLocationScreen = () => {
   const { data: salonProfessionals = [], isFetching: salonProsLoading } =
     useSalonProfessionals(selectedSalon?.id ?? null, backendProfessionCode);
 
-  /**
-   * If the API omits the logged-in professional (stale cache, lane edge cases),
-   * merge them in when the map lane matches their `profession_codes`, or when
-   * the pin is a single-professional salon and the list came back empty.
-   */
-  const salonProfessionalsDisplay = useMemo(() => {
-    if (salonProsLoading) return salonProfessionals;
-    if (!selectedSalon || !profile?.id || !profile.professional_profile_id) {
-      return salonProfessionals;
-    }
-    if (salonProfessionals.some((p) => p.hairdresser_id === profile.id)) {
-      return salonProfessionals;
-    }
-    const codes = profile.profession_codes ?? [];
-    const code = backendProfessionCode;
-    const laneMatches =
-      !code ||
-      codes.some((c) =>
-        code === "brows_lashes" ? c === "brows_lashes" : c === code
-      );
-    const soloFallback =
-      salonProfessionals.length === 0 &&
-      selectedSalon.professional_count === 1;
-    if (!laneMatches && !soloFallback) return salonProfessionals;
-
-    const displayName =
-      profile.full_name?.trim() ||
-      profile.display_name?.trim() ||
-      [profile.first_name, profile.last_name].filter(Boolean).join(" ").trim() ||
-      null;
-    const synthetic: SalonProfessional = {
-      professional_profile_id: profile.professional_profile_id,
-      profile_id: profile.id,
-      hairdresser_id: profile.id,
-      full_name: displayName,
-      avatar_url: profile.avatar_url ?? null,
-      has_relationship: false,
-      link_pending: false,
-      business_name: profile.business_name ?? null,
-    };
-    return [...salonProfessionals, synthetic].sort((a, b) =>
-      (a.full_name ?? "").localeCompare(b.full_name ?? "", undefined, {
-        sensitivity: "base",
-      })
-    );
-  }, [
-    salonProsLoading,
-    salonProfessionals,
-    selectedSalon,
-    profile,
-    backendProfessionCode,
-  ]);
-
   const sheetBottomReserve = useMemo(() => {
     if (!selectedSalon) return 0;
     const header = responsiveScale(92);
     const row = responsiveScale(56);
     const footer = responsiveScale(36);
-    const rows = Math.max(1, salonProfessionalsDisplay.length);
+    const rows = Math.max(1, salonProfessionals.length);
     return Math.min(
       responsiveScale(420),
       header + rows * row + footer
     );
-  }, [selectedSalon, salonProfessionalsDisplay.length]);
+  }, [selectedSalon, salonProfessionals.length]);
 
   /** Keep Google legal / logo above the mint bottom sheet when a pin is selected. */
   const mapChromeBottomPad = useMemo(() => {
@@ -677,7 +622,7 @@ const MapLocationScreen = () => {
     if (regionDebounceRef.current) clearTimeout(regionDebounceRef.current);
     regionDebounceRef.current = setTimeout(() => {
       setBoundsRegion(r);
-    }, 400);
+    }, 160);
   }, []);
 
   useEffect(
@@ -690,11 +635,14 @@ const MapLocationScreen = () => {
   const openProfessionalProfile = useCallback(
     (pro: SalonProfessional) => {
       /**
-       * The map runs inside a React Native `Modal`. `router.push` updates the
-       * stack underneath, so the profile stays hidden until the modal closes.
-       * Dismiss the modal first, then navigate once the close has committed.
+       * The map runs inside a React Native `Modal`, so we must hide it before
+       * `router.push` or the profile renders underneath. Do **not** clear
+       * `boundsRegion` / `mapRegion` — when the user taps back we reopen the
+       * modal (see `useFocusEffect`) on the same pins.
        */
-      closeMapModal();
+      restoreMapModalAfterProfileRef.current = true;
+      setSelectedSalon(null);
+      setMapModalVisible(false);
       const href = {
         pathname: "/(client)/(tabs)/userList/professionalProfile/[id]" as const,
         params: {
@@ -702,11 +650,21 @@ const MapLocationScreen = () => {
           ...(backendProfessionCode ? { profession: backendProfessionCode } : {}),
         },
       };
-      InteractionManager.runAfterInteractions(() => {
-        router.push(href);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          router.push(href);
+        });
       });
     },
-    [backendProfessionCode, closeMapModal]
+    [backendProfessionCode]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!restoreMapModalAfterProfileRef.current) return;
+      restoreMapModalAfterProfileRef.current = false;
+      setMapModalVisible(true);
+    }, [])
   );
 
   /** Modal is a separate window: SafeAreaView often mis-insets; pad explicitly like other screens. */
@@ -845,7 +803,7 @@ const MapLocationScreen = () => {
                         </Text>
                         {salonProsLoading && salonProfessionals.length === 0 ? (
                           <ActivityIndicator color={primaryBlack} />
-                        ) : salonProfessionalsDisplay.length === 0 ? (
+                        ) : salonProfessionals.length === 0 ? (
                           <Text style={styles.clusterRowAddress}>
                             No professionals at this salon yet.
                           </Text>
@@ -854,7 +812,7 @@ const MapLocationScreen = () => {
                             <Text style={styles.clusterRowAddress}>
                               {salonSummaryLine(
                                 professionKey,
-                                salonProfessionalsDisplay.length,
+                                salonProfessionals.length,
                                 selectedSalon.name ?? "this salon"
                               )}
                             </Text>
@@ -863,7 +821,7 @@ const MapLocationScreen = () => {
                               keyboardShouldPersistTaps="handled"
                               showsVerticalScrollIndicator={false}
                             >
-                              {salonProfessionalsDisplay.map((pro) => (
+                              {salonProfessionals.map((pro) => (
                                 <Pressable
                                   key={pro.professional_profile_id}
                                   style={styles.clusterRow}

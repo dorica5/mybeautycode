@@ -1,5 +1,5 @@
 import { api } from "@/src/lib/apiClient";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 /** One salon pin = one Google Place with ≥1 matching pro listing it as a business address. */
 export type SalonPin = {
@@ -81,7 +81,9 @@ export const useSalonsInBounds = (
       return api.get<SalonPin[]>(`/api/salons/nearby?${params.toString()}`);
     },
     enabled: !!rounded,
-    staleTime: 15_000,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -101,5 +103,6 @@ export const useSalonProfessionals = (
       );
     },
     enabled: !!salonId,
+    staleTime: 60_000,
   });
 };
