@@ -110,7 +110,9 @@ const _layout = () => {
       // Already on the filter entry? Do nothing (avoid re-navigation).
       if (
         pathname === href ||
-        pathname === "/userList/filter-before-map"
+        pathname === "/userList/filter-before-map" ||
+        (isActiveClientTab(pathname, "userList") &&
+          pathname.includes("filter-before-map"))
       ) {
         return;
       }
@@ -178,7 +180,12 @@ const _layout = () => {
       <Tabs.Screen
         name="userList"
         options={{
-          href: "/(client)/(tabs)/userList/filter-before-map",
+          /**
+           * Do not set `href` here: expo-router turns the tab into a `Link` for that
+           * href, which dispatches nested NAVIGATE({ name: "userList", params: { screen:
+           * "filter-before-map" } }) and breaks with "not handled by any navigator"
+           * at the root. Use normal tab switching + `tabPress` → `router.replace` instead.
+           */
           tabBarIcon: ({ focused, color }) => (
             <MagnifyingGlass
               size={32}

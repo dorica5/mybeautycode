@@ -10,7 +10,10 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { CaretLeft } from "phosphor-react-native";
+import {
+  NavBackRow,
+  navBackPlaceholderStyle,
+} from "@/src/components/NavBackRow";
 import { StatusBar } from "expo-status-bar";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import { Typography } from "@/src/constants/Typography";
@@ -86,17 +89,9 @@ const FilterBeforeMapScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         {!hideBack ? (
-          <Pressable
-            onPress={() => router.back()}
-            style={styles.backRow}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-            <Text style={styles.backLabel}>Back</Text>
-          </Pressable>
+          <NavBackRow onPress={() => router.back()} />
         ) : (
-          <View style={styles.backPlaceholder} />
+          <View style={navBackPlaceholderStyle()} />
         )}
 
         <View
@@ -168,20 +163,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingBottom: responsiveMargin(24),
-  },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsivePadding(8),
-    alignSelf: "flex-start",
-  },
-  backPlaceholder: {
-    height: responsiveScale(40),
-  },
-  backLabel: {
-    ...Typography.bodyMedium,
-    marginLeft: responsivePadding(4),
   },
   heroBleed: {
     marginTop: responsiveMargin(8),

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Dimensions, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import { Typography } from "@/src/constants/Typography";
 import { primaryBlack } from "@/src/constants/Colors";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import {
+  isTablet,
   responsiveBorderRadius,
   responsiveMargin,
   responsivePadding,
@@ -18,6 +19,7 @@ import {
 
 const NUM_COLS = 2;
 const GRID_MAX_W = 400;
+const GRID_MAX_W_TABLET = 560;
 
 function chunkRows<T>(items: T[], size: number): T[][] {
   const rows: T[][] = [];
@@ -36,6 +38,8 @@ type Props = {
    * When omitted, legacy: first linked profession on the profile.
    */
   professionCode?: string | null;
+  /** When parent constrains readable column width (e.g. iPad shell), grids align to this. */
+  contentMaxWidth?: number;
 };
 
 /**
@@ -45,12 +49,21 @@ export function PublicProfileWorkGrid({
   profileUserId,
   showTitle = true,
   professionCode: professionCodeProp,
+  contentMaxWidth,
 }: Props) {
   const [rows, setRows] = useState<PublicProfileWorkRow[]>([]);
-  const width = Dimensions.get("window").width;
-  const scrollPad = responsivePadding(24);
+  const tablet = isTablet();
+  const { width: windowWidth } = useWindowDimensions();
+  const scrollPad = responsivePadding(24, 28);
   const gap = responsiveScale(12);
-  const rowInner = Math.min(GRID_MAX_W, width - scrollPad * 2);
+  const cap = tablet ? GRID_MAX_W_TABLET : GRID_MAX_W;
+
+  let rowInner: number;
+  if (typeof contentMaxWidth === "number" && Number.isFinite(contentMaxWidth)) {
+    rowInner = Math.max(220, Math.min(cap, Math.floor(contentMaxWidth)));
+  } else {
+    rowInner = Math.min(cap, Math.max(120, windowWidth - scrollPad * 2));
+  }
   const cell = (rowInner - gap * (NUM_COLS - 1)) / NUM_COLS;
   const pairRows = useMemo(() => chunkRows(rows, NUM_COLS), [rows]);
 
@@ -88,7 +101,7 @@ export function PublicProfileWorkGrid({
   if (rows.length === 0) return null;
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { maxWidth: rowInner }]}>
       {showTitle ? (
         <Text style={[Typography.label, styles.label]}>My work</Text>
       ) : null}
@@ -143,7 +156,6 @@ export function PublicProfileWorkGrid({
 const styles = StyleSheet.create({
   wrap: {
     width: "100%",
-    maxWidth: GRID_MAX_W,
     alignSelf: "center",
     marginBottom: responsiveMargin(16),
   },

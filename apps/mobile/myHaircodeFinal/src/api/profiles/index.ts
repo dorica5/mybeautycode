@@ -112,11 +112,17 @@ export const useListAllClientSearch = (
   });
 };
 
+/** `useClientSearch` / map prefetch — same key + fetch for instant profile paint after tap. */
+export const clientProfileByIdQueryKey = (id: string) =>
+  ["clientSearch", id] as const;
+export const fetchClientProfileById = (id: string) => api.get(`/api/profiles/${id}`);
+
 export const useClientSearch = (client_id: string | undefined) => {
   return useQuery({
-    queryKey: ["clientSearch", client_id],
-    queryFn: () => api.get(`/api/profiles/${client_id}`),
+    queryKey: clientProfileByIdQueryKey(client_id ?? ""),
+    queryFn: () => fetchClientProfileById(client_id!),
     enabled: !!client_id && isUuid(client_id),
+    staleTime: 60_000,
   });
 };
 

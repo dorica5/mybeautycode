@@ -184,6 +184,8 @@ const SignUp = () => {
         router.replace("/CheckMail");
         return;
       }
+
+      router.replace("/(setup)/Setup");
     } catch (err) {
       setErrorMessage("An unexpected error occurred. Please try again.");
       console.error("SignUp error:", err);

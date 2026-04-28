@@ -31,6 +31,7 @@
     },
     "android": {
       "softwareKeyboardLayoutMode": "resize",
+      "screenOrientation": "portrait",
       "adaptiveIcon": {
         "foregroundImage": "./assets/appstore.png",
         "backgroundColor": "#ffffff"
@@ -49,6 +50,10 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-screen-orientation",
+        { "initialOrientation": "PORTRAIT" }
+      ],
       [
         "expo-location",
         {
@@ -73,7 +78,8 @@
           }
         }
       ],
-      "./plugins/removeEnableBundleCompression"
+      "./plugins/removeEnableBundleCompression",
+      "./plugins/withAndroidPortraitOnly"
     ],
 
     "experiments": {

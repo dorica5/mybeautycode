@@ -133,44 +133,58 @@ export const salonService = {
       business_name: string | null;
     }>
   > {
-    const salon = await prisma.salon.findUnique({
-      where: { id: salonId },
-      select: { id: true },
-    });
+    const professionIdPromise =
+      professionCode && professionCode.trim()
+        ? professionService.getProfessionIdByCode(professionCode.trim())
+        : Promise.resolve(undefined as string | undefined);
+
+    const [salon, professionId] = await Promise.all([
+      prisma.salon.findUnique({
+        where: { id: salonId },
+        select: { id: true },
+      }),
+      professionIdPromise,
+    ]);
+
     if (!salon) {
       throw Object.assign(new Error("Salon not found."), { statusCode: 404 });
     }
 
-    const professionId =
-      professionCode && professionCode.trim()
-        ? await professionService.getProfessionIdByCode(professionCode.trim())
-        : undefined;
-
-    const rows = await prisma.professionalProfession.findMany({
-      where: {
-        salonId,
-        ...(professionId ? { professionId } : {}),
-        OR: [{ isActive: true }, { isActive: null }],
-      },
-      select: {
-        professionId: true,
-        businessName: true,
-        professionalProfile: {
-          select: {
-            id: true,
-            displayName: true,
-            profile: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatarUrl: true,
-              },
+    const rowSelect = {
+      professionId: true,
+      businessName: true,
+      professionalProfile: {
+        select: {
+          id: true,
+          displayName: true,
+          profile: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatarUrl: true,
             },
           },
         },
       },
-    });
+    } as const;
+
+    const [rows, viewerProfessionalProfile] = await Promise.all([
+      prisma.professionalProfession.findMany({
+        where: {
+          salonId,
+          ...(professionId ? { professionId } : {}),
+          OR: [{ isActive: true }, { isActive: null }],
+        },
+        select: rowSelect,
+      }),
+      prisma.professionalProfile.findFirst({
+        where: {
+          OR: [{ profileId: viewerProfileId }, { id: viewerProfileId }],
+        },
+        select: { id: true },
+      }),
+    ]);
 
     // De-dupe when the same pro has multiple (e.g. hair + nails) professions at the place.
     const byProId = new Map<string, (typeof rows)[number]>();
@@ -186,12 +200,6 @@ export const salonService = {
      * `sub` vs `profiles.id` drift in older clients, or replication lag). If they
      * truly have a row here, merge them so the sheet matches the pin.
      */
-    const viewerProfessionalProfile = await prisma.professionalProfile.findFirst({
-      where: {
-        OR: [{ profileId: viewerProfileId }, { id: viewerProfileId }],
-      },
-      select: { id: true },
-    });
     if (viewerProfessionalProfile) {
       const alreadyListed = merged.some(
         (r) => r.professionalProfile.id === viewerProfessionalProfile.id
@@ -204,24 +212,7 @@ export const salonService = {
             ...(professionId ? { professionId } : {}),
             OR: [{ isActive: true }, { isActive: null }],
           },
-          select: {
-            professionId: true,
-            businessName: true,
-            professionalProfile: {
-              select: {
-                id: true,
-                displayName: true,
-                profile: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    avatarUrl: true,
-                  },
-                },
-              },
-            },
-          },
+          select: rowSelect,
         });
         if (viewerMembership) {
           merged.push(viewerMembership);

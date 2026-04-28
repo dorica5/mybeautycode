@@ -25,8 +25,14 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { CaretLeft, X } from "phosphor-react-native";
+import {
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+  usePathname,
+} from "expo-router";
+import { X } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { StatusBar } from "expo-status-bar";
 import MapView, {
   Marker,
@@ -60,6 +66,14 @@ import {
   type ResolvedPlace,
 } from "@/src/lib/googlePlaces";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { useQueryClient } from "@tanstack/react-query";
+import { checkRelationship, relationshipCheckQueryKey } from "@/src/api/relationships";
+import { blockedIdListQueryKey, blockedIds } from "@/src/api/moderation";
+import {
+  clientProfileByIdQueryKey,
+  fetchClientProfileById,
+} from "@/src/api/profiles";
+import { isUuid } from "@/src/utils/isUuid";
 import {
   primaryBlack,
   primaryGreen,
@@ -283,6 +297,7 @@ const SalonMapMarker = React.memo(function SalonMapMarker({
 
 const MapLocationScreen = () => {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   const { width: windowWidth } = useWindowDimensions();
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
@@ -292,7 +307,9 @@ const MapLocationScreen = () => {
     profession?: string | string[];
   }>();
 
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
+  const clientId = session?.user?.id;
+  const queryClient = useQueryClient();
   /**
    * The map is a global discovery surface, so we never restrict
    * autocomplete / geocoding to a single country. We only nudge the
@@ -316,6 +333,19 @@ const MapLocationScreen = () => {
     }
   }, [professionKey]);
 
+  /** After returning from professional profile, pathname is the map route again — show location UI. */
+  useEffect(() => {
+    const onMap =
+      pathname?.includes("/userList/map") ||
+      pathname?.includes("userList/map");
+    if (
+      onMap &&
+      !pathname?.includes("professionalProfile")
+    ) {
+      setMaskMapLocationShell(false);
+    }
+  }, [pathname]);
+
   const screenTitle = useMemo(
     () => mapScreenTitle(professionKey),
     [professionKey]
@@ -323,6 +353,11 @@ const MapLocationScreen = () => {
 
   const [locationQuery, setLocationQuery] = useState("");
   const [mapModalVisible, setMapModalVisible] = useState(false);
+  /**
+   * Hide the address / Organic-pattern shell immediately when opening a pro profile (same tick as
+   * router.push), before pathname updates — avoids flashing that screen under the closing modal.
+   */
+  const [maskMapLocationShell, setMaskMapLocationShell] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [showUserOnMap, setShowUserOnMap] = useState(false);
@@ -564,8 +599,11 @@ const MapLocationScreen = () => {
     backendProfessionCode
   );
 
-  const { data: salonProfessionals = [], isFetching: salonProsLoading } =
-    useSalonProfessionals(selectedSalon?.id ?? null, backendProfessionCode);
+  const {
+    data: salonProfessionals = [],
+    isPending: salonProsLoading,
+    isError: salonProsError,
+  } = useSalonProfessionals(selectedSalon?.id ?? null, backendProfessionCode);
 
   const sheetBottomReserve = useMemo(() => {
     if (!selectedSalon) return 0;
@@ -607,15 +645,18 @@ const MapLocationScreen = () => {
     [clearPinSelection]
   );
 
-  const handleSalonMarkerPress = useCallback((salon: SalonPin) => {
-    markerPressConsumesMapPressRef.current = true;
-    setSelectedSalon(salon);
-    requestAnimationFrame(() => {
+  const handleSalonMarkerPress = useCallback(
+    (salon: SalonPin) => {
+      markerPressConsumesMapPressRef.current = true;
+      setSelectedSalon(salon);
       requestAnimationFrame(() => {
-        markerPressConsumesMapPressRef.current = false;
+        requestAnimationFrame(() => {
+          markerPressConsumesMapPressRef.current = false;
+        });
       });
-    });
-  }, []);
+    },
+    []
+  );
 
   /** Debounce `onRegionChangeComplete`: wait until the user stops panning/zooming. */
   const handleRegionChangeComplete = useCallback((r: Region) => {
@@ -633,30 +674,63 @@ const MapLocationScreen = () => {
   );
 
   const openProfessionalProfile = useCallback(
-    (pro: SalonProfessional) => {
+    async (pro: SalonProfessional) => {
       /**
        * The map runs inside a React Native `Modal`, so we must hide it before
-       * `router.push` or the profile renders underneath. Do **not** clear
-       * `boundsRegion` / `mapRegion` — when the user taps back we reopen the
-       * modal (see `useFocusEffect`) on the same pins.
+       * or after `router.push` carefully. Do **not** clear `boundsRegion` /
+       * `mapRegion` — when the user taps back we reopen the modal (see `useFocusEffect`).
        */
+      const proId = pro.hairdresser_id;
       restoreMapModalAfterProfileRef.current = true;
+      /** Same tick as navigation intent — blanks the location form under the modal. */
+      setMaskMapLocationShell(true);
       setSelectedSalon(null);
-      setMapModalVisible(false);
+      /** Warm cache so `[id]` can paint without waiting blocked-list queries. Cap wait so tap still feels responsive. */
+      if (isUuid(proId)) {
+        try {
+          await Promise.race([
+            queryClient.fetchQuery({
+              queryKey: clientProfileByIdQueryKey(proId),
+              queryFn: () => fetchClientProfileById(proId),
+              staleTime: 60_000,
+            }),
+            new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 400)),
+          ]);
+        } catch {
+          /* profile screen retries */
+        }
+      }
+      if (clientId) {
+        void queryClient.prefetchQuery({
+          queryKey: blockedIdListQueryKey(clientId),
+          queryFn: () => blockedIds(clientId),
+          staleTime: 120_000,
+        });
+      }
+      if (clientId && proId) {
+        void queryClient.prefetchQuery({
+          queryKey: relationshipCheckQueryKey(
+            clientId,
+            proId,
+            backendProfessionCode
+          ),
+          queryFn: () => checkRelationship(proId, clientId, backendProfessionCode),
+          staleTime: 60_000,
+        });
+      }
       const href = {
         pathname: "/(client)/(tabs)/userList/professionalProfile/[id]" as const,
         params: {
-          id: pro.hairdresser_id,
+          id: proId,
           ...(backendProfessionCode ? { profession: backendProfessionCode } : {}),
         },
       };
+      router.push(href);
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          router.push(href);
-        });
+        setMapModalVisible(false);
       });
     },
-    [backendProfessionCode]
+    [backendProfessionCode, clientId, queryClient]
   );
 
   useFocusEffect(
@@ -683,6 +757,10 @@ const MapLocationScreen = () => {
     );
   }
 
+  const hideMapLocationUI =
+    maskMapLocationShell ||
+    Boolean(pathname?.includes("professionalProfile"));
+
   return (
     <>
       <StatusBar style="dark" />
@@ -706,15 +784,7 @@ const MapLocationScreen = () => {
           <StatusBar style="dark" />
           <View style={styles.mapModalChrome}>
             <View style={styles.mapModalHeaderBlock}>
-              <Pressable
-                onPress={closeMapModal}
-                style={styles.backRow}
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-              >
-                <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-                <Text style={styles.backLabel}>Back</Text>
-              </Pressable>
+              <NavBackRow onPress={closeMapModal} />
               <View style={styles.mapModalTitleGutter}>
                 <Text
                   style={[Typography.agLabel16, styles.mapModalTitleBelowBack]}
@@ -801,7 +871,12 @@ const MapLocationScreen = () => {
                             </>
                           ) : null}
                         </Text>
-                        {salonProsLoading && salonProfessionals.length === 0 ? (
+                        {salonProsError ? (
+                          <Text style={styles.clusterRowAddress}>
+                            Couldn&apos;t load professionals. Check your connection
+                            and try the pin again.
+                          </Text>
+                        ) : salonProsLoading && salonProfessionals.length === 0 ? (
                           <ActivityIndicator color={primaryBlack} />
                         ) : salonProfessionals.length === 0 ? (
                           <Text style={styles.clusterRowAddress}>
@@ -870,17 +945,11 @@ const MapLocationScreen = () => {
           style={{ flex: 1 }}
         >
           <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-            <Pressable
-              onPress={() => router.back()}
-              style={styles.backRow}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-              <Text style={styles.backLabel}>Back</Text>
-            </Pressable>
-
-            <ScrollView
+            <NavBackRow onPress={() => router.back()} />
+            {hideMapLocationUI ? (
+              <View style={styles.mapShellPlaceholder} />
+            ) : (
+              <ScrollView
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
@@ -993,6 +1062,7 @@ const MapLocationScreen = () => {
                 </View>
               </View>
             </ScrollView>
+            )}
           </SafeAreaView>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
@@ -1142,16 +1212,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: primaryGreen,
   },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsivePadding(8),
-    alignSelf: "flex-start",
-  },
-  backLabel: {
-    ...Typography.bodyMedium,
-    marginLeft: responsivePadding(4),
+  mapShellPlaceholder: {
+    flex: 1,
+    backgroundColor: primaryGreen,
   },
   scrollContent: {
     flexGrow: 1,

@@ -54,6 +54,27 @@ function roundBounds(b: SalonBounds): SalonBounds {
   };
 }
 
+export function salonProfessionalsQueryKey(
+  salonId: string,
+  professionCode: string | null | undefined
+) {
+  const code = professionCode?.trim() || null;
+  return ["salons", "professionals", salonId, code ?? "any"] as const;
+}
+
+export async function fetchSalonProfessionals(
+  salonId: string,
+  professionCode: string | null | undefined
+): Promise<SalonProfessional[]> {
+  const code = professionCode?.trim() || null;
+  const params = new URLSearchParams();
+  if (code) params.set("profession_code", code);
+  const qs = params.toString();
+  return api.get<SalonProfessional[]>(
+    `/api/salons/${salonId}/professionals${qs ? `?${qs}` : ""}`
+  );
+}
+
 export const useSalonsInBounds = (
   bounds: SalonBounds | null,
   professionCode: string | null | undefined
@@ -84,6 +105,8 @@ export const useSalonsInBounds = (
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     placeholderData: keepPreviousData,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
   });
 };
 
@@ -91,18 +114,19 @@ export const useSalonProfessionals = (
   salonId: string | null,
   professionCode: string | null | undefined
 ) => {
-  const code = professionCode?.trim() || null;
   return useQuery<SalonProfessional[]>({
-    queryKey: ["salons", "professionals", salonId, code ?? "any"],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (code) params.set("profession_code", code);
-      const qs = params.toString();
-      return api.get<SalonProfessional[]>(
-        `/api/salons/${salonId}/professionals${qs ? `?${qs}` : ""}`
-      );
-    },
+    queryKey: salonId
+      ? salonProfessionalsQueryKey(salonId, professionCode)
+      : ["salons", "professionals", null, "any"],
+    queryFn: () => fetchSalonProfessionals(salonId!, professionCode),
     enabled: !!salonId,
     staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    /**
+     * Map runs inside a `Modal`; AppState / focus can churn and repeatedly refocus.
+     * Refetching then cancels in-flight fetches in a loop — endless spinner, no data.
+     */
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
   });
 };

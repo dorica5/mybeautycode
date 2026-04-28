@@ -14,7 +14,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import SearchInput from "@/src/components/SearchInput";
 import SearchResults from "@/src/components/SearchResults";
 import { useListAllHairdresserSearch } from "@/src/api/profiles";
@@ -126,15 +126,7 @@ const FindProfessionalsScreen = () => {
           style={{ flex: 1 }}
         >
           <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-            <Pressable
-              onPress={() => router.back()}
-              style={styles.backRow}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-              <Text style={styles.backLabel}>Back</Text>
-            </Pressable>
+            <NavBackRow onPress={() => router.back()} />
 
             <FlatList
               data={debouncedQuery ? displayedResults : []}
@@ -262,17 +254,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: primaryGreen,
-  },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsivePadding(8),
-    alignSelf: "flex-start",
-  },
-  backLabel: {
-    ...Typography.bodyMedium,
-    marginLeft: responsivePadding(4),
   },
   heroBleed: {
     marginTop: responsiveMargin(8),

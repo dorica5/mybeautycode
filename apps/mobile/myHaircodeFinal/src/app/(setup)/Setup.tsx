@@ -6,8 +6,11 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import React, { useState } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useMemo, useState } from "react";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import OrganicPattern from "../../../assets/images/Organic-pattern-5.svg";
 import FooterLogo from "../../../assets/images/myBeautyCode_logo.svg";
 import {
@@ -20,6 +23,7 @@ import { Typography } from "@/src/constants/Typography";
 import { MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import {
+  getBreakpoint,
   isTablet,
   responsiveFontSize,
   responsiveMargin,
@@ -33,112 +37,200 @@ const PATTERN_ASPECT = 226 / 390;
 /** Footer logo viewBox 132×95 */
 const LOGO_ASPECT = 73 / 110;
 
-/** Anton 48 regular, default line metrics (no fixed line height). */
-const welcomeTitleStyle = {
-  fontFamily: "Anton_400Regular" as const,
-  fontSize: responsiveFontSize(48),
-  fontWeight: "400" as const,
-  letterSpacing: 0,
-  color: primaryBlack,
-  textAlign: "center" as const,
-};
-
 const Setup = () => {
   const [isChecked, setIsChecked] = useState(false);
-  const { width: windowWidth } = useWindowDimensions();
-  const checkSide = responsiveScale(18, 20);
-  /** Align square center with first line of Outfit ~16 (estimated line box). */
-  const lineApprox = responsiveFontSize(16) * 1.22;
-  const checkboxAlignTop = Math.max(
-    0,
-    Math.round((lineApprox - checkSide) / 2)
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
+  const layout = useMemo(() => {
+    const tablet = isTablet();
+    const landscape = windowWidth > windowHeight;
+    const horizontalPad = responsivePadding(24, tablet ? 40 : 24);
+    const bp = getBreakpoint();
+
+    /** Centered readable column on iPad/large phones; phones stay edge-to-edge pattern. */
+    const maxContentW = tablet
+      ? Math.min(
+          windowWidth - horizontalPad * 2,
+          bp === "xl" ? 660 : bp === "lg" ? 600 : landscape ? 580 : 540
+        )
+      : windowWidth;
+
+    /** Hero stays full window width; natural height follows aspect ratio. Tablets clip vertically so footer fits without scrolling. */
+    const patternWidth = windowWidth;
+    const patternNaturalHeight = patternWidth * PATTERN_ASPECT;
+    const tabletPatternHeightCap = landscape ? 0.24 : 0.2;
+    const patternMaxHeight = tablet
+      ? Math.min(patternNaturalHeight, windowHeight * tabletPatternHeightCap)
+      : undefined;
+
+    const titleFont = responsiveFontSize(42, 50);
+    const bodyConsentSize = responsiveFontSize(15, 17);
+    const checkSide = responsiveScale(18, 22);
+
+    /** Align checkbox with cap-height of first consent line */
+    const lineApprox = bodyConsentSize * 1.25;
+    const checkboxAlignTop = Math.max(
+      0,
+      Math.round((lineApprox - checkSide) / 2)
+    );
+
+    const footerLogoWidth = Math.min(
+      responsiveScale(168, 220),
+      (tablet ? maxContentW : windowWidth) * 0.5
+    );
+
+    return {
+      tablet,
+      landscape,
+      maxContentW,
+      patternWidth,
+      patternNaturalHeight,
+      patternMaxHeight,
+      titleFont,
+      bodyConsentSize,
+      checkSide,
+      checkboxAlignTop,
+      footerLogoWidth,
+      footerLogoHeight: footerLogoWidth * LOGO_ASPECT,
+      horizontalPad,
+      patternSectionMarginBottom: tablet ? responsiveMargin(14) : responsiveMargin(28),
+    };
+  }, [windowWidth, windowHeight]);
+
+  const welcomeTitleStyle = useMemo(
+    () => ({
+      fontFamily: "Anton_400Regular" as const,
+      fontSize: layout.titleFont,
+      fontWeight: "400" as const,
+      letterSpacing: 0,
+      color: primaryBlack,
+      textAlign: "center" as const,
+    }),
+    [layout.titleFont]
   );
-  const patternHeight = windowWidth * PATTERN_ASPECT;
-  const footerLogoWidth = Math.min(
-    responsiveScale(168, 220),
-    windowWidth * 0.5
+
+  const consentStyle = useMemo(
+    () => ({
+      ...Typography.bodySmall,
+      fontSize: layout.bodyConsentSize,
+      lineHeight: Math.round(layout.bodyConsentSize * 1.38),
+      color: primaryBlack,
+      textAlign: "left" as const,
+    }),
+    [layout.bodyConsentSize]
   );
-  const footerLogoHeight = footerLogoWidth * LOGO_ASPECT;
+
+  const checkIconSize = responsiveScale(13, 16);
 
   return (
-    <SafeAreaView style={styles.safe} edges={["bottom", "left", "right"]}>
+    <SafeAreaView style={styles.safe} edges={["top", "bottom", "left", "right"]}>
       <StatusBar style="dark" />
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, responsivePadding(20)) },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.patternWrap}>
-          <OrganicPattern width={windowWidth} height={patternHeight} />
+        <View
+          style={[
+            styles.patternSectionBase,
+            { marginBottom: layout.patternSectionMarginBottom },
+            layout.patternMaxHeight != null && {
+              maxHeight: layout.patternMaxHeight,
+              overflow: "hidden",
+            },
+          ]}
+        >
+          <OrganicPattern
+            width={layout.patternWidth}
+            height={layout.patternNaturalHeight}
+          />
         </View>
 
-        <View style={styles.body}>
-          <Spacer vertical={isTablet() ? 12 : 36} />
+        <View
+          style={[
+            styles.bodyColumn,
+            { maxWidth: layout.maxContentW, alignSelf: "center" },
+          ]}
+        >
+          <View style={[styles.body, { paddingHorizontal: layout.horizontalPad }]}>
+            <Spacer vertical={layout.tablet ? 12 : 36} />
 
-          <Text style={welcomeTitleStyle}>Welcome to</Text>
-          <Text style={welcomeTitleStyle}>myne!</Text>
+            <Text style={welcomeTitleStyle}>Welcome to</Text>
+            <Text style={welcomeTitleStyle}>myne!</Text>
 
-          <Spacer vertical={isTablet() ? 56 : 48} />
+            <Spacer vertical={layout.tablet ? 36 : 48} />
 
-          <View style={styles.checkboxOuter}>
-            <View style={styles.checkboxRow}>
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: isChecked }}
-                onPress={() => setIsChecked((v) => !v)}
-                hitSlop={12}
-                style={[styles.checkboxHit, { marginTop: checkboxAlignTop }]}
+            <View style={styles.checkboxOuter}>
+              <View
+                style={[
+                  styles.checkboxRow,
+                  layout.tablet && { width: "100%", maxWidth: 420, alignSelf: "center" },
+                ]}
               >
-                <View
-                  style={[
-                    styles.checkboxBox,
-                    { width: checkSide, height: checkSide },
-                    isChecked && styles.checkboxBoxChecked,
-                  ]}
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: isChecked }}
+                  onPress={() => setIsChecked((v) => !v)}
+                  hitSlop={12}
+                  style={[styles.checkboxHit, { marginTop: layout.checkboxAlignTop }]}
                 >
-                  {isChecked ? (
-                    <MaterialIcons
-                      name="check"
-                      size={responsiveScale(13, 15)}
-                      color={primaryWhite}
-                    />
-                  ) : null}
+                  <View
+                    style={[
+                      styles.checkboxBox,
+                      { width: layout.checkSide, height: layout.checkSide },
+                      isChecked && styles.checkboxBoxChecked,
+                    ]}
+                  >
+                    {isChecked ? (
+                      <MaterialIcons
+                        name="check"
+                        size={checkIconSize}
+                        color={primaryWhite}
+                      />
+                    ) : null}
+                  </View>
+                </Pressable>
+                <View style={styles.checkboxTextCol}>
+                  <Text style={consentStyle}>I have read and agree to the</Text>
+                  <Text
+                    accessibilityRole="link"
+                    onPress={() => router.push("/(setup)/TermsAndPrivacy")}
+                    style={[consentStyle, styles.link]}
+                  >
+                    terms and privacy
+                  </Text>
                 </View>
-              </Pressable>
-              <View style={styles.checkboxTextCol}>
-                <Text style={styles.consentText}>
-                  I have read and agree to the
-                </Text>
-                <Text
-                  accessibilityRole="link"
-                  onPress={() => router.push("/(setup)/TermsAndPrivacy")}
-                  style={[styles.consentText, styles.link]}
-                >
-                  terms and privacy
-                </Text>
               </View>
             </View>
-          </View>
 
-          <Spacer vertical={isTablet() ? 48 : 46} />
+            <Spacer vertical={layout.tablet ? 44 : 46} />
 
-          <PaddedLabelButton
-            title="Set up my account"
-            horizontalPadding={32}
-            verticalPadding={16}
-            disabled={!isChecked}
-            onPress={() => router.push("./GeneralSetup")}
-            style={styles.cta}
-            textStyle={styles.ctaLabel}
-          />
-
-          <View style={styles.bottomSpacer} />
-
-          <View style={styles.footer}>
-            <FooterLogo
-              width={footerLogoWidth}
-              height={footerLogoHeight}
+            <PaddedLabelButton
+              title="Set up my account"
+              horizontalPadding={layout.tablet ? 44 : 32}
+              verticalPadding={layout.tablet ? 18 : 16}
+              disabled={!isChecked}
+              onPress={() => router.push("./GeneralSetup")}
+              style={styles.cta}
+              textStyle={styles.ctaLabel}
             />
+
+            {layout.tablet ? (
+              <Spacer vertical={responsiveMargin(14, 18)} />
+            ) : (
+              <View style={styles.bottomSpacer} />
+            )}
+
+            <View style={styles.footer}>
+              <FooterLogo
+                width={layout.footerLogoWidth}
+                height={layout.footerLogoHeight}
+              />
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -156,17 +248,18 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     backgroundColor: primaryGreen,
-    paddingBottom: responsivePadding(24),
   },
-  patternWrap: {
-    marginBottom: responsiveMargin(28),
+  patternSectionBase: {
+    width: "100%",
+    alignSelf: "stretch",
+  },
+  bodyColumn: {
+    width: "100%",
   },
   body: {
     flex: 1,
-    paddingHorizontal: responsivePadding(24),
     alignItems: "center",
   },
-  /** Full width so the inner row can be centered as a unit. */
   checkboxOuter: {
     width: "100%",
     alignItems: "center",
@@ -178,7 +271,6 @@ const styles = StyleSheet.create({
   checkboxHit: {
     marginRight: responsivePadding(10),
   },
-  /** Square — no border radius; primary black border / fill when checked. */
   checkboxBox: {
     borderWidth: 1,
     borderColor: primaryBlack,
@@ -191,15 +283,9 @@ const styles = StyleSheet.create({
     backgroundColor: primaryBlack,
   },
   checkboxTextCol: {
-    maxWidth: responsiveScale(268, 304),
+    flex: 1,
     flexShrink: 1,
-  },
-  /** Outfit 16 light; matches mock — left-aligned next to checkbox. */
-  consentText: {
-    ...Typography.bodySmall,
-    lineHeight: undefined,
-    color: primaryBlack,
-    textAlign: "left",
+    minWidth: 0,
   },
   link: {
     textDecorationLine: "underline",

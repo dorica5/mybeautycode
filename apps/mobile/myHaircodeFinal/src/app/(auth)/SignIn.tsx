@@ -96,14 +96,14 @@ const SignIn = () => {
             email: data.user.email ?? null,
             role: "pending_setup",
           });
-          router.replace("/Setup");
+          router.replace("/(setup)/Setup");
           return;
         }
         throw meErr;
       }
 
       if (!profile) {
-        router.replace("/Setup");
+        router.replace("/(setup)/Setup");
         return;
       }
       posthog.capture("Login", {

@@ -1,4 +1,5 @@
 import { api } from "@/src/lib/apiClient";
+import { useQuery } from "@tanstack/react-query";
 
 export const REPORT_REASONS = [
   { value: "spam_fake", label: "Spam or fake profile", severity: "medium" },
@@ -80,6 +81,7 @@ export const blockUser = async (
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["moderation", "blockedIdList"] });
   }
   return { success: true };
 };
@@ -105,6 +107,7 @@ export const unblockUser = async (
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["moderation", "blockedIdList"] });
   }
   return { success: true };
 };
@@ -135,3 +138,16 @@ export const isBlocked = async (profile_id: string, blocked_id: string) => {
   const ids = await blockedIds(profile_id);
   return ids.includes(blocked_id);
 };
+
+/** One fetch per client for “who I blocked” — reuse instead of re-fetching per profile open. */
+export const blockedIdListQueryKey = (clientId: string) =>
+  ["moderation", "blockedIdList", clientId] as const;
+
+export function useBlockedIdList(clientId: string | undefined) {
+  return useQuery({
+    queryKey: blockedIdListQueryKey(clientId ?? ""),
+    queryFn: () => blockedIds(clientId!),
+    enabled: Boolean(clientId),
+    staleTime: 120_000,
+  });
+}

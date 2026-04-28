@@ -127,6 +127,12 @@ model ProfessionalProfession {
   bookingSite           String?             @map("booking_site")
   /// FK to the canonical Salon (grouped by Google place_id). Null for legacy free-text addresses.
   salonId               String?             @map("salon_id") @db.Uuid
+  /// Public profile views (client app) for this profession lane.
+  profileViewCount      Int                 @default(0) @map("profile_view_count")
+  /// Taps on booking link on public profile.
+  bookingClickCount     Int                 @default(0) @map("booking_click_count")
+  /// Taps on social links on public profile (aggregate per lane).
+  socialClickCount      Int                 @default(0) @map("social_click_count")
   profession            Profession          @relation(fields: [professionId], references: [id], onDelete: Cascade)
   professionalProfile   ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
   salon                 Salon?              @relation(fields: [salonId], references: [id], onDelete: SetNull)

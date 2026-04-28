@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { Platform } from "react-native";
 import { supabase } from "./supabase";
 
 const RAW_API_URL =
@@ -7,6 +8,13 @@ const RAW_API_URL =
   "http://localhost:3001";
 /** Avoid `//api/...` when env has a trailing slash (some hosts then return 404). */
 const API_URL = String(RAW_API_URL).replace(/\/+$/, "");
+
+if (__DEV__ && Platform.OS !== "web" && /localhost|127\.0\.0\.1/i.test(API_URL)) {
+  // eslint-disable-next-line no-console
+  console.warn(
+    "[myHaircode] EXPO_PUBLIC_API_URL is localhost — phones/simulators resolve that to themselves. Set EXPO_PUBLIC_API_URL to your machine LAN IP or a tunnel URL and restart expo with -c."
+  );
+}
 
 type GetSession = () => Promise<{ access_token?: string } | null>;
 
@@ -62,6 +70,27 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
+const REQUEST_TIMEOUT_MS = 20_000;
+
+/** Avoid hanging forever on unreachable API hosts (common wrong localhost on device). */
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit
+): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (e instanceof Error && e.name === "AbortError") {
+      throw Object.assign(new Error("Request timed out"), { status: undefined });
+    }
+    throw e;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 /** One retry after Supabase refresh — fixes expired JWT ("exp" check failed on backend). */
 async function fetchWithSessionRefresh(
   path: string,
@@ -73,7 +102,7 @@ async function fetchWithSessionRefresh(
     ...auth,
     ...(init.headers as Record<string, string> | undefined),
   };
-  let res = await fetch(url, { ...init, headers: merged });
+  let res = await fetchWithTimeout(url, { ...init, headers: merged });
   if (res.status !== 401) {
     return res;
   }
@@ -89,7 +118,7 @@ async function fetchWithSessionRefresh(
     Authorization: `Bearer ${newToken}`,
     ...(init.headers as Record<string, string> | undefined),
   };
-  return fetch(url, { ...init, headers: merged2 });
+  return fetchWithTimeout(url, { ...init, headers: merged2 });
 }
 
 async function handleResponse(res: Response) {
@@ -164,7 +193,7 @@ export const api = {
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
-    let res = await fetch(`${API_URL}${path}`, {
+    let res = await fetchWithTimeout(`${API_URL}${path}`, {
       method: "POST",
       headers,
       body: formData,
@@ -173,7 +202,7 @@ export const api = {
       const { data: refreshed, error } = await supabase.auth.refreshSession();
       const token2 = refreshed?.session?.access_token;
       if (!error && token2) {
-        res = await fetch(`${API_URL}${path}`, {
+        res = await fetchWithTimeout(`${API_URL}${path}`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token2}` },
           body: formData,

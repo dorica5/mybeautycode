@@ -4,14 +4,16 @@ import { pickDefaultProfessionRow } from "../lib/professionBusinessHelpers";
 /** Default profession code for hair (backward compatibility) */
 const DEFAULT_PROFESSION_CODE = "hair";
 
-let cachedHairProfessionId: string | null = null;
+/** In-memory cache for `professions.id` by normalized code (speeds map salon sheet, etc.). */
+const professionIdByNormalizedCode = new Map<string, string>();
 
 /** Map common aliases / typos to `professions.code` values. */
 export function normalizeProfessionCodeInput(raw: string): string {
   const t = raw.trim().toLowerCase().replace(/\s+/g, "_");
   if (t === "nail" || t === "nail_technician" || t === "nailtech") return "nails";
   if (t === "hairdresser" || t === "hair_dresser") return "hair";
-  if (t === "brow" || t === "lashes" || t === "brow_stylist") return "brows_lashes";
+  if (t === "brow" || t === "brows" || t === "lashes" || t === "brow_stylist")
+    return "brows_lashes";
   if (t === "consumer" || t === "personal") return "client";
   return t;
 }
@@ -20,9 +22,8 @@ export const professionService = {
   /** Get profession ID by code (e.g. "hair"). Caches result. */
   async getProfessionIdByCode(code: string = DEFAULT_PROFESSION_CODE): Promise<string> {
     const normalized = normalizeProfessionCodeInput(code);
-    if (normalized === DEFAULT_PROFESSION_CODE && cachedHairProfessionId) {
-      return cachedHairProfessionId;
-    }
+    const hit = professionIdByNormalizedCode.get(normalized);
+    if (hit) return hit;
     const profession = await prisma.profession.findUnique({
       where: { code: normalized },
       select: { id: true },
@@ -35,9 +36,7 @@ export const professionService = {
         { statusCode: 400 as const }
       );
     }
-    if (normalized === DEFAULT_PROFESSION_CODE) {
-      cachedHairProfessionId = profession.id;
-    }
+    professionIdByNormalizedCode.set(normalized, profession.id);
     return profession.id;
   },
 

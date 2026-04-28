@@ -25,7 +25,8 @@ import {
 import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { CaretLeft, Plus } from "phosphor-react-native";
+import { Plus } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -234,7 +235,10 @@ export default function GeneralSetup() {
         },
       });
 
-      router.replace("/(client)/(tabs)/home");
+      /** Defer so `useUpdateSupabaseProfile`’s `setProfile` commits before pathname changes — avoids Setup flash. */
+      setTimeout(() => {
+        router.replace("/(client)/(tabs)/home");
+      }, 0);
     } catch (e: unknown) {
       const { status, message } = readApiError(e);
 
@@ -312,16 +316,11 @@ export default function GeneralSetup() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <Pressable
-        accessibilityRole="button"
+      <NavBackRow
         accessibilityLabel="Go back"
         onPress={() => router.back()}
-        style={styles.backRow}
         hitSlop={12}
-      >
-        <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-        <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-      </Pressable>
+      />
 
       <KeyboardAvoidingView
         style={styles.keyboard}
@@ -488,16 +487,6 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: primaryGreen,
-  },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsiveMargin(8),
-    gap: responsiveMargin(4),
-  },
-  backText: {
-    color: primaryBlack,
   },
   keyboard: {
     flex: 1,

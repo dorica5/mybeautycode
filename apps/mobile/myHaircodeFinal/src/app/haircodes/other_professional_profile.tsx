@@ -438,6 +438,12 @@ const OtherProfessionalProfileScreen = () => {
             <DotsThree size={32} color={primaryBlack} weight="bold" />
           </Pressable>
         }
+        analyticsProfessionCode={
+          professionCodeFromVisit ??
+          (Array.isArray(data.profession_codes) && data.profession_codes[0]
+            ? String(data.profession_codes[0]).trim()
+            : null)
+        }
       />
       <SmallDraggableModal
         isVisible={isModalVisible}

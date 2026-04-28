@@ -1,11 +1,11 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { CaretLeft } from "phosphor-react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import { 
-  responsiveScale, 
+import { NavBackRow } from "@/src/components/NavBackRow";
+import {
+  responsiveScale,
   responsivePadding,
-  responsiveFontSize
+  responsiveFontSize,
 } from "@/src/utils/responsive";
 
 type TopNavGalleryProps = {
@@ -21,9 +21,12 @@ const TopNavGallery = ({
 }: TopNavGalleryProps) => {
   return (
     <View style={styles.topNav}>
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <CaretLeft size={responsiveScale(32)} color="#212427" />
-      </Pressable>
+      <NavBackRow
+        layout="inlineBar"
+        showLabel={false}
+        accessibilityLabel="Go back"
+        hitSlop={12}
+      />
       <View style={styles.titleBlock}>
         <Text
           style={[styles.title, titleStyle]}
@@ -58,7 +61,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding(8),
   },
   topNavSpacer: {
-    width: responsiveScale(32),
+    width: responsiveScale(40),
   },
   title: {
     fontSize: responsiveFontSize(22, 14),

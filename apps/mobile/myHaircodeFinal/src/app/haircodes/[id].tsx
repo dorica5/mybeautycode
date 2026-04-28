@@ -9,13 +9,7 @@ import {
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  CaretLeft,
-  CaretRight,
-  Plus,
-  Eye,
-  DotsThree,
-} from "phosphor-react-native";
+import { CaretRight, Plus, Eye, DotsThree } from "phosphor-react-native";
 import { ViewGalleryRowIcon } from "@/src/components/ViewGalleryRowIcon";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
@@ -56,6 +50,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { MintFullScreenSpinner } from "@/src/components/MintSpinningWheel";
+import { NavBackRow } from "@/src/components/NavBackRow";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -273,14 +268,11 @@ const HaircodeList = () => {
       <StatusBar style="dark" />
       <SafeAreaView style={styles.mintRoot} edges={["top", "left", "right"]}>
         <View style={styles.connectedTopBar}>
-          <Pressable
+          <NavBackRow
+            layout="inlineBar"
             onPress={() => router.back()}
-            style={styles.connectedBackRow}
             hitSlop={12}
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={styles.backLabel}>Back</Text>
-          </Pressable>
+          />
           {!isBlockedUser ? (
             <Pressable
               onPress={toggleModal}
@@ -560,17 +552,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     width: "100%",
     paddingRight: responsivePadding(8),
-  },
-  connectedBackRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(12),
-    paddingVertical: responsiveMargin(12),
-    gap: responsiveScale(4),
-  },
-  backLabel: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
   },
   connectedMore: {
     padding: responsivePadding(8),

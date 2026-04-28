@@ -23,6 +23,7 @@ import {
   MinusCircle,
   CreditCard,
   ArrowCounterClockwise,
+  ChartLineUp,
 } from "phosphor-react-native";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import { ProfileMenuNameIcon } from "@/src/components/profileMenuIcons";
@@ -186,10 +187,18 @@ const ProfileScreen = () => {
                 title="Profile picture"
                 Icon={UserCircle}
                 tileStyle="light"
+                onPress={() =>
+                  router.push("/(hairdresser)/(tabs)/profile/ProfilePicture")
+                }
+              />
+              <Profile
+                title="Your reach & stats"
+                Icon={ChartLineUp}
+                tileStyle="light"
                 bottom
                 lightMarginBottom={46}
                 onPress={() =>
-                  router.push("/(hairdresser)/(tabs)/profile/ProfilePicture")
+                  router.push("/(hairdresser)/(tabs)/profile/professional_insights")
                 }
               />
 

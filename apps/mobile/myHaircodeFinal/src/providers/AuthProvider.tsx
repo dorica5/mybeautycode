@@ -17,7 +17,10 @@ import {
   type LastAppSurface,
 } from "../lib/lastVisitPreference";
 import { profileHasProfessionalCapability } from "../constants/professionCodes";
-import { router, usePathname, useSegments } from "expo-router";
+import { router, usePathname, useSegments, type Href } from "expo-router";
+
+/** Cross-group route so replace() leaves (auth)/Splash and lands in the setup stack. */
+const SETUP_ENTRY: Href = "/(setup)/Setup";
 import { Alert } from "react-native";
 import { Profile } from "../constants/types";
 import { useImageContext } from "./ImageProvider";
@@ -72,14 +75,44 @@ async function ensureSetupStatusPersisted(
  * Whether onboarding (Setup / GeneralSetup) can be skipped.
  * Source of truth is DB `setup_status` from the API (snake_case `setup_status`).
  */
+/** Fetch/connect failures (often wrong EXPO_PUBLIC_API_URL on device, airplane mode, firewall). */
+function isTransientNetworkFailure(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes("network request failed") ||
+    m.includes("failed to fetch") ||
+    m.includes("network error") ||
+    m.includes("timed out") ||
+    m.includes("timeout") ||
+    m.includes("aborted") ||
+    m.includes("abort")
+  );
+}
+
+/**
+ * Backend explicitly says there is no profile row — not timeouts, offline, or 5xx guesses.
+ * Used so we don't open signup/setup when the API is unreachable.
+ */
+function isConfirmedAbsentProfile(
+  status: number | undefined,
+  rawMsg: string
+): boolean {
+  const msg = rawMsg.toLowerCase();
+  if (isTransientNetworkFailure(msg)) return false;
+  if (msg.includes("timed out") || msg.includes("timeout")) return false;
+  if (status === 404) return true;
+  if (status !== undefined && [500, 502, 503].includes(status)) return false;
+  return msg.includes("profile not found") || (msg.includes("not found") && status !== 500);
+}
+
 export function profileSetupIsComplete(
   profile: Profile | null | undefined
 ): boolean {
   if (!profile) return false;
-  return (
-    profile.setup_status === true ||
-    (profile as { setupStatus?: boolean }).setupStatus === true
-  );
+  const raw =
+    (profile as { setup_status?: unknown }).setup_status ??
+    (profile as { setupStatus?: unknown }).setupStatus;
+  return raw === true || raw === "true" || raw === 1;
 }
 
 /**
@@ -164,9 +197,13 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const [expoPushToken, setExpoPushToken] = useState(null);
   const { imagesLoading } = useImageContext();
   const [isSignUp, setIsSignUp] = useState(false);
+  /** Backend returned 404 / explicit absent row (not network ambiguity) — used when persisting signup intent. */
+  const [profileMissingConfirmed, setProfileMissingConfirmed] = useState(false);
   const [loadingSetup, setLoadingSetup] = useState(false);
   const initialLoadComplete = useRef(false);
   const prevLoadingSetupRef = useRef<boolean | null>(null);
+  /** Serializes overlapping fetchSession runs so loaders always clear without generation races. */
+  const fetchSessionTailRef = useRef<Promise<void | undefined>>(Promise.resolve(undefined));
   const isSigningOut = useRef(false);
   const isChangingPassword = useRef(false);
   const pathname = usePathname();
@@ -196,13 +233,19 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
     let cancelled = false;
-    getLastAppSurface(uid).then((v) => {
+    const preferTab = (v: LastAppSurface | null) => {
       if (cancelled) return;
-      /** Tab routes set surface synchronously; don’t let a stale AsyncStorage read overwrite it. */
+      /** Tab routes set surface synchronously; stale AsyncStorage must not overwrite current tab shell. */
       setLastAppSurfacePref((prev) =>
         prev === "client" || prev === "professional" ? prev : v
       );
-    });
+    };
+    Promise.race([
+      getLastAppSurface(uid),
+      new Promise<null>((r) => setTimeout(() => r(null), 3500)),
+    ])
+      .catch(() => null)
+      .then((v) => preferTab(v));
     return () => {
       cancelled = true;
     };
@@ -235,6 +278,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     setSession(null);
     setProfile(null);
     setUserStatus(null);
+    setProfileMissingConfirmed(false);
     initialLoadComplete.current = false;
     await AsyncStorage.removeItem("session");
     await AsyncStorage.removeItem("profile");
@@ -333,24 +377,42 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     }
   };
 
-  const fetchSessionAndProfile = async () => {
+  const execFetchSession = async (): Promise<void> => {
     setLoading(true);
-    setLoadingProfile(true);
-    console.log("Fetching session...");
 
-    const { data, error } = await supabase.auth.getSession();
+    /** Supabase session — unblock navigation ASAP; `/api/auth/me` does not gate Splash/setup. */
+    let sessionSnap: Session | null = null;
+    try {
+      console.log("Fetching session...");
 
-    if (error) {
-      console.error("Error fetching session:", error.message);
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        console.error("Error fetching session:", error.message);
+        setLoadingProfile(false);
+        return;
+      }
+
+      if (data.session) {
+        sessionSnap = data.session;
+        setSession(data.session);
+        console.log("Fetching profile for user:", data.session.user.id);
+      } else {
+        console.log("No session found. Clearing profile...");
+        await clearProfile();
+        setLoadingProfile(false);
+      }
+    } finally {
       setLoading(false);
-      setLoadingProfile(false);
+    }
+
+    if (!sessionSnap) {
       return;
     }
 
-    if (data.session) {
-      setSession(data.session);
-      console.log("Fetching profile for user:", data.session.user.id);
-
+    /** Profile/status — runs after session is known; Splash and auth shells can navigate while this resolves. */
+    setLoadingProfile(true);
+    try {
       let profileData: Profile | null = null;
       let profileError: unknown = null;
       /** Retries: 404 (profile row lag), 5xx (cold start / transient DB). */
@@ -372,7 +434,11 @@ export default function AuthProvider({ children }: PropsWithChildren) {
             status === 500 ||
             status === 502 ||
             status === 503 ||
-            msg.includes("failed to fetch profile");
+            msg.includes("failed to fetch profile") ||
+            isTransientNetworkFailure(msg);
+          if (isTransientNetworkFailure(msg) && attempt >= 2) {
+            break;
+          }
           if ((noProfileYet || transient) && attempt < 5) {
             const delay = transient ? 650 * (attempt + 1) : 350 * (attempt + 1);
             await new Promise((r) => setTimeout(r, delay));
@@ -382,84 +448,93 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         }
       }
 
+      let profileResolvedMissing = false;
+
       if (!profileData && profileError) {
         const err = profileError as Error & { status?: number };
         const status = err.status;
-        const msg = (err.message ?? "").toLowerCase();
-        const noProfileYet =
-          status === 404 ||
-          msg.includes("profile not found") ||
-          msg.includes("not found");
+        const msg = err.message ?? "";
+        const msgLower = msg.toLowerCase();
 
-        /**
-         * Backend sometimes returns 500 (e.g. serialize bug) even when `profiles` exists
-         * in Supabase. Do not wipe the Supabase session — continue to setup/home and retry later.
-         * Still sign out on 401 (handled above via on401 before throw).
-         */
-        const apiBugOrTransient =
+        const recoverWithoutClearingSession =
           status === 500 ||
           status === 502 ||
           status === 503 ||
-          msg.includes("failed to fetch profile");
+          msgLower.includes("failed to fetch profile") ||
+          isTransientNetworkFailure(msgLower) ||
+          msgLower.includes("timed out") ||
+          msgLower.includes("timeout");
 
-        if (noProfileYet || apiBugOrTransient) {
+        const confirmedAbsent = isConfirmedAbsentProfile(status, msg);
+
+        if (confirmedAbsent) {
+          console.log("Profile row confirmed absent (API)", { status, msg });
+          profileData = null;
+          profileResolvedMissing = true;
+        } else if (recoverWithoutClearingSession) {
           console.log(
-            "Profile API unavailable or missing — keeping session",
-            { status, msg: err.message },
+            "Profile API unavailable — keeping session, not signup setup",
+            { status, msg },
           );
           profileData = null;
+          profileResolvedMissing = false;
         } else {
           console.error("Error fetching profile:", profileError);
           await clearProfile();
-          setLoading(false);
-          setLoadingProfile(false);
           return;
         }
       }
+
       if (!profileData) {
+        setProfileMissingConfirmed(profileResolvedMissing);
         setProfile(null);
         setUserStatus(null);
-        setIsSignUp(true);
-        setLoading(false);
-        setLoadingProfile(false);
+        setIsSignUp(profileResolvedMissing);
         return;
       }
 
       if (profileData) {
-        const status = await checkUserStatus(data.session.user.id as string);
+        const status = await checkUserStatus(sessionSnap.user.id as string);
         setUserStatus(status);
 
         if (status && !status.can_act) {
           const wasHandled = handleRestrictedUser(status);
           if (wasHandled && status.is_banned) {
-            setLoading(false);
-            setLoadingProfile(false);
             return;
           }
         }
       }
 
-      if (data.session && profileData) {
+      if (profileData) {
+        setProfileMissingConfirmed(false);
         profileData = await ensureSetupStatusPersisted(
-          data.session.user.id as string,
+          sessionSnap.user.id as string,
           profileData as Profile
         );
         setProfile(profileData as Profile);
         const setupComplete = profileSetupIsComplete(profileData as Profile);
         setIsSignUp(!setupComplete);
-        await syncSignupDate(data.session, profileData);
-        postHog.capture("App Opened", {
-          role:
-            (profileData as { user_type?: string }).user_type ?? "unknown",
-        });
+        await syncSignupDate(sessionSnap, profileData);
+        try {
+          postHog.capture("App Opened", {
+            role:
+              (profileData as { user_type?: string }).user_type ?? "unknown",
+          });
+        } catch {
+          /* avoid blocking bootstrap on analytics */
+        }
       }
-    } else {
-      console.log("No session found. Clearing profile...");
-      await clearProfile();
+    } finally {
+      setLoadingProfile(false);
     }
+  };
 
-    setLoading(false);
-    setLoadingProfile(false);
+  const fetchSessionAndProfile = (): Promise<void> => {
+    const queued = fetchSessionTailRef.current
+      .catch(() => undefined)
+      .then(() => execFetchSession());
+    fetchSessionTailRef.current = queued.catch(() => undefined);
+    return queued;
   };
 
   const navigateToSplash = () => {
@@ -504,7 +579,11 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    if (loading || loadingProfile || loadingSetup || firstLaunchLoading) {
+    /**
+     * Session resolves before `/api/auth/me` completes (`loading` false, `loadingProfile` still true).
+     * Until then profile is null — do not navigate to Setup; that flashes terms before Home on reload/save.
+     */
+    if (loading || loadingSetup || firstLaunchLoading || (session && loadingProfile)) {
       console.log("Blocking navigation: still loading essential data");
       return;
     }
@@ -571,11 +650,16 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         const isOnSetupScreen = setupScreens.some((screen) =>
           pathname.includes(screen),
         );
+
+        /**
+         * Signed in but no profile row loaded yet (or /me keeps failing): still send to setup.
+         * Avoids Splash + dangling null profiles — terms/setup is the funnel until `setup_status` is true.
+         */
         if (!isOnSetupScreen) {
-          console.log("Session without profile — sending user to setup");
+          console.log("Session without profile — routing to setup");
           setIsNavigating(true);
           setTimeout(() => {
-            router.replace("/Setup");
+            router.replace(SETUP_ENTRY);
             setTimeout(() => setIsNavigating(false), 1000);
           }, 100);
         }
@@ -623,7 +707,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           console.log("Redirecting to setup from:", pathname);
           setIsNavigating(true);
           setTimeout(() => {
-            router.replace("/Setup");
+            router.replace(SETUP_ENTRY);
             setTimeout(() => setIsNavigating(false), 1000);
           }, 100);
         }
@@ -783,6 +867,16 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        /**
+         * Display-name / metadata sync from signup flows (`updateUser`) — session is enough.
+         * A full bootstrap would call `execFetchSession` → global `loading` + fight `router.replace` to home,
+         * and `/api/auth/me` was already refreshed by the profile PUT mutation before this fires.
+         */
+        if (event === "USER_UPDATED" && newSession) {
+          setSession(newSession);
+          return;
+        }
+
         if (newSession) {
           setSession(newSession);
           initialLoadComplete.current = false;
@@ -835,6 +929,10 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     setupCompleteForNav &&
     profileHasProfessionalCapability(profile);
 
+  /**
+   * Keep one loading shell until we know routing (session + `/me` fetch), so `/` doesn’t briefly show Splash
+   * before this overlay.
+   */
   const shouldHoldTree =
     loading ||
     firstLaunchLoading ||

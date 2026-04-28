@@ -1,4 +1,6 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
+import { useFocusEffect } from "expo-router";
+import { recordProfessionalAnalyticsEvent } from "@/src/api/professionalAnalytics";
 import {
   View,
   Text,
@@ -7,9 +9,10 @@ import {
   StyleSheet,
   Linking,
   Alert,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { PublicProfileWorkGrid } from "@/src/components/PublicProfileWorkGrid";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
@@ -32,6 +35,8 @@ import {
   responsivePadding,
   responsiveScale,
   scalePercent,
+  getBreakpoint,
+  isTablet,
 } from "@/src/utils/responsive";
 
 function displayFirstName(
@@ -88,6 +93,11 @@ export type PublicProfessionalProfileViewProps = {
   addLoading?: boolean;
   onAddHairdresser?: () => void;
   headerRight?: React.ReactNode;
+  /**
+   * When set (client viewing another pro), records profile views and outbound
+   * booking/social taps per profession lane for pro insights.
+   */
+  analyticsProfessionCode?: string | null;
 };
 
 export function PublicProfessionalProfileView({
@@ -112,7 +122,48 @@ export function PublicProfessionalProfileView({
   addLoading,
   onAddHairdresser,
   headerRight,
+  analyticsProfessionCode,
 }: PublicProfessionalProfileViewProps) {
+  const { width: windowWidth } = useWindowDimensions();
+
+  const layout = useMemo(() => {
+    const tablet = isTablet();
+    const bp = getBreakpoint();
+    const shellPad = responsivePadding(16, 28);
+
+    /** One centered column — tablet caps match map / Setup-style readable width */
+    let maxShellW: number;
+    if (tablet) {
+      maxShellW = Math.min(
+        windowWidth - shellPad * 2,
+        bp === "xl" ? 720 : bp === "lg" ? 640 : 560
+      );
+    } else {
+      maxShellW = Math.min(windowWidth - responsivePadding(36), 520);
+    }
+
+    /** `scalePercent(38)` on tablet uses portrait min(width,height) → ~292pt avatar; cap for same balance as phones */
+    const phoneAvatar = Math.round(scalePercent(38));
+    const avatarSize = tablet ? responsiveScale(152, 200) : phoneAvatar;
+
+    const workGridMaxWidth = Math.floor(maxShellW - shellPad * 2);
+
+    return { tablet, maxShellW, avatarSize, workGridMaxWidth };
+  }, [windowWidth]);
+
+  const lane = analyticsProfessionCode?.trim() || null;
+
+  useFocusEffect(
+    useCallback(() => {
+      if (mode !== "client" || !lane || !profileUserId) return;
+      void recordProfessionalAnalyticsEvent({
+        subjectProfileId: profileUserId,
+        professionCode: lane,
+        event: "profile_view",
+      });
+    }, [mode, lane, profileUserId])
+  );
+
   const first = displayFirstName(firstName, fullName);
   const businessName = salonName?.trim() ?? "";
   const socialUrls = parseSocialLinks(socialMediaRaw ?? "");
@@ -132,39 +183,50 @@ export function PublicProfessionalProfileView({
   const handleBooking = useCallback(() => {
     const u = bookingSite?.trim();
     if (!u) return;
+    if (mode === "client" && lane && profileUserId) {
+      void recordProfessionalAnalyticsEvent({
+        subjectProfileId: profileUserId,
+        professionCode: lane,
+        event: "booking_click",
+      });
+    }
     void openExternalUrl(normalizeWebUrl(u));
-  }, [bookingSite]);
-
-  const avatarSize = scalePercent(38);
+  }, [bookingSite, mode, lane, profileUserId]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          layout.tablet && styles.scrollContentTablet,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={onBack}
-            style={styles.backPress}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-          </Pressable>
-          {headerRight ? (
-            <View style={styles.headerRightWrap}>{headerRight}</View>
-          ) : null}
+        {/** Same edge alignment as map / Find professionals — not inside padded column */}
+        <View style={styles.profileTopBar}>
+          <View style={styles.headerRow}>
+            <NavBackRow onPress={onBack} hitSlop={12} />
+            {headerRight ? (
+              <View style={styles.headerRightWrap}>{headerRight}</View>
+            ) : null}
+          </View>
         </View>
 
+        <View
+          style={[
+            styles.columnShell,
+            {
+              maxWidth: layout.maxShellW,
+              paddingHorizontal: responsivePadding(16, 28),
+            },
+          ]}
+        >
         <View style={styles.hero}>
           <AvatarWithSpinner
             uri={avatarUrl}
-            size={avatarSize}
+            size={layout.avatarSize}
             style={styles.avatar}
           />
           {fullName?.trim() ? (
@@ -269,7 +331,16 @@ export function PublicProfessionalProfileView({
                     <Pressable
                       key={`${url}-${index}`}
                       style={styles.pillWithIcon}
-                      onPress={() => openExternalUrl(normalizeWebUrl(url))}
+                      onPress={() => {
+                        if (mode === "client" && lane && profileUserId) {
+                          void recordProfessionalAnalyticsEvent({
+                            subjectProfileId: profileUserId,
+                            professionCode: lane,
+                            event: "social_click",
+                          });
+                        }
+                        void openExternalUrl(normalizeWebUrl(url));
+                      }}
                       accessibilityRole="link"
                       accessibilityLabel={label}
                     >
@@ -319,8 +390,10 @@ export function PublicProfessionalProfileView({
               profileUserId={profileUserId}
               showTitle={false}
               professionCode={activeProfessionCode ?? undefined}
+              contentMaxWidth={layout.workGridMaxWidth}
             />
           </View>
+        </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -335,27 +408,32 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     paddingBottom: responsivePadding(48),
+    width: "100%",
+  },
+  scrollContentTablet: {
+    alignItems: "center",
+  },
+  /** Full horizontal width — back row aligns with map / Find professionals (no extra inset). */
+  profileTopBar: {
+    width: "100%",
+    alignSelf: "stretch",
+  },
+  columnShell: {
+    alignSelf: "center",
+    width: "100%",
   },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: responsivePadding(8),
     paddingVertical: responsiveMargin(8),
   },
-  backPress: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: responsiveMargin(4),
-  },
-  backText: { color: primaryBlack },
   headerRightWrap: {
     minWidth: responsiveScale(40),
     alignItems: "flex-end",
   },
   hero: {
     alignItems: "center",
-    paddingHorizontal: responsivePadding(16),
     marginTop: responsiveMargin(4),
     paddingBottom: responsivePadding(6),
   },
@@ -381,7 +459,6 @@ const styles = StyleSheet.create({
     lineHeight: responsiveScale(28),
   },
   ctaWrap: {
-    paddingHorizontal: responsivePadding(20),
     marginTop: responsiveMargin(20),
     marginBottom: responsiveMargin(8),
     alignItems: "center",
@@ -411,10 +488,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   sections: {
-    paddingHorizontal: responsivePadding(20),
     marginTop: responsiveMargin(24),
-    maxWidth: 480,
-    alignSelf: "center",
     width: "100%",
   },
   sectionBlock: {

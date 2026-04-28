@@ -1,13 +1,13 @@
 /* eslint-disable react/react-in-jsx-scope */
-import React, { useEffect, useState, useCallback } from "react";
-import { StyleSheet, View, Alert, Pressable } from "react-native";
+import React, { useState, useCallback, useMemo } from "react";
+import { StyleSheet, View, Alert, Pressable, ActivityIndicator } from "react-native";
 import { DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
-import { Colors, primaryBlack } from "@/src/constants/Colors";
+import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
@@ -18,12 +18,12 @@ import {
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import {
   blockUser,
-  isBlocked,
   REPORT_REASONS,
   ReportReason,
   reportUserEnhanced,
   unblockUser,
   UNBLOCK_RELATIONSHIP_RESET_ALERT,
+  useBlockedIdList,
 } from "@/src/api/moderation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRelationshipCheck } from "@/src/api/relationships";
@@ -47,9 +47,9 @@ const ProfessionalProfileScreen = () => {
 
   const queryClient = useQueryClient();
 
-  const { data: profileData, isLoading: profileLoading } = useClientSearch(
-    hairdresser_id
-  );
+  const { data: profileData, isPending: profilePending } =
+    useClientSearch(hairdresser_id);
+  const { data: blockedIdList } = useBlockedIdList(client_id);
   const p = profileData as Profile | undefined;
   const data = p
     ? {
@@ -68,8 +68,18 @@ const ProfessionalProfileScreen = () => {
       }
     : undefined;
 
-  const { data: isRelated = false, isFetching: relLoading } =
-    useRelationshipCheck(client_id ?? undefined, hairdresser_id, professionCode);
+  const analyticsProfessionCode = useMemo(() => {
+    if (professionCode) return professionCode;
+    const codes = data?.profession_codes;
+    if (Array.isArray(codes) && codes[0]) return String(codes[0]).trim();
+    return null;
+  }, [professionCode, data?.profession_codes]);
+
+  const { data: isRelated = false, isPending: relPending } = useRelationshipCheck(
+    client_id ?? undefined,
+    hairdresser_id,
+    professionCode
+  );
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
   const isOwnProfile = Boolean(
@@ -77,11 +87,6 @@ const ProfessionalProfileScreen = () => {
       ((client_id && client_id === hairdresser_id) ||
         (profile?.id && profile.id === hairdresser_id))
   );
-  const showRelationshipCta = !isOwnProfile && !isRelated;
-
-  const [isBlockedUser, setIsBlockedUser] = useState(false);
-  const [blockCheckComplete, setBlockCheckComplete] = useState(false);
-
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -93,27 +98,13 @@ const ProfessionalProfileScreen = () => {
     professionCode
   );
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        if (client_id && hairdresser_id) {
-          const blocked = await isBlocked(
-            client_id as string,
-            hairdresser_id as string
-          );
-          if (alive) setIsBlockedUser(blocked);
-        }
-      } catch (e) {
-        console.error("Error checking blocked:", e);
-      } finally {
-        if (alive) setBlockCheckComplete(true);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [client_id, hairdresser_id]);
+  const isBlockedUser = Boolean(
+    client_id &&
+      blockedIdList &&
+      hairdresser_id &&
+      blockedIdList.includes(String(hairdresser_id))
+  );
+  const showRelationshipCta = !isOwnProfile && !isRelated;
 
   const deleteHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
@@ -189,7 +180,6 @@ const ProfessionalProfileScreen = () => {
     if (!client_id || !hairdresser_id) return;
     try {
       await unblockUser(client_id, hairdresser_id, queryClient);
-      setIsBlockedUser(false);
       Alert.alert(
         UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
         UNBLOCK_RELATIONSHIP_RESET_ALERT.message
@@ -216,7 +206,6 @@ const ProfessionalProfileScreen = () => {
         `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
       );
       setActiveAction(null);
-      setIsBlockedUser(true);
     } catch (error) {
       console.error("Error blocking user:", error);
       Alert.alert("Error", "Failed to block user");
@@ -355,7 +344,18 @@ const ProfessionalProfileScreen = () => {
     );
   };
 
-  if (!blockCheckComplete || relLoading || profileLoading) return null;
+  /** Block only on profile `/me` fetch — blocked list can resolve in parallel (was slowing first paint). */
+  const showRouteLoading = profilePending && p === undefined;
+  if (showRouteLoading) {
+    return (
+      <>
+        <StatusBar style="dark" backgroundColor={primaryGreen} />
+        <View style={styles.routeLoading} accessibilityLabel="Loading profile">
+          <ActivityIndicator size="large" color={primaryBlack} />
+        </View>
+      </>
+    );
+  }
 
   if (isBlockedUser) {
     return (
@@ -397,13 +397,14 @@ const ProfessionalProfileScreen = () => {
         onBack={() => router.back()}
         showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}
-        addLoading={loading}
+        addLoading={loading || relPending}
         onAddHairdresser={addHairdresser}
         headerRight={
           <Pressable onPress={() => setIsModalVisible(true)} hitSlop={12}>
             <DotsThree size={32} color={primaryBlack} weight="bold" />
           </Pressable>
         }
+        analyticsProfessionCode={analyticsProfessionCode}
       />
       <SmallDraggableModal
         isVisible={isModalVisible}
@@ -444,5 +445,11 @@ const styles = StyleSheet.create({
   unblockBtn: {
     alignSelf: "stretch",
     maxWidth: 400,
+  },
+  routeLoading: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
