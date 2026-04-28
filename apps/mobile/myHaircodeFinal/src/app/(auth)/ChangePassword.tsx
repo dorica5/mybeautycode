@@ -8,10 +8,10 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import MyButton from "@/src/components/MyButton";
 import TopNav from "@/src/components/TopNav";
+import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { supabase } from "@/src/lib/supabase";
-import { Colors, primaryBlack } from "@/src/constants/Colors";
+import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import { Href, router } from "expo-router";
 import CustomAlert from "@/src/components/CustomAlert";
@@ -24,8 +24,9 @@ import {
 import {
   moderateScale,
   responsiveFontSize,
+  responsiveMargin,
+  responsiveScale,
   scale,
-  scalePercent,
   verticalScale,
 } from "@/src/utils/responsive";
 
@@ -286,17 +287,14 @@ const ChangePassword = () => {
             </ResponsiveText>
           ) : null}
 
-          <MyButton
-            style={[
-              styles.button,
-              isFormValid() ? styles.buttonEnabled : styles.buttonDisabled,
-            ]}
-            text={isUpdating ? "Updating password…" : "Update password"}
-            textSize={18}
-            textTabletSize={14}
+          <PaddedLabelButton
+            title={isUpdating ? "Updating password…" : "Update password"}
+            horizontalPadding={32}
+            verticalPadding={16}
             onPress={updatePassword}
             disabled={!isFormValid() || isUpdating}
-            textStyle={isFormValid() ? styles.textEnabled : styles.textDisabled}
+            style={styles.primaryButton}
+            textStyle={styles.primaryButtonLabel}
           />
 
           <CustomAlert
@@ -356,24 +354,14 @@ const styles = StyleSheet.create({
     color: "#C62828",
     marginTop: scale(5),
   },
-  button: {
-    width: "100%",
-    maxWidth: 400,
+  primaryButton: {
     alignSelf: "center",
-    marginTop: scale(8),
+    marginTop: responsiveMargin(8),
+    backgroundColor: primaryBlack,
+    borderRadius: responsiveScale(999),
   },
-  buttonEnabled: {
-    backgroundColor: Colors.dark.yellowish,
-    borderWidth: 2,
-    borderColor: Colors.dark.warmGreen,
-  },
-  buttonDisabled: {
-    backgroundColor: Colors.light.yellowish,
-  },
-  textEnabled: {
-    color: Colors.dark.dark,
-  },
-  textDisabled: {
-    opacity: 0.5,
+  primaryButtonLabel: {
+    color: primaryWhite,
+    textAlign: "center",
   },
 });

@@ -1,14 +1,19 @@
 import { Alert, StyleSheet, Text, View } from "react-native";
 import React, { useState } from "react";
-import MyButton from "@/src/components/MyButton";
 import TopNav from "@/src/components/TopNav";
+import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { api } from "@/src/lib/apiClient";
 import { supabase } from "@/src/lib/supabase";
 import CustomAlert from "@/src/components/CustomAlert";
-import { responsiveFontSize, scalePercent } from "@/src/utils/responsive";
+import {
+  responsiveFontSize,
+  responsiveMargin,
+  responsiveScale,
+  scalePercent,
+} from "@/src/utils/responsive";
 import { MintProfileScreenShell } from "@/src/components/MintProfileScreenShell";
-import { primaryBlack } from "@/src/constants/Colors";
+import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 
 const Delete = () => {
@@ -61,13 +66,14 @@ const Delete = () => {
         >
           Are you sure?
         </Text>
-        <MyButton
-          style={styles.button}
-          text="Delete account"
-          textSize={18}
-          textTabletSize={14}
+        <PaddedLabelButton
+          title="Delete account"
+          horizontalPadding={32}
+          verticalPadding={16}
           onPress={confirmDelete}
           disabled={loading}
+          style={styles.primaryButton}
+          textStyle={styles.primaryButtonLabel}
         />
         <CustomAlert
           visible={alertVisible}
@@ -98,9 +104,14 @@ const styles = StyleSheet.create({
     marginTop: scalePercent(12),
     color: primaryBlack,
   },
-  button: {
-    width: scalePercent(90),
-    maxWidth: 400,
+  primaryButton: {
     alignSelf: "center",
+    marginTop: responsiveMargin(8),
+    backgroundColor: primaryBlack,
+    borderRadius: responsiveScale(999),
+  },
+  primaryButtonLabel: {
+    color: primaryWhite,
+    textAlign: "center",
   },
 });

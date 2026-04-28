@@ -238,7 +238,13 @@ export function PublicProfessionalProfileView({
             </Text>
           ) : null}
           {businessName ? (
-            <Text style={[Typography.anton20, styles.businessName]}>
+            <Text
+              style={[
+                Typography.anton20,
+                styles.businessName,
+                layout.tablet && styles.businessNameTablet,
+              ]}
+            >
               {businessName}
             </Text>
           ) : null}
@@ -253,11 +259,24 @@ export function PublicProfessionalProfileView({
                 verticalPadding={16}
                 onPress={onAddHairdresser}
                 disabled={addLoading}
-                style={styles.addHairdresserBtn}
+                style={[
+                  styles.addHairdresserBtnBase,
+                  layout.tablet
+                    ? styles.addHairdresserBtnTablet
+                    : styles.addHairdresserBtnPhone,
+                ]}
                 textStyle={styles.addHairdresserBtnLabel}
               />
             ) : (
-              <View style={[styles.addHairdresserBtn, styles.addedGhost]}>
+              <View
+                style={[
+                  styles.addHairdresserBtnBase,
+                  layout.tablet
+                    ? styles.addHairdresserBtnTablet
+                    : styles.addHairdresserBtnPhone,
+                  styles.addedGhost,
+                ]}
+              >
                 <Text style={[Typography.label, styles.addedGhostLabel]}>
                   Hairdresser added
                 </Text>
@@ -451,25 +470,38 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: responsiveMargin(20),
   },
+  /** Do not override `Typography.anton20` lineHeight — a fixed responsiveScale (28)
+   * mismatches scaled font on tablets and clips Anton caps for the salon line. */
   businessName: {
     color: primaryBlack,
     textAlign: "center",
     marginTop: 0,
-    paddingVertical: responsivePadding(2),
-    lineHeight: responsiveScale(28),
+  },
+  /** Extra vertical room so the salon line clears the username block on large tiles. */
+  businessNameTablet: {
+    marginTop: responsiveMargin(4),
+    paddingVertical: responsivePadding(4),
   },
   ctaWrap: {
     marginTop: responsiveMargin(20),
     marginBottom: responsiveMargin(8),
     alignItems: "center",
   },
-  addHairdresserBtn: {
-    alignSelf: "stretch",
-    maxWidth: 400,
-    width: "100%",
+  addHairdresserBtnBase: {
     backgroundColor: primaryBlack,
     borderRadius: responsiveBorderRadius(999),
     alignItems: "center",
+  },
+  /** Full-width bar on phone (max readable width). */
+  addHairdresserBtnPhone: {
+    alignSelf: "stretch",
+    maxWidth: 400,
+    width: "100%",
+  },
+  /** Centered pill on iPad / tablet. */
+  addHairdresserBtnTablet: {
+    alignSelf: "center",
+    maxWidth: 400,
   },
   addHairdresserBtnLabel: {
     color: primaryWhite,
