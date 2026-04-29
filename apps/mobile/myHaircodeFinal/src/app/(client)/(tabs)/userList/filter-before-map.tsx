@@ -12,6 +12,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   NavBackRow,
+  navBackChromeStyles,
   navBackPlaceholderStyle,
 } from "@/src/components/NavBackRow";
 import { StatusBar } from "expo-status-bar";
@@ -89,9 +90,11 @@ const FilterBeforeMapScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         {!hideBack ? (
-          <NavBackRow onPress={() => router.back()} />
+          <View style={navBackChromeStyles.screenBar}>
+            <NavBackRow onPress={() => router.back()} />
+          </View>
         ) : (
-          <View style={navBackPlaceholderStyle()} />
+          <View style={[navBackChromeStyles.screenBar, navBackPlaceholderStyle()]} />
         )}
 
         <View

@@ -1,10 +1,15 @@
-import { StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { Stack } from "expo-router";
+import { primaryGreen } from "@/src/constants/Colors";
 
 const _layout = () => {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: primaryGreen },
+      }}
+    >
       <Stack.Screen name="view_gallery" />
       <Stack.Screen name="single_haircode" />
       <Stack.Screen name="see_haircode" />
@@ -16,5 +21,3 @@ const _layout = () => {
 };
 
 export default _layout;
-
-const styles = StyleSheet.create({});

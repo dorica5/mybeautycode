@@ -1,9 +1,16 @@
 import React, { useMemo } from "react";
 import { Stack } from "expo-router";
+import { primaryGreen } from "@/src/constants/Colors";
 
 const _layout = () => {
-  const screenOptions = useMemo(() => ({ headerShown: false }), []);
-  
+  const screenOptions = useMemo(
+    () => ({
+      headerShown: false,
+      contentStyle: { backgroundColor: primaryGreen },
+    }),
+    []
+  );
+
   return (
     <Stack
       initialRouteName="filter-before-map"

@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { NavBackRow } from "@/src/components/NavBackRow";
+import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { PublicProfileWorkGrid } from "@/src/components/PublicProfileWorkGrid";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
@@ -204,13 +204,15 @@ export function PublicProfessionalProfileView({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/** Same edge alignment as map / Find professionals — not inside padded column */}
-        <View style={styles.profileTopBar}>
-          <View style={styles.headerRow}>
-            <NavBackRow onPress={onBack} hitSlop={12} />
+        {/** Shared inset with visit headers / Find pros — see NavBackRow.navBackChromeStyles */}
+        <View style={navBackChromeStyles.screenBar}>
+          <View style={navBackChromeStyles.row}>
+            <NavBackRow onPress={onBack} hitSlop={12} layout="inlineBar" />
             {headerRight ? (
               <View style={styles.headerRightWrap}>{headerRight}</View>
-            ) : null}
+            ) : (
+              <View style={styles.headerRightPlaceholder} />
+            )}
           </View>
         </View>
 
@@ -356,6 +358,7 @@ export function PublicProfessionalProfileView({
                             subjectProfileId: profileUserId,
                             professionCode: lane,
                             event: "social_click",
+                            socialPlatform: kind,
                           });
                         }
                         void openExternalUrl(normalizeWebUrl(url));
@@ -432,24 +435,17 @@ const styles = StyleSheet.create({
   scrollContentTablet: {
     alignItems: "center",
   },
-  /** Full horizontal width — back row aligns with map / Find professionals (no extra inset). */
-  profileTopBar: {
-    width: "100%",
-    alignSelf: "stretch",
-  },
   columnShell: {
     alignSelf: "center",
     width: "100%",
   },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: responsiveMargin(8),
-  },
   headerRightWrap: {
     minWidth: responsiveScale(40),
     alignItems: "flex-end",
+  },
+  /** Keeps Back aligned when no menu — mirrors VisitRecordScreenHeader trail placeholder. */
+  headerRightPlaceholder: {
+    minWidth: responsiveScale(40),
   },
   hero: {
     alignItems: "center",

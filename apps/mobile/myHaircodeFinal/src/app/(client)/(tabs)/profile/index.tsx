@@ -209,7 +209,12 @@ const ProfileScreen = () => {
                 tileStyle="light"
                 bottom
                 lightMarginBottom={46}
-                onPress={() => router.push("/(auth)/Delete")}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(auth)/Delete",
+                    params: { scope: "client" },
+                  } as Href)
+                }
               />
 
               <Text

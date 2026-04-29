@@ -132,7 +132,9 @@ model ProfessionalProfession {
   /// Taps on booking link on public profile.
   bookingClickCount     Int                 @default(0) @map("booking_click_count")
   /// Taps on social links on public profile (aggregate per lane).
-  socialClickCount      Int                 @default(0) @map("social_click_count")
+  socialClickCount   Int                 @default(0) @map("social_click_count")
+  /// Per-platform tap counts (JSON keys = SocialKind string from client).
+  socialClickCounts  Json                @default("{}") @map("social_click_counts")
   profession            Profession          @relation(fields: [professionId], references: [id], onDelete: Cascade)
   professionalProfile   ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
   salon                 Salon?              @relation(fields: [salonId], references: [id], onDelete: SetNull)

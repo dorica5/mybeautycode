@@ -14,7 +14,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { NavBackRow } from "@/src/components/NavBackRow";
+import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import SearchInput from "@/src/components/SearchInput";
 import SearchResults from "@/src/components/SearchResults";
 import { useListAllHairdresserSearch } from "@/src/api/profiles";
@@ -126,7 +126,9 @@ const FindProfessionalsScreen = () => {
           style={{ flex: 1 }}
         >
           <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-            <NavBackRow onPress={() => router.back()} />
+            <View style={navBackChromeStyles.screenBar}>
+              <NavBackRow onPress={() => router.back()} />
+            </View>
 
             <FlatList
               data={debouncedQuery ? displayedResults : []}

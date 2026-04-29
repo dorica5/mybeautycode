@@ -119,6 +119,9 @@ export function profileSetupIsComplete(
  * Completed setup: redirect off first-run onboarding/auth shells (so users aren’t stuck on Welcome / Sign-in).
  * Do not include add-profession or professional setup — those users are already complete and must stay
  * on ChooseProfession / AddProfession / ProfessionalSetup until they finish or go back.
+ *
+ * Do **not** include TermsAndPrivacy: signed-in users open it from Profile to read legal copy; redirecting
+ * “home” would immediately pop them back (pathname matched bootstrap TermsAndPrivacy).
  */
 function shouldCompletedUserLeaveForHome(pathname: string): boolean {
   const p = pathname ?? "";
@@ -135,7 +138,6 @@ function shouldCompletedUserLeaveForHome(pathname: string): boolean {
     "GeneralSetup",
     "ChooseRole",
     "ClientSetup",
-    "TermsAndPrivacy",
     "/Splash",
     "/SignUp",
     "/SignIn",

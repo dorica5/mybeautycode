@@ -32,7 +32,7 @@ import {
   usePathname,
 } from "expo-router";
 import { X } from "phosphor-react-native";
-import { NavBackRow } from "@/src/components/NavBackRow";
+import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import { StatusBar } from "expo-status-bar";
 import MapView, {
   Marker,
@@ -783,7 +783,7 @@ const MapLocationScreen = () => {
         >
           <StatusBar style="dark" />
           <View style={styles.mapModalChrome}>
-            <View style={styles.mapModalHeaderBlock}>
+            <View style={navBackChromeStyles.screenBar}>
               <NavBackRow onPress={closeMapModal} />
               <View style={styles.mapModalTitleGutter}>
                 <Text
@@ -945,7 +945,9 @@ const MapLocationScreen = () => {
           style={{ flex: 1 }}
         >
           <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-            <NavBackRow onPress={() => router.back()} />
+            <View style={navBackChromeStyles.screenBar}>
+              <NavBackRow onPress={() => router.back()} />
+            </View>
             {hideMapLocationUI ? (
               <View style={styles.mapShellPlaceholder} />
             ) : (
@@ -1080,9 +1082,6 @@ const styles = StyleSheet.create({
   mapModalChrome: {
     flex: 1,
     minHeight: 0,
-  },
-  mapModalHeaderBlock: {
-    paddingBottom: responsiveMargin(4),
   },
   /** Same horizontal inset as `mapModalMapSection` so title lines up with map edges. */
   mapModalTitleGutter: {

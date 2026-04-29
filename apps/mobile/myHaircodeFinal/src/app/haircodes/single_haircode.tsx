@@ -16,6 +16,7 @@ import {
   Trash,
 } from "phosphor-react-native";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { Typography } from "@/src/constants/Typography";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import ProfileModal from "@/src/components/ProfileModal";
 import { VisitRecordScreenHeader } from "@/src/components/visits/VisitRecordScreenHeader";
@@ -45,6 +46,7 @@ import {
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { IMAGE_CROP_VIEWPORT_HEIGHT_RATIO } from "@/src/components/ImageCropModal";
+import { ModerationSheetHeading } from "@/src/components/moderation/ModerationSheetParts";
 
 type ApiRecord = Record<string, unknown> & {
   media?: unknown[];
@@ -370,42 +372,42 @@ const SingleHaircode = () => {
 
   const modalContent = isDeleteConfirmVisible ? (
     <View style={styles.confirmationContainer}>
-      <Text style={styles.confirmationText}>
-        Are you sure you want to delete this haircode?
-      </Text>
+      <ModerationSheetHeading
+        title="Delete this visit?"
+        subtitle="This cannot be undone."
+      />
       <Pressable
         onPress={() => handleDelete(idStr, profile?.id ?? "")}
         style={styles.deleteButton}
       >
-        <Text style={styles.deleteButtonText}>Delete</Text>
+        <Text style={[Typography.outfitRegular16, styles.deleteButtonText]}>Delete</Text>
       </Pressable>
       <Pressable onPress={toggleModal} style={styles.cancelButton}>
-        <Text style={styles.cancelButtonText}>Cancel</Text>
+        <Text style={[Typography.outfitRegular16, styles.cancelButtonText]}>Cancel</Text>
       </Pressable>
     </View>
   ) : showEditOptions ? (
-    <View style={{ marginTop: responsiveMargin(20) }}>
-      <ProfileModal
-        title="Edit"
-        Icon={PencilSimple}
-        top={true}
-        onPress={editHaircode}
+    <View style={styles.sheetActionsWrap}>
+      <ModerationSheetHeading
+        title="Visit actions"
+        subtitle="Edit or delete this visit record."
       />
+      <ProfileModal title="Edit" Icon={PencilSimple} onPress={editHaircode} />
       <ProfileModal
         title="Delete"
         Icon={Trash}
-        bottom={true}
+        destructive
         onPress={handleDeleteConfirm}
       />
     </View>
   ) : (
     <View style={styles.sorryContainer}>
-      <Text style={styles.sorryText}>Sorry!</Text>
-      <Text style={styles.messageText}>
-        You can only edit or delete haircodes within 7 days of creation.
-      </Text>
+      <ModerationSheetHeading
+        title="Sorry!"
+        subtitle="You can only edit or delete visits within 7 days of creation."
+      />
       <Pressable onPress={toggleModal} style={styles.closeButton}>
-        <Text style={styles.closeButtonText}>Close</Text>
+        <Text style={[Typography.outfitRegular16, styles.closeButtonText]}>Close</Text>
       </Pressable>
     </View>
   );
@@ -487,6 +489,7 @@ const SingleHaircode = () => {
         isVisible={isModalVisible}
         onClose={toggleModal}
         modalHeight={"50%"}
+        sheetVariant="brand"
         renderContent={modalContent}
       />
     </SafeAreaView>
@@ -528,74 +531,64 @@ const styles = StyleSheet.create({
     marginTop: responsiveMargin(12),
   },
   confirmationContainer: {
-    paddingHorizontal: responsivePadding(20),
+    alignSelf: "stretch",
     alignItems: "center",
+    paddingHorizontal: responsivePadding(4),
+    paddingTop: responsiveMargin(4),
   },
-  confirmationText: {
-    fontSize: responsiveFontSize(16, 14),
-    color: primaryBlack,
-    fontFamily: "Inter-SemiBold",
-    textAlign: "center",
-    marginTop: responsiveScale(20),
+  sheetActionsWrap: {
+    alignSelf: "stretch",
+    width: "100%",
+    paddingHorizontal: responsivePadding(4),
+    paddingBottom: responsiveMargin(4),
   },
   deleteButton: {
+    alignSelf: "stretch",
     backgroundColor: primaryBlack,
-    marginTop: responsiveScale(40),
-    padding: responsivePadding(15),
-    borderRadius: responsiveScale(40),
-    width: "90%",
+    marginTop: responsiveMargin(8),
+    paddingVertical: responsivePadding(14),
+    paddingHorizontal: responsivePadding(24),
+    borderRadius: responsiveScale(999),
     alignItems: "center",
   },
   cancelButton: {
+    alignSelf: "stretch",
     backgroundColor: primaryWhite,
     borderColor: primaryBlack,
-    borderWidth: responsiveScale(2),
-    marginTop: responsiveScale(32),
-    padding: responsivePadding(15),
-    borderRadius: responsiveScale(40),
-    width: "90%",
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    marginTop: responsiveMargin(12),
+    paddingVertical: responsivePadding(14),
+    paddingHorizontal: responsivePadding(24),
+    borderRadius: responsiveScale(999),
     alignItems: "center",
   },
   deleteButtonText: {
     color: primaryWhite,
-    fontSize: responsiveFontSize(16, 14),
-    fontFamily: "Inter-SemiBold",
+    textAlign: "center",
   },
   cancelButtonText: {
     color: primaryBlack,
-    fontSize: responsiveFontSize(16, 14),
-    fontFamily: "Inter-SemiBold",
+    textAlign: "center",
   },
   sorryContainer: {
+    alignSelf: "stretch",
     alignItems: "center",
-    justifyContent: "center",
-    padding: responsivePadding(20),
-  },
-  sorryText: {
-    fontSize: responsiveFontSize(20, 18),
-    fontFamily: "Inter-Bold",
-    color: primaryBlack,
-    textAlign: "center",
-    marginBottom: responsiveScale(30),
-  },
-  messageText: {
-    fontSize: responsiveFontSize(16, 14),
-    fontFamily: "Inter-SemiBold",
-    color: primaryBlack,
-    textAlign: "center",
-    marginBottom: responsiveScale(30),
+    paddingHorizontal: responsivePadding(4),
+    paddingTop: responsiveMargin(4),
   },
   closeButton: {
-    backgroundColor: primaryGreen,
-    paddingVertical: responsivePadding(10),
-    paddingHorizontal: responsivePadding(20),
-    borderRadius: responsiveScale(10),
+    alignSelf: "stretch",
+    backgroundColor: primaryWhite,
+    paddingVertical: responsivePadding(14),
+    paddingHorizontal: responsivePadding(24),
+    borderRadius: responsiveScale(999),
     borderColor: primaryBlack,
-    borderWidth: responsiveScale(1),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    alignItems: "center",
+    marginTop: responsiveMargin(12),
   },
   closeButtonText: {
     color: primaryBlack,
-    fontFamily: "Inter-SemiBold",
-    fontSize: responsiveFontSize(14, 12),
+    textAlign: "center",
   },
 });

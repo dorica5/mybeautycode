@@ -50,7 +50,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { MintFullScreenSpinner } from "@/src/components/MintSpinningWheel";
-import { NavBackRow } from "@/src/components/NavBackRow";
+import { NavBackRow, navBackChromeBarCombined } from "@/src/components/NavBackRow";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -267,7 +267,7 @@ const HaircodeList = () => {
     <>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.mintRoot} edges={["top", "left", "right"]}>
-        <View style={styles.connectedTopBar}>
+        <View style={navBackChromeBarCombined()}>
           <NavBackRow
             layout="inlineBar"
             onPress={() => router.back()}
@@ -545,13 +545,6 @@ const styles = StyleSheet.create({
   mintRoot: {
     flex: 1,
     backgroundColor: primaryGreen,
-  },
-  connectedTopBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-    paddingRight: responsivePadding(8),
   },
   connectedMore: {
     padding: responsivePadding(8),

@@ -12,6 +12,7 @@ import {
   NativeScrollEvent,
 } from "react-native";
 import { X } from "phosphor-react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   Colors,
   primaryBlack,
@@ -42,6 +43,126 @@ interface SmallDraggableModalProps {
   sheetVariant?: "default" | "brand";
 }
 
+type PanRefs = {
+  pan: Animated.Value;
+  isScrollAtTop: React.MutableRefObject<boolean>;
+  lastGestureValue: React.MutableRefObject<number>;
+  setVisible: (v: boolean) => void;
+  onClose: () => void;
+  onModalHide?: () => void;
+};
+
+/** Gate A: pull sheet down only when scroll content is scrolled to top (classic sheet). */
+function createScrollPanResponder({
+  pan,
+  isScrollAtTop,
+  lastGestureValue,
+  setVisible,
+  onClose,
+  onModalHide,
+}: PanRefs) {
+  return PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      const { dy, dx } = gestureState;
+      return (
+        isScrollAtTop.current &&
+        Math.abs(dy) > Math.abs(dx) &&
+        Math.abs(dy) > 6 &&
+        dy > 0
+      );
+    },
+    onPanResponderGrant: () => {
+      pan.extractOffset();
+    },
+    onPanResponderMove: (_, gestureState) => {
+      const newY = lastGestureValue.current + gestureState.dy;
+      if (newY >= screenHeight * 0.1) {
+        pan.setValue(gestureState.dy);
+      }
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      pan.flattenOffset();
+      if (gestureState.dy > 150) {
+        Animated.timing(pan, {
+          toValue: screenHeight,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => {
+          setVisible(false);
+          onClose();
+          if (onModalHide) onModalHide();
+        });
+        lastGestureValue.current = screenHeight;
+      } else {
+        Animated.spring(pan, {
+          toValue: screenHeight * 0.1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 12,
+        }).start();
+        lastGestureValue.current = screenHeight * 0.1;
+      }
+    },
+  });
+}
+
+/**
+ * Gate B: handle / top chrome — no scroll coupling so dragging the pill always moves the sheet.
+ */
+function createChromePanResponder({
+  pan,
+  lastGestureValue,
+  setVisible,
+  onClose,
+  onModalHide,
+}: PanRefs) {
+  return PanResponder.create({
+    /**
+     * Claim the gesture as soon as the touch lands on the handle strip. If we
+     * wait for onMoveShould*, ScrollView often wins the responder first (visit
+     * record modals), so the pill drag never activates.
+     */
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => false,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: () => {
+      pan.extractOffset();
+    },
+    onPanResponderMove: (_, gestureState) => {
+      const minSnap = screenHeight * 0.1;
+      const newY = lastGestureValue.current + gestureState.dy;
+      const maxPullUp = 56;
+      if (newY >= minSnap - maxPullUp && newY <= screenHeight) {
+        pan.setValue(gestureState.dy);
+      }
+    },
+    onPanResponderRelease: (_, gestureState) => {
+      pan.flattenOffset();
+      if (gestureState.dy > 150) {
+        Animated.timing(pan, {
+          toValue: screenHeight,
+          duration: 300,
+          useNativeDriver: true,
+        }).start(() => {
+          setVisible(false);
+          onClose();
+          if (onModalHide) onModalHide();
+        });
+        lastGestureValue.current = screenHeight;
+      } else {
+        Animated.spring(pan, {
+          toValue: screenHeight * 0.1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 12,
+        }).start();
+        lastGestureValue.current = screenHeight * 0.1;
+      }
+    },
+  });
+}
+
 const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
   isVisible,
   onClose,
@@ -55,7 +176,6 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
   const pan = useRef(new Animated.Value(screenHeight)).current;
   const [visible, setVisible] = useState(isVisible);
   const isScrollAtTop = useRef(true);
-  const scrollViewRef = useRef<ScrollView>(null);
   const lastGestureValue = useRef(screenHeight * 0.1);
 
   const heightResolved = resolveModalHeight(modalHeight);
@@ -64,6 +184,28 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
   const sheetSurface = isBrand ? primaryGreen : Colors.light.light;
   const closeIconColor = isBrand ? primaryBlack : Colors.dark.dark;
   const handleColor = isBrand ? `${primaryBlack}28` : `${primaryBlack}18`;
+
+  const scrollPanResponder = useRef(
+    createScrollPanResponder({
+      pan,
+      isScrollAtTop,
+      lastGestureValue,
+      setVisible,
+      onClose,
+      onModalHide,
+    })
+  ).current;
+
+  const chromePanResponder = useRef(
+    createChromePanResponder({
+      pan,
+      isScrollAtTop,
+      lastGestureValue,
+      setVisible,
+      onClose,
+      onModalHide,
+    })
+  ).current;
 
   useEffect(() => {
     if (isVisible) {
@@ -91,57 +233,12 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
     isScrollAtTop.current = event.nativeEvent.contentOffset.y <= 0;
   };
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        const { dy, dx } = gestureState;
-        return (
-          isScrollAtTop.current &&
-          Math.abs(dy) > Math.abs(dx) &&
-          dy > 0
-        );
-      },
-      onPanResponderGrant: () => {
-        pan.extractOffset();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        const newY = lastGestureValue.current + gestureState.dy;
-        if (newY >= screenHeight * 0.1) {
-          pan.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        pan.flattenOffset();
-        if (gestureState.dy > 150) {
-          Animated.timing(pan, {
-            toValue: screenHeight,
-            duration: 300,
-            useNativeDriver: true,
-          }).start(() => {
-            setVisible(false);
-            onClose();
-            if (onModalHide) onModalHide();
-          });
-          lastGestureValue.current = screenHeight;
-        } else {
-          Animated.spring(pan, {
-            toValue: screenHeight * 0.1,
-            useNativeDriver: true,
-            tension: 100,
-            friction: 12,
-          }).start();
-          lastGestureValue.current = screenHeight * 0.1;
-        }
-      },
-    })
-  ).current;
-
   const topRadius = isBrand ? 24 : 20;
 
   return (
     <Modal visible={visible} transparent animationType="none">
-      <View style={styles.modalBackground} pointerEvents="box-none">
+      <GestureHandlerRootView style={styles.gestureRoot}>
+        <View style={styles.modalBackground} pointerEvents="box-none">
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
@@ -160,33 +257,44 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
             },
           ]}
         >
-          {isBrand ? (
-            <View style={styles.sheetHandleWrap}>
+          <View style={styles.sheetTopChrome} pointerEvents="box-none">
+            {isBrand ? (
               <View
-                style={[styles.sheetHandle, { backgroundColor: handleColor }]}
+                style={styles.sheetHandleWrap}
+                {...chromePanResponder.panHandlers}
+                collapsable={false}
+              >
+                <View
+                  style={[styles.sheetHandle, { backgroundColor: handleColor }]}
+                />
+              </View>
+            ) : (
+              <View
+                style={styles.sheetDragChromeDefault}
+                {...chromePanResponder.panHandlers}
+                collapsable={false}
               />
+            )}
+            <View style={[styles.header, { backgroundColor: sheetSurface }]}>
+              <Pressable
+                onPress={onClose}
+                hitSlop={12}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <X size={28} color={closeIconColor} weight="bold" />
+              </Pressable>
             </View>
-          ) : null}
-          <View style={[styles.header, { backgroundColor: sheetSurface }]}>
-            <Pressable
-              onPress={onClose}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-            >
-              <X size={28} color={closeIconColor} weight="bold" />
-            </Pressable>
           </View>
 
           <ScrollView
-            ref={scrollViewRef}
             scrollEventThrottle={16}
             onScroll={handleScroll}
             showsVerticalScrollIndicator={false}
             bounces={false}
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
-            {...(preview ? panResponder.panHandlers : {})}
+            {...(preview ? scrollPanResponder.panHandlers : {})}
           >
             <View
               style={[
@@ -199,11 +307,15 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
           </ScrollView>
         </Animated.View>
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  gestureRoot: {
+    flex: 1,
+  },
   modalBackground: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.45)",
@@ -211,11 +323,23 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     overflow: "hidden",
+    flexDirection: "column",
+  },
+  /** Keeps handle/header above ScrollView so pan handlers receive touches (later siblings stack on top). */
+  sheetTopChrome: {
+    zIndex: 2,
+    elevation: 4,
   },
   sheetHandleWrap: {
     alignItems: "center",
-    paddingTop: 10,
-    paddingBottom: 4,
+    paddingTop: 12,
+    paddingBottom: 12,
+    minHeight: 44,
+    justifyContent: "center",
+  },
+  sheetDragChromeDefault: {
+    height: 16,
+    width: "100%",
   },
   sheetHandle: {
     width: 40,
@@ -227,7 +351,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     paddingHorizontal: 20,
     paddingBottom: 8,
-    zIndex: 1,
   },
   scrollView: {
     flex: 1,

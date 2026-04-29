@@ -48,11 +48,13 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { usePostHog } from "posthog-react-native";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 
 const ProfileScreen = () => {
   const { profile, loading, signOut } = useAuth();
   const { avatarImage } = useImageContext();
   const posthog = usePostHog();
+  const { activeProfessionCode } = useActiveProfessionState(profile);
 
   if (loading) {
     return <ActivityIndicator />;
@@ -187,14 +189,24 @@ const ProfileScreen = () => {
                 title="Profile picture"
                 Icon={UserCircle}
                 tileStyle="light"
+                bottom
+                lightMarginBottom={46}
                 onPress={() =>
                   router.push("/(hairdresser)/(tabs)/profile/ProfilePicture")
                 }
               />
+
+              <Text
+                style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
+              >
+                Reach & stats
+              </Text>
+
               <Profile
                 title="Your reach & stats"
                 Icon={ChartLineUp}
                 tileStyle="light"
+                top
                 bottom
                 lightMarginBottom={46}
                 onPress={() =>
@@ -229,7 +241,19 @@ const ProfileScreen = () => {
                 tileStyle="light"
                 bottom
                 lightMarginBottom={46}
-                onPress={() => router.push("/(auth)/Delete")}
+                onPress={() => {
+                  const code =
+                    activeProfessionCode === "brows"
+                      ? "brows_lashes"
+                      : activeProfessionCode ?? "";
+                  router.push({
+                    pathname: "/(auth)/Delete",
+                    params: {
+                      scope: "professional",
+                      profession_code: code,
+                    },
+                  } as Href);
+                }}
               />
 
               <Text

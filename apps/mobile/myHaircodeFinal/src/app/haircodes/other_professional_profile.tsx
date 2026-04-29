@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { StyleSheet, View, Alert, Pressable } from "react-native";
+import { StyleSheet, View, Alert, Pressable, Text } from "react-native";
 import { DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
-import { Colors, primaryBlack } from "@/src/constants/Colors";
+import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
@@ -31,6 +31,7 @@ import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { responsiveScale } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
+import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import { isUuid } from "@/src/utils/isUuid";
 import {
   coerceProfessionCode,
@@ -386,9 +387,22 @@ const OtherProfessionalProfileScreen = () => {
     );
   };
 
-  if (!hairdresser_id || !isUuid(hairdresser_id)) return null;
+  if (!hairdresser_id || !isUuid(hairdresser_id)) {
+    return (
+      <>
+        <StatusBar style="dark" backgroundColor={primaryGreen} />
+        <View style={styles.routeUnavailable}>
+          <Text style={styles.routeUnavailableText}>
+            This profile link isn&apos;t valid.
+          </Text>
+        </View>
+      </>
+    );
+  }
 
-  if (!blockCheckComplete || relLoading || profileLoading) return null;
+  if (!blockCheckComplete || relLoading || profileLoading) {
+    return <ThemedRouteLoading accessibilityLabel="Loading profile" />;
+  }
 
   if (isBlockedUser) {
     return (
@@ -405,7 +419,18 @@ const OtherProfessionalProfileScreen = () => {
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return (
+      <>
+        <StatusBar style="dark" backgroundColor={primaryGreen} />
+        <View style={styles.routeUnavailable}>
+          <Text style={styles.routeUnavailableText}>
+            We couldn&apos;t load this profile.
+          </Text>
+        </View>
+      </>
+    );
+  }
 
   return (
     <>
@@ -474,6 +499,19 @@ const OtherProfessionalProfileScreen = () => {
 export default OtherProfessionalProfileScreen;
 
 const styles = StyleSheet.create({
+  routeUnavailable: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: responsiveScale(24),
+  },
+  routeUnavailableText: {
+    fontFamily: "Inter-Medium",
+    fontSize: responsiveScale(16),
+    color: primaryBlack,
+    textAlign: "center",
+  },
   blockedWrap: {
     flex: 1,
     backgroundColor: Colors.light.primaryGreen,

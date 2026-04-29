@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View, Dimensions, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { DotsThree, Trash } from "phosphor-react-native";
+import { DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
+import {
+  MintBrandModalPrimaryButton,
+  MintBrandModalSecondaryButton,
+} from "@/src/components/MintBrandModal";
+import { ModerationSheetHeading } from "@/src/components/moderation/ModerationSheetParts";
 import { VisitRecordScreenHeader } from "@/src/components/visits/VisitRecordScreenHeader";
-import MyButton from "@/src/components/MyButton";
 import {
   useDeleteHaircodeClient,
   useHaircodeWithMedia,
@@ -16,6 +20,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { allBlockerIds } from "@/src/api/moderation";
 import {
   moderateScale,
+  responsiveMargin,
   scale,
   scalePercent,
   verticalScale,
@@ -196,22 +201,23 @@ const SingleHaircodeClient = () => {
   };
 
   const modalContent = (
-    <>
-      <MyButton
-        Icon={Trash}
-        text="Delete Haircode"
+    <View style={styles.sheetFooter}>
+      <ModerationSheetHeading
+        title="Delete visit?"
+        subtitle="This removes it from your visit history."
+      />
+      <MintBrandModalPrimaryButton
+        label="Delete"
+        accessibilityLabel="Delete visit"
         onPress={() =>
           handleDelete(haircodeId ?? "", (hairdresser_id || profile?.id) ?? "")
         }
-        style={styles.deleteButton}
-        iconStyle={{ left: scale(-30) }}
       />
-      <MyButton
-        text="Cancel"
+      <MintBrandModalSecondaryButton
+        label="Cancel"
         onPress={toggleModal}
-        style={styles.cancelButton}
       />
-    </>
+    </View>
   );
 
   if (!haircodeId) {
@@ -298,7 +304,8 @@ const SingleHaircodeClient = () => {
         <SmallDraggableModal
           isVisible={isModalVisible}
           onClose={toggleModal}
-          modalHeight={"40%"}
+          modalHeight={"42%"}
+          sheetVariant="brand"
           renderContent={modalContent}
           done={false}
         />
@@ -325,6 +332,14 @@ const styles = StyleSheet.create({
   menuBtn: {
     padding: scale(4),
   },
+  sheetFooter: {
+    width: "100%",
+    alignSelf: "stretch",
+    alignItems: "center",
+    gap: responsiveMargin(14),
+    paddingTop: responsiveMargin(8),
+    paddingHorizontal: moderateScale(4),
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -335,29 +350,5 @@ const styles = StyleSheet.create({
     fontFamily: "Inter-SemiBold",
     fontSize: moderateScale(16),
     color: primaryBlack,
-  },
-  deleteButton: {
-    width: scalePercent(90),
-    marginTop: scalePercent(2),
-    alignSelf: "center",
-    backgroundColor: primaryBlack,
-    shadowOffset: {
-      width: 0,
-      height: scale(2),
-    },
-    shadowOpacity: 0.6,
-    shadowRadius: scale(4),
-    elevation: 10,
-    padding: scale(15),
-    borderRadius: scale(81),
-    alignItems: "center",
-  },
-  cancelButton: {
-    borderWidth: scale(2),
-    borderColor: primaryBlack,
-    backgroundColor: primaryWhite,
-    width: scalePercent(90),
-    marginTop: scalePercent(3),
-    alignSelf: "center",
   },
 });

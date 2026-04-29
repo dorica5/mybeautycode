@@ -16,7 +16,11 @@ import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { fetchMyProfessionalAnalytics } from "@/src/api/professionalAnalytics";
+import { coerceProfessionCode } from "@/src/constants/professionCodes";
+import type { ProfessionDetailApi } from "@/src/constants/types";
 import { FONT_FAMILY, Typography } from "@/src/constants/Typography";
+import { parseSocialLinks } from "@/src/lib/socialMediaStorage";
+import { inferSocialFromUrl } from "@/src/lib/inferSocialFromUrl";
 import {
   primaryBlack,
   primaryGreen,
@@ -28,12 +32,48 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
+import { SocialStrokeIcon20 } from "@/src/components/icons/GetDiscoveredStrokeIcons";
+import type { SocialKind } from "@/src/lib/inferSocialFromUrl";
 
 function formatInt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 10_000) return `${Math.round(n / 1000)}k`;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
+}
+
+type SocialBreakdownRow = {
+  kind: SocialKind;
+  label: string;
+  count: number;
+};
+
+function SocialTapBreakdown({ rows }: { rows: SocialBreakdownRow[] }) {
+  if (rows.length === 0) return null;
+
+  const multi = rows.length > 1;
+
+  return (
+    <View style={[styles.socialBreakdown, multi ? styles.socialBreakdownMulti : null]}>
+      {rows.map((row, index) => (
+        <View
+          key={`${row.kind}-${index}`}
+          style={[styles.socialBreakdownCell, multi ? styles.socialBreakdownCellMulti : null]}
+        >
+          <View style={styles.socialBreakdownIconWrap}>
+            <SocialStrokeIcon20 kind={row.kind} />
+          </View>
+          <Text
+            style={[Typography.outfitRegular16, styles.socialBreakdownLabel]}
+            numberOfLines={1}
+          >
+            {row.label}
+          </Text>
+          <Text style={styles.socialBreakdownCount}>{formatInt(row.count)}</Text>
+        </View>
+      ))}
+    </View>
+  );
 }
 
 const ProfessionalInsightsScreen = () => {
@@ -46,11 +86,47 @@ const ProfessionalInsightsScreen = () => {
     return activeProfessionCode === "brows" ? "brows_lashes" : activeProfessionCode;
   }, [activeProfessionCode]);
 
+  const detailForActive = useMemo(() => {
+    const rows = profile?.professions_detail;
+    const code = activeProfessionCode;
+    if (!rows?.length || !code) return null;
+    return (
+      rows.find(
+        (r: ProfessionDetailApi) => coerceProfessionCode(r.profession_code) === code
+      ) ?? null
+    );
+  }, [profile?.professions_detail, activeProfessionCode]);
+
+  const platformsFromLinks = useMemo(() => {
+    const urls = parseSocialLinks(
+      detailForActive?.social_media ?? profile?.social_media
+    );
+    const seen = new Set<SocialKind>();
+    const out: { kind: SocialKind; label: string }[] = [];
+    for (const url of urls) {
+      const inf = inferSocialFromUrl(url);
+      if (seen.has(inf.kind)) continue;
+      seen.add(inf.kind);
+      out.push({ kind: inf.kind, label: inf.label });
+    }
+    return out;
+  }, [detailForActive?.social_media, profile?.social_media]);
+
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["professional-analytics", "me", professionParam],
     queryFn: () => fetchMyProfessionalAnalytics(professionParam),
     enabled: storedProfessionReady && !!professionParam,
   });
+
+  const socialBreakdownRows = useMemo((): SocialBreakdownRow[] => {
+    if (!data || platformsFromLinks.length === 0) return [];
+    const counts = data.socialClickCounts ?? {};
+    return platformsFromLinks.map((p) => ({
+      kind: p.kind,
+      label: p.label,
+      count: counts[p.kind] ?? 0,
+    }));
+  }, [data, platformsFromLinks]);
 
   useFocusEffect(
     useCallback(() => {
@@ -146,7 +222,7 @@ const ProfessionalInsightsScreen = () => {
                     </View>
                     <Text style={styles.statNumber}>{formatInt(data.profileViewCount)}</Text>
                     <Text style={[Typography.outfitRegular16, styles.statHint]}>
-                      Times someone opened this profession&apos;s public profile
+                      Times someone opened your public profile
                     </Text>
                   </View>
 
@@ -171,9 +247,7 @@ const ProfessionalInsightsScreen = () => {
                       <Text style={[Typography.label, styles.statLabel]}>Social taps</Text>
                     </View>
                     <Text style={styles.statNumber}>{formatInt(data.socialClickCount)}</Text>
-                    <Text style={[Typography.outfitRegular16, styles.statHint]}>
-                      Taps on Instagram, TikTok, or other social links
-                    </Text>
+                    <SocialTapBreakdown rows={socialBreakdownRows} />
                   </View>
                 </View>
               ) : null}
@@ -321,5 +395,58 @@ const styles = StyleSheet.create({
   refetchHint: {
     position: "absolute",
     top: responsiveScale(12),
+  },
+  socialBreakdown: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: responsiveMargin(10),
+    paddingTop: responsiveMargin(14),
+    marginBottom: responsiveMargin(10),
+    marginTop: responsiveMargin(2),
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
+    borderTopColor: "rgba(33, 36, 39, 0.1)",
+  },
+  socialBreakdownMulti: {
+    justifyContent: "space-between",
+  },
+  socialBreakdownCell: {
+    alignItems: "center",
+    backgroundColor: "rgba(33, 36, 39, 0.045)",
+    borderRadius: responsiveScale(16),
+    paddingVertical: responsivePadding(14),
+    paddingHorizontal: responsivePadding(12),
+    gap: responsiveMargin(4),
+    alignSelf: "center",
+    minWidth: responsiveScale(132),
+    maxWidth: "88%",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(33, 36, 39, 0.08)",
+  },
+  socialBreakdownCellMulti: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: "46%",
+    alignSelf: "stretch",
+    maxWidth: "48%",
+    minWidth: responsiveScale(120),
+  },
+  socialBreakdownIconWrap: {
+    marginBottom: responsiveMargin(2),
+  },
+  socialBreakdownLabel: {
+    color: "rgba(33, 36, 39, 0.82)",
+    fontSize: responsiveScale(14),
+    lineHeight: responsiveScale(18),
+    textAlign: "center",
+  },
+  socialBreakdownCount: {
+    fontFamily: FONT_FAMILY.anton,
+    fontSize: responsiveScale(26),
+    lineHeight: responsiveScale(32),
+    color: primaryBlack,
+    letterSpacing: 0.3,
+    marginTop: responsiveMargin(2),
   },
 });

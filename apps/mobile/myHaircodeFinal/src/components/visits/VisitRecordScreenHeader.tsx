@@ -3,7 +3,10 @@ import { StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { Typography } from "@/src/constants/Typography";
 import { responsiveMargin, responsivePadding, responsiveScale } from "@/src/utils/responsive";
-import { NavBackRow } from "@/src/components/NavBackRow";
+import {
+  NavBackRow,
+  navBackChromeBarCombined,
+} from "@/src/components/NavBackRow";
 
 type VisitRecordScreenHeaderProps = {
   title: string;
@@ -24,7 +27,7 @@ export function VisitRecordScreenHeader({
 }: VisitRecordScreenHeaderProps) {
   return (
     <View>
-      <View style={styles.topRow}>
+      <View style={navBackChromeBarCombined()}>
         <NavBackRow layout="inlineBar" onPress={() => router.back()} />
         {rightSlot ? (
           rightSlot
@@ -51,14 +54,6 @@ export function VisitRecordScreenHeader({
 }
 
 const styles = StyleSheet.create({
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: responsivePadding(8),
-    paddingTop: responsivePadding(8),
-    paddingBottom: responsivePadding(4),
-  },
   topRowTrailPlaceholder: {
     minWidth: responsiveScale(40),
   },

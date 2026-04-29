@@ -1,13 +1,13 @@
 /* eslint-disable react/react-in-jsx-scope */
 import React, { useState, useCallback, useMemo } from "react";
-import { StyleSheet, View, Alert, Pressable, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Alert, Pressable } from "react-native";
 import { DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
-import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
+import { Colors, primaryBlack } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
@@ -32,6 +32,7 @@ import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { responsiveScale } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
+import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 
 const ProfessionalProfileScreen = () => {
   const { id: hairdresser_id, profession } = useLocalSearchParams<{
@@ -347,14 +348,7 @@ const ProfessionalProfileScreen = () => {
   /** Block only on profile `/me` fetch — blocked list can resolve in parallel (was slowing first paint). */
   const showRouteLoading = profilePending && p === undefined;
   if (showRouteLoading) {
-    return (
-      <>
-        <StatusBar style="dark" backgroundColor={primaryGreen} />
-        <View style={styles.routeLoading} accessibilityLabel="Loading profile">
-          <ActivityIndicator size="large" color={primaryBlack} />
-        </View>
-      </>
-    );
+    return <ThemedRouteLoading accessibilityLabel="Loading profile" />;
   }
 
   if (isBlockedUser) {
@@ -445,11 +439,5 @@ const styles = StyleSheet.create({
   unblockBtn: {
     alignSelf: "stretch",
     maxWidth: 400,
-  },
-  routeLoading: {
-    flex: 1,
-    backgroundColor: primaryGreen,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

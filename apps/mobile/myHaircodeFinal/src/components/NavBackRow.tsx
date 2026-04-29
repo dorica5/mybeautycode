@@ -77,3 +77,27 @@ const styles = StyleSheet.create({
     color: primaryBlack,
   },
 });
+
+/**
+ * Shared top chrome so Back sits at the same inset everywhere (profile, visits,
+ * Find pros / map). Wrap NavBackRow in `screenBar`; use `row` when pairing with a trailing action.
+ */
+export const navBackChromeStyles = StyleSheet.create({
+  screenBar: {
+    width: "100%",
+    alignSelf: "stretch",
+    paddingHorizontal: responsivePadding(8),
+    paddingTop: responsivePadding(8),
+    paddingBottom: responsivePadding(4),
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+});
+
+/** Flatten for a single full-width bar that is itself the flex row (visit header pattern). */
+export function navBackChromeBarCombined(): ViewStyle[] {
+  return [navBackChromeStyles.screenBar, navBackChromeStyles.row];
+}

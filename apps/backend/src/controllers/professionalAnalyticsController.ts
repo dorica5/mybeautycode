@@ -26,6 +26,8 @@ export const professionalAnalyticsController = {
       subject_profile_id?: string;
       profession_code?: string | null;
       event?: string;
+      /** instagram | tiktok | anything else → other bucket */
+      social_platform?: string | null;
     };
     const subject = String(body.subject_profile_id ?? "").trim();
     const event = body.event;
@@ -41,6 +43,8 @@ export const professionalAnalyticsController = {
         viewerProfileId: viewerId,
         professionCode: body.profession_code,
         event: event as "profile_view" | "booking_click" | "social_click",
+        socialPlatform:
+          event === "social_click" ? body.social_platform : undefined,
       });
       res.json(result);
     } catch (err) {
