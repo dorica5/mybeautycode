@@ -19,12 +19,13 @@ import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { randomUUID } from "expo-crypto";
-import { CaretLeft, Palette, XCircle } from "phosphor-react-native";
+import { Palette, XCircle } from "phosphor-react-native";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
 import {
   MintProfileScreenShell,
   mintProfileScrollContent,
 } from "@/src/components/MintProfileScreenShell";
+import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import CustomAlert from "@/src/components/CustomAlert";
@@ -573,25 +574,22 @@ const AboutMe = () => {
         style={styles.keyboard}
         keyboardVerticalOffset={0}
       >
+        <View style={navBackChromeStyles.screenBar}>
+          <NavBackRow
+            accessibilityLabel="Go back"
+            onPress={() => router.back()}
+            layout="inlineBar"
+            hitSlop={12}
+          />
+        </View>
         <ScrollView
           ref={scrollViewRef}
           style={styles.scroll}
-          contentContainerStyle={mintProfileScrollContent}
+          contentContainerStyle={styles.aboutScrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
         >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            onPress={() => router.back()}
-            style={styles.backRow}
-            hitSlop={12}
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-          </Pressable>
-
           <Text style={[Typography.h3, styles.heroTitle]} accessibilityRole="header">
             Get discovered
           </Text>
@@ -1091,20 +1089,16 @@ export default AboutMe;
 const styles = StyleSheet.create({
   keyboard: { flex: 1 },
   scroll: { flex: 1 },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsiveMargin(8),
-    gap: responsiveMargin(4),
-    alignSelf: "flex-start",
+  /** Same horizontal rhythm as `mintProfileScrollContent`; back sits in `navBackChromeStyles.screenBar` above. */
+  aboutScrollContent: {
+    ...mintProfileScrollContent,
+    paddingTop: responsiveMargin(12),
   },
-  backText: { color: primaryBlack },
   heroTitle: {
     color: primaryBlack,
     textAlign: "center",
     width: "100%",
-    marginTop: responsiveMargin(8),
+    marginTop: responsiveMargin(4),
   },
   heroSubWrap: {
     width: "100%",
