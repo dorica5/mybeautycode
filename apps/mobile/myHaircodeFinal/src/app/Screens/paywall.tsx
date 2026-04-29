@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { CaretLeft, CheckCircle } from "phosphor-react-native";
+import { CheckCircle } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import Logo from "../../../assets/images/myBeautyCode_logo.svg";
 import { Typography } from "@/src/constants/Typography";
@@ -31,6 +31,7 @@ import {
   MintBrandModalPrimaryButton,
   MintBrandModalSecondaryButton,
 } from "@/src/components/MintBrandModal";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
 
 type Plan = "monthly" | "annual" | "lifetime";
@@ -146,16 +147,12 @@ const Paywall = () => {
       <StatusBar style="dark" />
 
       <View style={styles.topBar}>
-        <Pressable
+        <NavBackRow
           onPress={() => router.back()}
           style={styles.backRow}
           hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+          accessibilityLabel="Go back"
+        />
       </View>
 
       <ScrollView
@@ -266,16 +263,9 @@ const styles = StyleSheet.create({
     paddingTop: responsiveMargin(6),
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: responsiveScale(4),
+    alignSelf: "flex-start",
     paddingHorizontal: responsivePadding(12),
     paddingVertical: responsivePadding(10),
-    alignSelf: "flex-start",
-  },
-  backText: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
   },
   scroll: {
     paddingHorizontal: responsivePadding(24),

@@ -276,25 +276,19 @@ const HaircodeList = () => {
       {isRelated && (
         <RapportUserModal
           title="Delete"
-          top={true}
           onPress={() => handleModalOption("Delete")}
         />
       )}
       <RapportUserModal
         title="Block"
-        top={!isRelated}
-        bottom={false}
         onPress={() => handleModalOption("Block")}
       />
       <RapportUserModal
         title="Report"
-        bottom={true}
         onPress={() => handleModalOption("Report")}
       />
       <RapportUserModal
         title="Cancel"
-        top={true}
-        bottom={true}
         onPress={() => setIsModalVisible(false)}
       />
     </View>
@@ -509,7 +503,7 @@ const HaircodeList = () => {
               setPendingAction(null);
             }
           }}
-          modalHeight={screenHeight * 0.52}
+          modalHeight={screenHeight * 0.58}
           sheetVariant="brand"
           renderContent={modalContent}
         />

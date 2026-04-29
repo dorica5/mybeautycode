@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Pressable,
   TouchableWithoutFeedback,
   Keyboard,
   ActivityIndicator,
@@ -13,7 +12,7 @@ import { useRouter } from "expo-router";
 import SearchInput from "@/src/components/SearchInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchResults from "@/src/components/SearchResults";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useListAllClientSearch } from "@/src/api/profiles";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
@@ -53,12 +52,9 @@ const SearchPage = () => {
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.container}>
         <View style={styles.viewContainer}>
-          <Pressable
-            onPress={() => router.back()}
-            style={{ marginHorizontal: "7%", marginVertical: "6%" }}
-          >
-            <CaretLeft size={32} />
-          </Pressable>
+          <View style={styles.backChrome}>
+            <NavBackRow onPress={() => router.back()} accessibilityLabel="Go back" />
+          </View>
 
           <View style={{ alignItems: "flex-start" }}>
             <Text style={styles.text}>Search for existing clients</Text>
@@ -116,6 +112,10 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "space-between",
     alignContent: "space-between",
+  },
+  backChrome: {
+    marginHorizontal: "7%",
+    marginVertical: "6%",
   },
   text: {
     marginTop: "0%",

@@ -10,7 +10,7 @@ import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { isBlocked } from "@/src/api/moderation";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -134,15 +134,12 @@ export const FriendRequest = () => {
       <>
         <StatusBar style="dark" />
         <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-          <Pressable
+          <NavBackRow
             onPress={() => router.back()}
             style={styles.backRow}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={styles.backLabel}>Back</Text>
-          </Pressable>
+            accessibilityLabel="Go back"
+            hitSlop={12}
+          />
 
           <View style={styles.content}>
               <Pressable
@@ -177,15 +174,12 @@ export const FriendRequest = () => {
     <>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <Pressable
+        <NavBackRow
           onPress={() => router.back()}
           style={styles.backRow}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
+          accessibilityLabel="Go back"
+          hitSlop={12}
+        />
 
         <View style={styles.content}>
             <Pressable
@@ -243,16 +237,9 @@ const styles = StyleSheet.create({
     backgroundColor: primaryGreen,
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    alignSelf: "flex-start",
     paddingHorizontal: responsivePadding(16),
     paddingVertical: responsiveMargin(12),
-    alignSelf: "flex-start",
-    gap: responsiveScale(4),
-  },
-  backLabel: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
   },
   content: {
     flex: 1,

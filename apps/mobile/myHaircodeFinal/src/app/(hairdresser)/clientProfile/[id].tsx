@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from "react-native";
-import { CaretLeft, DotsThree } from "phosphor-react-native";
+import { DotsThree } from "phosphor-react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useClientSearch, requestClientLink } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
@@ -46,6 +46,7 @@ import {
   moderationDetailCopy,
 } from "@/src/components/moderation/ModerationSheetParts";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { ClientLinkRequestSentModal } from "@/src/components/ClientLinkRequestSentModal";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -233,24 +234,18 @@ const UserProfile = () => {
       />
       <RapportUserModal
         title="Delete"
-        top={true}
         onPress={() => handleModalOption("Delete")}
       />
       <RapportUserModal
         title="Block"
-        top={false}
-        bottom={false}
         onPress={() => handleModalOption("Block")}
       />
       <RapportUserModal
         title="Report"
-        bottom={true}
         onPress={() => handleModalOption("Report")}
       />
       <RapportUserModal
         title="Cancel"
-        top={true}
-        bottom={true}
         onPress={() => setIsModalVisible(false)}
       />
     </View>
@@ -339,10 +334,12 @@ const UserProfile = () => {
         <Text style={[Typography.bodySmall, { color: primaryBlack, textAlign: "center", padding: 24 }]}>
           This profile link is invalid. Go back and open the client again.
         </Text>
-        <Pressable onPress={() => router.back()} style={styles.backRow}>
-          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
+        <NavBackRow
+          onPress={() => router.back()}
+          style={styles.backRow}
+          accessibilityLabel="Go back"
+          hitSlop={12}
+        />
       </SafeAreaView>
     );
   }
@@ -362,14 +359,12 @@ const UserProfile = () => {
       <>
         <StatusBar style="dark" />
         <SafeAreaView style={styles.mintRoot} edges={["top", "left", "right"]}>
-          <Pressable
+          <NavBackRow
             onPress={() => router.back()}
             style={styles.backRow}
+            accessibilityLabel="Go back"
             hitSlop={12}
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={styles.backLabel}>Back</Text>
-          </Pressable>
+          />
 
           <ScrollView
             contentContainerStyle={styles.mintScroll}
@@ -476,13 +471,13 @@ const UserProfile = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.whiteProfileInner}>
-            <Pressable
-              onPress={() => router.back()}
-              style={styles.whiteBackIcon}
-              hitSlop={12}
-            >
-              <CaretLeft size={responsiveScale(32)} color={Colors.dark.dark} />
-            </Pressable>
+            <View style={styles.whiteBackIcon}>
+              <NavBackRow
+                onPress={() => router.back()}
+                accessibilityLabel="Go back"
+                hitSlop={12}
+              />
+            </View>
             {!isBlockedUser ? (
               <Pressable
                 onPress={toggleModal}
@@ -609,7 +604,7 @@ const UserProfile = () => {
               setPendingAction(null);
             }
           }}
-          modalHeight={screenHeight * 0.52}
+          modalHeight={screenHeight * 0.58}
           sheetVariant="brand"
           renderContent={modalContent}
         />
@@ -644,16 +639,9 @@ const styles = StyleSheet.create({
     paddingTop: responsiveMargin(8),
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    alignSelf: "flex-start",
     paddingHorizontal: responsivePadding(16),
     paddingVertical: responsiveMargin(12),
-    alignSelf: "flex-start",
-    gap: responsiveScale(4),
-  },
-  backLabel: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
   },
   avatarOuter: {
     marginTop: responsiveMargin(16),

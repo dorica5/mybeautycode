@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import { CaretLeft, Eye, Globe, ShareNetwork } from "phosphor-react-native";
+import { Eye, Globe, ShareNetwork } from "phosphor-react-native";
 import { useQuery } from "@tanstack/react-query";
 import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -32,6 +32,7 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { SocialStrokeIcon20 } from "@/src/components/icons/GetDiscoveredStrokeIcons";
 import type { SocialKind } from "@/src/lib/inferSocialFromUrl";
 
@@ -150,16 +151,12 @@ const ProfessionalInsightsScreen = () => {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.paddedHorizontal}>
-              <Pressable
+              <NavBackRow
                 onPress={() => router.back()}
                 style={styles.backRow}
                 hitSlop={12}
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-              >
-                <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-                <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-              </Pressable>
+                accessibilityLabel="Go back"
+              />
             </View>
 
             <View
@@ -290,14 +287,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding(24),
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: responsiveMargin(8),
-    gap: responsiveMargin(4),
     alignSelf: "flex-start",
-  },
-  backText: {
-    color: primaryBlack,
+    paddingVertical: responsiveMargin(8),
   },
   heroBleed: {
     marginTop: responsiveMargin(8),

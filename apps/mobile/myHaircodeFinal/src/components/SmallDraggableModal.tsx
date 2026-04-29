@@ -324,6 +324,7 @@ const styles = StyleSheet.create({
   modalContent: {
     overflow: "hidden",
     flexDirection: "column",
+    justifyContent: "flex-start",
   },
   /** Keeps handle/header above ScrollView so pan handlers receive touches (later siblings stack on top). */
   sheetTopChrome: {
@@ -354,12 +355,20 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    minHeight: 0,
   },
+  /**
+   * Fill the scroll viewport when content is short (flexGrow: 1) but pin rows to
+   * the top (justifyContent: flex-start) so the last action is not spaced to the
+   * bottom or clipped on small screens.
+   */
   scrollContent: {
     flexGrow: 1,
+    justifyContent: "flex-start",
+    alignItems: "stretch",
   },
   contentContainer: {
-    flex: 1,
+    width: "100%",
     paddingHorizontal: 16,
     paddingBottom: 24,
   },

@@ -18,7 +18,7 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import React, { useEffect, useMemo, useState } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -87,16 +87,12 @@ const AddProfession = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.paddedHorizontal}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back"
+          <NavBackRow
+            accessibilityLabel="Go back"
             onPress={() => router.back()}
             style={styles.backRow}
             hitSlop={12}
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-          </Pressable>
+          />
         </View>
 
         <View
@@ -191,14 +187,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding(24),
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: responsiveMargin(8),
-    gap: responsiveMargin(4),
     alignSelf: "flex-start",
-  },
-  backText: {
-    color: primaryBlack,
+    paddingVertical: responsiveMargin(8),
   },
   heroBleed: {
     marginTop: responsiveMargin(8),

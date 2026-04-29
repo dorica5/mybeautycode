@@ -304,7 +304,7 @@ const SingleHaircodeClient = () => {
         <SmallDraggableModal
           isVisible={isModalVisible}
           onClose={toggleModal}
-          modalHeight={"42%"}
+          modalHeight={"48%"}
           sheetVariant="brand"
           renderContent={modalContent}
           done={false}

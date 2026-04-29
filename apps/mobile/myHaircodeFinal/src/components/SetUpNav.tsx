@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import React from "react";
-import { CaretLeft } from "phosphor-react-native";
 import { router } from "expo-router";
 import { Colors } from "../constants/Colors";
+import { NavBackRow } from "./NavBackRow";
 
 type SetUpNavProps = {
   title: string;
@@ -11,12 +11,10 @@ type SetUpNavProps = {
 const SetUpNav = ({ title }: SetUpNavProps) => {
   return (
     <View style={styles.topNav}>
-      <Pressable onPress={() => router.back()} style={styles.iconContainer}>
-        <CaretLeft size={32} />
-      </Pressable>
+      <View style={styles.backAbsolute}>
+        <NavBackRow onPress={() => router.back()} accessibilityLabel="Go back" />
+      </View>
       <Text style={styles.title}>{title}</Text>
-      <View style={styles.iconPlaceholder} />
-      {/* Placeholder to keep the title centered */}
     </View>
   );
 };
@@ -27,21 +25,20 @@ const styles = StyleSheet.create({
   topNav: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center", // Center the content horizontally
+    justifyContent: "center",
     marginTop: "7%",
     marginLeft: "5%",
+    marginRight: "5%",
   },
-  iconContainer: {
+  backAbsolute: {
     position: "absolute",
     left: 0,
+    zIndex: 1,
   },
   title: {
     fontSize: 20,
     fontFamily: "Inter-SemiBold",
     color: Colors.dark.dark,
     textAlign: "center",
-  },
-  iconPlaceholder: {
-    width: 32, // Width of the icon to maintain the spacing
   },
 });

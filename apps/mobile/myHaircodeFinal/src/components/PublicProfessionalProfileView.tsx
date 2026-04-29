@@ -379,42 +379,40 @@ export function PublicProfessionalProfileView({
             </View>
           ) : null}
 
-          <View style={styles.sectionBlock}>
-            <Text style={[Typography.label, styles.sectionTitle]}>
-              {first}&apos;s superpower
-            </Text>
-            <View
-              style={[
-                styles.superpowerBox,
-                !aboutMe?.trim() && styles.superpowerBoxPlaceholderShell,
-              ]}
-            >
-              <Text
+          {mode === "self" || aboutMe?.trim() ? (
+            <View style={styles.sectionBlock}>
+              <Text style={[Typography.label, styles.sectionTitle]}>
+                {first}&apos;s superpower
+              </Text>
+              <View
                 style={[
-                  Typography.outfitRegular16,
-                  aboutMe?.trim()
-                    ? styles.superpowerText
-                    : styles.superpowerPlaceholder,
+                  styles.superpowerBox,
+                  !aboutMe?.trim() && styles.superpowerBoxPlaceholderShell,
                 ]}
               >
-                {aboutMe?.trim()
-                  ? aboutMe.trim()
-                  : "Tell your clients about your skills"}
-              </Text>
+                <Text
+                  style={[
+                    Typography.outfitRegular16,
+                    aboutMe?.trim()
+                      ? styles.superpowerText
+                      : styles.superpowerPlaceholder,
+                  ]}
+                >
+                  {aboutMe?.trim()
+                    ? aboutMe.trim()
+                    : "Tell your clients about your skills"}
+                </Text>
+              </View>
             </View>
-          </View>
+          ) : null}
 
-          <View style={styles.sectionBlock}>
-            <Text style={[Typography.label, styles.sectionTitle]}>
-              {first}&apos;s work
-            </Text>
-            <PublicProfileWorkGrid
-              profileUserId={profileUserId}
-              showTitle={false}
-              professionCode={activeProfessionCode ?? undefined}
-              contentMaxWidth={layout.workGridMaxWidth}
-            />
-          </View>
+          <PublicProfileWorkGrid
+            profileUserId={profileUserId}
+            showTitle={false}
+            sectionHeading={`${first}'s work`}
+            professionCode={activeProfessionCode ?? undefined}
+            contentMaxWidth={layout.workGridMaxWidth}
+          />
         </View>
         </View>
       </ScrollView>

@@ -1,10 +1,11 @@
 import React, { useMemo } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { CaretLeft, CreditCard, ArrowCounterClockwise, ArrowsLeftRight } from "phosphor-react-native";
+import { CreditCard, ArrowCounterClockwise, ArrowsLeftRight } from "phosphor-react-native";
 import { router } from "expo-router";
 import { Typography } from "@/src/constants/Typography";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import Profile from "@/src/components/Profile";
 import { responsiveScale, scalePercent } from "@/src/utils/responsive";
@@ -20,16 +21,12 @@ export default function BillingScreen() {
     <>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <Pressable
+        <NavBackRow
           onPress={() => router.back()}
           style={styles.backRow}
           hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+          accessibilityLabel="Go back"
+        />
 
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -90,16 +87,9 @@ const styles = StyleSheet.create({
     backgroundColor: primaryGreen,
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: responsiveScale(4),
+    alignSelf: "flex-start",
     paddingHorizontal: scalePercent(5),
     paddingVertical: responsiveScale(10, 8),
-    alignSelf: "flex-start",
-  },
-  backText: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
   },
   scroll: {
     paddingBottom: responsiveScale(28),

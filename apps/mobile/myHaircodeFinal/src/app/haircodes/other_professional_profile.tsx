@@ -312,24 +312,19 @@ const OtherProfessionalProfileScreen = () => {
       {isRelated && (
         <RapportUserModal
           title="Delete"
-          top
           onPress={() => handleModalOption("Delete")}
         />
       )}
       <RapportUserModal
         title="Block"
-        top={!isRelated}
         onPress={() => handleModalOption("Block")}
       />
       <RapportUserModal
         title="Report"
-        bottom={!isRelated}
         onPress={() => handleModalOption("Report")}
       />
       <RapportUserModal
         title="Cancel"
-        top
-        bottom
         onPress={() => setIsModalVisible(false)}
       />
     </View>
@@ -481,7 +476,7 @@ const OtherProfessionalProfileScreen = () => {
             setPendingAction(null);
           }
         }}
-        modalHeight="52%"
+        modalHeight="58%"
         sheetVariant="brand"
         renderContent={moderationPrimaryContent}
       />

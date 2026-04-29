@@ -34,6 +34,10 @@ type Props = {
   /** When false, omit the built-in "My work" label (use when the parent already shows a section title). @default true */
   showTitle?: boolean;
   /**
+   * When set (e.g. `"{first}'s work"` on public profile), shown instead of "My work" and only when there are items — avoids an orphan heading when the grid is empty.
+   */
+  sectionHeading?: string | null;
+  /**
    * When set (e.g. viewer’s active professional role), loads that lane’s public work only.
    * When omitted, legacy: first linked profession on the profile.
    */
@@ -48,6 +52,7 @@ type Props = {
 export function PublicProfileWorkGrid({
   profileUserId,
   showTitle = true,
+  sectionHeading,
   professionCode: professionCodeProp,
   contentMaxWidth,
 }: Props) {
@@ -100,10 +105,26 @@ export function PublicProfileWorkGrid({
 
   if (rows.length === 0) return null;
 
+  const trimmedSection = sectionHeading?.trim();
+  const heading =
+    trimmedSection && trimmedSection.length > 0
+      ? trimmedSection
+      : showTitle
+        ? "My work"
+        : "";
+
   return (
-    <View style={[styles.wrap, { maxWidth: rowInner }]}>
-      {showTitle ? (
-        <Text style={[Typography.label, styles.label]}>My work</Text>
+    <View
+      style={[
+        styles.wrap,
+        trimmedSection && trimmedSection.length > 0
+          ? styles.wrapSectionBlock
+          : null,
+        { maxWidth: rowInner },
+      ]}
+    >
+      {heading ? (
+        <Text style={[Typography.label, styles.label]}>{heading}</Text>
       ) : null}
       <View style={[styles.grid, { width: rowInner }]}>
         {pairRows.map((row, rowIndex) => (
@@ -158,6 +179,10 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
     marginBottom: responsiveMargin(16),
+  },
+  /** Matches {@link PublicProfessionalProfileView} `sectionBlock` spacing when this grid carries the section title. */
+  wrapSectionBlock: {
+    marginBottom: responsiveMargin(36),
   },
   label: {
     color: primaryBlack,

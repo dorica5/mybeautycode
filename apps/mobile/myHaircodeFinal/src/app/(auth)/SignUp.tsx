@@ -15,7 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { usePostHog } from "posthog-react-native";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { useRef, useState } from "react";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import {
@@ -227,15 +227,12 @@ const SignUp = () => {
           ]}
         >
           <View style={styles.topSection}>
-            <Pressable
-              accessibilityRole="button"
+            <NavBackRow
               accessibilityLabel="Go back"
               onPress={() => router.back()}
               style={styles.backRow}
               hitSlop={12}
-            >
-              <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            </Pressable>
+            />
 
             <View style={styles.logoBlock}>
               <Logo width={logoSize.width} height={logoSize.height} />

@@ -1,8 +1,8 @@
-import { StyleSheet, FlatList, Text, View, Pressable } from "react-native";
+import { StyleSheet, FlatList, Text, View } from "react-native";
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import {
   prefetchHaircodeWithMedia,
   useListClientHaircodes,
@@ -101,16 +101,8 @@ const SeeHaircodeClient = () => {
       <View style={styles.root}>
         <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
           <View style={styles.headerBlock}>
-            <View style={styles.backRow}>
-              <Pressable
-                onPress={() => router.back()}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-                style={styles.backPressable}
-              >
-                <CaretLeft size={responsiveScale(32)} color={primaryBlack} />
-              </Pressable>
+            <View style={navBackChromeStyles.screenBar}>
+              <NavBackRow onPress={() => router.back()} />
             </View>
             <Text style={styles.screenTitle} accessibilityRole="header">
               My visits
@@ -192,14 +184,6 @@ const styles = StyleSheet.create({
   },
   headerBlock: {
     paddingBottom: responsivePadding(8),
-  },
-  backRow: {
-    paddingHorizontal: responsivePadding(20),
-    paddingTop: responsivePadding(8),
-    paddingBottom: responsivePadding(4),
-  },
-  backPressable: {
-    alignSelf: "flex-start",
   },
   /** Same as client profile `myProfileTitle` — title sits below the back row, not inline. */
   screenTitle: {

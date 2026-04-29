@@ -2,7 +2,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,7 +10,7 @@ import {
 import React, { useEffect, useState } from "react";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import {
   BrandAddressAutocompleteField,
   type PlaceDetails,
@@ -345,16 +344,12 @@ const ProfessionalSetup = () => {
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <Pressable
-        accessibilityRole="button"
+      <NavBackRow
         accessibilityLabel="Go back"
         onPress={() => router.back()}
         style={styles.backRow}
         hitSlop={12}
-      >
-        <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-        <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-      </Pressable>
+      />
 
       <KeyboardAvoidingView
         style={styles.keyboard}
@@ -502,14 +497,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding(24),
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
+    alignSelf: "flex-start",
     paddingVertical: responsiveMargin(8),
-    gap: responsiveMargin(4),
-  },
-  backText: {
-    color: primaryBlack,
+    marginBottom: responsiveMargin(8),
+    zIndex: 2,
   },
   pageTitle: {
     textAlign: "center",

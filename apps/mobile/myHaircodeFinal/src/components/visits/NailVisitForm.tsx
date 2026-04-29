@@ -10,7 +10,7 @@ import {
   Keyboard,
   Platform,
 } from "react-native";
-import { CaretLeft, Plus, XCircle } from "phosphor-react-native";
+import { Plus, XCircle } from "phosphor-react-native";
 import { ResizeMode, Video } from "expo-av";
 import { primaryBlack, primaryWhite, secondaryGreen } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
@@ -25,6 +25,7 @@ import {
 } from "@/src/utils/responsive";
 import { router } from "expo-router";
 import { Colors } from "@/src/constants/Colors";
+import { NavBackRow } from "@/src/components/NavBackRow";
 
 export const NAIL_SERVICE_OPTIONS = [
   "Manicure/Pedicure",
@@ -103,16 +104,12 @@ export function NailVisitForm({
   return (
     <View style={styles.nailRoot}>
       <View style={styles.nailTopBar}>
-        <Pressable
+        <NavBackRow
+          layout="inlineBar"
           onPress={() => router.back()}
-          style={styles.nailBackRow}
-          hitSlop={12}
-          accessibilityRole="button"
           accessibilityLabel="Go back"
-        >
-          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-          <Text style={[Typography.bodyMedium, styles.nailBackLabel]}>Back</Text>
-        </Pressable>
+          hitSlop={12}
+        />
         <Pressable
           onPress={onPreviewPress}
           style={styles.nailPreviewContainer}
@@ -338,16 +335,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding(20),
     paddingTop: responsivePadding(4),
     paddingBottom: responsiveMargin(10),
-  },
-  nailBackRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: responsiveMargin(4),
-    paddingVertical: responsiveMargin(4),
-    paddingHorizontal: responsivePadding(4),
-  },
-  nailBackLabel: {
-    color: primaryBlack,
   },
   nailPreviewContainer: {
     justifyContent: "center",
