@@ -2,7 +2,10 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
 import { createClient } from "@supabase/supabase-js";
-import { professionService } from "./professionService";
+import {
+  professionService,
+  normalizeProfessionCodeInput,
+} from "./professionService";
 import { pickDefaultProfessionRow } from "../lib/professionBusinessHelpers";
 
 const supabase = createClient(
@@ -292,17 +295,54 @@ export const haircodeService = {
     services?: string;
     price?: string;
     duration?: string;
-    /** Profession for this visit (e.g. active surface when logging). Defaults to hair for old clients. */
+    /** Profession lane for this visit — required when multiple professions are linked. */
     profession_code?: string;
   }) {
     const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
       data.hairdresser_id
     );
-    const code =
+
+    const lanes = await prisma.professionalProfession.findMany({
+      where: { professionalProfileId, isActive: { not: false } },
+      include: { profession: { select: { code: true } } },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const raw =
       typeof data.profession_code === "string" && data.profession_code.trim()
         ? data.profession_code.trim()
-        : "hair";
-    const professionId = await professionService.getProfessionIdByCode(code);
+        : "";
+
+    let professionId: string;
+
+    if (raw) {
+      const normalized = normalizeProfessionCodeInput(raw);
+      const match = lanes.find(
+        (l) =>
+          normalizeProfessionCodeInput(l.profession.code) === normalized
+      );
+      if (!match) {
+        throw Object.assign(
+          new Error(
+            "profession_code must match one of this professional's linked profession accounts"
+          ),
+          { statusCode: 400 as const }
+        );
+      }
+      professionId = match.professionId;
+    } else if (lanes.length === 0) {
+      /** Legacy onboarding: no `professional_professions` rows yet. */
+      professionId = await professionService.getProfessionIdByCode("hair");
+    } else if (lanes.length === 1) {
+      professionId = lanes[0].professionId;
+    } else {
+      throw Object.assign(
+        new Error(
+          "profession_code is required when this professional has multiple profession accounts"
+        ),
+        { statusCode: 400 as const }
+      );
+    }
 
     const link = await prisma.clientProfessionalLink.findFirst({
       where: {

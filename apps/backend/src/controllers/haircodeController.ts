@@ -134,7 +134,11 @@ export const haircodeController = {
               : undefined,
       });
       res.json(data);
-    } catch (err) {
+    } catch (err: unknown) {
+      const e = err as { statusCode?: number; message?: string };
+      if (e.statusCode === 400) {
+        return res.status(400).json({ error: e.message ?? "Bad request" });
+      }
       console.error("haircode create error:", err);
       res.status(500).json({ error: "Failed to create haircode" });
     }

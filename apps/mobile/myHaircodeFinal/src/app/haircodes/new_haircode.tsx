@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -11,12 +11,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import {
-  pickActiveProfessionCode,
+  coerceProfessionCode,
   type ProfessionChoiceCode,
   HAIR_VISIT_SERVICE_OPTIONS,
   BROW_VISIT_SERVICE_OPTIONS,
 } from "@/src/constants/professionCodes";
-import { getLastProfessionCode } from "@/src/lib/lastVisitPreference";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import {
   NailVisitForm,
   NAIL_SERVICE_OPTIONS,
@@ -73,6 +73,13 @@ function visitServiceOptionsForProfession(
   }
 }
 
+function firstRouteParam(
+  v: string | string[] | undefined
+): string | undefined {
+  if (v === undefined) return undefined;
+  return Array.isArray(v) ? v[0] : v;
+}
+
 const NewHaircode = () => {
   const params = useLocalSearchParams();
   console.log("Media params", params.media);
@@ -104,26 +111,48 @@ const NewHaircode = () => {
   const { mutate: submitHaircode, isPending } = useSubmitHaircode();
   const posthog = usePostHog();
 
-  const [activeProfessionCode, setActiveProfessionCode] =
-    useState<ProfessionChoiceCode | null>(null);
+  const {
+    activeProfessionCode: storedLaneProfessionCode,
+    storedProfessionReady,
+  } = useActiveProfessionState(profile);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const userId = profile?.id;
-      if (!userId) return;
-      const last = await getLastProfessionCode(userId);
-      if (cancelled) return;
-      const picked = pickActiveProfessionCode(
-        profile?.profession_codes,
-        last
-      );
-      setActiveProfessionCode(picked ?? "hair");
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile?.id, profile?.profession_codes]);
+  const normalizedProfileProfessionCodes = useMemo((): ProfessionChoiceCode[] => {
+    const out: ProfessionChoiceCode[] = [];
+    const codes =
+      profile?.profession_codes ??
+      (profile as { professionCodes?: string[] | null } | null)?.professionCodes;
+    for (const c of codes ?? []) {
+      const n = coerceProfessionCode(c);
+      if (n && !out.includes(n)) out.push(n);
+    }
+    return out;
+  }, [profile]);
+
+  const routeProfessionCode = useMemo(() => {
+    const raw =
+      firstRouteParam(params.professionCode as string | string[] | undefined) ??
+      firstRouteParam(params.profession_code as string | string[] | undefined);
+    return coerceProfessionCode(raw ?? undefined);
+  }, [params.professionCode, params.profession_code]);
+
+  const routeLaneMatchesProfile =
+    Boolean(routeProfessionCode) &&
+    (normalizedProfileProfessionCodes.length === 0 ||
+      normalizedProfileProfessionCodes.includes(routeProfessionCode));
+
+  /** Same lane as `haircodes/[id]` “New visit” — wins over AsyncStorage when passed & validated. */
+  const activeProfessionCode = useMemo(() => {
+    if (routeLaneMatchesProfile && routeProfessionCode)
+      return routeProfessionCode;
+    return storedLaneProfessionCode;
+  }, [
+    routeLaneMatchesProfile,
+    routeProfessionCode,
+    storedLaneProfessionCode,
+  ]);
+
+  const professionLaneReady =
+    storedProfessionReady || routeLaneMatchesProfile;
 
   const [durationMinutes, setDurationMinutes] = useState<number>(
     params.duration ? parseInt(params.duration.toString()) : 0
@@ -355,6 +384,13 @@ const NewHaircode = () => {
   };
 
   const handleSubmit = async () => {
+    if (!activeProfessionCode) {
+      Alert.alert(
+        "Error",
+        "Could not determine which profession account this visit is for. Try again."
+      );
+      return;
+    }
     try {
       await submitHaircode({
         isEditing,
@@ -369,7 +405,7 @@ const NewHaircode = () => {
         clientId,
         uploadMedia,
         hasMediaChanged,
-        professionCode: activeProfessionCode ?? "hair",
+        professionCode: activeProfessionCode,
       });
 
       posthog.capture("Haircode Added", {
@@ -406,14 +442,19 @@ const NewHaircode = () => {
     carouselHeight: screenHeight * IMAGE_CROP_VIEWPORT_HEIGHT_RATIO,
   };
 
-  const visitPreviewModal = (
-    <VisitPreviewModalContent
-      {...visitPreviewBaseProps}
-      professionCode={activeProfessionCode ?? "hair"}
-    />
-  );
+  const visitPreviewModal =
+    activeProfessionCode != null ? (
+      <VisitPreviewModalContent
+        {...visitPreviewBaseProps}
+        professionCode={activeProfessionCode}
+      />
+    ) : null;
 
-  if (activeProfessionCode === null) {
+  if (
+    !profile?.id ||
+    !professionLaneReady ||
+    activeProfessionCode === null
+  ) {
     return (
       <View
         style={{

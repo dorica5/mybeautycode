@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { StyleSheet, View, Alert, Pressable, Text } from "react-native";
+import { StyleSheet, View, Alert, Pressable, Text, ActivityIndicator } from "react-native";
 import { DotsThree } from "phosphor-react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -151,29 +151,32 @@ const OtherProfessionalProfileScreen = () => {
 
   const deleteHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
+    if (!professionCodeFromVisit) {
+      Alert.alert(
+        "Couldn't remove link",
+        "We couldn't tell which role this is for. Open this professional from Discover or My professionals, then try again."
+      );
+      return;
+    }
     try {
       await removeRelationships.mutateAsync([
-        { hairdresserId: hairdresser_id, professionCode: professionCodeFromVisit },
-      ]);
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["relationship", client_id, hairdresser_id],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["listAllHairdresserSearch", client_id],
-        }),
+        {
+          hairdresserId: hairdresser_id,
+          professionCode: professionCodeFromVisit,
+        },
       ]);
       setActiveAction(null);
-      router.back();
+      setIsModalVisible(false);
+      router.replace("/(client)/(tabs)/home" as Href);
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to delete user.");
+      Alert.alert("Error", "Failed to remove this professional.");
+      throw error;
     }
   }, [
     client_id,
     hairdresser_id,
     professionCodeFromVisit,
-    queryClient,
     removeRelationships,
   ]);
 
@@ -204,7 +207,7 @@ const OtherProfessionalProfileScreen = () => {
       );
 
       await queryClient.invalidateQueries({
-        queryKey: ["relationship", client_id, hairdresser_id],
+        queryKey: ["relationship"],
       });
     } catch (error) {
       console.error("Error adding hairdresser:", error);
@@ -353,13 +356,12 @@ const OtherProfessionalProfileScreen = () => {
             <ModerationReasonRow
               label="Remove professional"
               danger
-              onPress={async () => {
-                await deleteHairdresser();
-                setActiveAction(null);
-              }}
+              disabled={removeRelationships.isPending}
+              onPress={() => void deleteHairdresser().catch(() => {})}
             />
             <ModerationReasonRow
               label="Not now"
+              disabled={removeRelationships.isPending}
               onPress={() => setActiveAction(null)}
             />
           </>
@@ -433,7 +435,7 @@ const OtherProfessionalProfileScreen = () => {
   }
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
       <PublicProfessionalProfileView
         mode="client"
@@ -492,13 +494,29 @@ const OtherProfessionalProfileScreen = () => {
           renderContent={renderModerationDetail()}
         />
       ) : null}
-    </>
+      {removeRelationships.isPending ? (
+        <View
+          style={styles.removingOverlay}
+          pointerEvents="auto"
+          accessibilityLabel="Removing professional"
+        >
+          <ActivityIndicator size="large" color={primaryBlack} />
+        </View>
+      ) : null}
+    </View>
   );
 };
 
 export default OtherProfessionalProfileScreen;
 
 const styles = StyleSheet.create({
+  removingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(241, 249, 244, 0.94)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
   routeUnavailable: {
     flex: 1,
     backgroundColor: primaryGreen,

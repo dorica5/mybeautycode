@@ -30,17 +30,33 @@ import {
 /** Client surface = delete Supabase user & DB profile. Professional = delete current lane only (or whole pro profile if last lane). */
 type DeleteScope = "client" | "professional";
 
+function routeProfessionParam(
+  params: Record<string, unknown>
+): string {
+  const candidates = [
+    params.profession_code,
+    params.professionCode,
+  ];
+  for (const v of candidates) {
+    if (typeof v === "string" && v.trim()) return v.trim();
+    if (Array.isArray(v) && typeof v[0] === "string" && v[0].trim()) {
+      return v[0].trim();
+    }
+  }
+  return "";
+}
+
 const Delete = () => {
   const params = useLocalSearchParams<{
     scope?: string;
     profession_code?: string;
+    professionCode?: string;
   }>();
   const scope: DeleteScope =
     params.scope === "professional" ? "professional" : "client";
-  const professionCodeParam =
-    typeof params.profession_code === "string"
-      ? params.profession_code.trim()
-      : "";
+  const professionCodeParam = routeProfessionParam(
+    params as Record<string, unknown>
+  );
 
   const { profile, clearProfile, setProfile } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -75,10 +91,11 @@ const Delete = () => {
           );
           return;
         }
-        const qs = new URLSearchParams({
-          profession_code: professionCodeParam,
+        const canonical =
+          coerceProfessionCode(professionCodeParam) ?? professionCodeParam;
+        await api.post(`/api/users/me/professional-lane/delete`, {
+          profession_code: canonical,
         });
-        await api.delete(`/api/users/me/professional-lane?${qs.toString()}`);
         let next = (await api.get("/api/auth/me")) as typeof profile;
         setProfile(next);
 

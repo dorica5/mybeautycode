@@ -18,14 +18,28 @@ function readProfessionCodeQuery(q: Request["query"]): string | undefined {
   return t && t.length > 0 ? t : undefined;
 }
 
+function readProfessionCodeBody(body: unknown): string | undefined {
+  if (body == null || typeof body !== "object") return undefined;
+  const b = body as Record<string, unknown>;
+  const raw =
+    typeof b.profession_code === "string"
+      ? b.profession_code
+      : typeof b.professionCode === "string"
+        ? b.professionCode
+        : undefined;
+  const t = raw?.trim();
+  return t && t.length > 0 ? t : undefined;
+}
+
 export const userController = {
-  /** DELETE /api/users/me/professional-lane?profession_code=hair */
+  /** DELETE or POST — POST `/me/professional-lane/delete` is preferred (some proxies mishandle DELETE bodies). */
   async deleteProfessionalLane(req: Request, res: Response) {
     const userId = req.userId;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const professionCode = readProfessionCodeQuery(req.query);
+    const professionCode =
+      readProfessionCodeQuery(req.query) ?? readProfessionCodeBody(req.body);
     if (!professionCode) {
       return res.status(400).json({ error: "profession_code is required." });
     }

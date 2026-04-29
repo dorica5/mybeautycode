@@ -140,7 +140,9 @@ async function handleResponse(res: Response) {
     let msg =
       typeof (data as { error?: string })?.error === "string"
         ? (data as { error: string }).error
-        : res.statusText?.trim() || "";
+        : typeof (data as { message?: string })?.message === "string"
+          ? (data as { message: string }).message
+          : res.statusText?.trim() || "";
     if (!msg) {
       msg =
         res.status === 401

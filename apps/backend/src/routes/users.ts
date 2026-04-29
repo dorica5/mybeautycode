@@ -5,6 +5,10 @@ import { userController } from "../controllers/userController";
 export const userRoutes = Router();
 
 userRoutes.use(authMiddleware);
+userRoutes.post(
+  "/me/professional-lane/delete",
+  userController.deleteProfessionalLane
+);
 userRoutes.delete(
   "/me/professional-lane",
   userController.deleteProfessionalLane

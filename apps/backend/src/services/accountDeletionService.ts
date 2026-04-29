@@ -29,28 +29,38 @@ export async function deleteProfessionalLane(
     });
   }
 
-  let professionId: string;
-  try {
-    professionId = await professionService.getProfessionIdByCode(normalized);
-  } catch {
-    throw Object.assign(new Error(`Unknown profession "${rawProfessionCode}".`), {
-      statusCode: 400 as const,
-    });
-  }
-
-  const ppRow = await prisma.professionalProfession.findFirst({
-    where: {
-      professionalProfileId: professionalProfile.id,
-      professionId,
-    },
-    select: { id: true },
+  /** Resolve lane by scanning linked rows (handles aliases; avoids lookup table vs FK drift). */
+  const laneRows = await prisma.professionalProfession.findMany({
+    where: { professionalProfileId: professionalProfile.id },
+    include: { profession: { select: { code: true } } },
   });
-  if (!ppRow) {
+  const matchRow = laneRows.find(
+    (r) => normalizeProfessionCodeInput(r.profession.code) === normalized
+  );
+  if (!matchRow) {
+    if (laneRows.length === 0) {
+      throw Object.assign(
+        new Error("No profession lanes are linked to your professional account."),
+        { statusCode: 404 as const }
+      );
+    }
+    try {
+      await professionService.getProfessionIdByCode(normalized);
+    } catch {
+      throw Object.assign(new Error(`Unknown profession "${rawProfessionCode}".`), {
+        statusCode: 400 as const,
+      });
+    }
     throw Object.assign(
-      new Error("That profession is not linked to your professional account."),
+      new Error(
+        "That profession is not linked to your professional account."
+      ),
       { statusCode: 404 as const }
     );
   }
+
+  const ppRow = { id: matchRow.id };
+  const professionId = matchRow.professionId;
 
   const lanesBefore = await prisma.professionalProfession.count({
     where: { professionalProfileId: professionalProfile.id },

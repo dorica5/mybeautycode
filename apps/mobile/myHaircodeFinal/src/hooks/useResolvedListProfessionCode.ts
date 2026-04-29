@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import { useAuth } from "@/src/providers/AuthProvider";
 import {
   coerceProfessionCode,
@@ -63,6 +64,22 @@ export function useResolvedListProfessionCode(
     };
   }, [profile?.id, proCodesKey]);
 
+  const reloadLastVisitPreference = useCallback(() => {
+    const uid = profile?.id;
+    if (!uid) return;
+    if (normalizedProCodes.length <= 1) return;
+    void getLastProfessionCode(uid).then((last) => {
+      setLastProfessionCode(last);
+      setMultiLastLoaded(true);
+    });
+  }, [profile?.id, proCodesKey]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reloadLastVisitPreference();
+    }, [reloadLastVisitPreference])
+  );
+
   const pickedFromProfile = useMemo(
     () =>
       pickActiveProfessionCode(
@@ -89,7 +106,9 @@ export function useResolvedListProfessionCode(
       if (fromParam && normalizedProCodes.includes(fromParam)) {
         return fromParam;
       }
-      return (pickedFromProfile ?? "hair") as ProfessionChoiceCode;
+      return (pickedFromProfile ??
+        normalizedProCodes[0] ??
+        "hair") as ProfessionChoiceCode;
     }
     return (pickedFromProfile ?? fromParam ?? "hair") as ProfessionChoiceCode;
   }, [routeProfessionParam, normalizedProCodes, pickedFromProfile]);

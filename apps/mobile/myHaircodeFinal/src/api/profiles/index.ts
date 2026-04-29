@@ -199,8 +199,14 @@ export const useRemoveRelationships = (clientId: string) => {
         });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["manageHairdresser", clientId] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["manageHairdresser", clientId],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["relationship"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["listAllHairdresserSearch", clientId],
+      });
     },
   });
 };

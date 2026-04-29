@@ -7,7 +7,7 @@ import {
   ScrollView,
   Dimensions,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CaretRight, Plus, Eye, DotsThree } from "phosphor-react-native";
 import { ViewGalleryRowIcon } from "@/src/components/ViewGalleryRowIcon";
@@ -39,7 +39,11 @@ import {
   unblockUser,
 } from "@/src/api/moderation";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { useResolvedListProfessionCode } from "@/src/hooks/useResolvedListProfessionCode";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import {
+  coerceProfessionCode,
+  type ProfessionChoiceCode,
+} from "@/src/constants/professionCodes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRelationshipCheck, removeRelationship } from "@/src/api/relationships";
 import {
@@ -54,6 +58,13 @@ import { NavBackRow, navBackChromeBarCombined } from "@/src/components/NavBackRo
 
 const screenHeight = Dimensions.get("window").height;
 
+function firstRouteParam(
+  v: string | string[] | undefined
+): string | undefined {
+  if (v === undefined) return undefined;
+  return Array.isArray(v) ? v[0] : v;
+}
+
 const HaircodeList = () => {
   const {
     id: client_id,
@@ -62,8 +73,10 @@ const HaircodeList = () => {
     relationship,
     price,
     professionCode: professionCodeParam,
+    profession_code: professionCodeSnakeParam,
   } = useLocalSearchParams<{
     professionCode?: string | string[];
+    profession_code?: string | string[];
   }>();
 
   const { data: profileData } = useClientSearch(client_id);
@@ -78,15 +91,52 @@ const HaircodeList = () => {
           profileData.phoneNumber ?? profileData.phone_number,
       }
     : undefined;
-  const { session, profile: authProfile } = useAuth();
+  const { session, profile } = useAuth();
   const hairdresser_id = session?.user.id;
 
-  const { code: navProfessionCode, ready: navProfessionReady } =
-    useResolvedListProfessionCode(
-      Array.isArray(professionCodeParam)
-        ? professionCodeParam[0]
-        : professionCodeParam
-    );
+  const normalizedProfileProfessionCodes = useMemo((): ProfessionChoiceCode[] => {
+    const out: ProfessionChoiceCode[] = [];
+    const codes =
+      profile?.profession_codes ??
+      (profile as { professionCodes?: string[] | null } | null)?.professionCodes;
+    for (const c of codes ?? []) {
+      const n = coerceProfessionCode(c);
+      if (n && !out.includes(n)) out.push(n);
+    }
+    return out;
+  }, [profile]);
+
+  const routeProfessionFromUrl = useMemo(() => {
+    const raw =
+      firstRouteParam(professionCodeParam) ??
+      firstRouteParam(professionCodeSnakeParam);
+    return coerceProfessionCode(raw ?? undefined);
+  }, [professionCodeParam, professionCodeSnakeParam]);
+
+  const {
+    activeProfessionCode: storageLaneProfessionCode,
+    storedProfessionReady,
+  } = useActiveProfessionState(profile);
+
+  const routeLaneMatchesProfile =
+    Boolean(routeProfessionFromUrl) &&
+    (normalizedProfileProfessionCodes.length === 0 ||
+      normalizedProfileProfessionCodes.includes(routeProfessionFromUrl));
+
+  /** Same lane resolution as `(hairdresser)/home` — avoids stale hair fallback from `useResolvedListProfessionCode`. */
+  const navProfessionCode = useMemo((): ProfessionChoiceCode | null => {
+    if (routeLaneMatchesProfile && routeProfessionFromUrl)
+      return routeProfessionFromUrl;
+    return storageLaneProfessionCode;
+  }, [
+    routeLaneMatchesProfile,
+    routeProfessionFromUrl,
+    storageLaneProfessionCode,
+  ]);
+
+  const navProfessionReady =
+    Boolean(navProfessionCode) &&
+    (storedProfessionReady || routeLaneMatchesProfile);
 
   const queryClient = useQueryClient();
   const relationshipQueryEnabled = Boolean(
@@ -371,7 +421,12 @@ const HaircodeList = () => {
                   onPress={() =>
                     router.push({
                       pathname: "/haircodes/new_haircode",
-                      params: { clientId: client_id },
+                      params: {
+                        clientId: client_id as string,
+                        ...(navProfessionReady && navProfessionCode
+                          ? { professionCode: navProfessionCode }
+                          : {}),
+                      },
                     })
                   }
                 >

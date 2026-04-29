@@ -1,4 +1,5 @@
 import { api } from "@/src/lib/apiClient";
+import { setLastProfessionCode } from "@/src/lib/lastVisitPreference";
 import { sendPushNotification } from "@/src/providers/useNotifcations";
 import type { QueryClient } from "@tanstack/react-query";
 import {
@@ -331,6 +332,7 @@ export const useSubmitHaircode = () => {
           }
         }
       } else {
+        await setLastProfessionCode(profile.id, professionCode);
         const data = await api.post<{ id: string; createdAt: string; service_description?: string; services?: string; price?: string; duration?: string }>("/api/haircodes", {
           ...haircodeData,
           client_id: clientId,

@@ -81,20 +81,24 @@ type ReasonRowProps = {
   onPress: () => void;
   /** Visually emphasize (e.g. confirm remove). */
   danger?: boolean;
+  disabled?: boolean;
 };
 
 export function ModerationReasonRow({
   label,
   onPress,
   danger,
+  disabled,
 }: ReasonRowProps) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         reasonStyles.row,
-        pressed && reasonStyles.rowPressed,
+        pressed && !disabled && reasonStyles.rowPressed,
         danger && reasonStyles.rowDanger,
+        disabled && reasonStyles.rowDisabled,
       ]}
     >
       <Text
@@ -134,6 +138,9 @@ const reasonStyles = StyleSheet.create({
   },
   rowDanger: {
     borderColor: `${moderationDestructive}40`,
+  },
+  rowDisabled: {
+    opacity: 0.45,
   },
   label: {
     color: primaryBlack,

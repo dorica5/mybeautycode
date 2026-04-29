@@ -1,12 +1,13 @@
 /* eslint-disable react/react-in-jsx-scope */
 import React, { useState, useCallback, useMemo } from "react";
-import { StyleSheet, View, Alert, Pressable } from "react-native";
+import { StyleSheet, View, Alert, Pressable, ActivityIndicator } from "react-native";
 import { DotsThree } from "phosphor-react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
+import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { Colors, primaryBlack } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
@@ -39,7 +40,7 @@ const ProfessionalProfileScreen = () => {
     id: string;
     profession?: string;
   }>();
-  const professionCode =
+  const routeProfessionRaw =
     typeof profession === "string" && profession.trim()
       ? profession.trim()
       : null;
@@ -69,17 +70,22 @@ const ProfessionalProfileScreen = () => {
       }
     : undefined;
 
-  const analyticsProfessionCode = useMemo(() => {
-    if (professionCode) return professionCode;
-    const codes = data?.profession_codes;
-    if (Array.isArray(codes) && codes[0]) return String(codes[0]).trim();
+  const scopedProfessionCode = useMemo(() => {
+    if (routeProfessionRaw) {
+      return coerceProfessionCode(routeProfessionRaw) ?? routeProfessionRaw;
+    }
+    const codes = p?.profession_codes;
+    if (Array.isArray(codes) && codes.length > 0) {
+      const first = String(codes[0]).trim();
+      return coerceProfessionCode(first) ?? first;
+    }
     return null;
-  }, [professionCode, data?.profession_codes]);
+  }, [routeProfessionRaw, p?.profession_codes]);
 
   const { data: isRelated = false, isPending: relPending } = useRelationshipCheck(
     client_id ?? undefined,
     hairdresser_id,
-    professionCode
+    scopedProfessionCode
   );
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
@@ -96,7 +102,7 @@ const ProfessionalProfileScreen = () => {
   const { mutateAsync: addHairdresserDB } = useAddHairdresser(
     hairdresser_id,
     client_id,
-    professionCode
+    scopedProfessionCode
   );
 
   const isBlockedUser = Boolean(
@@ -109,31 +115,32 @@ const ProfessionalProfileScreen = () => {
 
   const deleteHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
+    if (!scopedProfessionCode) {
+      Alert.alert(
+        "Couldn't remove link",
+        "We couldn't tell which role this is for. Open them from Discover or My professionals, then try again."
+      );
+      return;
+    }
     try {
       await removeRelationships.mutateAsync([
-        { hairdresserId: hairdresser_id, professionCode },
+        {
+          hairdresserId: hairdresser_id,
+          professionCode: scopedProfessionCode,
+        },
       ]);
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["relationship", client_id, hairdresser_id],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["listAllHairdresserSearch", client_id],
-        }),
-      ]);
-      router.replace({
-        pathname: "/(client)/(tabs)/userList/professionalProfile/[id]",
-        params: { id: hairdresser_id },
-      });
+      setActiveAction(null);
+      setIsModalVisible(false);
+      router.replace("/(client)/(tabs)/home" as Href);
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to delete user.");
+      Alert.alert("Error", "Failed to remove this professional.");
+      throw error;
     }
   }, [
     client_id,
     hairdresser_id,
-    professionCode,
-    queryClient,
+    scopedProfessionCode,
     removeRelationships,
   ]);
 
@@ -155,14 +162,14 @@ const ProfessionalProfileScreen = () => {
           isClient: true,
           senderName: profile?.full_name,
           senderAvatar: profile?.avatar_url,
-          ...(professionCode ? { profession_code: professionCode } : {}),
+          ...(scopedProfessionCode ? { profession_code: scopedProfessionCode } : {}),
         },
         "New Client Added",
-        professionCode ?? undefined
+        scopedProfessionCode ?? undefined
       );
 
       await queryClient.invalidateQueries({
-        queryKey: ["relationship", client_id, hairdresser_id],
+        queryKey: ["relationship"],
       });
     } catch (error) {
       console.error("Error adding hairdresser:", error);
@@ -170,7 +177,7 @@ const ProfessionalProfileScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient]);
+  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient, scopedProfessionCode]);
 
   const handleModalOption = (action: string) => {
     setPendingAction(action);
@@ -309,13 +316,12 @@ const ProfessionalProfileScreen = () => {
             <ModerationReasonRow
               label="Remove professional"
               danger
-              onPress={async () => {
-                await deleteHairdresser();
-                setActiveAction(null);
-              }}
+              disabled={removeRelationships.isPending}
+              onPress={() => void deleteHairdresser().catch(() => {})}
             />
             <ModerationReasonRow
               label="Not now"
+              disabled={removeRelationships.isPending}
               onPress={() => setActiveAction(null)}
             />
           </>
@@ -369,7 +375,7 @@ const ProfessionalProfileScreen = () => {
   if (!data || !hairdresser_id) return null;
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
       <PublicProfessionalProfileView
         mode="client"
@@ -398,7 +404,7 @@ const ProfessionalProfileScreen = () => {
             <DotsThree size={32} color={primaryBlack} weight="bold" />
           </Pressable>
         }
-        analyticsProfessionCode={analyticsProfessionCode}
+        analyticsProfessionCode={scopedProfessionCode}
       />
       <SmallDraggableModal
         isVisible={isModalVisible}
@@ -422,13 +428,29 @@ const ProfessionalProfileScreen = () => {
           renderContent={renderModerationDetail()}
         />
       ) : null}
-    </>
+      {removeRelationships.isPending ? (
+        <View
+          style={styles.removingOverlay}
+          pointerEvents="auto"
+          accessibilityLabel="Removing professional"
+        >
+          <ActivityIndicator size="large" color={primaryBlack} />
+        </View>
+      ) : null}
+    </View>
   );
 };
 
 export default ProfessionalProfileScreen;
 
 const styles = StyleSheet.create({
+  removingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(241, 249, 244, 0.94)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
   blockedWrap: {
     flex: 1,
     backgroundColor: Colors.light.primaryGreen,
