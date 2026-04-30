@@ -18,6 +18,7 @@ import {
   primaryBlack,
   primaryGreen,
 } from "@/src/constants/Colors";
+import { responsivePadding } from "@/src/utils/responsive";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -374,6 +375,7 @@ const styles = StyleSheet.create({
   },
   contentContainerBrand: {
     paddingTop: 4,
+    paddingBottom: responsivePadding(28, 32),
   },
 });
 

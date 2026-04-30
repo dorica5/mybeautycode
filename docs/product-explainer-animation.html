@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>myHaircode — product story</title>
+  <style>
+    :root {
+      --bg: #141518;
+      --surface: #1e2026;
+      --text: #e8eaef;
+      --muted: #9aa0ae;
+      --accent: #6b8cae;
+      --stroke: #2f323c;
+      --dur: 4.5s;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 720px;
+    }
+    header {
+      margin-bottom: 28px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 650;
+      margin: 0 0 8px;
+      letter-spacing: -0.02em;
+    }
+    .subtitle {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    .stage {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--stroke);
+      border-radius: 10px;
+      padding: 28px 24px;
+      min-height: 200px;
+      overflow: hidden;
+    }
+    .scene {
+      position: absolute;
+      left: 24px;
+      right: 24px;
+      top: 28px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+      pointer-events: none;
+    }
+    .scene.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .scene h2 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 0 0 12px;
+      color: var(--text);
+    }
+    .scene p {
+      margin: 0;
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+    .mock {
+      margin-top: 20px;
+      min-height: 100px;
+      border: 1px dashed var(--stroke);
+      border-radius: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      align-content: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px;
+    }
+    .mock span {
+      display: block;
+      background: var(--stroke);
+      border-radius: 4px;
+      animation: pulse 2.2s ease-in-out infinite;
+    }
+    .mock span:nth-child(1) { width: 44px; height: 44px; border-radius: 8px; animation-delay: 0s; }
+    .mock span:nth-child(2) { flex: 1; height: 10px; animation-delay: 0.15s; }
+    .mock span:nth-child(3) { width: 100%; height: 36px; margin-top: 8px; flex-basis: 100%; animation-delay: 0.3s; }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.45; }
+      50% { opacity: 1; }
+    }
+    .dots {
+      display: flex;
+      gap: 6px;
+      margin-top: 18px;
+      justify-content: center;
+    }
+    .dots button {
+      width: 8px;
+      height: 8px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: var(--stroke);
+      cursor: pointer;
+    }
+    .dots button[aria-current="true"] {
+      background: var(--accent);
+    }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .controls button {
+      font: inherit;
+      font-size: 0.85rem;
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .controls button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+    footer {
+      margin-top: 28px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .scene {
+        transition: none;
+      }
+      .mock span {
+        animation: none;
+        opacity: 0.75;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>myHaircode</h1>
+      <p class="subtitle">High-level product story: what the app is for, who it serves, and how the pieces fit. Customer-facing name in-app: <strong style="color:var(--text);font-weight:600">myne</strong>.</p>
+    </header>
+
+    <div class="stage" id="stage" aria-live="polite">
+      <div class="scene active" data-scene="0">
+        <h2>Between visits, context disappears</h2>
+        <p>Clients lose track of formulas and references. Stylists split details across notes, messages, and camera rolls. myHaircode keeps every visit and visual in one shared, structured place.</p>
+        <div class="mock" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+      <div class="scene" data-scene="1">
+        <h2>A digital hair journal</h2>
+        <p>It links hairdressers and clients: service history, photos and videos, inspiration boards, and profiles tuned to how salons work—not generic chat or spreadsheets.</p>
+        <div class="mock" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+      <div class="scene" data-scene="2">
+        <h2>For hairdressers</h2>
+        <p>Create haircodes (visit records) with services, price, duration, and narrative. Attach a media gallery. QR-style flows can get clients straight to the right record.</p>
+        <div class="mock" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+      <div class="scene" data-scene="3">
+        <h2>For clients</h2>
+        <p>See your full hair history with stylists you trust, manage those relationships, save inspiration, and know what was done—without searching old threads.</p>
+        <div class="mock" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+      <div class="scene" data-scene="4">
+        <h2>Privacy built in</h2>
+        <p>Roles are clear: hairdresser and client. A haircode is visible to the pair it belongs to. Client profiles hold baseline hair traits so the next visit starts informed.</p>
+        <div class="mock" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+      <div class="scene" data-scene="5">
+        <h2>On the go</h2>
+        <p>Mobile-first Expo app: camera, gallery, video, notifications. Supabase powers auth, data, and storage so records stay in sync. The stack leaves room to grow toward a broader beauty platform over time.</p>
+        <div class="mock" aria-hidden="true"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+
+    <div class="dots" id="dots"></div>
+    <div class="controls">
+      <button type="button" id="prev">Previous</button>
+      <button type="button" id="play" class="primary">Play</button>
+      <button type="button" id="next">Next</button>
+    </div>
+
+    <footer>
+      <strong style="color:var(--text)">Spec capsule:</strong> entities include profiles, hairdresser–client relationships, haircodes with media, and inspirations; mobile client with optional extended API in the monorepo. Use this file in a browser tab or record the screen for a lightweight motion overview.
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var scenes = [].slice.call(document.querySelectorAll(".scene"));
+      var idx = 0;
+      var timer = null;
+      var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var stepMs = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dur")) * 1000 || 4500;
+
+      function show(i) {
+        idx = (i + scenes.length) % scenes.length;
+        scenes.forEach(function (el, j) {
+          el.classList.toggle("active", j === idx);
+        });
+        [].slice.call(document.querySelectorAll(".dots button")).forEach(function (btn, j) {
+          btn.setAttribute("aria-current", j === idx ? "true" : "false");
+        });
+      }
+
+      function stop() {
+        if (timer) clearInterval(timer);
+        timer = null;
+        var play = document.getElementById("play");
+        if (play) play.textContent = "Play";
+      }
+
+      function play() {
+        if (timer) {
+          stop();
+          return;
+        }
+        document.getElementById("play").textContent = "Pause";
+        timer = setInterval(function () {
+          show(idx + 1);
+        }, stepMs);
+      }
+
+      scenes.forEach(function (_, i) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("aria-label", "Scene " + (i + 1));
+        b.addEventListener("click", function () {
+          stop();
+          show(i);
+        });
+        document.getElementById("dots").appendChild(b);
+      });
+
+      document.getElementById("prev").addEventListener("click", function () {
+        stop();
+        show(idx - 1);
+      });
+      document.getElementById("next").addEventListener("click", function () {
+        stop();
+        show(idx + 1);
+      });
+      document.getElementById("play").addEventListener("click", function () {
+        play();
+      });
+
+      show(0);
+      if (!reduceMotion) play();
+    })();
+  </script>
+</body>
+</html>

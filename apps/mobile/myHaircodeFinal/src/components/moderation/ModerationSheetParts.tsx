@@ -38,9 +38,15 @@ export const moderationDetailCopy = {
   },
 } as const;
 
-/** Extra space under the last report reason ("Other") so the sheet scroll area does not feel tight. */
+/**
+ * Extra space under the last report reason ("Other").
+ * Use `paddingBottom` on the wrapper `View` (not `marginBottom`): margins on the last
+ * child in `ScrollView` — especially inside sheets — are often clipped or omitted from
+ * content size on iOS; padding is always laid out. `collapsable={false}` on the wrapper
+ * avoids Android collapsing that view away.
+ */
 export const reportOtherReasonRowStyle: ViewStyle = {
-  marginBottom: responsiveMargin(32),
+  paddingBottom: responsiveMargin(32, 44),
 };
 
 const hairline = StyleSheet.hairlineWidth;
@@ -87,7 +93,10 @@ type ReasonRowProps = {
   /** Visually emphasize (e.g. confirm remove). */
   danger?: boolean;
   disabled?: boolean;
-  /** Appended after base row styles (e.g. extra margin on last report reason). */
+  /**
+   * Outer wrapper styles (e.g. bottom margin on last report reason). Prefer this over
+   * putting margin on the row `Pressable` so spacing is measured correctly in scroll views.
+   */
   style?: StyleProp<ViewStyle>;
 };
 
@@ -98,16 +107,16 @@ export function ModerationReasonRow({
   disabled,
   style,
 }: ReasonRowProps) {
-  return (
+  const row = (
     <Pressable
       onPress={onPress}
       disabled={disabled}
       style={({ pressed }) => [
         reasonStyles.row,
+        style && reasonStyles.rowFlushBottom,
         pressed && !disabled && reasonStyles.rowPressed,
         danger && reasonStyles.rowDanger,
         disabled && reasonStyles.rowDisabled,
-        style,
       ]}
     >
       <Text
@@ -127,6 +136,15 @@ export function ModerationReasonRow({
       />
     </Pressable>
   );
+
+  if (style) {
+    return (
+      <View style={style} collapsable={false}>
+        {row}
+      </View>
+    );
+  }
+  return row;
 }
 
 const reasonStyles = StyleSheet.create({
@@ -141,6 +159,10 @@ const reasonStyles = StyleSheet.create({
     borderRadius: responsiveScale(14),
     borderWidth: hairline,
     borderColor: `${primaryBlack}18`,
+  },
+  /** When a wrapper owns bottom spacing, keep default row gap off the pressable. */
+  rowFlushBottom: {
+    marginBottom: 0,
   },
   rowPressed: {
     backgroundColor: secondaryGreen,
