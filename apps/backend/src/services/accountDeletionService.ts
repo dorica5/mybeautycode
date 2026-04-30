@@ -67,6 +67,23 @@ export async function deleteProfessionalLane(
   });
 
   await prisma.$transaction(async (tx) => {
+    /**
+     * Removing this profession lane reuses the same `professional_profiles` row
+     * when the user adds the role again. Detach prior visits for this lane from the
+     * professional so they do not reappear on the pro home screen; the client
+     * keeps their timeline (`professional_profile_id` becomes null on the visit).
+     */
+    await tx.serviceRecord.updateMany({
+      where: {
+        professionalProfileId: professionalProfile.id,
+        professionId,
+      },
+      data: {
+        professionalProfileId: null,
+        clientProfessionalLinkId: null,
+      },
+    });
+
     await tx.clientProfessionalLink.deleteMany({
       where: {
         professionalProfileId: professionalProfile.id,

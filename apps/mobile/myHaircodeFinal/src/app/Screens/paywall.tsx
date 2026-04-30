@@ -33,6 +33,14 @@ import {
 } from "@/src/components/MintBrandModal";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
+import {
+  clearPendingProfessionalSetup,
+  getPendingProfessionalSetup,
+} from "@/src/lib/pendingProfessionalSetup";
+import { runProfessionalSetupCompletionSideEffects } from "@/src/lib/professionalSetupCompletion";
+import { useUpdateSupabaseProfile } from "@/src/api/profiles";
+import { useAuth } from "@/src/providers/AuthProvider";
+import { usePostHog } from "posthog-react-native";
 
 type Plan = "monthly" | "annual" | "lifetime";
 
@@ -45,6 +53,9 @@ const PRICES_NOK: Record<Plan, string> = {
 const Paywall = () => {
   const logoSize = useBeautyCodeLogoSize();
   const { from } = useLocalSearchParams<{ from?: string }>();
+  const { profile, setLoadingSetup } = useAuth();
+  const posthog = usePostHog();
+  const { mutateAsync: persistProfile } = useUpdateSupabaseProfile();
   const [selectedPlan, setSelectedPlan] = useState<Plan>("annual");
   const [busy, setBusy] = useState(false);
 
@@ -72,18 +83,54 @@ const Paywall = () => {
   const handlePrimary = async () => {
     setBusy(true);
     try {
+      if (from === "professional-setup") {
+        const pending = getPendingProfessionalSetup();
+        if (!pending) {
+          Alert.alert(
+            "Could not continue",
+            "Your setup data was lost. Go back and tap Save again."
+          );
+          return;
+        }
+        setLoadingSetup(true);
+        try {
+          await persistProfile(pending.updateBody);
+          await runProfessionalSetupCompletionSideEffects({
+            userId: pending.userId,
+            professionCode: pending.professionCode,
+            profile,
+            posthog,
+          });
+          clearPendingProfessionalSetup();
+        } catch (e) {
+          console.error("Professional setup save after paywall:", e);
+          const msg =
+            e instanceof Error ? e.message : "Please try again.";
+          Alert.alert("Could not save your profile", msg);
+          return;
+        } finally {
+          setLoadingSetup(false);
+        }
+      }
+
       // UI-only paywall for now (backend / billing integration later).
       Alert.alert(
         "Coming soon",
         "Billing will be added later. This screen is the final design + flow."
       );
-      // While developing, let pro continue after onboarding.
       if (from === "professional-setup") {
-        router.replace("/(hairdresser)/(tabs)/home");
+        router.replace("/(professional)/(tabs)/home");
       }
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleBack = () => {
+    if (from === "professional-setup") {
+      clearPendingProfessionalSetup();
+    }
+    router.back();
   };
 
   const PlanCard = ({
@@ -148,7 +195,7 @@ const Paywall = () => {
 
       <View style={styles.topBar}>
         <NavBackRow
-          onPress={() => router.back()}
+          onPress={handleBack}
           style={styles.backRow}
           hitSlop={12}
           accessibilityLabel="Go back"

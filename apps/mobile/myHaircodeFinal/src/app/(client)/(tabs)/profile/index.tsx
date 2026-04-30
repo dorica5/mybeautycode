@@ -110,7 +110,7 @@ const ProfileScreen = () => {
                   hasProfessionalAccount
                     ? router.push({
                         pathname:
-                          "/(hairdresser)/(tabs)/profile/SwitchAccount",
+                          "/(professional)/(tabs)/profile/SwitchAccount",
                         params: {
                           activeSurface: "client",
                           returnTo: "client-profile",

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { CaretRight } from "phosphor-react-native";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
@@ -37,6 +37,11 @@ export const moderationDetailCopy = {
       "Our team reviews every report. Details you provide stay private to you and moderators.",
   },
 } as const;
+
+/** Extra space under the last report reason ("Other") so the sheet scroll area does not feel tight. */
+export const reportOtherReasonRowStyle: ViewStyle = {
+  marginBottom: responsiveMargin(32),
+};
 
 const hairline = StyleSheet.hairlineWidth;
 
@@ -82,6 +87,8 @@ type ReasonRowProps = {
   /** Visually emphasize (e.g. confirm remove). */
   danger?: boolean;
   disabled?: boolean;
+  /** Appended after base row styles (e.g. extra margin on last report reason). */
+  style?: StyleProp<ViewStyle>;
 };
 
 export function ModerationReasonRow({
@@ -89,6 +96,7 @@ export function ModerationReasonRow({
   onPress,
   danger,
   disabled,
+  style,
 }: ReasonRowProps) {
   return (
     <Pressable
@@ -99,6 +107,7 @@ export function ModerationReasonRow({
         pressed && !disabled && reasonStyles.rowPressed,
         danger && reasonStyles.rowDanger,
         disabled && reasonStyles.rowDisabled,
+        style,
       ]}
     >
       <Text

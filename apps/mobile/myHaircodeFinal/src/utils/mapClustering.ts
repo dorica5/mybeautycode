@@ -1,3 +1,4 @@
+import type { SalonPin } from "@/src/api/salons";
 import type { MapProfessionalPin } from "@/src/data/demoMapProfessionals";
 
 export type MapCluster = {
@@ -5,6 +6,14 @@ export type MapCluster = {
   latitude: number;
   longitude: number;
   members: MapProfessionalPin[];
+};
+
+/** Zoomed-out map: one marker per merged area; {@link SalonPin.professional_count} summed. */
+export type SalonMapCluster = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  members: SalonPin[];
 };
 
 /** Above this `latitudeDelta`, show cluster bubbles (numbers / grouped). */
@@ -80,6 +89,67 @@ export function clusterProfessionals(
   }
 
   return clusters;
+}
+
+function expandSalonCluster(seed: SalonPin, pool: SalonPin[], thrLat: number, thrLng: number): SalonPin[] {
+  const members: SalonPin[] = [seed];
+  const inCluster = new Set<string>([seed.id]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const candidate of pool) {
+      if (inCluster.has(candidate.id)) continue;
+      const near = members.some(
+        (m) =>
+          Math.abs(candidate.latitude - m.latitude) < thrLat &&
+          Math.abs(candidate.longitude - m.longitude) < thrLng
+      );
+      if (near) {
+        members.push(candidate);
+        inCluster.add(candidate.id);
+        grew = true;
+      }
+    }
+  }
+  return members;
+}
+
+/**
+ * Merge nearby salon pins when zoomed out so the bubble shows total professionals
+ * in the area, not a single stacked pin with count 1.
+ */
+export function clusterSalonPins(
+  salons: SalonPin[],
+  latitudeDelta: number,
+  longitudeDelta: number
+): SalonMapCluster[] {
+  if (salons.length === 0) return [];
+
+  const thrLat = Math.max(latitudeDelta * 0.13, 0.0006);
+  const thrLng = Math.max(longitudeDelta * 0.13, 0.0006);
+
+  const clusters: SalonMapCluster[] = [];
+  const assigned = new Set<string>();
+
+  for (const salon of salons) {
+    if (assigned.has(salon.id)) continue;
+    const members = expandSalonCluster(salon, salons, thrLat, thrLng);
+    for (const m of members) assigned.add(m.id);
+    const lat = members.reduce((s, p) => s + p.latitude, 0) / members.length;
+    const lng = members.reduce((s, p) => s + p.longitude, 0) / members.length;
+    clusters.push({
+      id: [...members].map((m) => m.id).sort().join("|"),
+      latitude: lat,
+      longitude: lng,
+      members,
+    });
+  }
+
+  return clusters;
+}
+
+export function salonClusterTotalProfessionals(members: SalonPin[]): number {
+  return members.reduce((sum, s) => sum + (s.professional_count ?? 0), 0);
 }
 
 const COLOC_ROUND = 6;

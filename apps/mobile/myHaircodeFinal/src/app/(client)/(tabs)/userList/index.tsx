@@ -10,6 +10,7 @@ import {
   Platform,
   Pressable,
   useWindowDimensions,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
@@ -55,13 +56,18 @@ const FindProfessionalsScreen = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
-  const [displayedResults, setDisplayedResults] = useState([]);
 
   const { profile } = useAuth();
   const isFocused = useIsFocused();
   const navigation = useNavigation();
 
-  const { data: searchResults = [], isLoading } = useListAllHairdresserSearch(
+  const {
+    data: searchResults = [],
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useListAllHairdresserSearch(
     debouncedQuery,
     profile?.id,
     professionKey
@@ -72,7 +78,6 @@ const FindProfessionalsScreen = () => {
       if (isFocused) {
         setSearchQuery("");
         setDebouncedQuery("");
-        setDisplayedResults([]);
       }
     });
 
@@ -87,12 +92,6 @@ const FindProfessionalsScreen = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  useEffect(() => {
-    if (!isLoading && searchResults.length >= 0 && debouncedQuery) {
-      setDisplayedResults(searchResults);
-    }
-  }, [isLoading, searchResults, debouncedQuery]);
-
   const handleSearch = useCallback(
     (query: string) => setSearchQuery(query),
     []
@@ -101,7 +100,6 @@ const FindProfessionalsScreen = () => {
   const clearSearch = useCallback(() => {
     setSearchQuery("");
     setDebouncedQuery("");
-    setDisplayedResults([]);
   }, []);
 
   const goToMap = useCallback(() => {
@@ -131,7 +129,7 @@ const FindProfessionalsScreen = () => {
             </View>
 
             <FlatList
-              data={debouncedQuery ? displayedResults : []}
+              data={debouncedQuery ? searchResults : []}
               keyExtractor={(item, index) =>
                 `${item.hairdresser_id}_${index}`
               }
@@ -216,29 +214,61 @@ const FindProfessionalsScreen = () => {
               )}
               ListEmptyComponent={
                 debouncedQuery ? (
-                  <View style={styles.emptyContainer}>
-                    <Text style={styles.noResultsText}>
-                      No results found for &quot;{debouncedQuery}&quot;
-                    </Text>
-                    {[
-                      "cutters",
-                      "nikita",
-                      "sayso",
-                      "fredrik & louisa",
-                      "dada hårstudio",
-                    ].some((chain) =>
-                      debouncedQuery.toLowerCase().includes(chain)
-                    ) ? (
-                      <Text style={styles.helperText}>
-                        This app is for individual hairdressers, not salon chains
-                        like {debouncedQuery}.
+                  isFetching ? (
+                    <View style={styles.emptyContainer}>
+                      <ActivityIndicator
+                        color={primaryBlack}
+                        style={{ marginTop: 24 }}
+                      />
+                    </View>
+                  ) : isError ? (
+                    <View style={styles.emptyContainer}>
+                      <Text style={styles.searchErrorText}>
+                        {error instanceof Error
+                          ? error.message
+                          : "Could not reach the server."}
                       </Text>
-                    ) : (
-                      <Text style={styles.helperText}>
-                        {`Seems like your hairdresser hasn't started using ${BRAND_DISPLAY_NAME} yet. Tip them about it so they're here next time you search!`}
+                      <Text style={styles.searchErrorHint}>
+                        If the API runs on your machine, set EXPO_PUBLIC_API_URL
+                        to your LAN IP (not localhost) and restart Expo with -c.
                       </Text>
-                    )}
-                  </View>
+                      <Pressable
+                        onPress={() => void refetch()}
+                        style={({ pressed }) => [
+                          styles.searchRetryBtn,
+                          pressed && styles.searchRetryBtnPressed,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Retry search"
+                      >
+                        <Text style={styles.searchRetryLabel}>Try again</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <View style={styles.emptyContainer}>
+                      <Text style={styles.noResultsText}>
+                        No results found for &quot;{debouncedQuery}&quot;
+                      </Text>
+                      {[
+                        "cutters",
+                        "nikita",
+                        "sayso",
+                        "fredrik & louisa",
+                        "dada hårstudio",
+                      ].some((chain) =>
+                        debouncedQuery.toLowerCase().includes(chain)
+                      ) ? (
+                        <Text style={styles.helperText}>
+                          This app is for individual hairdressers, not salon
+                          chains like {debouncedQuery}.
+                        </Text>
+                      ) : (
+                        <Text style={styles.helperText}>
+                          {`Seems like your hairdresser hasn't started using ${BRAND_DISPLAY_NAME} yet. Tip them about it so they're here next time you search!`}
+                        </Text>
+                      )}
+                    </View>
+                  )
                 ) : null
               }
               contentContainerStyle={styles.resultsContainer}
@@ -323,6 +353,38 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(14, 11),
     fontFamily: "Inter-Regular",
     lineHeight: responsiveScale(20, 16),
+  },
+  searchErrorText: {
+    textAlign: "center",
+    marginTop: responsiveMargin(16),
+    fontSize: responsiveFontSize(15, 12),
+    fontFamily: "Inter-Regular",
+    color: primaryBlack,
+    paddingHorizontal: responsivePadding(12),
+  },
+  searchErrorHint: {
+    marginTop: responsiveMargin(10),
+    textAlign: "center",
+    fontSize: responsiveFontSize(13, 11),
+    color: "grey",
+    lineHeight: responsiveScale(20, 16),
+    paddingHorizontal: responsivePadding(12),
+  },
+  searchRetryBtn: {
+    marginTop: responsiveMargin(16),
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: primaryBlack,
+  },
+  searchRetryBtnPressed: {
+    opacity: 0.85,
+  },
+  searchRetryLabel: {
+    fontSize: responsiveFontSize(15, 12),
+    fontFamily: "Inter-SemiBold",
+    color: primaryBlack,
   },
   mapCta: {
     alignSelf: "center",

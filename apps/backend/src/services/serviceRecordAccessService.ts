@@ -57,11 +57,18 @@ export const serviceRecordAccessService = {
     });
     if (!viewerPP) return false;
 
-    if (
-      record.professionalProfileId &&
-      record.professionalProfileId === viewerPP.id
-    ) {
-      return true;
+    if (record.professionalProfileId && record.professionalProfileId === viewerPP.id) {
+      if (!record.professionId) return false;
+      const link = await prisma.clientProfessionalLink.findFirst({
+        where: {
+          clientUserId: record.clientUserId,
+          professionalProfileId: viewerPP.id,
+          professionId: record.professionId,
+          status: "active",
+        },
+        select: { id: true },
+      });
+      return !!link;
     }
 
     const linkWhere: Prisma.ClientProfessionalLinkWhereInput = {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -23,6 +23,8 @@ import {
   responsiveScale,
   responsivePadding,
   responsiveMargin,
+  contentCardMaxWidth,
+  isTablet,
 } from "@/src/utils/responsive";
 
 type Profession = "hair" | "nails" | "brows";
@@ -37,7 +39,7 @@ const OPTIONS: { key: Profession; label: string }[] = [
 const SELECTION_FEEDBACK_MS = 180;
 
 const FilterBeforeMapScreen = () => {
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { fromTab } = useLocalSearchParams<{ fromTab?: string }>();
   const hideBack = fromTab === "1";
@@ -46,6 +48,16 @@ const FilterBeforeMapScreen = () => {
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
   const heroPatternVerticalNudge = heroHeight * 0.34;
+
+  const optionTileWidth = useMemo(() => {
+    const shortSide = Math.min(windowWidth, windowHeight);
+    const phoneW = responsiveScale(342);
+    if (!isTablet()) return phoneW;
+    return Math.min(
+      contentCardMaxWidth(shortSide),
+      windowWidth - responsivePadding(20) * 2
+    );
+  }, [windowWidth, windowHeight]);
 
   const [selected, setSelected] = useState<Profession | undefined>(undefined);
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -126,14 +138,18 @@ const FilterBeforeMapScreen = () => {
             What kind of professional?
           </Text>
 
-          <View style={styles.options}>
+          <View style={[styles.options, { width: optionTileWidth }]}>
             {OPTIONS.map(({ key, label }) => {
               const on = selected === key;
               return (
                 <Pressable
                   key={key}
                   onPress={() => onPickProfession(key)}
-                  style={[styles.option, on && styles.optionSelected]}
+                  style={[
+                    styles.option,
+                    { width: optionTileWidth },
+                    on && styles.optionSelected,
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={label}
                   accessibilityState={{ selected: on }}
@@ -192,12 +208,10 @@ const styles = StyleSheet.create({
     marginBottom: responsiveMargin(20),
   },
   options: {
-    width: responsiveScale(342),
     alignSelf: "center",
     gap: responsiveScale(8),
   },
   option: {
-    width: responsiveScale(342),
     height: responsiveScale(59),
     paddingVertical: 0,
     paddingHorizontal: 0,

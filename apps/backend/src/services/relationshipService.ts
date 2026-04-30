@@ -91,7 +91,7 @@ export const relationshipService = {
     // extraData for UI copy ("X wants to connect on their <lane> account").
     await notificationService.send(prof.profileId, clientUserId, {
       type: "FRIEND_REQUEST",
-      message: `${proName} wants to connect with you on MyHaircode`,
+      message: `${proName} wants to connect with you on myne`,
       title: "Connection request",
       extraData: {
         clientProfessionalLinkId: linkId,

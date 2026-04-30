@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
     borderColor: `${moderationDestructive}35`,
   },
   rowCancel: {
-    backgroundColor: "transparent",
+    backgroundColor: primaryWhite,
     borderColor: `${primaryBlack}24`,
   },
   rowPressed: {

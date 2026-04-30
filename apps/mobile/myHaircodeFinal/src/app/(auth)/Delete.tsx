@@ -16,11 +16,12 @@ import {
 import { MintProfileScreenShell } from "@/src/components/MintProfileScreenShell";
 import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
+import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
   coerceProfessionCode,
   profileHasProfessionalCapability,
+  PROFESSION_ACCOUNT_LABEL,
   PROFESSION_HEADLINE_ROLE,
-  type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import {
   setLastAppSurface,
@@ -31,12 +32,10 @@ import {
 type DeleteScope = "client" | "professional";
 
 function routeProfessionParam(
-  params: Record<string, unknown>
+  params: Record<string, unknown> | undefined
 ): string {
-  const candidates = [
-    params.profession_code,
-    params.professionCode,
-  ];
+  const p = params ?? {};
+  const candidates = [p.profession_code, p.professionCode];
   for (const v of candidates) {
     if (typeof v === "string" && v.trim()) return v.trim();
     if (Array.isArray(v) && typeof v[0] === "string" && v[0].trim()) {
@@ -55,25 +54,38 @@ const Delete = () => {
   const scope: DeleteScope =
     params.scope === "professional" ? "professional" : "client";
   const professionCodeParam = routeProfessionParam(
-    params as Record<string, unknown>
+    params as Record<string, unknown> | undefined
   );
 
   const { profile, clearProfile, setProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
 
+  const coercedLaneCode = useMemo(
+    () => coerceProfessionCode(professionCodeParam),
+    [professionCodeParam]
+  );
+
   const laneTitle = useMemo(() => {
-    const c = coerceProfessionCode(professionCodeParam);
-    if (!c) return "this professional profile";
-    return PROFESSION_HEADLINE_ROLE[c as ProfessionChoiceCode] ?? "this role";
-  }, [professionCodeParam]);
+    if (!coercedLaneCode || !PROFESSION_HEADLINE_ROLE) {
+      return "this professional profile";
+    }
+    return PROFESSION_HEADLINE_ROLE[coercedLaneCode] ?? "this role";
+  }, [coercedLaneCode]);
+
+  const laneAccountLabel = useMemo(() => {
+    if (!coercedLaneCode || !PROFESSION_ACCOUNT_LABEL) return null;
+    return PROFESSION_ACCOUNT_LABEL[coercedLaneCode] ?? null;
+  }, [coercedLaneCode]);
 
   const alertBody = useMemo(() => {
     if (scope === "professional") {
-      return `This removes your ${laneTitle} from Get discovered (including clients linked only to this role and portfolio images for this lane). If it was your only professional role, your professional account is removed — your login stays.`;
+      const youRemove =
+        laneAccountLabel ?? laneTitle;
+      return `This removes your ${youRemove} from Get discovered (including clients linked only to this role and portfolio images for this lane). If it was your only professional role, your professional account is removed — your login stays.`;
     }
-    return "Are you sure you want to delete your account? This removes your profile and data from myHaircode and cannot be undone.";
-  }, [scope, laneTitle]);
+    return `Are you sure you want to delete your account? This removes your profile and data from ${BRAND_DISPLAY_NAME} and cannot be undone.`;
+  }, [scope, laneAccountLabel, laneTitle]);
 
   const onDelete = async () => {
     if (!profile?.id) {
@@ -144,8 +156,22 @@ const Delete = () => {
 
   const promptText =
     scope === "professional"
-      ? `Remove ${laneTitle}?`
+      ? coercedLaneCode &&
+          PROFESSION_HEADLINE_ROLE &&
+          PROFESSION_HEADLINE_ROLE[coercedLaneCode]
+        ? `Remove ${PROFESSION_HEADLINE_ROLE[coercedLaneCode].toLowerCase()} account?`
+        : `Remove ${laneTitle}?`
       : "Delete your account permanently?";
+
+  const removeProfileButtonTitle =
+    scope === "professional" &&
+    coercedLaneCode &&
+    PROFESSION_HEADLINE_ROLE &&
+    PROFESSION_HEADLINE_ROLE[coercedLaneCode]
+      ? `Remove ${PROFESSION_HEADLINE_ROLE[coercedLaneCode].toLowerCase()} profile`
+      : scope === "professional"
+        ? "Remove professional profile"
+        : "Delete account";
 
   return (
     <MintProfileScreenShell>
@@ -161,7 +187,7 @@ const Delete = () => {
           {promptText}
         </Text>
         <PaddedLabelButton
-          title={scope === "professional" ? "Remove professional profile" : "Delete account"}
+          title={removeProfileButtonTitle}
           horizontalPadding={32}
           verticalPadding={16}
           onPress={confirmDelete}

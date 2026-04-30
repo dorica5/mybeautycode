@@ -164,6 +164,27 @@ export const minMaxScale = (size: number, min: number, max: number, tabletSize?:
   return Math.min(Math.max(scaled, min), max);
 };
 
+/**
+ * Design ratio for primary mint/content cards: ~342pt column on a 375pt-wide phone.
+ * Using the short side keeps the same visual proportion on iPad portrait/landscape.
+ */
+export const CONTENT_CARD_WIDTH_RATIO = 342 / 375;
+
+/**
+ * Max width for mint “card” columns on tablets — same fraction of the short side as on phones.
+ * `absoluteMax` avoids overly wide panels on very large slates.
+ */
+export function contentCardMaxWidth(
+  shortSide: number,
+  options?: { absoluteMax?: number }
+): number {
+  const absoluteMax = options?.absoluteMax ?? 960;
+  return Math.min(
+    Math.round(shortSide * CONTENT_CARD_WIDTH_RATIO),
+    absoluteMax
+  );
+}
+
 // Utility for responsive values based on breakpoint
 export const responsiveValue = <T>(values: {
   xxs?: T;

@@ -22,7 +22,9 @@ export const salonService = {
    */
   async findInBounds(
     bounds: BoundsInput,
-    professionCode?: string | null
+    professionCode?: string | null,
+    /** Logged-in client: ensures salons for pros they’re linked with still appear (e.g. lane inactive, edge cases). */
+    viewerProfileId?: string | null
   ): Promise<
     Array<{
       id: string;
@@ -101,7 +103,7 @@ export const salonService = {
       take: MAX_RESULTS,
     });
 
-    return rows.map((r) => ({
+    const base = rows.map((r) => ({
       id: r.id,
       google_place_id: r.googlePlaceId,
       name: r.name,
@@ -110,6 +112,82 @@ export const salonService = {
       longitude: r.longitude,
       professional_count: r._count.professionalProfessions,
     }));
+
+    const byId = new Map(base.map((s) => [s.id, s]));
+
+    if (viewerProfileId?.trim() && professionId) {
+      const viewer = viewerProfileId.trim();
+      const links = await prisma.clientProfessionalLink.findMany({
+        where: {
+          clientUserId: viewer,
+          professionId,
+          status: { in: ["active", "pending"] },
+        },
+        select: { professionalProfileId: true },
+      });
+      const profileIds = [
+        ...new Set(links.map((l) => l.professionalProfileId)),
+      ];
+      if (profileIds.length > 0) {
+        const ppWithSalon = await prisma.professionalProfession.findMany({
+          where: {
+            professionalProfileId: { in: profileIds },
+            professionId,
+            salonId: { not: null },
+          },
+          select: { salonId: true },
+        });
+        const linkedSalonIds = [
+          ...new Set(
+            ppWithSalon
+              .map((r) => r.salonId)
+              .filter((id): id is string => id != null)
+          ),
+        ];
+        if (linkedSalonIds.length > 0) {
+          const extras = await prisma.salon.findMany({
+            where: {
+              id: { in: linkedSalonIds },
+              latitude: { gte: swLat, lte: neLat },
+              longitude: { gte: swLng, lte: neLng },
+            },
+            select: {
+              id: true,
+              googlePlaceId: true,
+              name: true,
+              formattedAddress: true,
+              latitude: true,
+              longitude: true,
+              _count: {
+                select: {
+                  professionalProfessions: {
+                    where: {
+                      professionId,
+                      OR: [{ isActive: true }, { isActive: null }],
+                    },
+                  },
+                },
+              },
+            },
+          });
+          for (const r of extras) {
+            if (byId.has(r.id)) continue;
+            const cnt = r._count.professionalProfessions;
+            byId.set(r.id, {
+              id: r.id,
+              google_place_id: r.googlePlaceId,
+              name: r.name,
+              formatted_address: r.formattedAddress,
+              latitude: r.latitude,
+              longitude: r.longitude,
+              professional_count: cnt > 0 ? cnt : 1,
+            });
+          }
+        }
+      }
+    }
+
+    return Array.from(byId.values());
   },
 
   /**

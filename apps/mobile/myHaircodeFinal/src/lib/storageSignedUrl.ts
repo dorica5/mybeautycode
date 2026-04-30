@@ -76,7 +76,7 @@ export async function fetchSignedStorageUrls(
 
 const HAIRCODE_MEDIA_BUCKET = "haircode_images";
 
-export type HaircodeMediaRow = {
+export type VisitMediaRow = {
   mediaUrl?: string;
   media_url?: string;
   mediaType?: string;
@@ -87,8 +87,8 @@ export type HaircodeMediaRow = {
  * Resolve visit/carousel media URLs: already-public HTTP links stay as-is;
  * storage paths are signed in one batch (fast vs N sequential /signed-url calls).
  */
-export async function signHaircodeVisitMedia(
-  rows: HaircodeMediaRow[]
+export async function signVisitMedia(
+  rows: VisitMediaRow[]
 ): Promise<{ uri: string; type: string }[]> {
   type Slot =
     | { kind: "direct"; uri: string; type: string }

@@ -119,14 +119,23 @@ const AddProfession = () => {
         </View>
 
         <View style={styles.paddedHorizontal}>
-          <Text style={[Typography.h3, styles.title]} accessibilityRole="header">
+          <Text
+            style={[
+              Typography.h3,
+              styles.title,
+              options.length === 0 && styles.titleNoDescription,
+            ]}
+            accessibilityRole="header"
+          >
             Choose what kind
           </Text>
 
-          <Text style={styles.description}>
-            You can have an account both as a client and as a professional. You
-            can add accounts later.
-          </Text>
+          {options.length > 0 ? (
+            <Text style={styles.description}>
+              You can have an account both as a client and as a professional. You
+              can add accounts later.
+            </Text>
+          ) : null}
 
           {options.length === 0 ? (
             <Text style={styles.emptyMessage}>
@@ -204,6 +213,9 @@ const styles = StyleSheet.create({
     color: primaryBlack,
     textAlign: "center",
     marginBottom: responsiveMargin(14),
+  },
+  titleNoDescription: {
+    marginBottom: responsiveMargin(22),
   },
   description: {
     ...Typography.bodyMedium,

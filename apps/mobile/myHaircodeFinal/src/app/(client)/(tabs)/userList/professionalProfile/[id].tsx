@@ -7,7 +7,7 @@ import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
-import { coerceProfessionCode } from "@/src/constants/professionCodes";
+import { coerceProfessionCode, clientAddedProfessionalMessage, type ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import { Colors, primaryBlack } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
@@ -15,6 +15,7 @@ import {
   ModerationSheetHeading,
   ModerationReasonRow,
   moderationDetailCopy,
+  reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import {
@@ -53,39 +54,50 @@ const ProfessionalProfileScreen = () => {
     useClientSearch(hairdresser_id);
   const { data: blockedIdList } = useBlockedIdList(client_id);
   const p = profileData as Profile | undefined;
+
+  const scopedLane = useMemo((): ProfessionChoiceCode | null => {
+    if (routeProfessionRaw) {
+      return coerceProfessionCode(routeProfessionRaw);
+    }
+    const codes = p?.profession_codes;
+    if (Array.isArray(codes) && codes.length > 0) {
+      return coerceProfessionCode(String(codes[0]).trim());
+    }
+    return null;
+  }, [routeProfessionRaw, p?.profession_codes]);
+
+  const scopedDetail = useMemo(() => {
+    if (!p?.professions_detail?.length || !scopedLane) return null;
+    return (
+      p.professions_detail.find(
+        (row) =>
+          coerceProfessionCode(row.profession_code ?? undefined) === scopedLane
+      ) ?? null
+    );
+  }, [p?.professions_detail, scopedLane]);
+
   const data = p
     ? {
         full_name: p.full_name,
         first_name: p.first_name,
         username: p.username,
         avatar_url: p.avatar_url,
-        about_me: p.about_me,
-        salon_name: p.salon_name,
-        business_address: p.business_address,
-        salon_phone_number: p.salon_phone_number,
-        booking_site: p.booking_site,
-        social_media: p.social_media,
+        about_me: scopedDetail?.about_me ?? p.about_me,
+        salon_name: scopedDetail?.business_name ?? p.salon_name,
+        business_address: scopedDetail?.business_address ?? p.business_address,
+        salon_phone_number:
+          scopedDetail?.business_number ?? p.salon_phone_number,
+        booking_site: scopedDetail?.booking_site ?? p.booking_site,
+        social_media: scopedDetail?.social_media ?? p.social_media,
         color_brand: p.color_brand,
         profession_codes: p.profession_codes,
       }
     : undefined;
 
-  const scopedProfessionCode = useMemo(() => {
-    if (routeProfessionRaw) {
-      return coerceProfessionCode(routeProfessionRaw) ?? routeProfessionRaw;
-    }
-    const codes = p?.profession_codes;
-    if (Array.isArray(codes) && codes.length > 0) {
-      const first = String(codes[0]).trim();
-      return coerceProfessionCode(first) ?? first;
-    }
-    return null;
-  }, [routeProfessionRaw, p?.profession_codes]);
-
   const { data: isRelated = false, isPending: relPending } = useRelationshipCheck(
     client_id ?? undefined,
     hairdresser_id,
-    scopedProfessionCode
+    scopedLane
   );
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
@@ -102,7 +114,7 @@ const ProfessionalProfileScreen = () => {
   const { mutateAsync: addHairdresserDB } = useAddHairdresser(
     hairdresser_id,
     client_id,
-    scopedProfessionCode
+    scopedLane
   );
 
   const isBlockedUser = Boolean(
@@ -115,7 +127,7 @@ const ProfessionalProfileScreen = () => {
 
   const deleteHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
-    if (!scopedProfessionCode) {
+    if (!scopedLane) {
       Alert.alert(
         "Couldn't remove link",
         "We couldn't tell which role this is for. Open them from Discover or My professionals, then try again."
@@ -126,7 +138,7 @@ const ProfessionalProfileScreen = () => {
       await removeRelationships.mutateAsync([
         {
           hairdresserId: hairdresser_id,
-          professionCode: scopedProfessionCode,
+          professionCode: scopedLane,
         },
       ]);
       setActiveAction(null);
@@ -140,7 +152,7 @@ const ProfessionalProfileScreen = () => {
   }, [
     client_id,
     hairdresser_id,
-    scopedProfessionCode,
+    scopedLane,
     removeRelationships,
   ]);
 
@@ -150,7 +162,10 @@ const ProfessionalProfileScreen = () => {
     try {
       await addHairdresserDB();
 
-      const message = `${profile?.full_name} has added you as their hairdresser.`;
+      const message = clientAddedProfessionalMessage(
+        profile?.full_name,
+        scopedLane
+      );
       // Deliver to the pro's specific profession-account inbox (hair, nails
       // or brows) so "added you on nails" doesn't leak into their hair inbox.
       await sendPushNotification(
@@ -162,10 +177,10 @@ const ProfessionalProfileScreen = () => {
           isClient: true,
           senderName: profile?.full_name,
           senderAvatar: profile?.avatar_url,
-          ...(scopedProfessionCode ? { profession_code: scopedProfessionCode } : {}),
+          ...(scopedLane ? { profession_code: scopedLane } : {}),
         },
         "New Client Added",
-        scopedProfessionCode ?? undefined
+        scopedLane ?? undefined
       );
 
       await queryClient.invalidateQueries({
@@ -173,11 +188,11 @@ const ProfessionalProfileScreen = () => {
       });
     } catch (error) {
       console.error("Error adding hairdresser:", error);
-      Alert.alert("Error", "Failed to add hairdresser.");
+      Alert.alert("Error", "Failed to add professional.");
     } finally {
       setLoading(false);
     }
-  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient, scopedProfessionCode]);
+  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient, scopedLane]);
 
   const handleModalOption = (action: string) => {
     setPendingAction(action);
@@ -339,6 +354,9 @@ const ProfessionalProfileScreen = () => {
             <ModerationReasonRow
               key={reason.value}
               label={reason.label}
+              style={
+                reason.value === "other" ? reportOtherReasonRowStyle : undefined
+              }
               onPress={() => handleReport(reason.value)}
             />
           ))}
@@ -389,6 +407,7 @@ const ProfessionalProfileScreen = () => {
         professionCodes={
           Array.isArray(data.profession_codes) ? data.profession_codes : null
         }
+        activeProfessionCode={scopedLane}
         onBack={() => router.back()}
         showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}
@@ -399,7 +418,7 @@ const ProfessionalProfileScreen = () => {
             <DotsThree size={32} color={primaryBlack} weight="bold" />
           </Pressable>
         }
-        analyticsProfessionCode={scopedProfessionCode}
+        analyticsProfessionCode={scopedLane}
       />
       <SmallDraggableModal
         isVisible={isModalVisible}

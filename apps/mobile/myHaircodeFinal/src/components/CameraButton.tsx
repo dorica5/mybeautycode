@@ -27,7 +27,7 @@ const CameraButton = forwardRef<View | null, CameraButtonProps>(
 
     const handlePress = () => {
       router.push({
-        pathname: "/haircodes/qr_scanner",
+        pathname: "/visits/qr_scanner",
         params: { mode },
       });
     };

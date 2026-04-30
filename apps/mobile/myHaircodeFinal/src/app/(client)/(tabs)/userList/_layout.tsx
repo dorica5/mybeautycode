@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Stack } from "expo-router";
+import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
 import { primaryGreen } from "@/src/constants/Colors";
 
 const _layout = () => {
@@ -7,6 +8,7 @@ const _layout = () => {
     () => ({
       headerShown: false,
       contentStyle: { backgroundColor: primaryGreen },
+      ...nativeStackHorizontalIOSLike,
     }),
     []
   );

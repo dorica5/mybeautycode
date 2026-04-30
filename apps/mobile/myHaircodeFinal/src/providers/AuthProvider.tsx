@@ -255,8 +255,8 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
   /**
    * Track client vs professional shell using route segments — not `pathname`.
-   * Hairdresser tabs navigate with short hrefs (`/home`, `/inspiration`) that omit
-   * `(hairdresser)/(tabs)`, so pathname checks never marked the pro surface.
+   * Professional tabs navigate with short hrefs (`/home`, `/inspiration`) that omit
+   * `(professional)/(tabs)`, so pathname checks never marked the pro surface.
    * Global screens (e.g. `/inspiration`) do not match here and leave the last surface unchanged.
    */
   useEffect(() => {
@@ -269,7 +269,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       void setLastAppSurface(uid, "client");
       return;
     }
-    if (root === "(hairdresser)" && second === "(tabs)") {
+    if (root === "(professional)" && second === "(tabs)") {
       setLastAppSurfacePref("professional");
       void setLastAppSurface(uid, "professional");
     }
@@ -720,7 +720,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         const isHairdresser = profileHasProfessionalCapability(profile);
 
         const clientHome = "/(client)/(tabs)/home";
-        const proHome = "/(hairdresser)/(tabs)/home";
+        const proHome = "/(professional)/(tabs)/home";
 
         let home: string;
         if (!isHairdresser) {

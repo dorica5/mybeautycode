@@ -54,6 +54,7 @@ import {
   scalePercent,
   responsiveFontSize,
   responsiveBorderRadius,
+  isTablet,
 } from "@/src/utils/responsive";
 import { usePostHog } from "posthog-react-native";
 import {
@@ -121,10 +122,9 @@ const MyInspiration = () => {
   const columnGap = responsiveScale(12);
   const gridInnerWidth = width - horizontalPadding * 2;
   const cellSize = (gridInnerWidth - columnGap) / NUM_COLUMNS;
-  const detailCarouselViewportHeight = Math.min(
-    screenHeight * 0.62,
-    responsiveScale(520)
-  );
+  const detailCarouselViewportHeight = isTablet()
+    ? Math.min(screenHeight * 0.76, responsiveScale(520, 880))
+    : Math.min(screenHeight * 0.62, responsiveScale(520));
 
   useEffect(() => {
     inspirationCategoryRef.current = inspirationCategory;
@@ -555,7 +555,7 @@ const MyInspiration = () => {
    */
   const goHome = () => {
     const clientHome = "/(client)/(tabs)/home" as Href;
-    const proHome = "/(hairdresser)/(tabs)/home" as Href;
+    const proHome = "/(professional)/(tabs)/home" as Href;
     const proCapable = profileHasProfessionalCapability(profile ?? null);
 
     if (!proCapable) {

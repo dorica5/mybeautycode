@@ -303,7 +303,7 @@ const ChangePassword = () => {
             message="Your password has been updated successfully."
             onClose={() => {
               setAlertVisible(false);
-              router.replace("/(hairdresser)/home" as Href);
+              router.replace("/(professional)/home" as Href);
             }}
           />
         </ScrollView>

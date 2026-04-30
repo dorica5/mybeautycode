@@ -31,7 +31,7 @@ import phone from "../../assets/icons/Phone.png";
 import profilePic from "../../assets/icons/profile_pic.png";
 import scissors from "../../assets/icons/Scissors.png";
 import search from "../../assets/icons/Search.png";
-import seeHaircodes from "../../assets/icons/seeHaircodes.png";
+import seeVisits from "../../assets/icons/seeHaircodes.png";
 import uploadSimple from "../../assets/icons/UploadSimple.png";
 import userFilled from "../../assets/icons/User_Filled.png";
 import user from "../../assets/icons/User.png";
@@ -79,7 +79,7 @@ export default {
   profilePic,
   scissors,
   search,
-  seeHaircodes,
+  seeVisits,
   uploadSimple,
   userFilled,
   user,

@@ -45,7 +45,7 @@ export const CHOOSE_PROFESSION_OPTIONS: {
 ];
 
 /** Subtitle under “My visits” — matches linked `professional_professions` / `profession_codes`. */
-const PROFESSION_HOME_ACCOUNT_LABEL: Record<ProfessionChoiceCode, string> = {
+export const PROFESSION_ACCOUNT_LABEL: Record<ProfessionChoiceCode, string> = {
   hair: "Hairdresser account",
   brows_lashes: "Brow stylist account",
   nails: "Nail technician account",
@@ -143,7 +143,7 @@ export function professionChoiceCodeToInspirationTab(
   return "hair";
 }
 
-/** True when the logged-in user can use the professional (hairdresser) app surface. */
+/** True when the logged-in user can use the professional (professional) app surface. */
 export function profileHasProfessionalCapability(
   profile:
     | {
@@ -177,10 +177,32 @@ export function professionHomeAccountLabel(
   activeCode: ProfessionChoiceCode | null,
   fallbackRawCode?: string | null
 ): string {
-  if (activeCode) return PROFESSION_HOME_ACCOUNT_LABEL[activeCode];
+  if (activeCode) return PROFESSION_ACCOUNT_LABEL[activeCode];
   const coerced = coerceProfessionCode(fallbackRawCode ?? undefined);
-  if (coerced) return PROFESSION_HOME_ACCOUNT_LABEL[coerced];
+  if (coerced) return PROFESSION_ACCOUNT_LABEL[coerced];
   return "Professional account";
+}
+
+/**
+ * Push / in-app copy when a client adds this professional in a given lane.
+ */
+export function clientAddedProfessionalMessage(
+  clientFullName: string | null | undefined,
+  professionalLane: ProfessionChoiceCode | null | undefined
+): string {
+  const name = clientFullName?.trim() || "A client";
+  switch (professionalLane) {
+    case "nails":
+      return `${name} has added you as their nail technician.`;
+    case "brows_lashes":
+      return `${name} has added you as their brow stylist.`;
+    case "hair":
+      return `${name} has added you as their hairdresser.`;
+    case "esthetician":
+      return `${name} has added you as their esthetician.`;
+    default:
+      return `${name} has added you as their professional.`;
+  }
 }
 
 /**

@@ -5,6 +5,12 @@ import { Alert } from "react-native";
 import { supabase } from "@/src/lib/supabase";
 import { isUuid } from "@/src/utils/isUuid";
 
+/** Avoid long full-screen spinners when the API host is unreachable or times out. */
+const SEARCH_QUERY_OPTIONS = {
+  retry: 1,
+  retryDelay: 400,
+} as const;
+
 export async function requestClientLink(
   clientId: string,
   professionCode?: string | null
@@ -87,6 +93,7 @@ export const useListClientSearch = (
       !!searchQuery &&
       !!hairdresserId &&
       (!scopeProfession || code != null),
+    ...SEARCH_QUERY_OPTIONS,
   });
 };
 
@@ -109,6 +116,7 @@ export const useListAllClientSearch = (
     },
     /** Same lane contract as latest visits: never call unscoped (would list unrelated profiles server-side). */
     enabled: !!hairdresser_id && q.length > 0 && !!code,
+    ...SEARCH_QUERY_OPTIONS,
   });
 };
 
@@ -128,20 +136,22 @@ export const useClientSearch = (client_id: string | undefined) => {
 
 export const useListAllHairdresserSearch = (
   searchQuery: string,
-  clientId: string,
+  clientId: string | undefined,
   professionCode?: string | null
 ) => {
   const code = professionCode?.trim() || undefined;
+  const q = searchQuery.trim();
   return useQuery({
-    queryKey: ["hairdresserSearch", searchQuery, code ?? "any"],
+    queryKey: ["hairdresserSearch", q, clientId ?? "", code ?? "any"],
     queryFn: () => {
-      const params = new URLSearchParams({ q: searchQuery });
+      const params = new URLSearchParams({ q });
       if (code) params.set("profession_code", code);
       return api.get<unknown[]>(
         `/api/profiles/search/hairdressers-with-relationship?${params.toString()}`
       );
     },
-    enabled: !!searchQuery,
+    enabled: q.length > 0 && !!clientId,
+    ...SEARCH_QUERY_OPTIONS,
   });
 };
 

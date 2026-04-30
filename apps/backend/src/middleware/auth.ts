@@ -42,6 +42,11 @@ export const authMiddleware = async (
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[auth] JWT verify failed:", msg);
+    if (/fetch/i.test(msg)) {
+      console.error(
+        "[auth] Hint: outbound HTTPS to SUPABASE_URL must succeed (JWKS). Check SUPABASE_URL, firewall, and VPN."
+      );
+    }
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 };

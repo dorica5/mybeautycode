@@ -61,8 +61,12 @@ export function BrandAddressAutocompleteField({
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [picking, setPicking] = useState(false);
+  /** User tapped into the field (don't autocomplete prefilled text until they edit). */
+  const [fieldFocused, setFieldFocused] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** True after the user changes text this focus session; reset on focus / blur; stays false when applying a pick. */
+  const editedSinceFocusRef = useRef(false);
 
   const runAutocomplete = useCallback(
     async (q: string) => {
@@ -84,8 +88,31 @@ export function BrandAddressAutocompleteField({
     [apiKey, countryCode]
   );
 
+  // True while we are programmatically applying a pick's formatted_address via
+  // onChangeText, so the "user edited manually" effect below doesn't fire.
+  const applyingPickRef = useRef(false);
+
+  const emitChangeText = useCallback(
+    (text: string) => {
+      if (!applyingPickRef.current) {
+        editedSinceFocusRef.current = true;
+      }
+      onChangeText(text);
+    },
+    [onChangeText]
+  );
+
+  /**
+   * Autocomplete only while focused AND the user has edited since focusing —
+   * avoids suggestions for the saved address on open and chained variants right after picking one.
+   */
   useEffect(() => {
     if (!apiKey) return;
+    if (!fieldFocused || !editedSinceFocusRef.current) {
+      setPredictions([]);
+      setLoading(false);
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       runAutocomplete(value);
@@ -93,11 +120,7 @@ export function BrandAddressAutocompleteField({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [value, apiKey, runAutocomplete]);
-
-  // True while we are programmatically applying a pick's formatted_address via
-  // onChangeText, so the "user edited manually" effect below doesn't fire.
-  const applyingPickRef = useRef(false);
+  }, [value, apiKey, fieldFocused, runAutocomplete]);
 
   const onPick = async (p: Prediction) => {
     if (!apiKey) return;
@@ -109,11 +132,13 @@ export function BrandAddressAutocompleteField({
       });
       if (details) {
         applyingPickRef.current = true;
-        onChangeText(details.formattedAddress);
+        editedSinceFocusRef.current = false;
+        emitChangeText(details.formattedAddress);
         onPlaceSelected?.(details);
       } else {
         applyingPickRef.current = true;
-        onChangeText(p.description);
+        editedSinceFocusRef.current = false;
+        emitChangeText(p.description);
         onPlaceSelected?.(null);
       }
     } finally {
@@ -143,7 +168,10 @@ export function BrandAddressAutocompleteField({
 
   const scheduleBlurClear = () => {
     clearBlurTimer();
-    blurTimer.current = setTimeout(() => setPredictions([]), 220);
+    blurTimer.current = setTimeout(() => {
+      setPredictions([]);
+      setFieldFocused(false);
+    }, 220);
   };
 
   if (!apiKey) {
@@ -171,16 +199,22 @@ export function BrandAddressAutocompleteField({
       <View style={styles.fieldShell}>
         <TextInput
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={emitChangeText}
           placeholderTextColor={`${primaryBlack}99`}
           cursorColor={primaryBlack}
           selectionColor={primaryBlack}
           underlineColorAndroid="transparent"
           accessibilityLabel={label}
-          textAlignVertical="center"
-          returnKeyType="search"
+          textAlignVertical="top"
+          multiline
+          scrollEnabled
+          returnKeyType="default"
           autoCorrect={false}
-          onFocus={() => clearBlurTimer()}
+          onFocus={() => {
+            clearBlurTimer();
+            editedSinceFocusRef.current = false;
+            setFieldFocused(true);
+          }}
           onBlur={scheduleBlurClear}
           style={[styles.input, Typography.bodyMedium, { color: primaryBlack }]}
         />
@@ -206,7 +240,6 @@ export function BrandAddressAutocompleteField({
             >
               <Text
                 style={[Typography.bodySmall, styles.suggestionText]}
-                numberOfLines={3}
               >
                 {p.description}
               </Text>
@@ -221,7 +254,7 @@ export function BrandAddressAutocompleteField({
 const styles = StyleSheet.create({
   outer: {
     width: "100%",
-    maxWidth: 400,
+    maxWidth: 560,
     alignSelf: "center",
   },
   label: {
@@ -231,25 +264,25 @@ const styles = StyleSheet.create({
   },
   fieldShell: {
     position: "relative",
-    borderRadius: responsiveScale(999),
+    borderRadius: responsiveScale(20),
     borderWidth: 1,
     borderColor: primaryBlack,
     backgroundColor: primaryWhite,
-    minHeight: responsiveScale(52, 46),
-    justifyContent: "center",
+    minHeight: responsiveScale(104, 92),
+    justifyContent: "flex-start",
   },
   input: {
     paddingVertical: responsivePadding(14),
     paddingHorizontal: responsivePadding(18),
     paddingRight: responsivePadding(44),
-    minHeight: responsiveScale(52, 46),
+    minHeight: responsiveScale(104, 92),
+    maxHeight: responsiveScale(280),
+    width: "100%",
   },
   loader: {
     position: "absolute",
     right: responsivePadding(12),
-    top: 0,
-    bottom: 0,
-    justifyContent: "center",
+    top: responsivePadding(14),
   },
   suggestions: {
     marginTop: responsiveMargin(6),
@@ -272,6 +305,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     color: primaryBlack,
+    flexShrink: 1,
   },
   hint: {
     ...Typography.bodySmall,

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "myHaircode",
+    "name": "myne",
     "slug": "myHaircodeFinal",
     "newArchEnabled": true,
     "version": "1.0.4",
@@ -24,9 +24,9 @@
         ],
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["remote-notification"],
-        "NSCameraUsageDescription": "myHaircode uses the camera to take photos of your hair and inspiration images for your hair journal.",
-        "NSPhotoLibraryUsageDescription": "myHaircode needs access to your photo library so you can choose and upload hair inspiration and profile photos.",
-        "NSPhotoLibraryAddUsageDescription": "myHaircode saves edited or captured photos to your library when you choose to."
+        "NSCameraUsageDescription": "myne uses the camera to take photos of your hair and inspiration images for your hair journal.",
+        "NSPhotoLibraryUsageDescription": "myne needs access to your photo library so you can choose and upload hair inspiration and profile photos.",
+        "NSPhotoLibraryAddUsageDescription": "myne saves edited or captured photos to your library when you choose to."
       }
     },
     "android": {
@@ -57,7 +57,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "myHaircode needs your location to show nearby salons on the map."
+          "locationWhenInUsePermission": "myne needs your location to show nearby salons on the map."
         }
       ],
       [

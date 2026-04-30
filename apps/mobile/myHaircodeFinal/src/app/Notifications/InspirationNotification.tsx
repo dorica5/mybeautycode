@@ -26,7 +26,7 @@ import TopNav from "@/src/components/TopNav";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import RemoteImage from "@/src/components/RemoteImage";
 import { Colors } from "@/src/constants/Colors";
-import NoImageHaircode from "@/src/components/no_image_haircode";
+import NoImageVisit from "@/src/components/no_image_visit";
 import { 
   responsiveScale, 
   scalePercent, 
@@ -248,7 +248,7 @@ const InspirationNotification = () => {
                   ? () =>
                       user_type === "HAIRDRESSER"
                         ? router.push({
-                            pathname: `../(hairdresser)/clientProfile/${senderId}`,
+                            pathname: `../(professional)/clientProfile/${senderId}`,
                             params: { id: senderId, relationship: "true" },
                           })
                         : router.push({

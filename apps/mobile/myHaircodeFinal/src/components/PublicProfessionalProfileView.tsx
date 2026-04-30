@@ -25,6 +25,7 @@ import {
 import { parseColorBrands } from "@/src/lib/colorBrandStorage";
 import {
   profileHasHairProfession,
+  coerceProfessionCode,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
@@ -35,8 +36,8 @@ import {
   responsivePadding,
   responsiveScale,
   scalePercent,
-  getBreakpoint,
   isTablet,
+  contentCardMaxWidth,
 } from "@/src/utils/responsive";
 
 function displayFirstName(
@@ -66,6 +67,42 @@ async function openExternalUrl(url: string) {
     else Alert.alert("Cannot open link");
   } catch {
     Alert.alert("Cannot open link");
+  }
+}
+
+/** Local copy — avoids Metro occasionally resolving a stale `professionCodes` bundle without this export. */
+function relationshipCtaLabelsForLane(
+  code: ProfessionChoiceCode | null | undefined
+): { addTitle: string; addedTitle: string } {
+  if (!code) {
+    return {
+      addTitle: "Add professional",
+      addedTitle: "Professional added",
+    };
+  }
+  switch (code) {
+    case "hair":
+      return { addTitle: "Add hairdresser", addedTitle: "Hairdresser added" };
+    case "nails":
+      return {
+        addTitle: "Add nail technician",
+        addedTitle: "Nail technician added",
+      };
+    case "brows_lashes":
+      return {
+        addTitle: "Add brow stylist",
+        addedTitle: "Brow stylist added",
+      };
+    case "esthetician":
+      return {
+        addTitle: "Add esthetician",
+        addedTitle: "Esthetician added",
+      };
+    default:
+      return {
+        addTitle: "Add professional",
+        addedTitle: "Professional added",
+      };
   }
 }
 
@@ -124,19 +161,19 @@ export function PublicProfessionalProfileView({
   headerRight,
   analyticsProfessionCode,
 }: PublicProfessionalProfileViewProps) {
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const layout = useMemo(() => {
     const tablet = isTablet();
-    const bp = getBreakpoint();
     const shellPad = responsivePadding(16, 28);
+    const shortSide = Math.min(windowWidth, windowHeight);
 
-    /** One centered column — tablet caps match map / Setup-style readable width */
+    /** One centered column — tablet width matches phone card ratio on short side. */
     let maxShellW: number;
     if (tablet) {
       maxShellW = Math.min(
         windowWidth - shellPad * 2,
-        bp === "xl" ? 720 : bp === "lg" ? 640 : 560
+        contentCardMaxWidth(shortSide)
       );
     } else {
       maxShellW = Math.min(windowWidth - responsivePadding(36), 520);
@@ -149,9 +186,16 @@ export function PublicProfessionalProfileView({
     const workGridMaxWidth = Math.floor(maxShellW - shellPad * 2);
 
     return { tablet, maxShellW, avatarSize, workGridMaxWidth };
-  }, [windowWidth]);
+  }, [windowWidth, windowHeight]);
 
   const lane = analyticsProfessionCode?.trim() || null;
+
+  const relationshipLaneForCta: ProfessionChoiceCode | null =
+    activeProfessionCode ??
+    coerceProfessionCode(lane ?? undefined);
+  const relationshipCta = relationshipCtaLabelsForLane(
+    relationshipLaneForCta
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -256,11 +300,12 @@ export function PublicProfessionalProfileView({
           <View style={styles.ctaWrap}>
             {!isRelated ? (
               <PaddedLabelButton
-                title="Add hairdresser"
+                title={relationshipCta.addTitle}
                 horizontalPadding={32}
                 verticalPadding={16}
                 onPress={onAddHairdresser}
                 disabled={addLoading}
+                accessibilityLabel={relationshipCta.addTitle}
                 style={[
                   styles.addHairdresserBtnBase,
                   layout.tablet
@@ -280,7 +325,7 @@ export function PublicProfessionalProfileView({
                 ]}
               >
                 <Text style={[Typography.label, styles.addedGhostLabel]}>
-                  Hairdresser added
+                  {relationshipCta.addedTitle}
                 </Text>
               </View>
             )}
@@ -492,10 +537,10 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     width: "100%",
   },
-  /** Centered pill on iPad / tablet. */
+  /** Fills `columnShell`, which already applies the tablet content max width. */
   addHairdresserBtnTablet: {
-    alignSelf: "center",
-    maxWidth: 400,
+    alignSelf: "stretch",
+    width: "100%",
   },
   addHairdresserBtnLabel: {
     color: primaryWhite,

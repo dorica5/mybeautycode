@@ -12,7 +12,7 @@ const API_URL = String(RAW_API_URL).replace(/\/+$/, "");
 if (__DEV__ && Platform.OS !== "web" && /localhost|127\.0\.0\.1/i.test(API_URL)) {
   // eslint-disable-next-line no-console
   console.warn(
-    "[myHaircode] EXPO_PUBLIC_API_URL is localhost — phones/simulators resolve that to themselves. Set EXPO_PUBLIC_API_URL to your machine LAN IP or a tunnel URL and restart expo with -c."
+    "[myne] EXPO_PUBLIC_API_URL is localhost — phones/simulators resolve that to themselves. Set EXPO_PUBLIC_API_URL to your machine LAN IP or a tunnel URL and restart expo with -c."
   );
 }
 

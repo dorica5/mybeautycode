@@ -6,6 +6,7 @@ import {
 } from "../../providers/AuthProvider";
 import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
 import LoadingScreen from "../(setup)/LoadingScreen";
+import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
 
 const AuthLayout = () => {
   const { session, profile, loading, lastAppSurfacePref } = useAuth();
@@ -35,7 +36,7 @@ const AuthLayout = () => {
     const canPro = profileHasProfessionalCapability(profile);
     const home: Href =
       canPro && lastAppSurfacePref === "professional"
-        ? "/(hairdresser)/(tabs)/home"
+        ? "/(professional)/(tabs)/home"
         : "/(client)/(tabs)/home";
     console.log("🔄 AuthLayout redirecting to main app", home);
     return <Redirect href={home} />;
@@ -43,7 +44,9 @@ const AuthLayout = () => {
 
   console.log("📱 AuthLayout: Rendering auth stack");
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{ headerShown: false, ...nativeStackHorizontalIOSLike }}
+    >
       <Stack.Screen name="Splash" />
       <Stack.Screen name="SignIn" />
       <Stack.Screen name="SignUp" />

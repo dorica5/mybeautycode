@@ -13,6 +13,7 @@ import { ImageProvider } from "../providers/ImageProvider";
 import "react-native-url-polyfill/auto";
 import { RealTimeProvider } from "../providers/RealTimeProvider";
 import LoadingScreen from "./(setup)/LoadingScreen";
+import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
 import useLoadFonts from "@/hooks/useLoadFonts";
 import { PostHogProvider } from "posthog-react-native";
 
@@ -160,6 +161,7 @@ const RootLayout = () => {
                       screenOptions={{
                         headerShown: false,
                         gestureEnabled: false,
+                        ...nativeStackHorizontalIOSLike,
                       }}
                     >
                       <Stack.Screen
@@ -167,7 +169,7 @@ const RootLayout = () => {
                         options={{ headerShown: false }}
                       />
                       <Stack.Screen
-                        name="(hairdresser)"
+                        name="(professional)"
                         options={{ headerShown: false, gestureEnabled: false }}
                       />
                       <Stack.Screen
@@ -187,7 +189,7 @@ const RootLayout = () => {
                         options={{ headerShown: false }}
                       />
                       <Stack.Screen
-                        name="haircodes"
+                        name="visits"
                         options={{ headerShown: false }}
                       />
                       <Stack.Screen

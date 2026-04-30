@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   Pressable,
@@ -9,6 +9,7 @@ import {
   ScrollView,
   Keyboard,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { Plus, XCircle } from "phosphor-react-native";
 import { ResizeMode, Video } from "expo-av";
@@ -18,6 +19,8 @@ import { BrandOutlineField } from "@/src/components/BrandOutlineField";
 import { PrimaryOutlineTextField } from "@/src/components/PrimaryOutlineTextField";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import {
+  contentCardMaxWidth,
+  isTablet,
   responsiveScale,
   responsivePadding,
   responsiveMargin,
@@ -33,6 +36,9 @@ export const NAIL_SERVICE_OPTIONS = [
   "Nail Art",
   "Other",
 ] as const;
+
+/** Description field limit for new/edit visit (spaces count). */
+export const VISIT_DESCRIPTION_MAX_CHARS = 240;
 
 type MediaItem = {
   uri?: string;
@@ -94,6 +100,14 @@ export function NailVisitForm({
   onSave,
   onPreviewPress,
 }: NailVisitFormProps) {
+  const { width, height } = useWindowDimensions();
+  const columnMax = useMemo(() => {
+    const shortSide = Math.min(width, height);
+    const pad = responsivePadding(20) * 2;
+    if (!isTablet()) return 400;
+    return Math.min(contentCardMaxWidth(shortSide), width - pad);
+  }, [width, height]);
+
   const dismissKeyboard = () => {
     Keyboard.dismiss();
     if (showTimePicker) {
@@ -136,7 +150,7 @@ export function NailVisitForm({
             {isEditing ? "Edit visit" : "New visit"}
           </Text>
 
-          <View style={styles.nailFormAlignedColumn}>
+          <View style={[styles.nailFormAlignedColumn, { maxWidth: columnMax }]}>
             <Text style={[Typography.label, styles.nailSectionLabelFirst]}>
               What kind of service?
             </Text>
@@ -154,7 +168,12 @@ export function NailVisitForm({
                   onPress={() => onToggleService(opt)}
                 >
                   <Text
-                    style={[Typography.bodyMedium, styles.nailServiceRowText]}
+                    style={[
+                      Typography.bodyMedium,
+                      styles.nailServiceRowText,
+                      selectedOptions.includes(opt) &&
+                        styles.nailServiceRowTextSelected,
+                    ]}
                   >
                     {opt}
                   </Text>
@@ -162,17 +181,26 @@ export function NailVisitForm({
               ))}
             </View>
 
-            <PrimaryOutlineTextField
-              label="Describe the service"
-              value={newHaircode}
-              onChangeText={onChangeDescription}
-              multiline
-              minInputHeight={responsiveScale(120)}
-              placeholder="Describe the service"
-              containerStyle={styles.nailFieldBlock}
-            />
+            <View style={styles.nailFieldBlock}>
+              <PrimaryOutlineTextField
+                label="Describe the service"
+                value={newHaircode}
+                onChangeText={onChangeDescription}
+                multiline
+                minInputHeight={responsiveScale(120)}
+                placeholder="Describe the service"
+                containerStyle={[
+                  styles.nailDescribeOutlineContainer,
+                  { maxWidth: columnMax },
+                ]}
+                maxLength={VISIT_DESCRIPTION_MAX_CHARS}
+              />
+              <Text style={styles.nailDescribeCharCount} accessibilityLiveRegion="polite">
+                {`${newHaircode.length}/${VISIT_DESCRIPTION_MAX_CHARS}`}
+              </Text>
+            </View>
 
-            <View style={styles.nailTimeFieldWrap}>
+            <View style={[styles.nailTimeFieldWrap, { maxWidth: columnMax }]}>
               <Text
                 style={[Typography.label, styles.nailTimeLabel]}
                 accessibilityRole="text"
@@ -231,7 +259,7 @@ export function NailVisitForm({
               label="Price"
               value={price}
               onChangeText={onChangePrice}
-              keyboardType="decimal-pad"
+              inputRestriction="decimal"
               singleLineShape="rounded"
               containerStyle={styles.nailFieldBlock}
             />
@@ -363,7 +391,6 @@ const styles = StyleSheet.create({
   /** Same horizontal band as service cards: labels + inputs follow this width. */
   nailFormAlignedColumn: {
     width: "94%",
-    maxWidth: 400,
     alignSelf: "center",
   },
   nailSectionLabelFirst: {
@@ -395,7 +422,7 @@ const styles = StyleSheet.create({
     backgroundColor: primaryWhite,
   },
   nailServiceRowSelected: {
-    backgroundColor: secondaryGreen,
+    backgroundColor: primaryBlack,
     borderWidth: 1,
     borderColor: primaryBlack,
   },
@@ -406,12 +433,26 @@ const styles = StyleSheet.create({
     color: primaryBlack,
     textAlign: "center",
   },
+  nailServiceRowTextSelected: {
+    color: primaryWhite,
+  },
   nailFieldBlock: {
     marginBottom: responsiveMargin(22),
   },
+  nailDescribeOutlineContainer: {
+    marginBottom: responsiveMargin(6),
+    width: "100%",
+    alignSelf: "center",
+  },
+  nailDescribeCharCount: {
+    alignSelf: "flex-end",
+    fontSize: responsiveFontSize(12, 11),
+    fontFamily: "Inter-Regular",
+    color: `${primaryBlack}99`,
+    marginTop: responsiveMargin(2),
+  },
   nailTimeFieldWrap: {
     width: "100%",
-    maxWidth: 400,
     alignSelf: "center",
     marginBottom: responsiveMargin(22),
   },

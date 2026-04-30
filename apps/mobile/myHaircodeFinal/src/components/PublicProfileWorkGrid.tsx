@@ -1,25 +1,44 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Modal,
+  Platform,
+  Pressable,
+  StatusBar as RNStatusBar,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import Carousel from "react-native-reanimated-carousel";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+import InspirationTopNav from "@/src/components/InspirationTopNav";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import { Typography } from "@/src/constants/Typography";
-import { primaryBlack } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import {
+  contentCardMaxWidth,
   isTablet,
   responsiveBorderRadius,
   responsiveMargin,
   responsivePadding,
   responsiveScale,
+  scalePercent,
 } from "@/src/utils/responsive";
 import { api } from "@/src/lib/apiClient";
+import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
 import {
   listPublicProfileWork,
+  publicProfileWorkBucket,
   type PublicProfileWorkRow,
 } from "@/src/api/publicProfileWork";
 
 const NUM_COLS = 2;
 const GRID_MAX_W = 400;
-const GRID_MAX_W_TABLET = 560;
 
 function chunkRows<T>(items: T[], size: number): T[][] {
   const rows: T[][] = [];
@@ -48,6 +67,7 @@ type Props = {
 
 /**
  * Read-only 2-column grid of public portfolio images (Get discovered), for any profile viewer.
+ * Tap opens a fullscreen swipeable carousel (same interaction model as visit gallery / inspiration).
  */
 export function PublicProfileWorkGrid({
   profileUserId,
@@ -58,10 +78,20 @@ export function PublicProfileWorkGrid({
 }: Props) {
   const [rows, setRows] = useState<PublicProfileWorkRow[]>([]);
   const tablet = isTablet();
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: screenHeight } = useWindowDimensions();
+  const safeInsets = useSafeAreaInsets();
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [startingIndex, setStartingIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [carouselFullUrls, setCarouselFullUrls] = useState<Record<string, string>>(
+    {}
+  );
+
   const scrollPad = responsivePadding(24, 28);
   const gap = responsiveScale(12);
-  const cap = tablet ? GRID_MAX_W_TABLET : GRID_MAX_W;
+  const shortSide = Math.min(windowWidth, screenHeight);
+  const cap = tablet ? contentCardMaxWidth(shortSide) : GRID_MAX_W;
 
   let rowInner: number;
   if (typeof contentMaxWidth === "number" && Number.isFinite(contentMaxWidth)) {
@@ -71,6 +101,19 @@ export function PublicProfileWorkGrid({
   }
   const cell = (rowInner - gap * (NUM_COLS - 1)) / NUM_COLS;
   const pairRows = useMemo(() => chunkRows(rows, NUM_COLS), [rows]);
+
+  const horizontalPadding = scalePercent(5);
+  const detailCarouselViewportHeight = Math.min(
+    screenHeight * 0.62,
+    responsiveScale(520)
+  );
+
+  const carouselKey = useCallback((r: PublicProfileWorkRow) => r.id, []);
+
+  const carouselBatchKey = useMemo(
+    () => rows.map(carouselKey).join("|"),
+    [rows, carouselKey]
+  );
 
   useEffect(() => {
     const id = profileUserId.trim();
@@ -103,6 +146,51 @@ export function PublicProfileWorkGrid({
     };
   }, [profileUserId, professionCodeProp]);
 
+  useEffect(() => {
+    if (!modalVisible) {
+      setCarouselFullUrls({});
+      return;
+    }
+    const bucket = publicProfileWorkBucket();
+    const items = rows.filter((r) => {
+      const p = r.imageUrl?.trim();
+      return (
+        !!p &&
+        !p.startsWith("http") &&
+        !p.startsWith("temp_")
+      );
+    });
+    if (items.length === 0) {
+      setCarouselFullUrls({});
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const urls = await fetchSignedStorageUrls(
+        items.map((r) => ({ bucket, path: r.imageUrl }))
+      );
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      items.forEach((r, i) => {
+        const u = urls[i];
+        if (u) map[carouselKey(r)] = u;
+      });
+      setCarouselFullUrls(map);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [modalVisible, carouselBatchKey, rows, carouselKey]);
+
+  const closeModal = () => setModalVisible(false);
+
+  const openCarouselAt = (index: number) => {
+    const start = Math.max(0, Math.min(index, rows.length - 1));
+    setStartingIndex(start);
+    setCurrentIndex(start);
+    setModalVisible(true);
+  };
+
   if (rows.length === 0) return null;
 
   const trimmedSection = sectionHeading?.trim();
@@ -112,6 +200,8 @@ export function PublicProfileWorkGrid({
       : showTitle
         ? "My work"
         : "";
+
+  const modalTitle = heading || "Work";
 
   return (
     <View
@@ -136,14 +226,18 @@ export function PublicProfileWorkGrid({
             ]}
           >
             {row.map((cellItem, colIndex) => {
+              const idx = rows.findIndex((r) => r.id === cellItem.id);
               const path =
                 (cellItem.lowResImageUrl?.trim() &&
                 cellItem.lowResImageUrl.length > 0
                   ? cellItem.lowResImageUrl
                   : cellItem.imageUrl) ?? "";
               return (
-                <View
+                <Pressable
                   key={cellItem.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open work image ${idx + 1} of ${rows.length}`}
+                  onPress={() => openCarouselAt(idx)}
                   style={[
                     styles.thumbWrap,
                     {
@@ -164,12 +258,136 @@ export function PublicProfileWorkGrid({
                     contentFit="cover"
                     priority="low"
                   />
-                </View>
+                </Pressable>
               );
             })}
           </View>
         ))}
       </View>
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={modalVisible}
+        onRequestClose={closeModal}
+        {...(Platform.OS === "ios"
+          ? { presentationStyle: "overFullScreen" as const }
+          : {})}
+        statusBarTranslucent
+      >
+        <View style={styles.detailModalRoot}>
+          <SafeAreaView style={styles.detailModalSafe} edges={["bottom"]}>
+            <StatusBar style="dark" />
+            <View
+              style={[
+                styles.detailModalHeader,
+                {
+                  paddingTop:
+                    Math.max(
+                      safeInsets.top,
+                      Platform.OS === "android"
+                        ? RNStatusBar.currentHeight ?? 0
+                        : 0
+                    ) + responsiveScale(14),
+                },
+              ]}
+            >
+              <InspirationTopNav title={modalTitle} onBack={closeModal} />
+            </View>
+
+            {modalVisible && rows.length > 0 ? (
+              <View style={styles.detailCarouselSection}>
+                <View
+                  style={[
+                    styles.detailCarouselClip,
+                    {
+                      height: detailCarouselViewportHeight,
+                      width: windowWidth,
+                    },
+                  ]}
+                >
+                  <Carousel
+                    key={`${startingIndex}-${carouselBatchKey}`}
+                    loop={false}
+                    width={windowWidth}
+                    height={detailCarouselViewportHeight}
+                    autoPlay={false}
+                    data={rows}
+                    defaultIndex={startingIndex}
+                    onSnapToItem={(index) => setCurrentIndex(index)}
+                    renderItem={({ item }) => {
+                      if (!item) {
+                        return (
+                          <View
+                            style={{
+                              width: windowWidth,
+                              height: detailCarouselViewportHeight,
+                            }}
+                          />
+                        );
+                      }
+                      const detailW = windowWidth - horizontalPadding * 2;
+                      const key = carouselKey(item);
+                      const fullSigned = carouselFullUrls[key];
+                      const raw = item.imageUrl?.trim() ?? "";
+                      const rawPath =
+                        raw &&
+                        !raw.startsWith("http") &&
+                        !raw.startsWith("temp_")
+                          ? raw
+                          : undefined;
+                      const displayUrl =
+                        fullSigned || (raw.startsWith("http") ? raw : undefined);
+
+                      return (
+                        <View
+                          style={[
+                            styles.detailSlide,
+                            {
+                              width: windowWidth,
+                              height: detailCarouselViewportHeight,
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.detailImageFrame,
+                              {
+                                width: detailW,
+                                height: detailCarouselViewportHeight,
+                              },
+                            ]}
+                          >
+                            <OptimizedImage
+                              directUrl={displayUrl || undefined}
+                              path={
+                                !displayUrl && rawPath ? rawPath : undefined
+                              }
+                              bucket="public_profile_work"
+                              sizePreset="fullscreen"
+                              width={Math.ceil(detailW)}
+                              style={styles.detailOptimizedImage}
+                              contentFit="contain"
+                              priority="high"
+                              transition={0}
+                            />
+                          </View>
+                        </View>
+                      );
+                    }}
+                  />
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.carouselFooter}>
+              <Text style={styles.carouselCounter}>
+                {currentIndex + 1} / {rows.length}
+              </Text>
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -201,5 +419,52 @@ const styles = StyleSheet.create({
   },
   thumb: {
     borderRadius: responsiveBorderRadius(18),
+  },
+  detailModalRoot: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
+  detailModalSafe: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
+  detailModalHeader: {
+    paddingHorizontal: scalePercent(5),
+    zIndex: 50,
+    elevation: 50,
+  },
+  detailCarouselSection: {
+    flexGrow: 1,
+    flexShrink: 1,
+    justifyContent: "center",
+    minHeight: responsiveScale(200),
+    overflow: "hidden",
+  },
+  detailCarouselClip: {
+    alignSelf: "center",
+    overflow: "hidden",
+  },
+  detailSlide: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  detailImageFrame: {
+    alignSelf: "center",
+    overflow: "hidden",
+    borderRadius: responsiveBorderRadius(24),
+    backgroundColor: primaryGreen,
+  },
+  detailOptimizedImage: {
+    width: "100%",
+    height: "100%",
+  },
+  carouselFooter: {
+    paddingBottom: responsiveScale(20),
+    paddingTop: responsiveScale(8),
+    alignItems: "center",
+  },
+  carouselCounter: {
+    ...Typography.bodySmall,
+    color: `${primaryBlack}cc`,
   },
 });

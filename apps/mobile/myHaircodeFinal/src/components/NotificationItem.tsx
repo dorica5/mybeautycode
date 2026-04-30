@@ -109,7 +109,7 @@ export const NotificationItem = ({
         services: string;
         duration: string;
         createdAt: string;
-      }>(`/api/haircodes/${haircodeId}`);
+      }>(`/api/visits/${haircodeId}`);
       const hairdresserProfile = await api.get<{
         salonName: string;
         avatarUrl: string;
@@ -193,7 +193,7 @@ export const NotificationItem = ({
             ? professionFromData.trim()
             : undefined;
         router.push({
-          pathname: "/haircodes/[id]" as Href,
+          pathname: "/visits/[id]" as Href,
           params: {
             id: clientId,
             full_name: senderName ?? notification.sender?.full_name ?? "",
@@ -232,7 +232,7 @@ export const NotificationItem = ({
           );
           Alert.alert(
             "Cannot Open",
-            "This notification is missing data. This can happen with older notifications. New haircode notifications will open correctly."
+            "This notification is missing data. This can happen with older notifications. New visit notifications will open correctly."
           );
           return;
         }
@@ -245,7 +245,7 @@ export const NotificationItem = ({
           const hairdresserProfile = details.hairdresserProfile || {};
 
           router.push({
-            pathname: "/haircodes/single_haircode_client",
+            pathname: "/visits/single_visit_client",
             params: {
               notificationId: notification.id,
               senderId: notification.sender_id,
@@ -268,7 +268,7 @@ export const NotificationItem = ({
         } else {
           // Fallback: navigate with just haircodeId; screen will fetch from API
           router.push({
-            pathname: "/haircodes/single_haircode_client",
+            pathname: "/visits/single_visit_client",
             params: {
               notificationId: notification.id,
               senderId: notification.sender_id,

@@ -18,6 +18,7 @@ import {
   responsivePadding,
   responsiveScale,
   scalePercent,
+  isTablet,
 } from "@/src/utils/responsive";
 import {
   MintBrandModalFooterRow,
@@ -99,7 +100,7 @@ export const FriendRequest = () => {
           senderId,
           profile.id,
           "FRIEND_REQUEST",
-          `${profile.full_name} has accepted your haircode request`,
+          `${profile.full_name} has accepted your connection request`,
           {
             isClient: true,
             senderName: profile.full_name,
@@ -148,7 +149,7 @@ export const FriendRequest = () => {
                   !isBlockedUser
                     ? () =>
                         router.push({
-                          pathname: `../(hairdresser)/clientProfile/${senderId}`,
+                          pathname: `../(professional)/clientProfile/${senderId}`,
                           params: { id: senderId, relationship: "true" },
                         })
                     : null
@@ -210,7 +211,12 @@ export const FriendRequest = () => {
           </Text>
 
           {!isHandled && (
-            <View style={styles.actions}>
+            <View
+              style={[
+                styles.actions,
+                isTablet() ? styles.actionsTablet : null,
+              ]}
+            >
               <MintBrandModalFooterRow>
                 <MintBrandModalSecondaryButton
                   label="Decline"
@@ -271,9 +277,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: responsiveMargin(26),
-    alignSelf: "stretch",
-    maxWidth: 420,
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 440,
     paddingHorizontal: responsivePadding(4),
+  },
+  actionsTablet: {
+    maxWidth: 560,
   },
 });
 

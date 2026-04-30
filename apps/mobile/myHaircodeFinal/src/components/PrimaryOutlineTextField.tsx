@@ -1,11 +1,18 @@
 import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
+  sanitizeDecimalNumericInput,
+  sanitizeIntegerNumericInput,
+  sanitizeTelephonePadInput,
+} from "@/src/lib/inputRestrictions";
+import {
+  contentCardMaxWidth,
+  isTablet,
   responsiveMargin,
   responsivePadding,
   responsiveScale,
 } from "@/src/utils/responsive";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import type { Ref } from "react";
 import {
   Platform,
@@ -14,6 +21,7 @@ import {
   Text,
   TextInput,
   TextInputProps,
+  useWindowDimensions,
   View,
   ViewStyle,
 } from "react-native";
@@ -40,6 +48,12 @@ export type PrimaryOutlineTextFieldProps = Omit<
    * `rounded` matches setup cards (~18) — use on visit forms etc.
    */
   singleLineShape?: "pill" | "rounded";
+  /**
+   * Digits-only (or telephone-safe) entry: sets `inputMode` + keypad and strips
+   * other characters on change — needed on iPad where “numeric” fields can
+   * still accept letters via some keyboards or paste.
+   */
+  inputRestriction?: "decimal" | "integer" | "telephone";
 };
 
 /**
@@ -57,16 +71,59 @@ export function PrimaryOutlineTextField({
   singleLineShape = "pill",
   style,
   accessibilityLabel,
+  keyboardType: keyboardTypeProp,
+  inputMode: inputModeProp,
+  inputRestriction,
   ...inputProps
 }: PrimaryOutlineTextFieldProps) {
+  const { width, height } = useWindowDimensions();
+  const wrapMaxW = useMemo(() => {
+    const shortSide = Math.min(width, height);
+    if (!isTablet()) return 400;
+    return Math.min(contentCardMaxWidth(shortSide), width - responsivePadding(48));
+  }, [width, height]);
+
   const [showSecret, setShowSecret] = useState(false);
   const showLabel = label.trim().length > 0;
 
   const singleLineRadius =
     singleLineShape === "rounded" ? responsiveScale(18) : responsiveScale(999);
 
+  const effectiveKeyboardType =
+    keyboardTypeProp ??
+    (inputRestriction === "decimal"
+      ? "decimal-pad"
+      : inputRestriction === "integer"
+        ? "number-pad"
+        : inputRestriction === "telephone"
+          ? "phone-pad"
+          : undefined);
+
+  const restrictionInputMode: TextInputProps["inputMode"] | undefined =
+    inputRestriction === "decimal"
+      ? "decimal"
+      : inputRestriction === "integer"
+        ? "numeric"
+        : inputRestriction === "telephone"
+          ? "tel"
+          : undefined;
+
+  const effectiveInputMode = inputModeProp ?? restrictionInputMode;
+
+  const handleChange = (text: string) => {
+    if (inputRestriction === "decimal") {
+      onChangeText(sanitizeDecimalNumericInput(text));
+    } else if (inputRestriction === "integer") {
+      onChangeText(sanitizeIntegerNumericInput(text));
+    } else if (inputRestriction === "telephone") {
+      onChangeText(sanitizeTelephonePadInput(text));
+    } else {
+      onChangeText(text);
+    }
+  };
+
   return (
-    <View style={[styles.wrap, containerStyle]}>
+    <View style={[styles.wrap, { maxWidth: wrapMaxW }, containerStyle]}>
       {showLabel ? (
         <Text style={[Typography.label, styles.label]} accessibilityRole="text">
           {label}
@@ -82,7 +139,7 @@ export function PrimaryOutlineTextField({
       >
         <TextInput
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={handleChange}
           placeholderTextColor={`${primaryBlack}99`}
           cursorColor={primaryBlack}
           selectionColor={primaryBlack}
@@ -108,6 +165,10 @@ export function PrimaryOutlineTextField({
             style,
           ]}
           {...inputProps}
+          {...(effectiveKeyboardType != null
+            ? { keyboardType: effectiveKeyboardType }
+            : {})}
+          {...(effectiveInputMode != null ? { inputMode: effectiveInputMode } : {})}
           textAlign="left"
           ref={inputRef}
         />
@@ -136,7 +197,6 @@ export function PrimaryOutlineTextField({
 const styles = StyleSheet.create({
   wrap: {
     width: "100%",
-    maxWidth: 400,
     alignSelf: "center",
     marginBottom: responsiveMargin(18),
   },

@@ -149,7 +149,7 @@ const PhoneNumber = () => {
                 setError(!ok);
               }
             }}
-            keyboardType="phone-pad"
+            inputRestriction="telephone"
             autoCapitalize="none"
             autoCorrect={false}
           />

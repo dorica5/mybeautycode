@@ -8,6 +8,8 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
@@ -24,31 +26,33 @@ import {
   responsivePadding,
   responsiveMargin,
 } from "@/src/utils/responsive";
+import { primaryBlack } from "@/src/constants/Colors";
 
 const SearchHairdresserPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
-  const [displayedResults, setDisplayedResults] = useState([]);
   const { profile } = useAuth();
   const isFocused = useIsFocused();
   const navigation = useNavigation();
 
-  const { data: searchResults = [], isLoading } = useListAllHairdresserSearch(
-    debouncedQuery,
-    profile?.id
-  );
+  const {
+    data: searchResults = [],
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useListAllHairdresserSearch(debouncedQuery, profile?.id);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("tabPress", () => {
       if (isFocused) {
         setSearchQuery("");
         setDebouncedQuery("");
-        setDisplayedResults([]);
       }
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, isFocused]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -58,12 +62,6 @@ const SearchHairdresserPage = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  useEffect(() => {
-    if (!isLoading && searchResults.length >= 0 && debouncedQuery) {
-      setDisplayedResults(searchResults);
-    }
-  }, [isLoading, searchResults, debouncedQuery]);
-
   const handleSearch = useCallback(
     (query: string) => setSearchQuery(query),
     []
@@ -72,8 +70,66 @@ const SearchHairdresserPage = () => {
   const clearSearch = useCallback(() => {
     setSearchQuery("");
     setDebouncedQuery("");
-    setDisplayedResults([]);
   }, []);
+
+  const listEmpty = () => {
+    if (!debouncedQuery) return null;
+    if (isFetching) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator color={primaryBlack} style={{ marginTop: 24 }} />
+        </View>
+      );
+    }
+    if (isError) {
+      const msg =
+        error instanceof Error ? error.message : "Could not reach the server.";
+      return (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.errorText}>{msg}</Text>
+          <Text style={styles.errorHint}>
+            If the API runs on your machine, set EXPO_PUBLIC_API_URL to your
+            computer LAN IP (not localhost) and restart Expo with -c.
+          </Text>
+          <Pressable
+            onPress={() => void refetch()}
+            style={({ pressed }) => [
+              styles.retryBtn,
+              pressed && styles.retryBtnPressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Retry search"
+          >
+            <Text style={styles.retryBtnLabel}>Try again</Text>
+          </Pressable>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.noResultsText}>
+          No results found for &quot;{debouncedQuery}&quot;
+        </Text>
+
+        {[
+          "cutters",
+          "nikita",
+          "sayso",
+          "fredrik & louisa",
+          "dada hårstudio",
+        ].some((chain) => debouncedQuery.toLowerCase().includes(chain)) ? (
+          <Text style={styles.helperText}>
+            This app is for individual hairdressers, not salon chains like{" "}
+            {debouncedQuery}.
+          </Text>
+        ) : (
+          <Text style={styles.helperText}>
+            {`Seems like your hairdresser hasn't started using ${BRAND_DISPLAY_NAME} yet. Tip them about it so they're here next time you search!`}
+          </Text>
+        )}
+      </View>
+    );
+  };
 
   return (
     <>
@@ -95,13 +151,6 @@ const SearchHairdresserPage = () => {
               </ResponsiveText>
 
               <SearchInput
-                /**
-                 * Controlled: parent owns the text so external resets (tab
-                 * press, `clearSearch`) flow into the input. Avoids the
-                 * infinite-loop interaction between uncontrolled
-                 * SearchInput effects and TextInput's native-sync layout
-                 * effect on rapid typing.
-                 */
                 value={searchQuery}
                 onSearch={handleSearch}
                 initialQuery={searchQuery}
@@ -110,7 +159,7 @@ const SearchHairdresserPage = () => {
               />
 
               <FlatList
-                data={debouncedQuery ? displayedResults : []}
+                data={debouncedQuery ? searchResults : []}
                 keyExtractor={(item, index) =>
                   `${item.hairdresser_id}_${index}`
                 }
@@ -127,29 +176,7 @@ const SearchHairdresserPage = () => {
                     query={debouncedQuery}
                   />
                 )}
-                ListEmptyComponent={
-                  debouncedQuery ? (
-                    <View style={styles.emptyContainer}>
-                      <Text style={styles.noResultsText}>
-                        No results found for "{debouncedQuery}"
-                      </Text>
-
-                      {/* Detect national chains like "Cutters" */}
-                      {["cutters", "nikita", "sayso", "fredrik & louisa", "dada hårstudio"].some(
-                        (chain) => debouncedQuery.toLowerCase().includes(chain)
-                      ) ? (
-                        <Text style={styles.helperText}>
-                          This app is for individual hairdressers, not salon
-                          chains like {debouncedQuery}.
-                        </Text>
-                      ) : (
-                        <Text style={styles.helperText}>
-                          {`Seems like your hairdresser hasn't started using ${BRAND_DISPLAY_NAME} yet. Tip them about it so they're here next time you search!`}
-                        </Text>
-                      )}
-                    </View>
-                  ) : null
-                }
+                ListEmptyComponent={listEmpty}
                 contentContainerStyle={styles.resultsContainer}
               />
             </View>
@@ -200,5 +227,37 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(14, 11),
     fontFamily: "Inter-Regular",
     lineHeight: responsiveScale(20, 16),
+  },
+  errorText: {
+    textAlign: "center",
+    marginTop: responsiveMargin(16),
+    fontSize: responsiveFontSize(15, 12),
+    fontFamily: "Inter-Regular",
+    color: primaryBlack,
+    paddingHorizontal: responsivePadding(12),
+  },
+  errorHint: {
+    marginTop: responsiveMargin(10),
+    textAlign: "center",
+    fontSize: responsiveFontSize(13, 11),
+    color: "grey",
+    lineHeight: responsiveScale(20, 16),
+    paddingHorizontal: responsivePadding(12),
+  },
+  retryBtn: {
+    marginTop: responsiveMargin(16),
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: primaryBlack,
+  },
+  retryBtnPressed: {
+    opacity: 0.85,
+  },
+  retryBtnLabel: {
+    fontSize: responsiveFontSize(15, 12),
+    fontFamily: "Inter-SemiBold",
+    color: primaryBlack,
   },
 });
