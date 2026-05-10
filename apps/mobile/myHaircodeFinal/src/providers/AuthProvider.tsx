@@ -29,8 +29,6 @@ import { registerForPushNotificationAsync } from "./useNotifcations";
 import { useSyncSignupDate } from "./SignUpDate";
 import { useFirstLaunch } from "../hooks/useFirstLaunch";
 import { usePostHog } from "posthog-react-native";
-/** Dev-only: force onboarding when unauthenticated. Keep `false` so real signup/sign-in flows work. */
-const DEV_FORCE_SHOW_ONBOARDING = false;
 
 /**
  * Legacy heuristics: profile looks "finished" but `setup_status` may still be false in DB.
@@ -219,6 +217,17 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
   const [isNavigating, setIsNavigating] = useState(false);
   const onOnboarding = pathname.includes("Onboarding");
+  /** `onAuthStateChange` uses a long-lived subscriber — read latest values via refs (avoid stale []). */
+  const isFirstLaunchRef = useRef(isFirstLaunch);
+  const firstLaunchLoadingRef = useRef(firstLaunchLoading);
+  const onboardingPathRef = useRef(onOnboarding);
+  const firstLaunchHandled = useRef(false);
+
+  useEffect(() => {
+    isFirstLaunchRef.current = isFirstLaunch;
+    firstLaunchLoadingRef.current = firstLaunchLoading;
+    onboardingPathRef.current = pathname.includes("Onboarding");
+  }, [isFirstLaunch, firstLaunchLoading, pathname]);
 
   useEffect(() => {
     if (pathname.includes("ChangePassword") || pathname.includes("reset-password")) {
@@ -556,8 +565,6 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     pathname,
   });
 
-  const firstLaunchHandled = useRef(false);
-
   const handleNavigation = () => {
     console.log("Navigation check", {
       loading,
@@ -597,21 +604,17 @@ export default function AuthProvider({ children }: PropsWithChildren) {
 
     if (
       !session &&
-      (isFirstLaunch || DEV_FORCE_SHOW_ONBOARDING) &&
+      isFirstLaunch &&
       !firstLaunchHandled.current
     ) {
       if (onOnboarding) {
         return;
       }
-      console.log(
-        DEV_FORCE_SHOW_ONBOARDING
-          ? "DEV_FORCE_SHOW_ONBOARDING: showing onboarding"
-          : "First launch: showing onboarding"
-      );
+      console.log("First launch: showing onboarding");
       firstLaunchHandled.current = true;
       setIsNavigating(true);
       setTimeout(() => {
-        router.replace("./(auth)/Onboarding");
+        router.replace("/(auth)/Onboarding");
         setTimeout(() => setIsNavigating(false), 600);
       }, 50);
       return;
@@ -760,7 +763,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    if (!session && !isFirstLaunch && !DEV_FORCE_SHOW_ONBOARDING) {
+    if (!session && !isFirstLaunch) {
       const authPaths = [
         "Splash",
         "SignIn",
@@ -887,11 +890,13 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         } else {
           console.log("Session is null from auth event");
           await clearProfile();
+          /** Do not Splash while first-run onboarding applies; refs avoid stale ([])-effect captures. */
+          const blockSplashForOnboarding = isFirstLaunchRef.current;
           if (
             !isSigningOut.current &&
-            !isFirstLaunch &&
-            !onOnboarding &&
-            !firstLaunchLoading
+            !blockSplashForOnboarding &&
+            !onboardingPathRef.current &&
+            !firstLaunchLoadingRef.current
           ) {
             navigateToSplash();
           }

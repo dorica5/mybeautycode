@@ -11,6 +11,8 @@ export type ProfessionJoinRow = {
   aboutMe: string | null;
   socialMedia: string | null;
   bookingSite: string | null;
+  /** JSON array of discovery category codes (see `profDiscoveryCategories.ts`). */
+  discoveryCategories: unknown;
 };
 
 /** Prefer `hair`, else lowest `sort_order` (stable tie-break). */
@@ -35,5 +37,8 @@ export function professionsDetailSnakeCase(rows: ProfessionJoinRow[]) {
     about_me: r.aboutMe ?? null,
     social_media: r.socialMedia ?? null,
     booking_site: r.bookingSite ?? null,
+    discovery_categories: Array.isArray(r.discoveryCategories)
+      ? (r.discoveryCategories as string[])
+      : [],
   }));
 }

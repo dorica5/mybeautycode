@@ -15,7 +15,7 @@ export const PROFESSION_HEADLINE_ROLE: Record<ProfessionChoiceCode, string> = {
   esthetician: "Esthetician",
 };
 
-/** Service pills on “new visit” for hairdresser accounts (and esthetician until tailored). */
+/** @deprecated Visit services are defined in `profDiscoveryCategories` (`visitServiceLayoutForProfession`). Kept for reference only. */
 export const HAIR_VISIT_SERVICE_OPTIONS = [
   "Haircut",
   "Color",
@@ -23,7 +23,7 @@ export const HAIR_VISIT_SERVICE_OPTIONS = [
   "Other",
 ] as const;
 
-/** Service pills on “new visit” for brow stylist accounts. */
+/** @deprecated See `profDiscoveryCategories.visitServiceLayoutForProfession`. */
 export const BROW_VISIT_SERVICE_OPTIONS = [
   "Brow shaping",
   "Brow tinting",

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   StyleSheet,
   View,
@@ -10,16 +10,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
+import { coerceProfessionCode, type ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import {
-  coerceProfessionCode,
-  type ProfessionChoiceCode,
-  HAIR_VISIT_SERVICE_OPTIONS,
-  BROW_VISIT_SERVICE_OPTIONS,
-} from "@/src/constants/professionCodes";
+  canonicalizeVisitServicesFromStrings,
+  visitServiceLayoutForProfession,
+} from "@/src/constants/profDiscoveryCategories";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import {
   NailVisitForm,
-  NAIL_SERVICE_OPTIONS,
   VISIT_DESCRIPTION_MAX_CHARS,
 } from "@/src/components/visits/NailVisitForm";
 import { useLocalSearchParams } from "expo-router";
@@ -60,20 +58,6 @@ function normalizeServicesFromParams(
     .filter(Boolean);
 }
 
-function visitServiceOptionsForProfession(
-  code: ProfessionChoiceCode
-): readonly string[] {
-  switch (code) {
-    case "nails":
-      return NAIL_SERVICE_OPTIONS;
-    case "brows_lashes":
-      return BROW_VISIT_SERVICE_OPTIONS;
-    case "hair":
-    case "esthetician":
-      return HAIR_VISIT_SERVICE_OPTIONS;
-  }
-}
-
 function firstRouteParam(
   v: string | string[] | undefined
 ): string | undefined {
@@ -83,7 +67,6 @@ function firstRouteParam(
 
 const NewVisit = () => {
   const params = useLocalSearchParams();
-  console.log("Media params", params.media);
   const isEditing = Boolean(params.haircodeId);
   const { profile } = useAuth();
   const { clientId } = useLocalSearchParams();
@@ -155,6 +138,48 @@ const NewVisit = () => {
 
   const professionLaneReady =
     storedProfessionReady || routeLaneMatchesProfile;
+
+  const visitServiceLayout = useMemo(
+    () => visitServiceLayoutForProfession(activeProfessionCode),
+    [activeProfessionCode]
+  );
+  const servicePrimaryLabels = useMemo(
+    () => visitServiceLayout.primary.map((o) => o.label),
+    [visitServiceLayout]
+  );
+  const serviceDropdownLabels = useMemo(
+    () => visitServiceLayout.dropdown.map((o) => o.label),
+    [visitServiceLayout]
+  );
+  const visitDropdownLabelSet = useMemo(
+    () => new Set(serviceDropdownLabels),
+    [serviceDropdownLabels]
+  );
+
+  const handleDropdownServices = useCallback(
+    (nextDropdownLabels: string[]) => {
+      setSelectedOptions((prev) => {
+        const base = prev.filter((p) => !visitDropdownLabelSet.has(p));
+        return [...new Set([...base, ...nextDropdownLabels])];
+      });
+    },
+    [visitDropdownLabelSet]
+  );
+
+  const visitServicesNormalizedRef = useRef(false);
+  useEffect(() => {
+    visitServicesNormalizedRef.current = false;
+  }, [activeProfessionCode]);
+
+  useEffect(() => {
+    if (activeProfessionCode == null || visitServicesNormalizedRef.current) {
+      return;
+    }
+    visitServicesNormalizedRef.current = true;
+    setSelectedOptions((prev) =>
+      canonicalizeVisitServicesFromStrings(prev, activeProfessionCode)
+    );
+  }, [activeProfessionCode]);
 
   const [durationMinutes, setDurationMinutes] = useState<number>(
     params.duration ? parseInt(params.duration.toString()) : 0
@@ -471,16 +496,19 @@ const NewVisit = () => {
     );
   }
 
-  const visitServiceOptions =
-    visitServiceOptionsForProfession(activeProfessionCode);
-
   return (
     <>
       <StatusBar style="dark" backgroundColor={primaryGreen} />
       <SafeAreaView style={styles.nailSafeArea}>
         <NailVisitForm
           scrollRef={scrollViewRef}
-          serviceOptions={visitServiceOptions}
+          servicePrimaryOptions={servicePrimaryLabels}
+          serviceDropdownOptions={serviceDropdownLabels}
+          onChangeDropdownServices={
+            serviceDropdownLabels.length > 0
+              ? handleDropdownServices
+              : undefined
+          }
           isEditing={isEditing}
           selectedOptions={selectedOptions}
           onToggleService={handleOptionPress}

@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import DropDownPicker from "react-native-dropdown-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   Pressable,
@@ -21,6 +22,7 @@ import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import {
   contentCardMaxWidth,
   isTablet,
+  responsiveBorderRadius,
   responsiveScale,
   responsivePadding,
   responsiveMargin,
@@ -29,13 +31,6 @@ import {
 import { router } from "expo-router";
 import { Colors } from "@/src/constants/Colors";
 import { NavBackRow } from "@/src/components/NavBackRow";
-
-export const NAIL_SERVICE_OPTIONS = [
-  "Manicure/Pedicure",
-  "Nail enhancements",
-  "Nail Art",
-  "Other",
-] as const;
 
 /** Description field limit for new/edit visit (spaces count). */
 export const VISIT_DESCRIPTION_MAX_CHARS = 240;
@@ -50,8 +45,12 @@ type MediaItem = {
 
 export type NailVisitFormProps = {
   scrollRef: React.RefObject<ScrollView>;
-  /** Profession-specific labels (e.g. nail vs hair vs brow). */
-  serviceOptions: readonly string[];
+  /** Primary full-width rows (same labels as discovery / profile categories). */
+  servicePrimaryOptions: readonly string[];
+  /** Optional modal multi-select; empty for e.g. nails (all primary). */
+  serviceDropdownOptions: readonly string[];
+  /** Called with the full set of labels selected inside “Other”; replaces dropdown slice only. */
+  onChangeDropdownServices?: (nextDropdownLabels: string[]) => void;
   isEditing: boolean;
   selectedOptions: string[];
   onToggleService: (option: string) => void;
@@ -77,7 +76,9 @@ export type NailVisitFormProps = {
 
 export function NailVisitForm({
   scrollRef,
-  serviceOptions,
+  servicePrimaryOptions,
+  serviceDropdownOptions,
+  onChangeDropdownServices,
   isEditing,
   selectedOptions,
   onToggleService,
@@ -101,6 +102,23 @@ export function NailVisitForm({
   onPreviewPress,
 }: NailVisitFormProps) {
   const { width, height } = useWindowDimensions();
+  const [otherDropdownOpen, setOtherDropdownOpen] = useState(false);
+  const dropdownLabelSet = useMemo(
+    () => new Set(serviceDropdownOptions),
+    [serviceDropdownOptions]
+  );
+  const dropdownItems = useMemo(
+    () =>
+      serviceDropdownOptions.map((label) => ({
+        label,
+        value: label,
+      })),
+    [serviceDropdownOptions]
+  );
+  const dropdownValue = useMemo(
+    () => selectedOptions.filter((s) => dropdownLabelSet.has(s)),
+    [selectedOptions, dropdownLabelSet]
+  );
   const columnMax = useMemo(() => {
     const shortSide = Math.min(width, height);
     const pad = responsivePadding(20) * 2;
@@ -156,7 +174,7 @@ export function NailVisitForm({
             </Text>
 
             <View style={styles.nailServiceBlock}>
-              {serviceOptions.map((opt) => (
+              {servicePrimaryOptions.map((opt) => (
                 <Pressable
                   key={opt}
                   style={({ pressed }) => [
@@ -180,6 +198,49 @@ export function NailVisitForm({
                 </Pressable>
               ))}
             </View>
+
+            {serviceDropdownOptions.length > 0 &&
+            onChangeDropdownServices ? (
+              <View style={styles.nailOtherServicesBlock}>
+                <Text style={[Typography.label, styles.nailOtherServicesLabel]}>
+                  Other
+                </Text>
+                <DropDownPicker
+                  multiple
+                  min={0}
+                  max={serviceDropdownOptions.length}
+                  listMode="MODAL"
+                  modalTitle="Other services"
+                  modalAnimationType="fade"
+                  open={otherDropdownOpen}
+                  setOpen={setOtherDropdownOpen}
+                  value={dropdownValue}
+                  setValue={(callback) => {
+                    const prevPick = dropdownValue;
+                    const resolved =
+                      typeof callback === "function"
+                        ? callback(prevPick)
+                        : callback;
+                    const nextPick =
+                      resolved === null || resolved === undefined
+                        ? []
+                        : Array.isArray(resolved)
+                          ? [...resolved]
+                          : [resolved];
+                    onChangeDropdownServices(nextPick);
+                  }}
+                  items={dropdownItems}
+                  setItems={() => {}}
+                  placeholder="Tap to add services"
+                  style={styles.nailVisitOtherDropdown}
+                  dropDownContainerStyle={styles.nailVisitOtherDropdownList}
+                  textStyle={styles.nailVisitOtherDropdownText}
+                  listItemLabelStyle={styles.nailVisitOtherDropdownText}
+                  zIndex={3000}
+                  zIndexInverse={1000}
+                />
+              </View>
+            ) : null}
 
             <View style={styles.nailFieldBlock}>
               <PrimaryOutlineTextField
@@ -409,8 +470,34 @@ const styles = StyleSheet.create({
   },
   nailServiceBlock: {
     gap: responsiveMargin(5),
-    marginBottom: responsiveMargin(28),
+    marginBottom: responsiveMargin(10),
     width: "100%",
+  },
+  nailOtherServicesBlock: {
+    width: "100%",
+    marginBottom: responsiveMargin(28),
+  },
+  nailOtherServicesLabel: {
+    color: primaryBlack,
+    marginBottom: responsiveMargin(8),
+    alignSelf: "flex-start",
+  },
+  nailVisitOtherDropdown: {
+    borderWidth: 1,
+    borderColor: primaryBlack,
+    borderRadius: responsiveBorderRadius(18),
+    backgroundColor: primaryWhite,
+    minHeight: responsiveScale(50),
+    paddingHorizontal: responsivePadding(4),
+  },
+  nailVisitOtherDropdownList: {
+    borderColor: primaryBlack,
+    borderWidth: 1,
+    borderRadius: responsiveBorderRadius(12),
+  },
+  nailVisitOtherDropdownText: {
+    ...Typography.outfitRegular16,
+    color: primaryBlack,
   },
   nailServiceRow: {
     width: "100%",

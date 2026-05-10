@@ -45,18 +45,19 @@ const ONBOARDING_HERO_IMAGE = require("@/assets/images/onboarding_image.png");
 
 const PAGES: OnboardingPage[] = [
   {
-    title: "Everything stays with you",
+    title: "Your beauty history, always with you",
+    subtitle: "Every visit, saved in one place.",
     image: ONBOARDING_HERO_IMAGE,
   },
   {
-    title: "Inspiration",
+    title: "Share it. Control it. Take it anywhere.",
+    subtitle: "Give access to the professionals you trust.",
+    image: ONBOARDING_HERO_IMAGE,
+  },
+  {
+    title: "Get discovered. Know your clients.",
     subtitle:
-      "Share inspiration and ideas with each other ahead of appointments",
-    image: ONBOARDING_HERO_IMAGE,
-  },
-  {
-    title: "Search for professionals",
-    subtitle: "Find the perfect match for your beauty needs",
+      "Be found by new clients and see their full history before they sit down.",
     image: ONBOARDING_HERO_IMAGE,
   },
 ];
