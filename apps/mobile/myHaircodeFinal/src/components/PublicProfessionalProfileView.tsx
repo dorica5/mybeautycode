@@ -122,6 +122,7 @@ export function PublicProfessionalProfileView({
       ? activeProfessionCode === "hair"
       : profileHasHairProfession({ profession_codes: professionCodes });
   const showColorBrands = hairInThisView && colorBrands.length > 0;
+  const showInsights = mode === "self";
 
   const handleCall = useCallback(() => {
     const p = salonPhone?.trim();
@@ -136,6 +137,17 @@ export function PublicProfessionalProfileView({
   }, [bookingSite]);
 
   const avatarSize = scalePercent(38);
+
+  // UI-only: placeholder numbers (backend not wired yet).
+  const mockInsights = {
+    profileViews: 0,
+    bookingClicks: 0,
+    socialClicks: socialUrls.map((url, index) => ({
+      url,
+      label: socialLinkRowLabel(url),
+      clicks: 0 + index * 0,
+    })),
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -282,6 +294,58 @@ export function PublicProfessionalProfileView({
                     </Pressable>
                   );
                 })}
+              </View>
+            </View>
+          ) : null}
+
+          {showInsights ? (
+            <View style={styles.sectionBlock}>
+              <Text style={[Typography.label, styles.sectionTitle]}>
+                Profile insights
+              </Text>
+              <View style={styles.insightsCard}>
+                <View style={styles.insightRow}>
+                  <Text style={[Typography.outfitRegular16, styles.insightLabel]}>
+                    Profile views
+                  </Text>
+                  <Text style={[Typography.anton20, styles.insightValue]}>
+                    {mockInsights.profileViews}
+                  </Text>
+                </View>
+                <View style={styles.insightDivider} />
+                <View style={styles.insightRow}>
+                  <Text style={[Typography.outfitRegular16, styles.insightLabel]}>
+                    Booking link clicks
+                  </Text>
+                  <Text style={[Typography.anton20, styles.insightValue]}>
+                    {mockInsights.bookingClicks}
+                  </Text>
+                </View>
+
+                {mockInsights.socialClicks.length > 0 ? (
+                  <>
+                    <View style={styles.insightDivider} />
+                    <Text style={[Typography.label, styles.insightSubTitle]}>
+                      Social link clicks
+                    </Text>
+                    {mockInsights.socialClicks.map((row, idx) => (
+                      <View key={`${row.url}-${idx}`} style={styles.insightRow}>
+                        <Text
+                          style={[
+                            Typography.outfitRegular16,
+                            styles.insightLabel,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {row.label}
+                        </Text>
+                        <Text style={[Typography.anton20, styles.insightValue]}>
+                          {row.clicks}
+                        </Text>
+                      </View>
+                    ))}
+                  </>
+                ) : null}
               </View>
             </View>
           ) : null}
@@ -470,5 +534,38 @@ const styles = StyleSheet.create({
   },
   superpowerPlaceholder: {
     color: "rgba(33, 36, 39, 0.55)",
+  },
+  insightsCard: {
+    backgroundColor: primaryWhite,
+    borderRadius: responsiveBorderRadius(20),
+    borderWidth: 1,
+    borderColor: primaryBlack,
+    paddingVertical: responsivePadding(10),
+  },
+  insightRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: responsivePadding(16),
+    paddingVertical: responsivePadding(10),
+    gap: responsiveMargin(10),
+  },
+  insightLabel: {
+    color: primaryBlack,
+    flexShrink: 1,
+  },
+  insightValue: {
+    color: primaryBlack,
+    textAlign: "right",
+  },
+  insightDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(33, 36, 39, 0.12)",
+  },
+  insightSubTitle: {
+    color: "rgba(33, 36, 39, 0.7)",
+    paddingHorizontal: responsivePadding(16),
+    paddingTop: responsivePadding(12),
+    paddingBottom: responsivePadding(4),
   },
 });
