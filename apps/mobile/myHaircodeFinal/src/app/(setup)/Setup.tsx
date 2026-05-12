@@ -95,6 +95,8 @@ const Setup = () => {
       footerLogoHeight: footerLogoWidth * LOGO_ASPECT,
       horizontalPad,
       patternSectionMarginBottom: tablet ? responsiveMargin(14) : responsiveMargin(28),
+      /** Keeps checkbox + consent copy bounded and centered within the padded column. */
+      consentRowMaxWidth: Math.min(420, Math.max(0, maxContentW - horizontalPad * 2)),
     };
   }, [windowWidth, windowHeight]);
 
@@ -167,42 +169,44 @@ const Setup = () => {
             <View style={styles.checkboxOuter}>
               <View
                 style={[
-                  styles.checkboxRow,
-                  layout.tablet && { width: "100%", maxWidth: 420, alignSelf: "center" },
+                  styles.checkboxInner,
+                  { maxWidth: layout.consentRowMaxWidth },
                 ]}
               >
-                <Pressable
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: isChecked }}
-                  onPress={() => setIsChecked((v) => !v)}
-                  hitSlop={12}
-                  style={[styles.checkboxHit, { marginTop: layout.checkboxAlignTop }]}
-                >
-                  <View
-                    style={[
-                      styles.checkboxBox,
-                      { width: layout.checkSide, height: layout.checkSide },
-                      isChecked && styles.checkboxBoxChecked,
-                    ]}
+                <View style={styles.checkboxRow}>
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: isChecked }}
+                    onPress={() => setIsChecked((v) => !v)}
+                    hitSlop={12}
+                    style={[styles.checkboxHit, { marginTop: layout.checkboxAlignTop }]}
                   >
-                    {isChecked ? (
-                      <MaterialIcons
-                        name="check"
-                        size={checkIconSize}
-                        color={primaryWhite}
-                      />
-                    ) : null}
+                    <View
+                      style={[
+                        styles.checkboxBox,
+                        { width: layout.checkSide, height: layout.checkSide },
+                        isChecked && styles.checkboxBoxChecked,
+                      ]}
+                    >
+                      {isChecked ? (
+                        <MaterialIcons
+                          name="check"
+                          size={checkIconSize}
+                          color={primaryWhite}
+                        />
+                      ) : null}
+                    </View>
+                  </Pressable>
+                  <View style={styles.checkboxTextCol}>
+                    <Text style={consentStyle}>I have read and agree to the</Text>
+                    <Text
+                      accessibilityRole="link"
+                      onPress={() => router.push("/(setup)/TermsAndPrivacy")}
+                      style={[consentStyle, styles.link]}
+                    >
+                      terms and privacy
+                    </Text>
                   </View>
-                </Pressable>
-                <View style={styles.checkboxTextCol}>
-                  <Text style={consentStyle}>I have read and agree to the</Text>
-                  <Text
-                    accessibilityRole="link"
-                    onPress={() => router.push("/(setup)/TermsAndPrivacy")}
-                    style={[consentStyle, styles.link]}
-                  >
-                    terms and privacy
-                  </Text>
                 </View>
               </View>
             </View>
@@ -264,9 +268,20 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
   },
+  /** Bounded width so consent lines wrap; centered under checkboxOuter. */
+  checkboxInner: {
+    width: "100%",
+    alignSelf: "center",
+  },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "flex-start",
+    width: "100%",
+  },
+  checkboxTextCol: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   checkboxHit: {
     marginRight: responsivePadding(10),
@@ -281,11 +296,6 @@ const styles = StyleSheet.create({
   },
   checkboxBoxChecked: {
     backgroundColor: primaryBlack,
-  },
-  checkboxTextCol: {
-    flex: 1,
-    flexShrink: 1,
-    minWidth: 0,
   },
   link: {
     textDecorationLine: "underline",

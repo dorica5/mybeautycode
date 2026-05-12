@@ -1,5 +1,4 @@
-import React, { useMemo, useState } from "react";
-import DropDownPicker from "react-native-dropdown-picker";
+import React, { useMemo } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   Pressable,
@@ -12,26 +11,30 @@ import {
   Platform,
   useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Plus, XCircle } from "phosphor-react-native";
 import { ResizeMode, Video } from "expo-av";
-import { primaryBlack, primaryWhite, secondaryGreen } from "@/src/constants/Colors";
+import {
+  Colors,
+  primaryBlack,
+  primaryWhite,
+  secondaryGreen,
+} from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
 import { PrimaryOutlineTextField } from "@/src/components/PrimaryOutlineTextField";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
+import { BrandAnchoredMultiSelect } from "@/src/components/BrandAnchoredMultiSelect";
 import {
   contentCardMaxWidth,
   isTablet,
-  responsiveBorderRadius,
   responsiveScale,
   responsivePadding,
   responsiveMargin,
   responsiveFontSize,
 } from "@/src/utils/responsive";
 import { router } from "expo-router";
-import { Colors } from "@/src/constants/Colors";
 import { NavBackRow } from "@/src/components/NavBackRow";
-
 /** Description field limit for new/edit visit (spaces count). */
 export const VISIT_DESCRIPTION_MAX_CHARS = 240;
 
@@ -102,23 +105,15 @@ export function NailVisitForm({
   onPreviewPress,
 }: NailVisitFormProps) {
   const { width, height } = useWindowDimensions();
-  const [otherDropdownOpen, setOtherDropdownOpen] = useState(false);
   const dropdownLabelSet = useMemo(
     () => new Set(serviceDropdownOptions),
-    [serviceDropdownOptions]
-  );
-  const dropdownItems = useMemo(
-    () =>
-      serviceDropdownOptions.map((label) => ({
-        label,
-        value: label,
-      })),
     [serviceDropdownOptions]
   );
   const dropdownValue = useMemo(
     () => selectedOptions.filter((s) => dropdownLabelSet.has(s)),
     [selectedOptions, dropdownLabelSet]
   );
+
   const columnMax = useMemo(() => {
     const shortSide = Math.min(width, height);
     const pad = responsivePadding(20) * 2;
@@ -201,45 +196,13 @@ export function NailVisitForm({
 
             {serviceDropdownOptions.length > 0 &&
             onChangeDropdownServices ? (
-              <View style={styles.nailOtherServicesBlock}>
-                <Text style={[Typography.label, styles.nailOtherServicesLabel]}>
-                  Other
-                </Text>
-                <DropDownPicker
-                  multiple
-                  min={0}
-                  max={serviceDropdownOptions.length}
-                  listMode="MODAL"
-                  modalTitle="Other services"
-                  modalAnimationType="fade"
-                  open={otherDropdownOpen}
-                  setOpen={setOtherDropdownOpen}
-                  value={dropdownValue}
-                  setValue={(callback) => {
-                    const prevPick = dropdownValue;
-                    const resolved =
-                      typeof callback === "function"
-                        ? callback(prevPick)
-                        : callback;
-                    const nextPick =
-                      resolved === null || resolved === undefined
-                        ? []
-                        : Array.isArray(resolved)
-                          ? [...resolved]
-                          : [resolved];
-                    onChangeDropdownServices(nextPick);
-                  }}
-                  items={dropdownItems}
-                  setItems={() => {}}
-                  placeholder="Tap to add services"
-                  style={styles.nailVisitOtherDropdown}
-                  dropDownContainerStyle={styles.nailVisitOtherDropdownList}
-                  textStyle={styles.nailVisitOtherDropdownText}
-                  listItemLabelStyle={styles.nailVisitOtherDropdownText}
-                  zIndex={3000}
-                  zIndexInverse={1000}
-                />
-              </View>
+              <BrandAnchoredMultiSelect
+                label="Other"
+                options={serviceDropdownOptions}
+                value={dropdownValue}
+                onChange={onChangeDropdownServices}
+                placeholder="Tap to add services"
+              />
             ) : null}
 
             <View style={styles.nailFieldBlock}>
@@ -472,32 +435,6 @@ const styles = StyleSheet.create({
     gap: responsiveMargin(5),
     marginBottom: responsiveMargin(10),
     width: "100%",
-  },
-  nailOtherServicesBlock: {
-    width: "100%",
-    marginBottom: responsiveMargin(28),
-  },
-  nailOtherServicesLabel: {
-    color: primaryBlack,
-    marginBottom: responsiveMargin(8),
-    alignSelf: "flex-start",
-  },
-  nailVisitOtherDropdown: {
-    borderWidth: 1,
-    borderColor: primaryBlack,
-    borderRadius: responsiveBorderRadius(18),
-    backgroundColor: primaryWhite,
-    minHeight: responsiveScale(50),
-    paddingHorizontal: responsivePadding(4),
-  },
-  nailVisitOtherDropdownList: {
-    borderColor: primaryBlack,
-    borderWidth: 1,
-    borderRadius: responsiveBorderRadius(12),
-  },
-  nailVisitOtherDropdownText: {
-    ...Typography.outfitRegular16,
-    color: primaryBlack,
   },
   nailServiceRow: {
     width: "100%",
