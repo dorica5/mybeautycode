@@ -30,6 +30,11 @@ export type MintBrandModalProps = {
   footer: ReactNode;
   /** When true, tapping the dimmed area calls `onClose` (e.g. cancel). Default true. */
   closeOnBackdropPress?: boolean;
+  /**
+   * Short copy + one action: tighter card, small pattern strip, body height follows content
+   * (avoids a tall empty scroll area).
+   */
+  variant?: "default" | "compact";
 };
 
 /**
@@ -42,16 +47,24 @@ export function MintBrandModal({
   message,
   footer,
   closeOnBackdropPress = true,
+  variant = "default",
 }: MintBrandModalProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const isCompact = variant === "compact";
 
   const cardWidth = useMemo(
-    () => Math.min(responsiveScale(360), windowWidth - responsivePadding(40)),
-    [windowWidth]
+    () =>
+      Math.min(
+        isCompact ? responsiveScale(300) : responsiveScale(360),
+        windowWidth - responsivePadding(40)
+      ),
+    [windowWidth, isCompact]
   );
 
-  const heroHeight = Math.round((cardWidth / 1.77) * 0.42);
+  const heroHeight = isCompact
+    ? Math.round(Math.min(responsiveScale(44), cardWidth * 0.14))
+    : Math.round((cardWidth / 1.77) * 0.42);
   const heroNudge = heroHeight * 0.34;
 
   /** Keep the card on-screen; body scrolls (e.g. long report reason lists on phone + iPad). */
@@ -73,6 +86,33 @@ export function MintBrandModal({
     const capByWindow = windowHeight * 0.5;
     return Math.min(raw, capByWindow);
   }, [maxCardHeight, heroHeight, windowHeight]);
+
+  const bodyInner = (
+    <>
+      <Text
+        style={[
+          Typography.h3,
+          styles.title,
+          isCompact && styles.titleCompact,
+        ]}
+        accessibilityRole="header"
+      >
+        {title}
+      </Text>
+      {typeof message === "string" ? (
+        <Text
+          style={[Typography.bodyMedium, styles.message, isCompact && styles.messageCompact]}
+        >
+          {message}
+        </Text>
+      ) : (
+        <View style={[styles.messageWrap, isCompact && styles.messageWrapCompact]}>
+          {message}
+        </View>
+      )}
+      {footer}
+    </>
+  );
 
   return (
     <Modal
@@ -109,37 +149,39 @@ export function MintBrandModal({
               />
             </View>
 
-            <ScrollView
-              style={[styles.bodyScroll, { height: bodyScrollMaxHeight }]}
-              contentContainerStyle={[
-                styles.bodyScrollContent,
-                {
-                  paddingBottom:
-                    responsiveMargin(24) +
-                    Math.max(insets.bottom, responsiveMargin(12)),
-                },
-              ]}
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator
-              bounces
-              overScrollMode="never"
-              removeClippedSubviews={false}
-            >
-              <Text
-                style={[Typography.h3, styles.title]}
-                accessibilityRole="header"
+            {isCompact ? (
+              <View
+                style={[
+                  styles.bodyCompact,
+                  {
+                    paddingBottom:
+                      responsiveMargin(16) +
+                      Math.max(insets.bottom, responsiveMargin(8)),
+                  },
+                ]}
               >
-                {title}
-              </Text>
-              {typeof message === "string" ? (
-                <Text style={[Typography.bodyMedium, styles.message]}>
-                  {message}
-                </Text>
-              ) : (
-                <View style={styles.messageWrap}>{message}</View>
-              )}
-              {footer}
-            </ScrollView>
+                {bodyInner}
+              </View>
+            ) : (
+              <ScrollView
+                style={[styles.bodyScroll, { height: bodyScrollMaxHeight }]}
+                contentContainerStyle={[
+                  styles.bodyScrollContent,
+                  {
+                    paddingBottom:
+                      responsiveMargin(24) +
+                      Math.max(insets.bottom, responsiveMargin(12)),
+                  },
+                ]}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator
+                bounces
+                overScrollMode="never"
+                removeClippedSubviews={false}
+              >
+                {bodyInner}
+              </ScrollView>
+            )}
           </View>
         </View>
       </GestureHandlerRootView>
@@ -218,6 +260,12 @@ const styles = StyleSheet.create({
   bodyScroll: {
     alignSelf: "stretch",
   },
+  bodyCompact: {
+    alignSelf: "stretch",
+    paddingHorizontal: responsivePadding(20),
+    paddingTop: responsiveMargin(14),
+    alignItems: "center",
+  },
   bodyScrollContent: {
     paddingHorizontal: responsivePadding(24),
     paddingTop: responsiveMargin(22),
@@ -234,11 +282,20 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     opacity: 0.92,
   },
+  messageCompact: {
+    marginBottom: responsiveMargin(14),
+  },
   messageWrap: {
     marginBottom: responsiveMargin(24),
     alignSelf: "stretch",
     alignItems: "center",
     opacity: 0.92,
+  },
+  messageWrapCompact: {
+    marginBottom: responsiveMargin(14),
+  },
+  titleCompact: {
+    marginBottom: responsiveMargin(10),
   },
   footerRow: {
     flexDirection: "row",

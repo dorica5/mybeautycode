@@ -81,7 +81,18 @@ export const visitController = {
       await serviceRecordAccessService.assertCanAccessServiceRecord(req.userId!, id);
       const data = await visitService.getWithMedia(id);
       if (!data) return res.status(404).json({ error: "Visit not found" });
-      res.json(data);
+      const { clientPrivateNote, ...rest } = data as Record<string, unknown> & {
+        clientPrivateNote?: string | null;
+        clientUserId?: string;
+      };
+      const isClientViewer = rest.clientUserId === req.userId;
+      const payload = isClientViewer
+        ? {
+            ...rest,
+            client_private_note: clientPrivateNote ?? null,
+          }
+        : { ...rest };
+      res.json(payload);
     } catch (err: unknown) {
       const e = err as { statusCode?: number; message?: string };
       if (e.statusCode === 403) {
@@ -146,12 +157,51 @@ export const visitController = {
 
   async update(req: Request, res: Response) {
     const { id } = req.params;
+    const body = req.body as Record<string, unknown>;
+    const noteKeyPresent = Object.prototype.hasOwnProperty.call(
+      body,
+      "client_private_note"
+    );
+
     try {
+      if (noteKeyPresent) {
+        const hasProBodyField =
+          body.service_description != null ||
+          body.services != null ||
+          body.price != null ||
+          body.duration != null;
+        const noteRaw = body.client_private_note;
+        const note =
+          typeof noteRaw === "string"
+            ? noteRaw
+            : noteRaw == null
+              ? ""
+              : String(noteRaw);
+
+        if (hasProBodyField) {
+          return res.status(400).json({
+            error:
+              "Cannot update personal note together with visit details. Save them separately.",
+          });
+        }
+
+        await serviceRecordAccessService.assertClientOwnsVisit(req.userId!, id);
+        const data = await visitService.updateClientPrivateNote(
+          id,
+          req.userId!,
+          note
+        );
+        return res.json(data);
+      }
+
       await serviceRecordAccessService.assertProfessionalOwnsVisit(req.userId!, id);
       const data = await visitService.update(id, req.body);
       res.json(data);
     } catch (err: unknown) {
       const e = err as { statusCode?: number; message?: string };
+      if (e.statusCode === 400) {
+        return res.status(400).json({ error: e.message ?? "Bad request" });
+      }
       if (e.statusCode === 403) {
         return res.status(403).json({ error: e.message ?? "Forbidden" });
       }

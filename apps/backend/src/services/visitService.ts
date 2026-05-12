@@ -101,6 +101,12 @@ export const visitService = {
         preview_media_type: thumb?.mediaType ?? null,
         professional_profile: profPayload,
         hairdresser_profile: profPayload,
+        ...(viewerProfileId === clientUserId && {
+          client_private_note:
+            typeof r.clientPrivateNote === "string" && r.clientPrivateNote.trim()
+              ? r.clientPrivateNote.trim()
+              : null,
+        }),
       };
     });
   },
@@ -179,11 +185,15 @@ export const visitService = {
     const laneCode = scope.normalizedCode;
     return records
       .filter((r) => r.professionId === scope.professionId)
-      .map((r) => ({
-        ...r,
-        profession_code: r.profession?.code ?? laneCode,
-        client_profile: r.clientUser,
-      }));
+      .map((r) => {
+        const { clientPrivateNote: _privateNoteIgnored, ...restRecord } = r;
+        void _privateNoteIgnored;
+        return {
+          ...restRecord,
+          profession_code: r.profession?.code ?? laneCode,
+          client_profile: r.clientUser,
+        };
+      });
   },
 
   async getWithMedia(serviceRecordId: string) {
@@ -406,6 +416,28 @@ export const visitService = {
     return prisma.serviceRecord.update({
       where: { id: serviceRecordId },
       data: updateData as never,
+    });
+  },
+
+  /** Private note for the client on this visit only (not visible to professionals). */
+  async updateClientPrivateNote(
+    serviceRecordId: string,
+    clientUserId: string,
+    note: string
+  ) {
+    const trimmed = typeof note === "string" ? note.trim() : "";
+    const maxChars = 1200;
+    if (trimmed.length > maxChars) {
+      throw Object.assign(
+        new Error(`Note must be at most ${maxChars} characters`),
+        { statusCode: 400 as const }
+      );
+    }
+    return prisma.serviceRecord.update({
+      where: { id: serviceRecordId, clientUserId },
+      data: {
+        clientPrivateNote: trimmed.length > 0 ? trimmed : null,
+      },
     });
   },
 

@@ -221,6 +221,8 @@ model ServiceRecord {
   durationMinutes          Int?                    @map("duration_minutes")
   recordStatus             ServiceRecordStatus     @default(completed) @map("record_status")
   recordData               Json?                   @map("record_data")
+  /// Visible only to the client on this visit — never surfaced to professionals.
+  clientPrivateNote        String?                 @map("client_private_note")
   createdByUserId          String?                 @map("created_by_user_id") @db.Uuid
   createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime?               @map("updated_at") @db.Timestamptz(6)

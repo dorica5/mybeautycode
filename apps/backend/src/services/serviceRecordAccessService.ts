@@ -189,6 +189,20 @@ export const serviceRecordAccessService = {
     }
   },
 
+  /** Client may edit only rows where they are the visit subject (client_user_id). */
+  async assertClientOwnsVisit(
+    viewerProfileId: string,
+    serviceRecordId: string
+  ): Promise<void> {
+    const record = await prisma.serviceRecord.findUnique({
+      where: { id: serviceRecordId },
+      select: { clientUserId: true },
+    });
+    if (!record?.clientUserId || record.clientUserId !== viewerProfileId) {
+      throw Object.assign(new Error("Forbidden"), { statusCode: 403 as const });
+    }
+  },
+
   /** Only the professional who owns the visit may attach or remove media. */
   async assertProfessionalOwnsVisit(
     viewerProfileId: string,
