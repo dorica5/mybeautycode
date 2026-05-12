@@ -2,16 +2,16 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import {
   BrandAddressAutocompleteField,
   type PlaceDetails,
@@ -20,15 +20,12 @@ import { BrandOutlineField } from "@/src/components/BrandOutlineField";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { supabase } from "@/src/lib/supabase";
-import {
-  setLastAppSurface,
-  setLastProfessionCode,
-} from "@/src/lib/lastVisitPreference";
 import { router, useLocalSearchParams } from "expo-router";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { primaryBlack, primaryWhite, setupSageBackground } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
+  contentCardMaxWidth,
   isTablet,
   responsiveMargin,
   responsivePadding,
@@ -40,11 +37,24 @@ import { usePostHog } from "posthog-react-native";
 import {
   PROFESSION_CHOICE_CODES,
   PROFESSION_HEADLINE_ROLE,
+  coerceProfessionCode,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import { BYPASS_PRO_PAYWALL_FOR_DEV } from "@/src/lib/subscriptionFlags";
+import { setPendingProfessionalSetup } from "@/src/lib/pendingProfessionalSetup";
+import { buildProfessionalSetupProfilePutBody } from "@/src/lib/professionalSetupSave";
+import { runProfessionalSetupCompletionSideEffects } from "@/src/lib/professionalSetupCompletion";
 
 const ProfessionalSetup = () => {
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
+  const formMaxW = useMemo(() => {
+    const shortSide = Math.min(winW, winH);
+    const pad = responsivePadding(24) * 2;
+    if (!isTablet()) return 400;
+    return Math.min(contentCardMaxWidth(shortSide), winW - pad);
+  }, [winW, winH]);
+
   const { profession_code } = useLocalSearchParams<{
     profession_code?: string;
   }>();
@@ -92,47 +102,37 @@ const ProfessionalSetup = () => {
         !prev.bookingSite &&
         !prev.aboutMe;
       if (!empty) return prev;
-      const detailForProfession =
-        Array.isArray((profile as { professions_detail?: unknown }).professions_detail)
-          ? (
-              (profile as {
-                professions_detail?: Array<{
-                  profession_code?: string | null;
-                  business_name?: string | null;
-                  business_number?: string | null;
-                  business_address?: string | null;
-                  social_media?: string | null;
-                  booking_site?: string | null;
-                  about_me?: string | null;
-                }>;
-              }).professions_detail ?? []
-            ).find((row) => row?.profession_code === professionCode) ?? null
-          : null;
 
-      /**
-       * Important: when creating an additional professional surface (e.g. nails / brows),
-       * do NOT prefill from the default hair fields. Only prefill when a per-profession
-       * detail row exists (editing an existing profession).
-       */
-      if (professionCode !== "hair" && !detailForProfession) {
+      const rows = Array.isArray(
+        (profile as { professions_detail?: unknown }).professions_detail
+      )
+        ? (
+            (profile as {
+              professions_detail?: Array<{
+                profession_code?: string | null;
+                business_name?: string | null;
+                business_number?: string | null;
+                business_address?: string | null;
+                social_media?: string | null;
+                booking_site?: string | null;
+                about_me?: string | null;
+              }>;
+            }).professions_detail ?? []
+          )
+        : [];
+
+      const detailForProfession =
+        rows.find((row) => {
+          const code = coerceProfessionCode(row?.profession_code ?? undefined);
+          return code === professionCode;
+        }) ?? null;
+
+      /** Per DB, salon/booking/social are scoped to each `professional_professions` row — not shared via Profile. */
+      if (!detailForProfession) {
         return prev;
       }
 
-      const bizName =
-        detailForProfession?.business_name ??
-        (professionCode === "hair"
-          ? profile.business_name ??
-            (profile as { salon_name?: string }).salon_name ??
-            ""
-          : "");
-
-      const bizPhone =
-        detailForProfession?.business_number ??
-        (professionCode === "hair"
-          ? profile.business_number ??
-            (profile as { salon_phone_number?: string }).salon_phone_number ??
-            ""
-          : "");
+      const bizPhone = detailForProfession.business_number ?? "";
       let phoneDisplay = bizPhone;
       if (bizPhone && profile.country) {
         try {
@@ -142,21 +142,14 @@ const ProfessionalSetup = () => {
           phoneDisplay = bizPhone;
         }
       }
+
       return {
-        businessName: bizName,
+        businessName: detailForProfession.business_name ?? "",
         businessPhone: phoneDisplay,
-        businessAddress:
-          detailForProfession?.business_address ??
-          (professionCode === "hair" ? profile.business_address ?? "" : ""),
-        socialMedia:
-          detailForProfession?.social_media ??
-          (professionCode === "hair" ? profile.social_media ?? "" : ""),
-        bookingSite:
-          detailForProfession?.booking_site ??
-          (professionCode === "hair" ? profile.booking_site ?? "" : ""),
-        aboutMe:
-          detailForProfession?.about_me ??
-          (professionCode === "hair" ? profile.about_me ?? "" : ""),
+        businessAddress: detailForProfession.business_address ?? "",
+        socialMedia: detailForProfession.social_media ?? "",
+        bookingSite: detailForProfession.booking_site ?? "",
+        aboutMe: detailForProfession.about_me ?? "",
       };
     });
   }, [profile, professionCode]);
@@ -262,74 +255,54 @@ const ProfessionalSetup = () => {
       <Text style={styles.fieldError}>{msg}</Text>
     ) : null;
 
-  const formatBusinessPhoneE164 = (): string => {
-    if (!profileCountry) throw new Error("Missing profile country");
-    const r = parseProfilePhone(fields.businessPhone, profileCountry);
-    if (!r.ok) throw new Error(r.message);
-    return r.e164;
-  };
-
-  const updateUserProfile = async () => {
-    if (!userId) throw new Error("User not found");
-
-    const bizAddr = fields.businessAddress.trim();
-    const social = fields.socialMedia.trim();
-    const booking = fields.bookingSite.trim();
-
-    /** Only send place identity when the current address text matches the last
-     *  picked suggestion. Typing free-form afterwards clears placeDetails via
-     *  BrandAddressAutocompleteField's onPlaceSelected(null). */
-    const placeStillMatches =
-      placeDetails && placeDetails.formattedAddress.trim() === bizAddr;
-
-    await updateProfile({
-      id: userId,
-      business_name: fields.businessName.trim(),
-      business_number: formatBusinessPhoneE164(),
-      business_address: bizAddr,
-      business_place_id: placeStillMatches ? placeDetails!.placeId : null,
-      business_latitude: placeStillMatches ? placeDetails!.latitude : null,
-      business_longitude: placeStillMatches ? placeDetails!.longitude : null,
-      social_media: social.length > 0 ? social : null,
-      booking_site: booking.length > 0 ? booking : null,
-      about_me: fields.aboutMe.trim(),
-      setup_status: true,
-      profession_code: professionCode,
-    });
-  };
-
   const setUpDone = async () => {
     setAttemptedSubmit(true);
 
     if (!validateFields()) {
       return;
     }
+    if (!userId) {
+      Alert.alert("Setup error", "User not found.");
+      return;
+    }
     try {
       setLoading(true);
-      setLoadingSetup(true);
 
-      await updateUserProfile();
-      if (userId) {
-        await setLastAppSurface(userId, "professional");
-        await setLastProfessionCode(userId, professionCode);
-      }
-      posthog.capture("Profile Completed", { role: "HAIRDRESSER" });
-      if (userId) {
-        const { data: user } = await supabase.auth.getUser();
-        const display =
-          [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
-          profile?.full_name ||
-          "";
-
-        posthog.identify(userId, {
-          email: user?.user?.email ?? null,
-          role: "HAIRDRESSER",
-          name: display,
-          country: profile?.country ?? null,
+      if (BYPASS_PRO_PAYWALL_FOR_DEV) {
+        setLoadingSetup(true);
+        const updateBody = buildProfessionalSetupProfilePutBody({
+          userId,
+          professionCode,
+          profileCountry,
+          fields,
+          placeDetails,
         });
+        await updateProfile(updateBody);
+        await runProfessionalSetupCompletionSideEffects({
+          userId,
+          professionCode,
+          profile,
+          posthog,
+        });
+        setLoadingSetup(false);
+        router.replace("/(professional)/(tabs)/home");
+        return;
       }
 
-      setLoadingSetup(false);
+      const updateBody = buildProfessionalSetupProfilePutBody({
+        userId,
+        professionCode,
+        profileCountry,
+        fields,
+        placeDetails,
+      });
+
+      setPendingProfessionalSetup({
+        userId,
+        professionCode,
+        updateBody,
+      });
+
       router.replace({
         pathname: "/Screens/paywall",
         params: { from: "professional-setup" },
@@ -361,16 +334,12 @@ const ProfessionalSetup = () => {
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <Pressable
-        accessibilityRole="button"
+      <NavBackRow
         accessibilityLabel="Go back"
         onPress={() => router.back()}
         style={styles.backRow}
         hitSlop={12}
-      >
-        <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-        <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-      </Pressable>
+      />
 
       <KeyboardAvoidingView
         style={styles.keyboard}
@@ -399,7 +368,7 @@ const ProfessionalSetup = () => {
 
           <Text style={[Typography.h4, styles.aboutYouSubhead]}>About you</Text>
 
-          <View style={styles.form}>
+          <View style={[styles.form, { maxWidth: formMaxW }]}>
             <BrandOutlineField
               label="Salon name"
               value={fields.businessName}
@@ -425,7 +394,7 @@ const ProfessionalSetup = () => {
               onChangeText={(value) =>
                 handleFieldChange("businessPhone", value)
               }
-              keyboardType="phone-pad"
+              inputRestriction="telephone"
               editable={!!profileCountry}
               accessibilityState={{ disabled: !profileCountry }}
               accessibilityHint={
@@ -518,14 +487,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding(24),
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
+    alignSelf: "flex-start",
     paddingVertical: responsiveMargin(8),
-    gap: responsiveMargin(4),
-  },
-  backText: {
-    color: primaryBlack,
+    marginBottom: responsiveMargin(8),
+    zIndex: 2,
   },
   pageTitle: {
     textAlign: "center",
@@ -541,7 +506,6 @@ const styles = StyleSheet.create({
   },
   form: {
     width: "100%",
-    maxWidth: 400,
     alignSelf: "center",
   },
   formFieldSpacing: {

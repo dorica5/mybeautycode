@@ -58,26 +58,38 @@ export async function getClientLinkUiStatus(
   return exists ? "active" : "none";
 }
 
+export const relationshipCheckQueryKey = (
+  clientId: string,
+  hairdresserId: string,
+  professionCode: string | null | undefined
+) =>
+  [
+    "relationship",
+    clientId,
+    hairdresserId,
+    professionCode ?? "unspecified",
+  ] as const;
+
 export function useRelationshipCheck(
   clientId?: string,
   hairdresserId?: string,
   professionCode?: string | null,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean; staleTime?: number }
 ) {
   const enabled =
     options?.enabled !== undefined
       ? options.enabled
       : Boolean(clientId && hairdresserId);
   return useQuery({
-    queryKey: [
-      "relationship",
-      clientId,
-      hairdresserId,
-      professionCode ?? "unspecified",
-    ],
+    queryKey: relationshipCheckQueryKey(
+      clientId ?? "",
+      hairdresserId ?? "",
+      professionCode
+    ),
     queryFn: () =>
       checkRelationship(hairdresserId!, clientId!, professionCode),
     enabled,
+    staleTime: options?.staleTime ?? 60_000,
   });
 }
 

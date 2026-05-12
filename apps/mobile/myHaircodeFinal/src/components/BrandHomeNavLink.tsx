@@ -1,16 +1,19 @@
 import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
+  contentCardMaxWidth,
+  isTablet,
   responsivePadding,
   responsiveScale,
 } from "@/src/utils/responsive";
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Pressable,
   PressableProps,
   StyleSheet,
   Text,
   ViewStyle,
+  useWindowDimensions,
 } from "react-native";
 
 export type BrandHomeNavLinkProps = Omit<
@@ -30,12 +33,21 @@ export function BrandHomeNavLink({
   style,
   ...pressableProps
 }: BrandHomeNavLinkProps) {
+  const { width, height } = useWindowDimensions();
+  const maxW = useMemo(() => {
+    const shortSide = Math.min(width, height);
+    const padTotal = responsivePadding(24) * 2;
+    if (!isTablet()) return 400;
+    return Math.min(contentCardMaxWidth(shortSide), width - padTotal);
+  }, [width, height]);
+
   return (
     <Pressable
       accessibilityRole="button"
       {...pressableProps}
       style={({ pressed }) => [
         styles.base,
+        { maxWidth: maxW },
         pressed && styles.pressed,
         style,
       ]}
@@ -48,7 +60,6 @@ export function BrandHomeNavLink({
 const styles = StyleSheet.create({
   base: {
     width: "100%",
-    maxWidth: 400,
     alignSelf: "center",
     backgroundColor: primaryWhite,
     borderWidth: 1,

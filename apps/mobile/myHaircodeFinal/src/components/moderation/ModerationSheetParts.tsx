@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { CaretRight } from "phosphor-react-native";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
@@ -37,6 +37,17 @@ export const moderationDetailCopy = {
       "Our team reviews every report. Details you provide stay private to you and moderators.",
   },
 } as const;
+
+/**
+ * Extra space under the last report reason ("Other").
+ * Use `paddingBottom` on the wrapper `View` (not `marginBottom`): margins on the last
+ * child in `ScrollView` — especially inside sheets — are often clipped or omitted from
+ * content size on iOS; padding is always laid out. `collapsable={false}` on the wrapper
+ * avoids Android collapsing that view away.
+ */
+export const reportOtherReasonRowStyle: ViewStyle = {
+  paddingBottom: responsiveMargin(32, 44),
+};
 
 const hairline = StyleSheet.hairlineWidth;
 
@@ -81,20 +92,31 @@ type ReasonRowProps = {
   onPress: () => void;
   /** Visually emphasize (e.g. confirm remove). */
   danger?: boolean;
+  disabled?: boolean;
+  /**
+   * Outer wrapper styles (e.g. bottom margin on last report reason). Prefer this over
+   * putting margin on the row `Pressable` so spacing is measured correctly in scroll views.
+   */
+  style?: StyleProp<ViewStyle>;
 };
 
 export function ModerationReasonRow({
   label,
   onPress,
   danger,
+  disabled,
+  style,
 }: ReasonRowProps) {
-  return (
+  const row = (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         reasonStyles.row,
-        pressed && reasonStyles.rowPressed,
+        style && reasonStyles.rowFlushBottom,
+        pressed && !disabled && reasonStyles.rowPressed,
         danger && reasonStyles.rowDanger,
+        disabled && reasonStyles.rowDisabled,
       ]}
     >
       <Text
@@ -114,6 +136,15 @@ export function ModerationReasonRow({
       />
     </Pressable>
   );
+
+  if (style) {
+    return (
+      <View style={style} collapsable={false}>
+        {row}
+      </View>
+    );
+  }
+  return row;
 }
 
 const reasonStyles = StyleSheet.create({
@@ -129,11 +160,18 @@ const reasonStyles = StyleSheet.create({
     borderWidth: hairline,
     borderColor: `${primaryBlack}18`,
   },
+  /** When a wrapper owns bottom spacing, keep default row gap off the pressable. */
+  rowFlushBottom: {
+    marginBottom: 0,
+  },
   rowPressed: {
     backgroundColor: secondaryGreen,
   },
   rowDanger: {
     borderColor: `${moderationDestructive}40`,
+  },
+  rowDisabled: {
+    opacity: 0.45,
   },
   label: {
     color: primaryBlack,

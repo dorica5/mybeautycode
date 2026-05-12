@@ -1,14 +1,12 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { CaretLeft } from "phosphor-react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
-import { primaryBlack } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
+import { responsiveMargin, responsivePadding, responsiveScale } from "@/src/utils/responsive";
 import {
-  responsiveMargin,
-  responsivePadding,
-  responsiveScale,
-} from "@/src/utils/responsive";
+  NavBackRow,
+  navBackChromeBarCombined,
+} from "@/src/components/NavBackRow";
 
 type VisitRecordScreenHeaderProps = {
   title: string;
@@ -29,17 +27,8 @@ export function VisitRecordScreenHeader({
 }: VisitRecordScreenHeaderProps) {
   return (
     <View>
-      <View style={styles.topRow}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          style={styles.backPressable}
-        >
-          <CaretLeft size={responsiveScale(32)} color={primaryBlack} />
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
+      <View style={navBackChromeBarCombined()}>
+        <NavBackRow layout="inlineBar" onPress={() => router.back()} />
         {rightSlot ? (
           rightSlot
         ) : (
@@ -65,23 +54,6 @@ export function VisitRecordScreenHeader({
 }
 
 const styles = StyleSheet.create({
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: responsivePadding(20),
-    paddingTop: responsivePadding(8),
-    paddingBottom: responsivePadding(4),
-  },
-  backPressable: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: responsivePadding(4),
-  },
-  backLabel: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
-  },
   topRowTrailPlaceholder: {
     minWidth: responsiveScale(40),
   },

@@ -32,7 +32,7 @@ type SearchResultProps = {
   };
   context?: string;
   query?: string;
-  /** Active professional lane — required for `/haircodes/[id]` relationship checks. */
+  /** Active professional lane — required for `/visits/[id]` relationship checks. */
   professionCode?: string | null;
 };
 
@@ -121,14 +121,14 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
 
     const invalidateAfterLinkChange = async () => {
       await queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
-      await queryClient.invalidateQueries({ queryKey: ["latest_haircodes"] });
+      await queryClient.invalidateQueries({ queryKey: ["latest_visits"] });
     };
 
     const navigateToClient = () => {
       if (!isUuid(clientId)) return;
       if (hasRelationship) {
         router.push({
-          pathname: "/haircodes/[id]" as Href,
+          pathname: "/visits/[id]" as Href,
           params: {
             id: clientId,
             full_name: item.full_name,
@@ -143,7 +143,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
         return;
       }
       router.push({
-        pathname: "/(hairdresser)/clientProfile/[id]" as Href,
+        pathname: "/(professional)/clientProfile/[id]" as Href,
         params: {
           id: clientId,
           full_name: item.full_name,
@@ -157,7 +157,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
     const navigateToPendingClientProfile = () => {
       if (!isUuid(clientId)) return;
       router.push({
-        pathname: "/(hairdresser)/clientProfile/[id]" as Href,
+        pathname: "/(professional)/clientProfile/[id]" as Href,
         params: {
           id: clientId,
           full_name: item.full_name,

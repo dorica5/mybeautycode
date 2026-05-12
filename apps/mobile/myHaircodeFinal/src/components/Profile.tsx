@@ -1,16 +1,22 @@
-import { StyleSheet, View, Pressable, Text } from "react-native";
+import { StyleSheet, View, Pressable, Text, useWindowDimensions } from "react-native";
 import React from "react";
 import { IconProps, CaretRight, Trash } from "phosphor-react-native";
 import { Colors } from "../constants/Colors";
 import { Typography } from "../constants/Typography";
-import { scale, scalePercent, responsiveScale } from "../utils/responsive";
+import {
+  contentCardMaxWidth,
+  isTablet,
+  responsiveScale,
+  scale,
+  scalePercent,
+} from "../utils/responsive";
 
 type ProfileProps = {
   bottom?: boolean;
   top?: boolean;
   title: string;
   Icon: React.ComponentType<IconProps>;
-  /** Mint-style tiles on client profile; default uses yellowish (hairdresser). */
+  /** Mint-style tiles on client profile; default uses yellowish (professional). */
   tileStyle?: "default" | "light";
   /**
    * Stack rows as one white card (hairdresser / pro profile). Omit on client profile
@@ -33,6 +39,16 @@ const Profile = ({
   lightMarginBottom,
   ...pressableProps
 }: ProfileProps) => {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  /** Short-side breakpoint: catches iPad (incl. split view), large Android tablets, even if `isTablet()` misses. */
+  const shortSide = Math.min(windowWidth, windowHeight);
+  const useWideProfileRow =
+    isTablet() || shortSide >= 560;
+  /** Standalone mint tiles: phone ~342pt; tablet uses same short-side ratio as phones (~342/375). */
+  const lightStandaloneWidth = useWideProfileRow
+    ? contentCardMaxWidth(shortSide)
+    : responsiveScale(342);
+
   const iconColor = Icon === Trash ? "#F00" : "#000";
   const isLight = tileStyle === "light";
   const inGroup = isLight && groupPosition !== undefined;
@@ -55,10 +71,13 @@ const Profile = ({
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.container,
+        /** Light standalone mint cards carry their own width; base `container` margins would squeeze them. */
+        !(isLight && !inGroup) && styles.container,
         isLight &&
           !inGroup && [
             styles.containerLight,
+            styles.containerLightStandaloneBase,
+            { width: lightStandaloneWidth },
             {
               marginBottom:
                 lightMarginBottom !== undefined ? lightMarginBottom : 8,
@@ -112,15 +131,19 @@ const styles = StyleSheet.create({
     marginBottom: responsiveScale(6, 6),
     padding: scalePercent(5),
   },
-  /** Client profile menu rows — design width / height. */
+  /** Client profile menu rows — width set in component (`lightStandaloneWidth`). */
   containerLight: {
-    width: responsiveScale(342),
     height: responsiveScale(72),
     alignSelf: "center",
     marginHorizontal: 0,
     padding: 0,
     paddingHorizontal: responsiveScale(16),
     alignItems: "center",
+  },
+  /** Row layout + vertical rhythm matching former `styles.container` minus horizontal margin/padding. */
+  containerLightStandaloneBase: {
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   /** One row inside a grouped white card (full width of card). */
   containerLightGrouped: {

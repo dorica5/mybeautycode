@@ -17,6 +17,7 @@ import {
   normalizeStorageObjectPath,
 } from "@/src/lib/storageSignedUrl";
 import {
+  contentCardMaxWidth,
   isTablet,
   responsiveMargin,
   responsivePadding,
@@ -25,8 +26,9 @@ import {
 import { StatusBar } from "expo-status-bar";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
-import { CaretLeft, Plus } from "phosphor-react-native";
-import { useEffect, useRef, useState } from "react";
+import { Plus } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +40,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -90,6 +93,14 @@ type MeProfile = {
 
 export default function GeneralSetup() {
   const insets = useSafeAreaInsets();
+  const { width: winW, height: winH } = useWindowDimensions();
+  const formMaxW = useMemo(() => {
+    const shortSide = Math.min(winW, winH);
+    const pad = responsivePadding(24) * 2;
+    if (!isTablet()) return 400;
+    return Math.min(contentCardMaxWidth(shortSide), winW - pad);
+  }, [winW, winH]);
+
   const { profilePicture, setProfilePicture } = useSetup();
   const { mutateAsync: updateProfile } = useUpdateSupabaseProfile();
   const localAvatarPickRef = useRef(false);
@@ -234,7 +245,10 @@ export default function GeneralSetup() {
         },
       });
 
-      router.replace("/(client)/(tabs)/home");
+      /** Defer so `useUpdateSupabaseProfile`’s `setProfile` commits before pathname changes — avoids Setup flash. */
+      setTimeout(() => {
+        router.replace("/(client)/(tabs)/home");
+      }, 0);
     } catch (e: unknown) {
       const { status, message } = readApiError(e);
 
@@ -312,16 +326,11 @@ export default function GeneralSetup() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <Pressable
-        accessibilityRole="button"
+      <NavBackRow
         accessibilityLabel="Go back"
         onPress={() => router.back()}
-        style={styles.backRow}
         hitSlop={12}
-      >
-        <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-        <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-      </Pressable>
+      />
 
       <KeyboardAvoidingView
         style={styles.keyboard}
@@ -347,7 +356,7 @@ export default function GeneralSetup() {
           About you
         </Text>
 
-        <View style={styles.form}>
+        <View style={[styles.form, { maxWidth: formMaxW }]}>
           <BrandOutlineField
             label="First name"
             value={firstName}
@@ -410,7 +419,7 @@ export default function GeneralSetup() {
             }
             value={phone}
             onChangeText={setPhone}
-            keyboardType="phone-pad"
+            inputRestriction="telephone"
             editable={!!country}
             accessibilityState={{ disabled: !country }}
             accessibilityHint={
@@ -489,16 +498,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: primaryGreen,
   },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsiveMargin(8),
-    gap: responsiveMargin(4),
-  },
-  backText: {
-    color: primaryBlack,
-  },
   keyboard: {
     flex: 1,
   },
@@ -525,7 +524,6 @@ const styles = StyleSheet.create({
   },
   form: {
     width: "100%",
-    maxWidth: 400,
     alignSelf: "center",
   },
   /** Extra space between form fields (overrides default ~18 in shared components). */

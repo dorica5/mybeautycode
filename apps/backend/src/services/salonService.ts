@@ -22,7 +22,9 @@ export const salonService = {
    */
   async findInBounds(
     bounds: BoundsInput,
-    professionCode?: string | null
+    professionCode?: string | null,
+    /** Logged-in client: ensures salons for pros they’re linked with still appear (e.g. lane inactive, edge cases). */
+    viewerProfileId?: string | null
   ): Promise<
     Array<{
       id: string;
@@ -101,7 +103,7 @@ export const salonService = {
       take: MAX_RESULTS,
     });
 
-    return rows.map((r) => ({
+    const base = rows.map((r) => ({
       id: r.id,
       google_place_id: r.googlePlaceId,
       name: r.name,
@@ -110,6 +112,82 @@ export const salonService = {
       longitude: r.longitude,
       professional_count: r._count.professionalProfessions,
     }));
+
+    const byId = new Map(base.map((s) => [s.id, s]));
+
+    if (viewerProfileId?.trim() && professionId) {
+      const viewer = viewerProfileId.trim();
+      const links = await prisma.clientProfessionalLink.findMany({
+        where: {
+          clientUserId: viewer,
+          professionId,
+          status: { in: ["active", "pending"] },
+        },
+        select: { professionalProfileId: true },
+      });
+      const profileIds = [
+        ...new Set(links.map((l) => l.professionalProfileId)),
+      ];
+      if (profileIds.length > 0) {
+        const ppWithSalon = await prisma.professionalProfession.findMany({
+          where: {
+            professionalProfileId: { in: profileIds },
+            professionId,
+            salonId: { not: null },
+          },
+          select: { salonId: true },
+        });
+        const linkedSalonIds = [
+          ...new Set(
+            ppWithSalon
+              .map((r) => r.salonId)
+              .filter((id): id is string => id != null)
+          ),
+        ];
+        if (linkedSalonIds.length > 0) {
+          const extras = await prisma.salon.findMany({
+            where: {
+              id: { in: linkedSalonIds },
+              latitude: { gte: swLat, lte: neLat },
+              longitude: { gte: swLng, lte: neLng },
+            },
+            select: {
+              id: true,
+              googlePlaceId: true,
+              name: true,
+              formattedAddress: true,
+              latitude: true,
+              longitude: true,
+              _count: {
+                select: {
+                  professionalProfessions: {
+                    where: {
+                      professionId,
+                      OR: [{ isActive: true }, { isActive: null }],
+                    },
+                  },
+                },
+              },
+            },
+          });
+          for (const r of extras) {
+            if (byId.has(r.id)) continue;
+            const cnt = r._count.professionalProfessions;
+            byId.set(r.id, {
+              id: r.id,
+              google_place_id: r.googlePlaceId,
+              name: r.name,
+              formatted_address: r.formattedAddress,
+              latitude: r.latitude,
+              longitude: r.longitude,
+              professional_count: cnt > 0 ? cnt : 1,
+            });
+          }
+        }
+      }
+    }
+
+    return Array.from(byId.values());
   },
 
   /**
@@ -133,57 +211,96 @@ export const salonService = {
       business_name: string | null;
     }>
   > {
-    const salon = await prisma.salon.findUnique({
-      where: { id: salonId },
-      select: { id: true },
-    });
+    const professionIdPromise =
+      professionCode && professionCode.trim()
+        ? professionService.getProfessionIdByCode(professionCode.trim())
+        : Promise.resolve(undefined as string | undefined);
+
+    const [salon, professionId] = await Promise.all([
+      prisma.salon.findUnique({
+        where: { id: salonId },
+        select: { id: true },
+      }),
+      professionIdPromise,
+    ]);
+
     if (!salon) {
       throw Object.assign(new Error("Salon not found."), { statusCode: 404 });
     }
 
-    const professionId =
-      professionCode && professionCode.trim()
-        ? await professionService.getProfessionIdByCode(professionCode.trim())
-        : undefined;
-
-    const rows = await prisma.professionalProfession.findMany({
-      where: {
-        salonId,
-        ...(professionId ? { professionId } : {}),
-        OR: [{ isActive: true }, { isActive: null }],
-      },
-      select: {
-        professionId: true,
-        businessName: true,
-        professionalProfile: {
-          select: {
-            id: true,
-            displayName: true,
-            profile: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                avatarUrl: true,
-              },
+    const rowSelect = {
+      professionId: true,
+      businessName: true,
+      professionalProfile: {
+        select: {
+          id: true,
+          displayName: true,
+          profile: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              avatarUrl: true,
             },
           },
         },
       },
-    });
+    } as const;
 
-    // Hide the viewer from their own salon listing, and de-dupe when the same
-    // pro has multiple (e.g. hair + nails) professions at the place.
+    const [rows, viewerProfessionalProfile] = await Promise.all([
+      prisma.professionalProfession.findMany({
+        where: {
+          salonId,
+          ...(professionId ? { professionId } : {}),
+          OR: [{ isActive: true }, { isActive: null }],
+        },
+        select: rowSelect,
+      }),
+      prisma.professionalProfile.findFirst({
+        where: {
+          OR: [{ profileId: viewerProfileId }, { id: viewerProfileId }],
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    // De-dupe when the same pro has multiple (e.g. hair + nails) professions at the place.
     const byProId = new Map<string, (typeof rows)[number]>();
     for (const r of rows) {
-      if (r.professionalProfile.profile.id === viewerProfileId) continue;
       const existing = byProId.get(r.professionalProfile.id);
       if (!existing) byProId.set(r.professionalProfile.id, r);
     }
-    const filtered = Array.from(byProId.values());
-    if (filtered.length === 0) return [];
+    let merged = Array.from(byProId.values());
 
-    const proProfileIds = filtered.map((r) => r.professionalProfile.id);
+    /**
+     * Map pins count everyone with an active row at this salon for the lane.
+     * In rare cases the list query can omit the signed-in professional (e.g. JWT
+     * `sub` vs `profiles.id` drift in older clients, or replication lag). If they
+     * truly have a row here, merge them so the sheet matches the pin.
+     */
+    if (viewerProfessionalProfile) {
+      const alreadyListed = merged.some(
+        (r) => r.professionalProfile.id === viewerProfessionalProfile.id
+      );
+      if (!alreadyListed) {
+        const viewerMembership = await prisma.professionalProfession.findFirst({
+          where: {
+            salonId,
+            professionalProfileId: viewerProfessionalProfile.id,
+            ...(professionId ? { professionId } : {}),
+            OR: [{ isActive: true }, { isActive: null }],
+          },
+          select: rowSelect,
+        });
+        if (viewerMembership) {
+          merged.push(viewerMembership);
+        }
+      }
+    }
+
+    if (merged.length === 0) return [];
+
+    const proProfileIds = merged.map((r) => r.professionalProfile.id);
 
     // Link state (per lane when filtered, else any lane) so the UI can show
     // "connected" badges in the salon sheet.
@@ -202,7 +319,7 @@ export const salonService = {
       else if (l.status === "pending") pendingSet.add(l.professionalProfileId);
     }
 
-    return filtered.map((r) => {
+    return merged.map((r) => {
       const pp = r.professionalProfile;
       return {
         professional_profile_id: pp.id,

@@ -1,12 +1,13 @@
 /* eslint-disable react/react-in-jsx-scope */
-import React, { useEffect, useState, useCallback } from "react";
-import { StyleSheet, View, Alert, Pressable } from "react-native";
+import React, { useState, useCallback, useMemo } from "react";
+import { StyleSheet, View, Alert, Pressable, ActivityIndicator } from "react-native";
 import { DotsThree } from "phosphor-react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
+import { coerceProfessionCode, clientAddedProfessionalMessage, type ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import { Colors, primaryBlack } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
@@ -14,16 +15,17 @@ import {
   ModerationSheetHeading,
   ModerationReasonRow,
   moderationDetailCopy,
+  reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import {
   blockUser,
-  isBlocked,
   REPORT_REASONS,
   ReportReason,
   reportUserEnhanced,
   unblockUser,
   UNBLOCK_RELATIONSHIP_RESET_ALERT,
+  useBlockedIdList,
 } from "@/src/api/moderation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRelationshipCheck } from "@/src/api/relationships";
@@ -32,13 +34,14 @@ import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { responsiveScale } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
+import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 
 const ProfessionalProfileScreen = () => {
   const { id: hairdresser_id, profession } = useLocalSearchParams<{
     id: string;
     profession?: string;
   }>();
-  const professionCode =
+  const routeProfessionRaw =
     typeof profession === "string" && profession.trim()
       ? profession.trim()
       : null;
@@ -47,34 +50,62 @@ const ProfessionalProfileScreen = () => {
 
   const queryClient = useQueryClient();
 
-  const { data: profileData, isLoading: profileLoading } = useClientSearch(
-    hairdresser_id
-  );
+  const { data: profileData, isPending: profilePending } =
+    useClientSearch(hairdresser_id);
+  const { data: blockedIdList } = useBlockedIdList(client_id);
   const p = profileData as Profile | undefined;
+
+  const scopedLane = useMemo((): ProfessionChoiceCode | null => {
+    if (routeProfessionRaw) {
+      return coerceProfessionCode(routeProfessionRaw);
+    }
+    const codes = p?.profession_codes;
+    if (Array.isArray(codes) && codes.length > 0) {
+      return coerceProfessionCode(String(codes[0]).trim());
+    }
+    return null;
+  }, [routeProfessionRaw, p?.profession_codes]);
+
+  const scopedDetail = useMemo(() => {
+    if (!p?.professions_detail?.length || !scopedLane) return null;
+    return (
+      p.professions_detail.find(
+        (row) =>
+          coerceProfessionCode(row.profession_code ?? undefined) === scopedLane
+      ) ?? null
+    );
+  }, [p?.professions_detail, scopedLane]);
+
   const data = p
     ? {
         full_name: p.full_name,
         first_name: p.first_name,
         username: p.username,
         avatar_url: p.avatar_url,
-        about_me: p.about_me,
-        salon_name: p.salon_name,
-        business_address: p.business_address,
-        salon_phone_number: p.salon_phone_number,
-        booking_site: p.booking_site,
-        social_media: p.social_media,
+        about_me: scopedDetail?.about_me ?? p.about_me,
+        salon_name: scopedDetail?.business_name ?? p.salon_name,
+        business_address: scopedDetail?.business_address ?? p.business_address,
+        salon_phone_number:
+          scopedDetail?.business_number ?? p.salon_phone_number,
+        booking_site: scopedDetail?.booking_site ?? p.booking_site,
+        social_media: scopedDetail?.social_media ?? p.social_media,
         color_brand: p.color_brand,
         profession_codes: p.profession_codes,
       }
     : undefined;
 
-  const { data: isRelated = false, isFetching: relLoading } =
-    useRelationshipCheck(client_id ?? undefined, hairdresser_id, professionCode);
+  const { data: isRelated = false, isPending: relPending } = useRelationshipCheck(
+    client_id ?? undefined,
+    hairdresser_id,
+    scopedLane
+  );
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
-  const [isBlockedUser, setIsBlockedUser] = useState(false);
-  const [blockCheckComplete, setBlockCheckComplete] = useState(false);
-
+  const isOwnProfile = Boolean(
+    hairdresser_id &&
+      ((client_id && client_id === hairdresser_id) ||
+        (profile?.id && profile.id === hairdresser_id))
+  );
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -83,58 +114,45 @@ const ProfessionalProfileScreen = () => {
   const { mutateAsync: addHairdresserDB } = useAddHairdresser(
     hairdresser_id,
     client_id,
-    professionCode
+    scopedLane
   );
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        if (client_id && hairdresser_id) {
-          const blocked = await isBlocked(
-            client_id as string,
-            hairdresser_id as string
-          );
-          if (alive) setIsBlockedUser(blocked);
-        }
-      } catch (e) {
-        console.error("Error checking blocked:", e);
-      } finally {
-        if (alive) setBlockCheckComplete(true);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [client_id, hairdresser_id]);
+  const isBlockedUser = Boolean(
+    client_id &&
+      blockedIdList &&
+      hairdresser_id &&
+      blockedIdList.includes(String(hairdresser_id))
+  );
+  const showRelationshipCta = !isOwnProfile && !isRelated;
 
   const deleteHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
+    if (!scopedLane) {
+      Alert.alert(
+        "Couldn't remove link",
+        "We couldn't tell which role this is for. Open them from Discover or My professionals, then try again."
+      );
+      return;
+    }
     try {
       await removeRelationships.mutateAsync([
-        { hairdresserId: hairdresser_id, professionCode },
+        {
+          hairdresserId: hairdresser_id,
+          professionCode: scopedLane,
+        },
       ]);
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["relationship", client_id, hairdresser_id],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["listAllHairdresserSearch", client_id],
-        }),
-      ]);
-      router.replace({
-        pathname: "/(client)/(tabs)/userList/professionalProfile/[id]",
-        params: { id: hairdresser_id },
-      });
+      setActiveAction(null);
+      setIsModalVisible(false);
+      router.replace("/(client)/(tabs)/home" as Href);
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to delete user.");
+      Alert.alert("Error", "Failed to remove this professional.");
+      throw error;
     }
   }, [
     client_id,
     hairdresser_id,
-    professionCode,
-    queryClient,
+    scopedLane,
     removeRelationships,
   ]);
 
@@ -144,7 +162,10 @@ const ProfessionalProfileScreen = () => {
     try {
       await addHairdresserDB();
 
-      const message = `${profile?.full_name} has added you as their hairdresser.`;
+      const message = clientAddedProfessionalMessage(
+        profile?.full_name,
+        scopedLane
+      );
       // Deliver to the pro's specific profession-account inbox (hair, nails
       // or brows) so "added you on nails" doesn't leak into their hair inbox.
       await sendPushNotification(
@@ -156,22 +177,22 @@ const ProfessionalProfileScreen = () => {
           isClient: true,
           senderName: profile?.full_name,
           senderAvatar: profile?.avatar_url,
-          ...(professionCode ? { profession_code: professionCode } : {}),
+          ...(scopedLane ? { profession_code: scopedLane } : {}),
         },
         "New Client Added",
-        professionCode ?? undefined
+        scopedLane ?? undefined
       );
 
       await queryClient.invalidateQueries({
-        queryKey: ["relationship", client_id, hairdresser_id],
+        queryKey: ["relationship"],
       });
     } catch (error) {
       console.error("Error adding hairdresser:", error);
-      Alert.alert("Error", "Failed to add hairdresser.");
+      Alert.alert("Error", "Failed to add professional.");
     } finally {
       setLoading(false);
     }
-  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient]);
+  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient, scopedLane]);
 
   const handleModalOption = (action: string) => {
     setPendingAction(action);
@@ -182,7 +203,6 @@ const ProfessionalProfileScreen = () => {
     if (!client_id || !hairdresser_id) return;
     try {
       await unblockUser(client_id, hairdresser_id, queryClient);
-      setIsBlockedUser(false);
       Alert.alert(
         UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
         UNBLOCK_RELATIONSHIP_RESET_ALERT.message
@@ -209,7 +229,6 @@ const ProfessionalProfileScreen = () => {
         `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
       );
       setActiveAction(null);
-      setIsBlockedUser(true);
     } catch (error) {
       console.error("Error blocking user:", error);
       Alert.alert("Error", "Failed to block user");
@@ -268,24 +287,19 @@ const ProfessionalProfileScreen = () => {
       {isRelated && (
         <RapportUserModal
           title="Delete"
-          top
           onPress={() => handleModalOption("Delete")}
         />
       )}
       <RapportUserModal
         title="Block"
-        top={!isRelated}
         onPress={() => handleModalOption("Block")}
       />
       <RapportUserModal
         title="Report"
-        bottom={!isRelated}
         onPress={() => handleModalOption("Report")}
       />
       <RapportUserModal
         title="Cancel"
-        top
-        bottom
         onPress={() => setIsModalVisible(false)}
       />
     </View>
@@ -312,13 +326,12 @@ const ProfessionalProfileScreen = () => {
             <ModerationReasonRow
               label="Remove professional"
               danger
-              onPress={async () => {
-                await deleteHairdresser();
-                setActiveAction(null);
-              }}
+              disabled={removeRelationships.isPending}
+              onPress={() => void deleteHairdresser().catch(() => {})}
             />
             <ModerationReasonRow
               label="Not now"
+              disabled={removeRelationships.isPending}
               onPress={() => setActiveAction(null)}
             />
           </>
@@ -341,6 +354,9 @@ const ProfessionalProfileScreen = () => {
             <ModerationReasonRow
               key={reason.value}
               label={reason.label}
+              style={
+                reason.value === "other" ? reportOtherReasonRowStyle : undefined
+              }
               onPress={() => handleReport(reason.value)}
             />
           ))}
@@ -348,7 +364,11 @@ const ProfessionalProfileScreen = () => {
     );
   };
 
-  if (!blockCheckComplete || relLoading || profileLoading) return null;
+  /** Block only on profile `/me` fetch — blocked list can resolve in parallel (was slowing first paint). */
+  const showRouteLoading = profilePending && p === undefined;
+  if (showRouteLoading) {
+    return <ThemedRouteLoading accessibilityLabel="Loading profile" />;
+  }
 
   if (isBlockedUser) {
     return (
@@ -368,7 +388,7 @@ const ProfessionalProfileScreen = () => {
   if (!data || !hairdresser_id) return null;
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
       <PublicProfessionalProfileView
         mode="client"
@@ -387,16 +407,18 @@ const ProfessionalProfileScreen = () => {
         professionCodes={
           Array.isArray(data.profession_codes) ? data.profession_codes : null
         }
+        activeProfessionCode={scopedLane}
         onBack={() => router.back()}
-        showRelationshipCta
+        showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}
-        addLoading={loading}
+        addLoading={loading || relPending}
         onAddHairdresser={addHairdresser}
         headerRight={
           <Pressable onPress={() => setIsModalVisible(true)} hitSlop={12}>
             <DotsThree size={32} color={primaryBlack} weight="bold" />
           </Pressable>
         }
+        analyticsProfessionCode={scopedLane}
       />
       <SmallDraggableModal
         isVisible={isModalVisible}
@@ -407,7 +429,7 @@ const ProfessionalProfileScreen = () => {
             setPendingAction(null);
           }
         }}
-        modalHeight="52%"
+        modalHeight="58%"
         sheetVariant="brand"
         renderContent={moderationPrimaryContent}
       />
@@ -420,13 +442,29 @@ const ProfessionalProfileScreen = () => {
           renderContent={renderModerationDetail()}
         />
       ) : null}
-    </>
+      {removeRelationships.isPending ? (
+        <View
+          style={styles.removingOverlay}
+          pointerEvents="auto"
+          accessibilityLabel="Removing professional"
+        >
+          <ActivityIndicator size="large" color={primaryBlack} />
+        </View>
+      ) : null}
+    </View>
   );
 };
 
 export default ProfessionalProfileScreen;
 
 const styles = StyleSheet.create({
+  removingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(241, 249, 244, 0.94)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 9999,
+  },
   blockedWrap: {
     flex: 1,
     backgroundColor: Colors.light.primaryGreen,

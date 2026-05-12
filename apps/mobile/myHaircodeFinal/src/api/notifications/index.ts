@@ -57,7 +57,7 @@ export const createNotification = async (
     const { error } = await supabase.from("notifications").insert([
         {
             user_id: clientId,
-            message: `${hairdresserId} is asking for your haircode.`,
+            message: `${hairdresserId} is asking for your visit.`,
             read: false,
         },
     ]);
@@ -133,7 +133,7 @@ export const handleFriendRequest = async (
 ) => {
   try {
     const message = isHairdresser
-      ? `${senderName} wants to view your haircodes`
+      ? `${senderName} wants to view your visits`
       : `${senderName} has been added to your clients`;
 
     await supabase.from('notifications').insert({

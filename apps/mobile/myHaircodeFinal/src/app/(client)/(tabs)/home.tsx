@@ -1,5 +1,5 @@
-import React from "react";
-import { View, StyleSheet, ScrollView, Text } from "react-native";
+import React, { useMemo } from "react";
+import { View, StyleSheet, ScrollView, Text, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { type Href, router } from "expo-router";
@@ -15,6 +15,7 @@ import {
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
+  contentCardMaxWidth,
   isTablet,
   responsiveMargin,
   responsivePadding,
@@ -24,6 +25,14 @@ import {
 const HomeScreen = () => {
   const { profile } = useAuth();
   const { avatarImage } = useImageContext();
+  const { width, height } = useWindowDimensions();
+
+  const searchCardMaxW = useMemo(() => {
+    const shortSide = Math.min(width, height);
+    const pad = responsivePadding(24) * 2;
+    if (!isTablet()) return 400;
+    return Math.min(contentCardMaxWidth(shortSide), width - pad);
+  }, [width, height]);
 
   const displayName =
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
@@ -69,7 +78,12 @@ const HomeScreen = () => {
           <Text style={[Typography.anton24, styles.username]}>{username}</Text>
         ) : null}
 
-        <View style={styles.searchCard}>
+        <View
+          style={[
+            styles.searchCard,
+            { maxWidth: searchCardMaxW },
+          ]}
+        >
           <Text
             style={[Typography.bodyLarge, styles.searchCardCopy]}
             accessibilityRole="text"
@@ -90,7 +104,7 @@ const HomeScreen = () => {
 
         <BrandHomeNavLink
           title="My visits"
-          onPress={() => router.push("/haircodes/see_haircode_client")}
+          onPress={() => router.push("/visits/see_visits_client")}
           style={styles.navLink}
         />
         <BrandHomeNavLink
@@ -135,7 +149,6 @@ const styles = StyleSheet.create({
   },
   searchCard: {
     width: "100%",
-    maxWidth: 400,
     alignSelf: "center",
     backgroundColor: primaryWhite,
     borderRadius: responsiveScale(20),

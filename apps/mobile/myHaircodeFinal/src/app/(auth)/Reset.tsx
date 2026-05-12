@@ -11,13 +11,12 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { useState } from "react";
 import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -56,16 +55,12 @@ const Reset = () => {
       <StatusBar style="dark" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.container}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back"
+          <NavBackRow
+            accessibilityLabel="Go back"
             onPress={() => router.back()}
             style={styles.backRow}
             hitSlop={12}
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={[Typography.bodyMedium, styles.backLabel]}>Back</Text>
-          </Pressable>
+          />
 
           <KeyboardAvoidingView
             style={styles.keyboard}
@@ -132,17 +127,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding(24),
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    alignSelf: "flex-start",
     position: "absolute",
     left: responsiveMargin(16),
     top: responsiveMargin(8),
     zIndex: 2,
-    gap: responsiveMargin(6),
     paddingVertical: responsiveMargin(4),
-  },
-  backLabel: {
-    color: primaryBlack,
   },
   keyboard: {
     flex: 1,

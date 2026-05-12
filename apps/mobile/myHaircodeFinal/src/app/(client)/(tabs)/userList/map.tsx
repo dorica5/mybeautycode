@@ -20,13 +20,24 @@ import {
   ActivityIndicator,
   StatusBar as RNStatusBar,
   useWindowDimensions,
+  Animated,
+  PanResponder,
+  Dimensions,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
 } from "react-native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
-import { CaretLeft, X } from "phosphor-react-native";
+import {
+  router,
+  useFocusEffect,
+  useLocalSearchParams,
+  usePathname,
+} from "expo-router";
+import { CaretRight, X } from "phosphor-react-native";
+import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import { StatusBar } from "expo-status-bar";
 import MapView, {
   Marker,
@@ -60,6 +71,14 @@ import {
   type ResolvedPlace,
 } from "@/src/lib/googlePlaces";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { useQueryClient } from "@tanstack/react-query";
+import { checkRelationship, relationshipCheckQueryKey } from "@/src/api/relationships";
+import { blockedIdListQueryKey, blockedIds } from "@/src/api/moderation";
+import {
+  clientProfileByIdQueryKey,
+  fetchClientProfileById,
+} from "@/src/api/profiles";
+import { isUuid } from "@/src/utils/isUuid";
 import {
   primaryBlack,
   primaryGreen,
@@ -70,13 +89,16 @@ import {
   responsiveFontSize,
   responsivePadding,
   responsiveMargin,
+  contentCardMaxWidth,
+  isTablet,
 } from "@/src/utils/responsive";
-/**
- * Utility helpers previously used on demo data (clustering / offsets) are not needed
- * now that pins are already de-duped per salon by the backend: one pin per Google place.
- */
+import {
+  clusterSalonPins,
+  salonClusterTotalProfessionals,
+  shouldClusterByZoom,
+  type SalonMapCluster,
+} from "@/src/utils/mapClustering";
 
-const SECTION_GAP = 46;
 const ROW_HEIGHT = 52;
 /** Location search pill on map (design dp). */
 const LOCATION_SEARCH_FIELD_W = 342;
@@ -86,6 +108,7 @@ const MAP_SEARCH_BTN_W = 114;
 const MAP_SEARCH_BTN_H = 46;
 const CHECK_LOCATION_BTN_W = 194;
 const MAP_CARD_RADIUS = 28;
+const SECTION_GAP = 46;
 
 /** Default map (Bergen) if location permission is denied or unavailable. */
 const BERGEN_REGION: Region = {
@@ -232,18 +255,142 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+/**
+ * Stable native marker identity (key stays `salon.id`) plus a short
+ * `tracksViewChanges` pulse when selection changes so the pin bitmap updates
+ * without remounting — remounting was hiding pins until the next map interaction.
+ */
+const SalonMapMarker = React.memo(function SalonMapMarker({
+  salon,
+  selected,
+  onSalonPress,
+}: {
+  salon: SalonPin;
+  selected: boolean;
+  onSalonPress: (salon: SalonPin) => void;
+}) {
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  useEffect(() => {
+    setTracksViewChanges(true);
+    const t = setTimeout(() => setTracksViewChanges(false), 450);
+    return () => clearTimeout(t);
+  }, [selected]);
+
+  const accessibility = salon.name
+    ? `${salon.name}, ${salon.formatted_address}`
+    : salon.formatted_address;
+
+  return (
+    <Marker
+      coordinate={{
+        latitude: salon.latitude,
+        longitude: salon.longitude,
+      }}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={tracksViewChanges}
+      stopPropagation
+      accessibilityLabel={accessibility}
+      onPress={() => onSalonPress(salon)}
+    >
+      {salon.professional_count >= 1 ? (
+        <ClusterMapBubble
+          count={salon.professional_count}
+          selected={selected}
+        />
+      ) : (
+        <ProfessionalMapPinBubble selected={selected} />
+      )}
+    </Marker>
+  );
+});
+
+/**
+ * When zoomed out, merges nearby salons; bubble shows sum of `professional_count`.
+ * Multi-salon cluster tap zooms in; single-salon cluster behaves like a normal pin.
+ */
+const SalonClusterMapMarker = React.memo(function SalonClusterMapMarker({
+  cluster,
+  selectedSalonId,
+  onSalonPress,
+  onMultiSalonClusterPress,
+}: {
+  cluster: SalonMapCluster;
+  selectedSalonId: string | null;
+  onSalonPress: (salon: SalonPin) => void;
+  onMultiSalonClusterPress: (cluster: SalonMapCluster) => void;
+}) {
+  const totalPros = salonClusterTotalProfessionals(cluster.members);
+  const singleMember = cluster.members.length === 1 ? cluster.members[0] : null;
+  const selected = singleMember
+    ? selectedSalonId === singleMember.id
+    : cluster.members.some((m) => m.id === selectedSalonId);
+
+  const [tracksViewChanges, setTracksViewChanges] = useState(true);
+  useEffect(() => {
+    setTracksViewChanges(true);
+    const t = setTimeout(() => setTracksViewChanges(false), 450);
+    return () => clearTimeout(t);
+  }, [selected, totalPros, cluster.members.length]);
+
+  const accessibility = singleMember
+    ? singleMember.name
+      ? `${singleMember.name}, ${singleMember.formatted_address}`
+      : singleMember.formatted_address
+    : `${cluster.members.length} salons, ${totalPros} ${totalPros === 1 ? "professional" : "professionals"}`;
+
+  return (
+    <Marker
+      coordinate={{
+        latitude: cluster.latitude,
+        longitude: cluster.longitude,
+      }}
+      anchor={{ x: 0.5, y: 0.5 }}
+      tracksViewChanges={tracksViewChanges}
+      stopPropagation
+      accessibilityLabel={accessibility}
+      onPress={() => {
+        if (singleMember) {
+          onSalonPress(singleMember);
+        } else {
+          onMultiSalonClusterPress(cluster);
+        }
+      }}
+    >
+      {totalPros >= 1 ? (
+        <ClusterMapBubble count={totalPros} selected={selected} />
+      ) : (
+        <ProfessionalMapPinBubble selected={selected} />
+      )}
+    </Marker>
+  );
+});
+
 const MapLocationScreen = () => {
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
+  const pathname = usePathname();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
   const heroPatternVerticalNudge = heroHeight * 0.34;
+
+  const locationSearchPillWidth = useMemo(() => {
+    const shortSide = Math.min(windowWidth, windowHeight);
+    if (!isTablet()) {
+      return responsiveScale(LOCATION_SEARCH_FIELD_W);
+    }
+    return Math.min(
+      contentCardMaxWidth(shortSide),
+      windowWidth - responsivePadding(40)
+    );
+  }, [windowWidth, windowHeight]);
 
   const { profession } = useLocalSearchParams<{
     profession?: string | string[];
   }>();
 
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
+  const clientId = session?.user?.id;
+  const queryClient = useQueryClient();
   /**
    * The map is a global discovery surface, so we never restrict
    * autocomplete / geocoding to a single country. We only nudge the
@@ -267,6 +414,19 @@ const MapLocationScreen = () => {
     }
   }, [professionKey]);
 
+  /** After returning from professional profile, pathname is the map route again — show location UI. */
+  useEffect(() => {
+    const onMap =
+      pathname?.includes("/userList/map") ||
+      pathname?.includes("userList/map");
+    if (
+      onMap &&
+      !pathname?.includes("professionalProfile")
+    ) {
+      setMaskMapLocationShell(false);
+    }
+  }, [pathname]);
+
   const screenTitle = useMemo(
     () => mapScreenTitle(professionKey),
     [professionKey]
@@ -274,6 +434,11 @@ const MapLocationScreen = () => {
 
   const [locationQuery, setLocationQuery] = useState("");
   const [mapModalVisible, setMapModalVisible] = useState(false);
+  /**
+   * Hide the address / Organic-pattern shell immediately when opening a pro profile (same tick as
+   * router.push), before pathname updates — avoids flashing that screen under the closing modal.
+   */
+  const [maskMapLocationShell, setMaskMapLocationShell] = useState(false);
   const [mapLoading, setMapLoading] = useState(false);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [showUserOnMap, setShowUserOnMap] = useState(false);
@@ -305,51 +470,50 @@ const MapLocationScreen = () => {
    * the ref covers iOS where `action` may be absent.
    */
   const markerPressConsumesMapPressRef = useRef(false);
+  /** After opening a pro profile from the map, reopen the map modal on back (keep pins / camera). */
+  const restoreMapModalAfterProfileRef = useRef(false);
 
   const useStyledGoogleMap =
     Platform.OS === "android" || iosGoogleMapsConfigured();
 
   const closeMapModal = useCallback(() => {
+    restoreMapModalAfterProfileRef.current = false;
     setSelectedSalon(null);
     setBoundsRegion(null);
     setMapModalVisible(false);
   }, []);
 
   const onCheckLocation = useCallback(async () => {
-    setMapModalVisible(true);
-    setMapLoading(true);
-    setMapRegion(null);
-    setShowUserOnMap(false);
     setSelectedSalon(null);
-    setBoundsRegion(null);
-
-    let region: Region = BERGEN_REGION;
-    let showUser = false;
+    setShowUserOnMap(false);
+    // Show the map immediately; refine the camera when GPS returns (avoids ~multi‑second blank wait).
+    setMapRegion(BERGEN_REGION);
+    setBoundsRegion(BERGEN_REGION);
+    setMapModalVisible(true);
+    setMapLoading(false);
 
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === PermissionStatus.GRANTED) {
         const pos = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
+          accuracy: Location.Accuracy.Low,
         });
-        region = {
+        const region: Region = {
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
           latitudeDelta: 0.04,
           longitudeDelta: 0.04,
         };
-        showUser = true;
+        setMapRegion(region);
+        setBoundsRegion(region);
+        setShowUserOnMap(true);
+        mapViewRef.current?.animateToRegion(region, 350);
       }
     } catch {
       Alert.alert(
         "Location",
         "Could not read your position. Showing the map around Bergen."
       );
-    } finally {
-      setMapRegion(region);
-      setBoundsRegion(region);
-      setShowUserOnMap(showUser);
-      setMapLoading(false);
     }
   }, []);
 
@@ -516,8 +680,24 @@ const MapLocationScreen = () => {
     backendProfessionCode
   );
 
-  const { data: salonProfessionals = [], isFetching: salonProsLoading } =
-    useSalonProfessionals(selectedSalon?.id ?? null, backendProfessionCode);
+  const showAggregatedSalonPins = Boolean(
+    boundsRegion && shouldClusterByZoom(boundsRegion.latitudeDelta)
+  );
+
+  const salonClusters = useMemo(() => {
+    if (!boundsRegion || !showAggregatedSalonPins) return null;
+    return clusterSalonPins(
+      salons,
+      boundsRegion.latitudeDelta,
+      boundsRegion.longitudeDelta
+    );
+  }, [boundsRegion, showAggregatedSalonPins, salons]);
+
+  const {
+    data: salonProfessionals = [],
+    isPending: salonProsLoading,
+    isError: salonProsError,
+  } = useSalonProfessionals(selectedSalon?.id ?? null, backendProfessionCode);
 
   const sheetBottomReserve = useMemo(() => {
     if (!selectedSalon) return 0;
@@ -546,6 +726,98 @@ const MapLocationScreen = () => {
     setSelectedSalon(null);
   }, []);
 
+  const pinSheetTranslateY = useRef(new Animated.Value(0)).current;
+  const pinSheetScrollAtTop = useRef(true);
+
+  useEffect(() => {
+    if (selectedSalon) {
+      pinSheetTranslateY.setValue(0);
+      pinSheetScrollAtTop.current = true;
+    }
+  }, [selectedSalon?.id, pinSheetTranslateY]);
+
+  const animatePinSheetDismiss = useCallback(() => {
+    const h = Dimensions.get("window").height;
+    Animated.timing(pinSheetTranslateY, {
+      toValue: h,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      pinSheetTranslateY.setValue(0);
+      clearPinSelection();
+    });
+  }, [clearPinSelection, pinSheetTranslateY]);
+
+  const onPinSheetPanRelease = useCallback(
+    (dy: number, vy: number) => {
+      if (dy > 90 || vy > 0.95) {
+        animatePinSheetDismiss();
+      } else {
+        Animated.spring(pinSheetTranslateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 12,
+        }).start();
+      }
+    },
+    [animatePinSheetDismiss, pinSheetTranslateY]
+  );
+
+  const pinSheetHandlePan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => false,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderGrant: () => {
+          pinSheetTranslateY.extractOffset();
+        },
+        onPanResponderMove: (_, g) => {
+          pinSheetTranslateY.setValue(Math.max(0, g.dy));
+        },
+        onPanResponderRelease: (_, g) => {
+          pinSheetTranslateY.flattenOffset();
+          onPinSheetPanRelease(Math.max(0, g.dy), g.vy);
+        },
+      }),
+    [onPinSheetPanRelease, pinSheetTranslateY]
+  );
+
+  const pinSheetScrollPan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, g) => {
+          const { dy, dx } = g;
+          return (
+            pinSheetScrollAtTop.current &&
+            Math.abs(dy) > Math.abs(dx) &&
+            Math.abs(dy) > 8 &&
+            dy > 0
+          );
+        },
+        onPanResponderGrant: () => {
+          pinSheetTranslateY.extractOffset();
+        },
+        onPanResponderMove: (_, g) => {
+          pinSheetTranslateY.setValue(Math.max(0, g.dy));
+        },
+        onPanResponderRelease: (_, g) => {
+          pinSheetTranslateY.flattenOffset();
+          onPinSheetPanRelease(Math.max(0, g.dy), g.vy);
+        },
+      }),
+    [onPinSheetPanRelease, pinSheetTranslateY]
+  );
+
+  const handlePinSheetScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      pinSheetScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0;
+    },
+    []
+  );
+
   const handleMapPress = useCallback(
     (e: MapPressEvent) => {
       if (e.nativeEvent.action === "marker-press") {
@@ -559,22 +831,52 @@ const MapLocationScreen = () => {
     [clearPinSelection]
   );
 
-  const handleSalonMarkerPress = useCallback((salon: SalonPin) => {
-    markerPressConsumesMapPressRef.current = true;
-    setSelectedSalon((current) => (current?.id === salon.id ? null : salon));
-    requestAnimationFrame(() => {
+  const handleSalonMarkerPress = useCallback(
+    (salon: SalonPin) => {
+      markerPressConsumesMapPressRef.current = true;
+      setSelectedSalon(salon);
       requestAnimationFrame(() => {
-        markerPressConsumesMapPressRef.current = false;
+        requestAnimationFrame(() => {
+          markerPressConsumesMapPressRef.current = false;
+        });
       });
-    });
-  }, []);
+    },
+    []
+  );
+
+  const handleMultiSalonClusterPress = useCallback(
+    (cluster: SalonMapCluster) => {
+      if (cluster.members.length <= 1) return;
+      const br = boundsRegion;
+      if (!br) return;
+      markerPressConsumesMapPressRef.current = true;
+      setSelectedSalon(null);
+      const latD = Math.max(br.latitudeDelta * 0.42, 0.005);
+      const lngD = Math.max(br.longitudeDelta * 0.42, 0.005);
+      const region: Region = {
+        latitude: cluster.latitude,
+        longitude: cluster.longitude,
+        latitudeDelta: latD,
+        longitudeDelta: lngD,
+      };
+      setMapRegion(region);
+      setBoundsRegion(region);
+      mapViewRef.current?.animateToRegion(region, 450);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          markerPressConsumesMapPressRef.current = false;
+        });
+      });
+    },
+    [boundsRegion]
+  );
 
   /** Debounce `onRegionChangeComplete`: wait until the user stops panning/zooming. */
   const handleRegionChangeComplete = useCallback((r: Region) => {
     if (regionDebounceRef.current) clearTimeout(regionDebounceRef.current);
     regionDebounceRef.current = setTimeout(() => {
       setBoundsRegion(r);
-    }, 400);
+    }, 160);
   }, []);
 
   useEffect(
@@ -585,16 +887,71 @@ const MapLocationScreen = () => {
   );
 
   const openProfessionalProfile = useCallback(
-    (pro: SalonProfessional) => {
-      router.push({
-        pathname: "/(client)/(tabs)/userList/professionalProfile/[id]",
+    async (pro: SalonProfessional) => {
+      /**
+       * The map runs inside a React Native `Modal`, so we must hide it before
+       * or after `router.push` carefully. Do **not** clear `boundsRegion` /
+       * `mapRegion` — when the user taps back we reopen the modal (see `useFocusEffect`).
+       */
+      const proId = pro.hairdresser_id;
+      restoreMapModalAfterProfileRef.current = true;
+      /** Same tick as navigation intent — blanks the location form under the modal. */
+      setMaskMapLocationShell(true);
+      setSelectedSalon(null);
+      /** Warm cache so `[id]` can paint without waiting blocked-list queries. Cap wait so tap still feels responsive. */
+      if (isUuid(proId)) {
+        try {
+          await Promise.race([
+            queryClient.fetchQuery({
+              queryKey: clientProfileByIdQueryKey(proId),
+              queryFn: () => fetchClientProfileById(proId),
+              staleTime: 60_000,
+            }),
+            new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 400)),
+          ]);
+        } catch {
+          /* profile screen retries */
+        }
+      }
+      if (clientId) {
+        void queryClient.prefetchQuery({
+          queryKey: blockedIdListQueryKey(clientId),
+          queryFn: () => blockedIds(clientId),
+          staleTime: 120_000,
+        });
+      }
+      if (clientId && proId) {
+        void queryClient.prefetchQuery({
+          queryKey: relationshipCheckQueryKey(
+            clientId,
+            proId,
+            backendProfessionCode
+          ),
+          queryFn: () => checkRelationship(proId, clientId, backendProfessionCode),
+          staleTime: 60_000,
+        });
+      }
+      const href = {
+        pathname: "/(client)/(tabs)/userList/professionalProfile/[id]" as const,
         params: {
-          id: pro.hairdresser_id,
+          id: proId,
           ...(backendProfessionCode ? { profession: backendProfessionCode } : {}),
         },
+      };
+      router.push(href);
+      requestAnimationFrame(() => {
+        setMapModalVisible(false);
       });
     },
-    [backendProfessionCode]
+    [backendProfessionCode, clientId, queryClient]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!restoreMapModalAfterProfileRef.current) return;
+      restoreMapModalAfterProfileRef.current = false;
+      setMapModalVisible(true);
+    }, [])
   );
 
   /** Modal is a separate window: SafeAreaView often mis-insets; pad explicitly like other screens. */
@@ -612,6 +969,10 @@ const MapLocationScreen = () => {
       </SafeAreaView>
     );
   }
+
+  const hideMapLocationUI =
+    maskMapLocationShell ||
+    Boolean(pathname?.includes("professionalProfile"));
 
   return (
     <>
@@ -635,16 +996,8 @@ const MapLocationScreen = () => {
         >
           <StatusBar style="dark" />
           <View style={styles.mapModalChrome}>
-            <View style={styles.mapModalHeaderBlock}>
-              <Pressable
-                onPress={closeMapModal}
-                style={styles.backRow}
-                accessibilityRole="button"
-                accessibilityLabel="Back"
-              >
-                <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-                <Text style={styles.backLabel}>Back</Text>
-              </Pressable>
+            <View style={navBackChromeStyles.screenBar}>
+              <NavBackRow onPress={closeMapModal} />
               <View style={styles.mapModalTitleGutter}>
                 <Text
                   style={[Typography.agLabel16, styles.mapModalTitleBelowBack]}
@@ -692,42 +1045,45 @@ const MapLocationScreen = () => {
                       left: responsiveScale(12),
                     }}
                   >
-                    {salons.map((salon) => {
-                      const selected = selectedSalon?.id === salon.id;
-                      const accessibility = salon.name
-                        ? `${salon.name}, ${salon.formatted_address}`
-                        : salon.formatted_address;
-                      return (
-                        <Marker
-                          key={`${salon.id}-${selected ? "s" : "u"}`}
-                          coordinate={{
-                            latitude: salon.latitude,
-                            longitude: salon.longitude,
-                          }}
-                          anchor={{ x: 0.5, y: 0.5 }}
-                          tracksViewChanges={false}
-                          stopPropagation
-                          accessibilityLabel={accessibility}
-                          onPress={() => handleSalonMarkerPress(salon)}
-                        >
-                          {salon.professional_count > 1 ? (
-                            <ClusterMapBubble
-                              count={salon.professional_count}
-                              selected={selected}
-                            />
-                          ) : (
-                            <ProfessionalMapPinBubble selected={selected} />
-                          )}
-                        </Marker>
-                      );
-                    })}
+                    {showAggregatedSalonPins && salonClusters
+                      ? salonClusters.map((c) => (
+                          <SalonClusterMapMarker
+                            key={c.id}
+                            cluster={c}
+                            selectedSalonId={selectedSalon?.id ?? null}
+                            onSalonPress={handleSalonMarkerPress}
+                            onMultiSalonClusterPress={handleMultiSalonClusterPress}
+                          />
+                        ))
+                      : salons.map((salon) => (
+                          <SalonMapMarker
+                            key={salon.id}
+                            salon={salon}
+                            selected={selectedSalon?.id === salon.id}
+                            onSalonPress={handleSalonMarkerPress}
+                          />
+                        ))}
                   </MapView>
                   {selectedSalon ? (
                     <View
                       style={styles.pinDetailSheet}
                       pointerEvents="box-none"
                     >
-                      <View style={styles.pinDetailCard}>
+                      <Animated.View
+                        style={[
+                          styles.pinDetailCard,
+                          { transform: [{ translateY: pinSheetTranslateY }] },
+                        ]}
+                      >
+                        <View
+                          style={styles.pinDetailHandleWrap}
+                          {...pinSheetHandlePan.panHandlers}
+                          collapsable={false}
+                          accessible
+                          accessibilityLabel="Drag down to close"
+                        >
+                          <View style={styles.pinDetailHandle} />
+                        </View>
                         <Pressable
                           onPress={clearPinSelection}
                           style={styles.pinDetailClose}
@@ -752,7 +1108,12 @@ const MapLocationScreen = () => {
                             </>
                           ) : null}
                         </Text>
-                        {salonProsLoading && salonProfessionals.length === 0 ? (
+                        {salonProsError ? (
+                          <Text style={styles.clusterRowAddress}>
+                            Couldn&apos;t load professionals. Check your connection
+                            and try the pin again.
+                          </Text>
+                        ) : salonProsLoading && salonProfessionals.length === 0 ? (
                           <ActivityIndicator color={primaryBlack} />
                         ) : salonProfessionals.length === 0 ? (
                           <Text style={styles.clusterRowAddress}>
@@ -771,6 +1132,10 @@ const MapLocationScreen = () => {
                               style={styles.clusterListScroll}
                               keyboardShouldPersistTaps="handled"
                               showsVerticalScrollIndicator={false}
+                              scrollEventThrottle={16}
+                              onScroll={handlePinSheetScroll}
+                              bounces={Platform.OS === "ios"}
+                              {...pinSheetScrollPan.panHandlers}
                             >
                               {salonProfessionals.map((pro) => (
                                 <Pressable
@@ -780,20 +1145,27 @@ const MapLocationScreen = () => {
                                   accessibilityRole="button"
                                   accessibilityLabel={pro.full_name ?? "Professional"}
                                 >
-                                  <Text style={styles.clusterRowName}>
-                                    {pro.full_name ?? "Professional"}
-                                  </Text>
-                                  {pro.business_name ? (
-                                    <Text style={styles.clusterRowAddress}>
-                                      {pro.business_name}
+                                  <View style={styles.clusterRowTextWrap}>
+                                    <Text style={styles.clusterRowName}>
+                                      {pro.full_name ?? "Professional"}
                                     </Text>
-                                  ) : null}
+                                    {pro.business_name ? (
+                                      <Text style={styles.clusterRowAddress}>
+                                        {pro.business_name}
+                                      </Text>
+                                    ) : null}
+                                  </View>
+                                  <CaretRight
+                                    size={responsiveScale(22)}
+                                    color={primaryBlack}
+                                    weight="bold"
+                                  />
                                 </Pressable>
                               ))}
                             </ScrollView>
                           </>
                         )}
-                      </View>
+                      </Animated.View>
                     </View>
                   ) : salonsFetching && salons.length === 0 ? (
                     <View
@@ -821,17 +1193,13 @@ const MapLocationScreen = () => {
           style={{ flex: 1 }}
         >
           <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-            <Pressable
-              onPress={() => router.back()}
-              style={styles.backRow}
-              accessibilityRole="button"
-              accessibilityLabel="Back"
-            >
-              <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-              <Text style={styles.backLabel}>Back</Text>
-            </Pressable>
-
-            <ScrollView
+            <View style={navBackChromeStyles.screenBar}>
+              <NavBackRow onPress={() => router.back()} />
+            </View>
+            {hideMapLocationUI ? (
+              <View style={styles.mapShellPlaceholder} />
+            ) : (
+              <ScrollView
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
@@ -880,7 +1248,7 @@ const MapLocationScreen = () => {
                   <View style={styles.locationSearchFieldWrap}>
                     <SearchInput
                       variant="whitePill"
-                      whitePillWidth={LOCATION_SEARCH_FIELD_W}
+                      whitePillWidth={locationSearchPillWidth}
                       whitePillHeight={LOCATION_SEARCH_FIELD_H}
                       /**
                        * Controlled: parent owns the text. This short-circuits the
@@ -900,7 +1268,12 @@ const MapLocationScreen = () => {
                       }}
                     />
                     {predictionsLoading || predictions.length > 0 ? (
-                      <View style={styles.predictionsCard}>
+                      <View
+                        style={[
+                          styles.predictionsCard,
+                          { width: locationSearchPillWidth },
+                        ]}
+                      >
                         {predictionsLoading && predictions.length === 0 ? (
                           <View style={styles.predictionsLoadingRow}>
                             <ActivityIndicator
@@ -944,6 +1317,7 @@ const MapLocationScreen = () => {
                 </View>
               </View>
             </ScrollView>
+            )}
           </SafeAreaView>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
@@ -961,9 +1335,6 @@ const styles = StyleSheet.create({
   mapModalChrome: {
     flex: 1,
     minHeight: 0,
-  },
-  mapModalHeaderBlock: {
-    paddingBottom: responsiveMargin(4),
   },
   /** Same horizontal inset as `mapModalMapSection` so title lines up with map edges. */
   mapModalTitleGutter: {
@@ -1013,14 +1384,28 @@ const styles = StyleSheet.create({
     backgroundColor: primaryGreen,
     borderTopLeftRadius: responsiveScale(26),
     borderTopRightRadius: responsiveScale(26),
-    paddingTop: responsiveMargin(28),
+    paddingTop: 0,
     paddingBottom: responsiveMargin(22),
     paddingHorizontal: responsivePadding(24),
     alignItems: "center",
   },
+  pinDetailHandleWrap: {
+    alignSelf: "stretch",
+    alignItems: "center",
+    paddingTop: responsivePadding(12),
+    paddingBottom: responsivePadding(8),
+    minHeight: responsiveScale(44),
+    justifyContent: "center",
+  },
+  pinDetailHandle: {
+    width: responsiveScale(40),
+    height: responsiveScale(4),
+    borderRadius: responsiveScale(2),
+    backgroundColor: `${primaryBlack}28`,
+  },
   pinDetailClose: {
     position: "absolute",
-    top: responsiveMargin(12),
+    top: responsiveMargin(10),
     right: responsiveMargin(12),
     zIndex: 2,
     padding: responsivePadding(6),
@@ -1031,6 +1416,7 @@ const styles = StyleSheet.create({
     ...Typography.outfitRegular16,
     textAlign: "center",
     color: primaryBlack,
+    marginTop: responsiveMargin(6),
     marginBottom: responsiveMargin(22),
     lineHeight: responsiveScale(22),
     width: "100%",
@@ -1071,10 +1457,18 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
   },
   clusterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: responsiveMargin(10),
     paddingVertical: responsivePadding(12),
     paddingHorizontal: responsivePadding(4),
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: `${primaryBlack}28`,
+  },
+  clusterRowTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   clusterRowName: {
     ...Typography.agLabel16,
@@ -1093,16 +1487,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: primaryGreen,
   },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsivePadding(8),
-    alignSelf: "flex-start",
-  },
-  backLabel: {
-    ...Typography.bodyMedium,
-    marginLeft: responsivePadding(4),
+  mapShellPlaceholder: {
+    flex: 1,
+    backgroundColor: primaryGreen,
   },
   scrollContent: {
     flexGrow: 1,
@@ -1160,7 +1547,6 @@ const styles = StyleSheet.create({
   },
   predictionsCard: {
     marginTop: responsiveMargin(8),
-    width: responsiveScale(LOCATION_SEARCH_FIELD_W),
     borderRadius: responsiveScale(16),
     backgroundColor: primaryWhite,
     borderWidth: 1,

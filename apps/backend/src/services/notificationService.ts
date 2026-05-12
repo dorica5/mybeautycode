@@ -2,6 +2,15 @@ import { NotificationType, Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
 
+/** Inbox list only shows notifications newer than this (calendar months from now). */
+const NOTIFICATION_INBOX_MAX_AGE_MONTHS = 2;
+
+function notificationInboxCutoff(): Date {
+  const d = new Date();
+  d.setMonth(d.getMonth() - NOTIFICATION_INBOX_MAX_AGE_MONTHS);
+  return d;
+}
+
 /**
  * Inbox filter for `list`:
  *  - `undefined` -> all (legacy, no filtering)
@@ -109,40 +118,39 @@ export const notificationService = {
   },
 
   async list(userId: string, inbox: NotificationInboxFilter = undefined) {
-    const where: Prisma.NotificationWhereInput = { userId };
+    const where: Prisma.NotificationWhereInput = {
+      userId,
+      createdAt: { gte: notificationInboxCutoff() },
+    };
     if (inbox === null) {
       where.professionCode = null;
     } else if (typeof inbox === "string" && inbox.trim()) {
       where.professionCode = inbox.trim();
     }
-    const notifications = await prisma.notification.findMany({
+    /** One round-trip via relation — avoids P1017 when the pool drops between two queries. */
+    const rows = await prisma.notification.findMany({
       where,
       orderBy: { createdAt: "desc" },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+          },
+        },
+      },
     });
-    const senderIds = [
-      ...new Set(
-        notifications
-          .map((n) => n.senderId)
-          .filter((id): id is string => !!id)
-      ),
-    ];
-    const senders =
-      senderIds.length > 0
-        ? await prisma.profile.findMany({
-            where: { id: { in: senderIds } },
-            select: { id: true, firstName: true, lastName: true, avatarUrl: true },
-          })
-        : [];
-    const senderMap = Object.fromEntries(
-      senders.map((s) => [
-        s.id,
-        { full_name: profileDisplayName(s), avatar_url: s.avatarUrl },
-      ])
-    );
-    return notifications.map((n) => ({
+    return rows.map(({ sender: senderRow, ...n }) => ({
       ...n,
       sender_id: n.senderId,
-      sender: n.senderId ? senderMap[n.senderId] : null,
+      sender: senderRow
+        ? {
+            full_name: profileDisplayName(senderRow),
+            avatar_url: senderRow.avatarUrl,
+          }
+        : null,
       data: n.data,
     }));
   },

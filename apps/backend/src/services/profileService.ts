@@ -3,6 +3,10 @@ import { prisma } from "../lib/prisma";
 import { profileWithProfessionalForApiInclude } from "../lib/profileIncludes";
 import { profileDisplayName } from "../lib/profileDisplay";
 import { professionService } from "./professionService";
+import {
+  allowedDiscoveryCodesForProfession,
+  normalizeDiscoveryCategoriesForProfession,
+} from "../lib/profDiscoveryCategories";
 
 const nameSearch = (searchQuery: string) => ({
   OR: [
@@ -34,6 +38,7 @@ const PROFESSION_BUSINESS_FIELDS = [
   "aboutMe",
   "socialMedia",
   "bookingSite",
+  "discoveryCategories",
 ] as const;
 
 const SNAKE_TO_CAMEL: Record<string, string> = {
@@ -53,6 +58,7 @@ const SNAKE_TO_CAMEL: Record<string, string> = {
   about_me: "aboutMe",
   social_media: "socialMedia",
   booking_site: "bookingSite",
+  discovery_categories: "discoveryCategories",
   /** Legacy mobile payloads → professional_profiles columns */
   salon_name: "businessName",
   salon_phone_number: "businessNumber",
@@ -333,6 +339,31 @@ export const profileService = {
           (professionBusinessData as Record<string, unknown>).salonId =
             salonIdUpdate;
         }
+
+        if (
+          Object.prototype.hasOwnProperty.call(
+            professionBusinessData,
+            "discoveryCategories"
+          )
+        ) {
+          const raw = (professionBusinessData as Record<string, unknown>)
+            .discoveryCategories;
+          delete (professionBusinessData as Record<string, unknown>)
+            .discoveryCategories;
+          const laneAllows = allowedDiscoveryCodesForProfession(
+            codeForBusiness
+          );
+          if (!laneAllows) {
+            /** Lane has no discovery taxonomy (e.g. esthetician); ignore payload. */
+          } else {
+            (professionBusinessData as Record<string, unknown>).discoveryCategories =
+              normalizeDiscoveryCategoriesForProfession(
+                codeForBusiness,
+                raw
+              );
+          }
+        }
+
         await prisma.professionalProfession.update({
           where: {
             professionalProfileId_professionId: {

@@ -15,10 +15,8 @@ import {
 import { moderationDestructive } from "./moderation/ModerationSheetParts";
 
 type RapportUserProps = {
-  bottom?: boolean;
-  top?: boolean;
   title: string;
-} & React.ComponentPropsWithoutRef<typeof Pressable>;
+} & Omit<React.ComponentPropsWithoutRef<typeof Pressable>, "children">;
 
 const MENU_LABELS: Record<string, string> = {
   Delete: "Remove client",
@@ -91,12 +89,13 @@ const styles = StyleSheet.create({
     backgroundColor: primaryWhite,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: `${primaryBlack}18`,
+    alignSelf: "stretch",
   },
   rowDestructive: {
     borderColor: `${moderationDestructive}35`,
   },
   rowCancel: {
-    backgroundColor: "transparent",
+    backgroundColor: primaryWhite,
     borderColor: `${primaryBlack}24`,
   },
   rowPressed: {

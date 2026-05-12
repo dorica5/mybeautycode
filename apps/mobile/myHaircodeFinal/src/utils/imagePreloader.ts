@@ -1,6 +1,5 @@
 import { Image, Platform } from "react-native";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 
 export const preloadImages = async (imagesToPreload: { path: string }[]) => {
@@ -17,32 +16,31 @@ export const preloadImages = async (imagesToPreload: { path: string }[]) => {
 };
 
 export const useImagePreloader = () => {
-  const queryClient = useQueryClient();
-  const preloadedHaircodes = useRef(new Set()).current;
+  const preloadedVisitRowAvatars = useRef(new Set()).current;
   const preloadedAvatars = useRef(new Set()).current;
 
   const validUrl = (url) => url && typeof url === "string" && url.startsWith("http");
 
   
-  const preloadHaircodeImages = async (haircodes) => {
-    if (!haircodes || haircodes.length === 0) return;
+  const preloadVisitRowAvatars = async (visitRows) => {
+    if (!visitRows || visitRows.length === 0) return;
 
-    const imagesToPreload = haircodes
-      .map((haircode) => haircode.client_profile?.avatar_url)
-      .filter((url) => validUrl(url) && !preloadedHaircodes.has(url))
+    const imagesToPreload = visitRows
+      .map((row) => row.client_profile?.avatar_url)
+      .filter((url) => validUrl(url) && !preloadedVisitRowAvatars.has(url))
       .map((url) => {
-        preloadedHaircodes.add(url);
+        preloadedVisitRowAvatars.add(url);
         return { path: url };
       });
 
     if (imagesToPreload.length === 0) return;
 
-    console.log(`Preloading ${imagesToPreload.length} haircode images`);
+    console.log(`Preloading ${imagesToPreload.length} visit images`);
     try {
       await preloadImages(imagesToPreload);
-      console.log(`Preloaded ${imagesToPreload.length} haircode images`);
+      console.log(`Preloaded ${imagesToPreload.length} visit images`);
     } catch (error) {
-      console.error("Error preloading haircode images:", error);
+      console.error("Error preloading visit images:", error);
     }
   };
 
@@ -68,5 +66,5 @@ export const useImagePreloader = () => {
     }
   };
 
-  return { preloadHaircodeImages, preloadAvatarImages };
+  return { preloadVisitRowAvatars, preloadAvatarImages };
 };

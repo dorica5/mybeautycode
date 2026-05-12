@@ -1,4 +1,5 @@
 import { api } from "@/src/lib/apiClient";
+import { useQuery } from "@tanstack/react-query";
 
 export const REPORT_REASONS = [
   { value: "spam_fake", label: "Spam or fake profile", severity: "medium" },
@@ -13,14 +14,6 @@ export const REPORT_REASONS = [
     label: "Unprofessional behavior",
     severity: "medium",
   },
-  { value: "no_show", label: "No-show appointments", severity: "low" },
-  { value: "scam_fraud", label: "Scam or fraud", severity: "critical" },
-  {
-    value: "violence_threats",
-    label: "Violence or threats",
-    severity: "critical",
-  },
-  { value: "underage", label: "Underage user", severity: "critical" },
   { value: "other", label: "Other", severity: "low" },
 ] as const;
 
@@ -55,8 +48,8 @@ export const reportUserEnhanced = async (
     additional_details: additionalDetails,
   });
   if (queryClient) {
-    queryClient.invalidateQueries({ queryKey: ["latest_haircodes", reporter_id] });
-    queryClient.invalidateQueries({ queryKey: ["latest_haircodes", reported_id] });
+    queryClient.invalidateQueries({ queryKey: ["latest_visits", reporter_id] });
+    queryClient.invalidateQueries({ queryKey: ["latest_visits", reported_id] });
   }
   return {
     ...result,
@@ -73,13 +66,14 @@ export const blockUser = async (
 ) => {
   await api.post("/api/moderation/block", { blocked_id, reason });
   if (queryClient) {
-    queryClient.invalidateQueries({ queryKey: ["latest_haircodes", blocker_id] });
-    queryClient.invalidateQueries({ queryKey: ["latest_haircodes", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["latest_visits", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["latest_visits", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["relationship"] });
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocker_id] });
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocked_id] });
-    queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocked_id] });
-    queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["client_visits", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["client_visits", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["moderation", "blockedIdList"] });
   }
   return { success: true };
 };
@@ -98,13 +92,14 @@ export const unblockUser = async (
 ) => {
   await api.post("/api/moderation/unblock", { blocked_id });
   if (queryClient) {
-    queryClient.invalidateQueries({ queryKey: ["latest_haircodes", blocker_id] });
-    queryClient.invalidateQueries({ queryKey: ["latest_haircodes", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["latest_visits", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["latest_visits", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["relationship"] });
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocker_id] });
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocked_id] });
-    queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocked_id] });
-    queryClient.invalidateQueries({ queryKey: ["client_haircodes", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["client_visits", blocked_id] });
+    queryClient.invalidateQueries({ queryKey: ["client_visits", blocker_id] });
+    queryClient.invalidateQueries({ queryKey: ["moderation", "blockedIdList"] });
   }
   return { success: true };
 };
@@ -135,3 +130,16 @@ export const isBlocked = async (profile_id: string, blocked_id: string) => {
   const ids = await blockedIds(profile_id);
   return ids.includes(blocked_id);
 };
+
+/** One fetch per client for “who I blocked” — reuse instead of re-fetching per profile open. */
+export const blockedIdListQueryKey = (clientId: string) =>
+  ["moderation", "blockedIdList", clientId] as const;
+
+export function useBlockedIdList(clientId: string | undefined) {
+  return useQuery({
+    queryKey: blockedIdListQueryKey(clientId ?? ""),
+    queryFn: () => blockedIds(clientId!),
+    enabled: Boolean(clientId),
+    staleTime: 120_000,
+  });
+}

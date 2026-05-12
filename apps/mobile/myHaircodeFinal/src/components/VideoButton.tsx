@@ -11,7 +11,7 @@ const VideoButton = forwardRef<View | null, { icon: typeof VideoCamera }>(
         ref={ref}
         {...pressableProps}
         style={styles.videoCamera}
-        onPress={() => router.push("/haircodes/qr_scanner")}
+        onPress={() => router.push("/visits/qr_scanner")}
       >
         <Icon size={32} />
       </Pressable>

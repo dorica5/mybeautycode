@@ -8,6 +8,10 @@ import {
   useWindowDimensions,
   type ReactNode,
 } from "react-native";
+import {
+  GestureHandlerRootView,
+  ScrollView,
+} from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import OrganicPattern from "../../assets/images/Organic-pattern-5.svg";
 import { Typography } from "@/src/constants/Typography";
@@ -39,7 +43,7 @@ export function MintBrandModal({
   footer,
   closeOnBackdropPress = true,
 }: MintBrandModalProps) {
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
   const cardWidth = useMemo(
@@ -50,6 +54,26 @@ export function MintBrandModal({
   const heroHeight = Math.round((cardWidth / 1.77) * 0.42);
   const heroNudge = heroHeight * 0.34;
 
+  /** Keep the card on-screen; body scrolls (e.g. long report reason lists on phone + iPad). */
+  const maxCardHeight = useMemo(() => {
+    const verticalPad = responsivePadding(24) * 2;
+    return Math.max(
+      280,
+      windowHeight - insets.top - insets.bottom - verticalPad
+    );
+  }, [windowHeight, insets.top, insets.bottom]);
+
+  /**
+   * iPad: `maxCardHeight - hero` can be ~800pt while RN may still size the scroll pane to
+   * content and clip without scroll. Cap to ~50% of the window so the list always overflows
+   * inside a fixed viewport (pairs with RNGH ScrollView inside Modal).
+   */
+  const bodyScrollMaxHeight = useMemo(() => {
+    const raw = Math.max(160, maxCardHeight - heroHeight);
+    const capByWindow = windowHeight * 0.5;
+    return Math.min(raw, capByWindow);
+  }, [maxCardHeight, heroHeight, windowHeight]);
+
   return (
     <Modal
       visible={visible}
@@ -59,41 +83,66 @@ export function MintBrandModal({
       statusBarTranslucent
       presentationStyle="overFullScreen"
     >
-      <Pressable
-        style={styles.backdrop}
-        onPress={closeOnBackdropPress ? onClose : undefined}
-        accessibilityRole={closeOnBackdropPress ? "button" : undefined}
-        accessibilityLabel={closeOnBackdropPress ? "Close dialog" : undefined}
-      >
-        <Pressable
-          style={[styles.card, { width: cardWidth }]}
-          onPress={(e) => e.stopPropagation()}
-          accessibilityViewIsModal
-        >
-          <View style={[styles.heroClip, { height: heroHeight }]}>
-            <OrganicPattern
-              width={cardWidth}
-              height={heroHeight}
-              preserveAspectRatio="xMidYMid slice"
-              style={{ transform: [{ translateY: -heroNudge }] }}
-            />
-          </View>
+      <GestureHandlerRootView style={styles.gestureRoot}>
+        <View style={styles.backdrop} pointerEvents="box-none">
+          <Pressable
+            style={styles.backdropDim}
+            onPress={closeOnBackdropPress ? onClose : undefined}
+            accessibilityRole={closeOnBackdropPress ? "button" : undefined}
+            accessibilityLabel={
+              closeOnBackdropPress ? "Close dialog" : undefined
+            }
+          />
+          <View
+            style={[
+              styles.card,
+              { width: cardWidth, maxHeight: maxCardHeight, zIndex: 1 },
+            ]}
+            accessibilityViewIsModal
+          >
+            <View style={[styles.heroClip, { height: heroHeight }]}>
+              <OrganicPattern
+                width={cardWidth}
+                height={heroHeight}
+                preserveAspectRatio="xMidYMid slice"
+                style={{ transform: [{ translateY: -heroNudge }] }}
+              />
+            </View>
 
-          <View style={styles.body}>
-            <Text style={[Typography.h3, styles.title]} accessibilityRole="header">
-              {title}
-            </Text>
-            {typeof message === "string" ? (
-              <Text style={[Typography.bodyMedium, styles.message]}>{message}</Text>
-            ) : (
-              <View style={styles.messageWrap}>{message}</View>
-            )}
-            {footer}
+            <ScrollView
+              style={[styles.bodyScroll, { height: bodyScrollMaxHeight }]}
+              contentContainerStyle={[
+                styles.bodyScrollContent,
+                {
+                  paddingBottom:
+                    responsiveMargin(24) +
+                    Math.max(insets.bottom, responsiveMargin(12)),
+                },
+              ]}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator
+              bounces
+              overScrollMode="never"
+              removeClippedSubviews={false}
+            >
+              <Text
+                style={[Typography.h3, styles.title]}
+                accessibilityRole="header"
+              >
+                {title}
+              </Text>
+              {typeof message === "string" ? (
+                <Text style={[Typography.bodyMedium, styles.message]}>
+                  {message}
+                </Text>
+              ) : (
+                <View style={styles.messageWrap}>{message}</View>
+              )}
+              {footer}
+            </ScrollView>
           </View>
-
-          <View style={{ height: Math.max(insets.bottom, responsiveMargin(12)) }} />
-        </Pressable>
-      </Pressable>
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -141,12 +190,18 @@ export function MintBrandModalSecondaryButton({
 }
 
 const styles = StyleSheet.create({
+  gestureRoot: {
+    flex: 1,
+  },
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: responsivePadding(20),
+  },
+  backdropDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
   },
   card: {
     backgroundColor: primaryGreen,
@@ -160,10 +215,12 @@ const styles = StyleSheet.create({
     backgroundColor: primaryGreen,
     overflow: "hidden",
   },
-  body: {
+  bodyScroll: {
+    alignSelf: "stretch",
+  },
+  bodyScrollContent: {
     paddingHorizontal: responsivePadding(24),
     paddingTop: responsiveMargin(22),
-    paddingBottom: responsiveMargin(8),
     alignItems: "center",
   },
   title: {
@@ -188,8 +245,10 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
     alignItems: "center",
+    alignContent: "center",
     gap: responsiveMargin(12),
     alignSelf: "stretch",
+    width: "100%",
   },
   primaryPill: {
     minWidth: responsiveScale(132),
@@ -210,7 +269,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsivePadding(14),
     paddingHorizontal: responsivePadding(24),
     borderRadius: responsiveScale(999),
-    backgroundColor: "transparent",
+    backgroundColor: primaryWhite,
     borderWidth: 1,
     borderColor: primaryBlack,
     justifyContent: "center",

@@ -1,6 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import { Stack, router } from "expo-router";
 import * as Linking from "expo-linking";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { AppState, Platform, View } from "react-native";
+import { PortraitEnforcer } from "../components/PortraitEnforcer";
 import { SetupProvider } from "../providers/SetUpProvider";
 import AuthProvider from "../providers/AuthProvider";
 import QueryProvider from "../providers/QueryProvider";
@@ -10,6 +13,7 @@ import { ImageProvider } from "../providers/ImageProvider";
 import "react-native-url-polyfill/auto";
 import { RealTimeProvider } from "../providers/RealTimeProvider";
 import LoadingScreen from "./(setup)/LoadingScreen";
+import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
 import useLoadFonts from "@/hooks/useLoadFonts";
 import { PostHogProvider } from "posthog-react-native";
 
@@ -20,6 +24,61 @@ export const unstable_settings = {
 export const scheme = "myhaircode";
 
 const RootLayout = () => {
+  const lockPortrait = useCallback(async () => {
+    if (Platform.OS === "web") {
+      return;
+    }
+    const tryPlatform = async () => {
+      if (Platform.OS === "ios") {
+        await ScreenOrientation.lockPlatformAsync({
+          screenOrientationArrayIOS: [ScreenOrientation.Orientation.PORTRAIT_UP],
+        });
+        return;
+      }
+      if (Platform.OS === "android") {
+        await ScreenOrientation.lockPlatformAsync({
+          screenOrientationConstantAndroid: 1,
+        });
+      }
+    };
+    try {
+      // Any portrait (blocks landscape); works on more devices than PORTRAIT_UP alone.
+      await ScreenOrientation.lockAsync(
+        ScreenOrientation.OrientationLock.PORTRAIT
+      );
+    } catch {
+      try {
+        await tryPlatform();
+      } catch {
+        try {
+          await ScreenOrientation.lockAsync(
+            ScreenOrientation.OrientationLock.PORTRAIT_UP
+          );
+        } catch {
+          /* native module missing (e.g. old Expo Go) */
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    void lockPortrait();
+    const appSub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void lockPortrait();
+      }
+    });
+    const orientSub =
+      Platform.OS === "web"
+        ? { remove: () => undefined }
+        : ScreenOrientation.addOrientationChangeListener(() => {
+            void lockPortrait();
+          });
+    return () => {
+      appSub.remove();
+      orientSub.remove();
+    };
+  }, [lockPortrait]);
 
   useEffect(() => {
     const handleDeepLink = (url: string) => {
@@ -75,10 +134,16 @@ const RootLayout = () => {
   const fontsLoaded = useLoadFonts();
 
   if (!fontsLoaded) {
-    return <LoadingScreen />;
+    return (
+      <View style={{ flex: 1 }}>
+        <LoadingScreen />
+        <PortraitEnforcer />
+      </View>
+    );
   }
 
   return (
+    <View style={{ flex: 1 }}>
     <PostHogProvider
       apiKey="phc_JdmTA0CNQRVrMvtk9zd2C9AXhrEt5mPEX09QRfd2WTR"
       options={{
@@ -96,6 +161,7 @@ const RootLayout = () => {
                       screenOptions={{
                         headerShown: false,
                         gestureEnabled: false,
+                        ...nativeStackHorizontalIOSLike,
                       }}
                     >
                       <Stack.Screen
@@ -103,7 +169,7 @@ const RootLayout = () => {
                         options={{ headerShown: false }}
                       />
                       <Stack.Screen
-                        name="(hairdresser)"
+                        name="(professional)"
                         options={{ headerShown: false, gestureEnabled: false }}
                       />
                       <Stack.Screen
@@ -123,7 +189,7 @@ const RootLayout = () => {
                         options={{ headerShown: false }}
                       />
                       <Stack.Screen
-                        name="haircodes"
+                        name="visits"
                         options={{ headerShown: false }}
                       />
                       <Stack.Screen
@@ -151,6 +217,8 @@ const RootLayout = () => {
         </RealTimeProvider>
       </AuthProvider>
     </PostHogProvider>
+    <PortraitEnforcer />
+    </View>
   );
 };
 

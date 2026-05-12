@@ -1,10 +1,11 @@
 import { StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { Stack } from "expo-router";
+import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
 
 const _layout = () => {
   return (
-    <Stack>
+    <Stack screenOptions={{ ...nativeStackHorizontalIOSLike }}>
       <Stack.Screen name="ImageDetails" options={{ headerShown: false }} />
       <Stack.Screen name="paywall" options={{headerShown: false}} />
     </Stack>

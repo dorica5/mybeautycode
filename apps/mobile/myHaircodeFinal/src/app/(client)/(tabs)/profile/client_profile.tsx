@@ -1,12 +1,12 @@
 /* eslint-disable react/react-in-jsx-scope */
-import { StyleSheet, View, Text, ScrollView, Pressable } from "react-native";
+import { StyleSheet, View, Text, ScrollView } from "react-native";
 import { useAuth } from "@/src/providers/AuthProvider";
 import RemoteImage from "@/src/components/RemoteImage";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { Colors } from "@/src/constants/Colors";
 import ProfileRectangle from "@/src/components/profileRectangles";
-import { CaretLeft } from "phosphor-react-native";
 import { router } from "expo-router";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import {
   responsiveScale,
   scalePercent,
@@ -28,12 +28,9 @@ const HairdresserProfile = () => {
       <View style={{ flex: 1, backgroundColor: "#fff" }}>
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
           <View style={styles.container}>
-            <Pressable
-              onPress={() => router.back()}
-              style={styles.iconContainer}
-            >
-              <CaretLeft size={responsiveScale(32)} color={Colors.dark.dark} />
-            </Pressable>
+            <View style={styles.iconContainer}>
+              <NavBackRow onPress={() => router.back()} />
+            </View>
 
             <ProfileRectangle
               full_name={profile.full_name}

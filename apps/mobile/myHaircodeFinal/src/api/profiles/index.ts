@@ -5,6 +5,12 @@ import { Alert } from "react-native";
 import { supabase } from "@/src/lib/supabase";
 import { isUuid } from "@/src/utils/isUuid";
 
+/** Avoid long full-screen spinners when the API host is unreachable or times out. */
+const SEARCH_QUERY_OPTIONS = {
+  retry: 1,
+  retryDelay: 400,
+} as const;
+
 export async function requestClientLink(
   clientId: string,
   professionCode?: string | null
@@ -87,6 +93,7 @@ export const useListClientSearch = (
       !!searchQuery &&
       !!hairdresserId &&
       (!scopeProfession || code != null),
+    ...SEARCH_QUERY_OPTIONS,
   });
 };
 
@@ -109,33 +116,42 @@ export const useListAllClientSearch = (
     },
     /** Same lane contract as latest visits: never call unscoped (would list unrelated profiles server-side). */
     enabled: !!hairdresser_id && q.length > 0 && !!code,
+    ...SEARCH_QUERY_OPTIONS,
   });
 };
 
+/** `useClientSearch` / map prefetch — same key + fetch for instant profile paint after tap. */
+export const clientProfileByIdQueryKey = (id: string) =>
+  ["clientSearch", id] as const;
+export const fetchClientProfileById = (id: string) => api.get(`/api/profiles/${id}`);
+
 export const useClientSearch = (client_id: string | undefined) => {
   return useQuery({
-    queryKey: ["clientSearch", client_id],
-    queryFn: () => api.get(`/api/profiles/${client_id}`),
+    queryKey: clientProfileByIdQueryKey(client_id ?? ""),
+    queryFn: () => fetchClientProfileById(client_id!),
     enabled: !!client_id && isUuid(client_id),
+    staleTime: 60_000,
   });
 };
 
 export const useListAllHairdresserSearch = (
   searchQuery: string,
-  clientId: string,
+  clientId: string | undefined,
   professionCode?: string | null
 ) => {
   const code = professionCode?.trim() || undefined;
+  const q = searchQuery.trim();
   return useQuery({
-    queryKey: ["hairdresserSearch", searchQuery, code ?? "any"],
+    queryKey: ["hairdresserSearch", q, clientId ?? "", code ?? "any"],
     queryFn: () => {
-      const params = new URLSearchParams({ q: searchQuery });
+      const params = new URLSearchParams({ q });
       if (code) params.set("profession_code", code);
       return api.get<unknown[]>(
         `/api/profiles/search/hairdressers-with-relationship?${params.toString()}`
       );
     },
-    enabled: !!searchQuery,
+    enabled: q.length > 0 && !!clientId,
+    ...SEARCH_QUERY_OPTIONS,
   });
 };
 
@@ -193,8 +209,14 @@ export const useRemoveRelationships = (clientId: string) => {
         });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["manageHairdresser", clientId] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["manageHairdresser", clientId],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["relationship"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["listAllHairdresserSearch", clientId],
+      });
     },
   });
 };

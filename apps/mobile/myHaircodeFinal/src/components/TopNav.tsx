@@ -1,19 +1,14 @@
 import React from "react";
 import { View, Pressable, StyleSheet, Text, type TextStyle } from "react-native";
-import { CaretLeft } from "phosphor-react-native";
 import { router } from "expo-router";
 import {
   isTablet,
   responsiveScale,
-  responsivePadding,
   responsiveMargin,
 } from "../utils/responsive";
 import { Typography } from "../constants/Typography";
 import { primaryBlack } from "../constants/Colors";
-
-/** Lik avstand til venstre (Back) og høyre (Save) — én felles inset. */
-const TOP_ROW_HORIZONTAL_INSET =
-  responsivePadding(4) + responsivePadding(8);
+import { NavBackRow } from "./NavBackRow";
 
 type TopNavProps = {
   title: string;
@@ -65,18 +60,13 @@ const TopNav = ({
             importantForAccessibility="no-hide-descendants"
           />
         ) : (
-          <Pressable
-            accessibilityRole="button"
+          <NavBackRow
+            layout="inlineBar"
             accessibilityLabel="Go back"
-            onPress={() =>
-              onBackPress ? onBackPress() : router.back()
-            }
+            onPress={() => (onBackPress ? onBackPress() : router.back())}
             style={[styles.navHalf, styles.navHalfStart]}
             hitSlop={12}
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-          </Pressable>
+          />
         )}
 
         {showSaveButton ? (
@@ -153,16 +143,15 @@ const styles = StyleSheet.create({
   topRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: TOP_ROW_HORIZONTAL_INSET,
-    paddingTop: responsivePadding(4, 2),
+    paddingHorizontal: 0,
+    paddingTop: responsiveMargin(4),
   },
   /** Venstre/høyre halvdel: lik bredde, samme touch-høyde som Back. */
   navHalf: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: responsiveMargin(8),
-    gap: responsiveMargin(4),
+    paddingVertical: 0,
     minHeight: responsiveScale(44),
     minWidth: 0,
   },
@@ -175,12 +164,11 @@ const styles = StyleSheet.create({
   /** Skyver Save litt inn fra høyre kant. */
   savePressable: {
     paddingEnd: responsiveMargin(10),
+    paddingVertical: responsiveMargin(8),
+    justifyContent: "flex-end",
   },
   navHalfSpacer: {
     opacity: 0,
-  },
-  backText: {
-    color: primaryBlack,
   },
   saveText: {
     color: primaryBlack,

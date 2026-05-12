@@ -8,29 +8,11 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { fetchNotifications } from "@/src/providers/useNotifcations";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 
-const TAB_BAR_LAVENDER = "#F5F5FF";
-
-const TAB_BAR_DEFAULT = {
+const TAB_BAR_STYLE = {
   backgroundColor: primaryGreen,
   borderTopColor: "rgba(33, 36, 39, 0.12)",
   borderTopWidth: 1,
 } as const;
-
-const TAB_BAR_NOTIFICATIONS = {
-  backgroundColor: TAB_BAR_LAVENDER,
-  borderTopColor: "rgba(33, 36, 39, 0.1)",
-  borderTopWidth: 1,
-} as const;
-
-function isClientNotificationsPath(path: string | undefined): boolean {
-  if (!path) return false;
-  return (
-    path === "/notifications" ||
-    path.includes("/(tabs)/notifications") ||
-    /\/notifications\/?$/.test(path)
-  );
-}
-
 /**
  * `usePathname()` can return short leaf paths (e.g. `/userList`) or grouped
  * paths (`/(client)/(tabs)/userList`). Tab handlers must treat both as the
@@ -110,7 +92,9 @@ const _layout = () => {
       // Already on the filter entry? Do nothing (avoid re-navigation).
       if (
         pathname === href ||
-        pathname === "/userList/filter-before-map"
+        pathname === "/userList/filter-before-map" ||
+        (isActiveClientTab(pathname, "userList") &&
+          pathname.includes("filter-before-map"))
       ) {
         return;
       }
@@ -136,11 +120,9 @@ const _layout = () => {
       unmountOnBlur: false,
       tabBarActiveTintColor: primaryBlack,
       tabBarInactiveTintColor: "#5d7168",
-      tabBarStyle: isClientNotificationsPath(pathname)
-        ? TAB_BAR_NOTIFICATIONS
-        : TAB_BAR_DEFAULT,
+      tabBarStyle: TAB_BAR_STYLE,
     }),
-    [pathname]
+    []
   );
 
   return (
@@ -178,7 +160,12 @@ const _layout = () => {
       <Tabs.Screen
         name="userList"
         options={{
-          href: "/(client)/(tabs)/userList/filter-before-map",
+          /**
+           * Do not set `href` here: expo-router turns the tab into a `Link` for that
+           * href, which dispatches nested NAVIGATE({ name: "userList", params: { screen:
+           * "filter-before-map" } }) and breaks with "not handled by any navigator"
+           * at the root. Use normal tab switching + `tabPress` → `router.replace` instead.
+           */
           tabBarIcon: ({ focused, color }) => (
             <MagnifyingGlass
               size={32}

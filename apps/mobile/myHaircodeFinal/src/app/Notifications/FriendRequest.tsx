@@ -10,7 +10,7 @@ import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { isBlocked } from "@/src/api/moderation";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -18,6 +18,7 @@ import {
   responsivePadding,
   responsiveScale,
   scalePercent,
+  isTablet,
 } from "@/src/utils/responsive";
 import {
   MintBrandModalFooterRow,
@@ -99,7 +100,7 @@ export const FriendRequest = () => {
           senderId,
           profile.id,
           "FRIEND_REQUEST",
-          `${profile.full_name} has accepted your haircode request`,
+          `${profile.full_name} has accepted your connection request`,
           {
             isClient: true,
             senderName: profile.full_name,
@@ -134,15 +135,12 @@ export const FriendRequest = () => {
       <>
         <StatusBar style="dark" />
         <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-          <Pressable
+          <NavBackRow
             onPress={() => router.back()}
             style={styles.backRow}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={styles.backLabel}>Back</Text>
-          </Pressable>
+            accessibilityLabel="Go back"
+            hitSlop={12}
+          />
 
           <View style={styles.content}>
               <Pressable
@@ -151,7 +149,7 @@ export const FriendRequest = () => {
                   !isBlockedUser
                     ? () =>
                         router.push({
-                          pathname: `../(hairdresser)/clientProfile/${senderId}`,
+                          pathname: `../(professional)/clientProfile/${senderId}`,
                           params: { id: senderId, relationship: "true" },
                         })
                     : null
@@ -177,15 +175,12 @@ export const FriendRequest = () => {
     <>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <Pressable
+        <NavBackRow
           onPress={() => router.back()}
           style={styles.backRow}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
+          accessibilityLabel="Go back"
+          hitSlop={12}
+        />
 
         <View style={styles.content}>
             <Pressable
@@ -216,7 +211,12 @@ export const FriendRequest = () => {
           </Text>
 
           {!isHandled && (
-            <View style={styles.actions}>
+            <View
+              style={[
+                styles.actions,
+                isTablet() ? styles.actionsTablet : null,
+              ]}
+            >
               <MintBrandModalFooterRow>
                 <MintBrandModalSecondaryButton
                   label="Decline"
@@ -243,16 +243,9 @@ const styles = StyleSheet.create({
     backgroundColor: primaryGreen,
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    alignSelf: "flex-start",
     paddingHorizontal: responsivePadding(16),
     paddingVertical: responsiveMargin(12),
-    alignSelf: "flex-start",
-    gap: responsiveScale(4),
-  },
-  backLabel: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
   },
   content: {
     flex: 1,
@@ -284,9 +277,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     marginTop: responsiveMargin(26),
-    alignSelf: "stretch",
-    maxWidth: 420,
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 440,
     paddingHorizontal: responsivePadding(4),
+  },
+  actionsTablet: {
+    maxWidth: 560,
   },
 });
 

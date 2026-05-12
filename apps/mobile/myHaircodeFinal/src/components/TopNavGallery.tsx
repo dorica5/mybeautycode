@@ -1,11 +1,11 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
-import { CaretLeft } from "phosphor-react-native";
+import { View, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import { 
-  responsiveScale, 
+import { NavBackRow } from "@/src/components/NavBackRow";
+import {
+  responsiveScale,
   responsivePadding,
-  responsiveFontSize
+  responsiveFontSize,
 } from "@/src/utils/responsive";
 
 type TopNavGalleryProps = {
@@ -21,24 +21,27 @@ const TopNavGallery = ({
 }: TopNavGalleryProps) => {
   return (
     <View style={styles.topNav}>
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <CaretLeft size={responsiveScale(32)} color="#212427" />
-      </Pressable>
-      <View style={styles.titleBlock}>
-        <Text
-          style={[styles.title, titleStyle]}
-          numberOfLines={1}
-          ellipsizeMode="tail"
-        >
-          {title}
-        </Text>
-        {secondTitle ? (
-          <Text style={styles.secondTitle} numberOfLines={1}>
-            {secondTitle}
+      <NavBackRow
+        layout="inlineBar"
+        accessibilityLabel="Go back"
+        hitSlop={12}
+      />
+      <View style={styles.titleAbsolute} pointerEvents="none">
+        <View style={styles.titleBlock}>
+          <Text
+            style={[styles.title, titleStyle]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {title}
           </Text>
-        ) : null}
+          {secondTitle ? (
+            <Text style={styles.secondTitle} numberOfLines={1}>
+              {secondTitle}
+            </Text>
+          ) : null}
+        </View>
       </View>
-      <View style={styles.topNavSpacer} />
     </View>
   );
 };
@@ -51,14 +54,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: responsivePadding(16),
     paddingHorizontal: responsivePadding(20),
+    position: "relative",
+    minHeight: responsiveScale(44),
+  },
+  /** Keeps titles visually centered while the real Back control is caret + label on the left. */
+  titleAbsolute: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
   },
   titleBlock: {
-    flex: 1,
     alignItems: "center",
     paddingHorizontal: responsivePadding(8),
-  },
-  topNavSpacer: {
-    width: responsiveScale(32),
+    maxWidth: "72%",
   },
   title: {
     fontSize: responsiveFontSize(22, 14),

@@ -8,7 +8,7 @@ import { prisma } from "./lib/prisma";
 import { setupSocket } from "./lib/socket";
 import { authRoutes } from "./routes/auth";
 import { profileRoutes } from "./routes/profiles";
-import { haircodeRoutes } from "./routes/haircodes";
+import { visitRoutes } from "./routes/visits";
 import { inspirationRoutes } from "./routes/inspirations";
 import { relationshipRoutes } from "./routes/relationships";
 import { moderationRoutes } from "./routes/moderation";
@@ -18,6 +18,7 @@ import { userRoutes } from "./routes/users";
 import { sharedInspirationRoutes } from "./routes/sharedInspirations";
 import { supportRoutes } from "./routes/support";
 import { salonRoutes } from "./routes/salons";
+import { professionalAnalyticsRoutes } from "./routes/professionalAnalytics";
 
 const app = express();
 const httpServer = createServer(app);
@@ -57,7 +58,7 @@ app.get("/health/db", async (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/profiles", profileRoutes);
-app.use("/api/haircodes", haircodeRoutes);
+app.use("/api/visits", visitRoutes);
 app.use("/api/inspirations", inspirationRoutes);
 app.use("/api/relationships", relationshipRoutes);
 app.use("/api/moderation", moderationRoutes);
@@ -67,6 +68,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/shared-inspirations", sharedInspirationRoutes);
 app.use("/api/support", supportRoutes);
 app.use("/api/salons", salonRoutes);
+app.use("/api/professional-analytics", professionalAnalyticsRoutes);
 
 app.set("io", io);
 

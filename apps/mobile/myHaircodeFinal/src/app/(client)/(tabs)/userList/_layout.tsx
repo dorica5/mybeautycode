@@ -1,20 +1,28 @@
-import { View, Text } from "react-native";
 import React, { useMemo } from "react";
 import { Stack } from "expo-router";
+import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
+import { primaryGreen } from "@/src/constants/Colors";
 
 const _layout = () => {
-  const screenOptions = useMemo(() => ({ headerShown: false }), []);
-  
+  const screenOptions = useMemo(
+    () => ({
+      headerShown: false,
+      contentStyle: { backgroundColor: primaryGreen },
+      ...nativeStackHorizontalIOSLike,
+    }),
+    []
+  );
+
   return (
-    <Stack>
-      <Stack.Screen name="index" options={screenOptions} />
-      <Stack.Screen name="[query]" options={screenOptions} />
-      <Stack.Screen name="filter-before-map" options={screenOptions} />
-      <Stack.Screen name="map" options={screenOptions} />
-      <Stack.Screen
-        name="professionalProfile/[id]"
-        options={screenOptions}
-      />
+    <Stack
+      initialRouteName="filter-before-map"
+      screenOptions={screenOptions}
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen name="[query]" />
+      <Stack.Screen name="filter-before-map" />
+      <Stack.Screen name="map" />
+      <Stack.Screen name="professionalProfile/[id]" />
     </Stack>
   );
 };

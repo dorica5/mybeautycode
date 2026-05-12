@@ -1,4 +1,6 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
+import { useFocusEffect } from "expo-router";
+import { recordProfessionalAnalyticsEvent } from "@/src/api/professionalAnalytics";
 import {
   View,
   Text,
@@ -7,9 +9,10 @@ import {
   StyleSheet,
   Linking,
   Alert,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CaretLeft } from "phosphor-react-native";
+import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { PublicProfileWorkGrid } from "@/src/components/PublicProfileWorkGrid";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
@@ -22,6 +25,7 @@ import {
 import { parseColorBrands } from "@/src/lib/colorBrandStorage";
 import {
   profileHasHairProfession,
+  coerceProfessionCode,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
@@ -32,6 +36,8 @@ import {
   responsivePadding,
   responsiveScale,
   scalePercent,
+  isTablet,
+  contentCardMaxWidth,
 } from "@/src/utils/responsive";
 
 function displayFirstName(
@@ -64,6 +70,42 @@ async function openExternalUrl(url: string) {
   }
 }
 
+/** Local copy — avoids Metro occasionally resolving a stale `professionCodes` bundle without this export. */
+function relationshipCtaLabelsForLane(
+  code: ProfessionChoiceCode | null | undefined
+): { addTitle: string; addedTitle: string } {
+  if (!code) {
+    return {
+      addTitle: "Add professional",
+      addedTitle: "Professional added",
+    };
+  }
+  switch (code) {
+    case "hair":
+      return { addTitle: "Add hairdresser", addedTitle: "Hairdresser added" };
+    case "nails":
+      return {
+        addTitle: "Add nail technician",
+        addedTitle: "Nail technician added",
+      };
+    case "brows_lashes":
+      return {
+        addTitle: "Add brow stylist",
+        addedTitle: "Brow stylist added",
+      };
+    case "esthetician":
+      return {
+        addTitle: "Add esthetician",
+        addedTitle: "Esthetician added",
+      };
+    default:
+      return {
+        addTitle: "Add professional",
+        addedTitle: "Professional added",
+      };
+  }
+}
+
 export type PublicProfessionalProfileViewProps = {
   mode: "self" | "client";
   profileUserId: string;
@@ -88,6 +130,11 @@ export type PublicProfessionalProfileViewProps = {
   addLoading?: boolean;
   onAddHairdresser?: () => void;
   headerRight?: React.ReactNode;
+  /**
+   * When set (client viewing another pro), records profile views and outbound
+   * booking/social taps per profession lane for pro insights.
+   */
+  analyticsProfessionCode?: string | null;
 };
 
 export function PublicProfessionalProfileView({
@@ -112,7 +159,55 @@ export function PublicProfessionalProfileView({
   addLoading,
   onAddHairdresser,
   headerRight,
+  analyticsProfessionCode,
 }: PublicProfessionalProfileViewProps) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
+  const layout = useMemo(() => {
+    const tablet = isTablet();
+    const shellPad = responsivePadding(16, 28);
+    const shortSide = Math.min(windowWidth, windowHeight);
+
+    /** One centered column — tablet width matches phone card ratio on short side. */
+    let maxShellW: number;
+    if (tablet) {
+      maxShellW = Math.min(
+        windowWidth - shellPad * 2,
+        contentCardMaxWidth(shortSide)
+      );
+    } else {
+      maxShellW = Math.min(windowWidth - responsivePadding(36), 520);
+    }
+
+    /** `scalePercent(38)` on tablet uses portrait min(width,height) → ~292pt avatar; cap for same balance as phones */
+    const phoneAvatar = Math.round(scalePercent(38));
+    const avatarSize = tablet ? responsiveScale(152, 200) : phoneAvatar;
+
+    const workGridMaxWidth = Math.floor(maxShellW - shellPad * 2);
+
+    return { tablet, maxShellW, avatarSize, workGridMaxWidth };
+  }, [windowWidth, windowHeight]);
+
+  const lane = analyticsProfessionCode?.trim() || null;
+
+  const relationshipLaneForCta: ProfessionChoiceCode | null =
+    activeProfessionCode ??
+    coerceProfessionCode(lane ?? undefined);
+  const relationshipCta = relationshipCtaLabelsForLane(
+    relationshipLaneForCta
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (mode !== "client" || !lane || !profileUserId) return;
+      void recordProfessionalAnalyticsEvent({
+        subjectProfileId: profileUserId,
+        professionCode: lane,
+        event: "profile_view",
+      });
+    }, [mode, lane, profileUserId])
+  );
+
   const first = displayFirstName(firstName, fullName);
   const businessName = salonName?.trim() ?? "";
   const socialUrls = parseSocialLinks(socialMediaRaw ?? "");
@@ -133,10 +228,15 @@ export function PublicProfessionalProfileView({
   const handleBooking = useCallback(() => {
     const u = bookingSite?.trim();
     if (!u) return;
+    if (mode === "client" && lane && profileUserId) {
+      void recordProfessionalAnalyticsEvent({
+        subjectProfileId: profileUserId,
+        professionCode: lane,
+        event: "booking_click",
+      });
+    }
     void openExternalUrl(normalizeWebUrl(u));
-  }, [bookingSite]);
-
-  const avatarSize = scalePercent(38);
+  }, [bookingSite, mode, lane, profileUserId]);
 
   // UI-only: placeholder numbers (backend not wired yet).
   const mockInsights = {
@@ -153,30 +253,38 @@ export function PublicProfessionalProfileView({
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          layout.tablet && styles.scrollContentTablet,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerRow}>
-          <Pressable
-            onPress={onBack}
-            style={styles.backPress}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-            <Text style={[Typography.bodyMedium, styles.backText]}>Back</Text>
-          </Pressable>
-          {headerRight ? (
-            <View style={styles.headerRightWrap}>{headerRight}</View>
-          ) : null}
+        {/** Shared inset with visit headers / Find pros — see NavBackRow.navBackChromeStyles */}
+        <View style={navBackChromeStyles.screenBar}>
+          <View style={navBackChromeStyles.row}>
+            <NavBackRow onPress={onBack} hitSlop={12} layout="inlineBar" />
+            {headerRight ? (
+              <View style={styles.headerRightWrap}>{headerRight}</View>
+            ) : (
+              <View style={styles.headerRightPlaceholder} />
+            )}
+          </View>
         </View>
 
+        <View
+          style={[
+            styles.columnShell,
+            {
+              maxWidth: layout.maxShellW,
+              paddingHorizontal: responsivePadding(16, 28),
+            },
+          ]}
+        >
         <View style={styles.hero}>
           <AvatarWithSpinner
             uri={avatarUrl}
-            size={avatarSize}
+            size={layout.avatarSize}
             style={styles.avatar}
           />
           {fullName?.trim() ? (
@@ -188,7 +296,13 @@ export function PublicProfessionalProfileView({
             </Text>
           ) : null}
           {businessName ? (
-            <Text style={[Typography.anton20, styles.businessName]}>
+            <Text
+              style={[
+                Typography.anton20,
+                styles.businessName,
+                layout.tablet && styles.businessNameTablet,
+              ]}
+            >
               {businessName}
             </Text>
           ) : null}
@@ -198,18 +312,32 @@ export function PublicProfessionalProfileView({
           <View style={styles.ctaWrap}>
             {!isRelated ? (
               <PaddedLabelButton
-                title="Add hairdresser"
+                title={relationshipCta.addTitle}
                 horizontalPadding={32}
                 verticalPadding={16}
                 onPress={onAddHairdresser}
                 disabled={addLoading}
-                style={styles.addHairdresserBtn}
+                accessibilityLabel={relationshipCta.addTitle}
+                style={[
+                  styles.addHairdresserBtnBase,
+                  layout.tablet
+                    ? styles.addHairdresserBtnTablet
+                    : styles.addHairdresserBtnPhone,
+                ]}
                 textStyle={styles.addHairdresserBtnLabel}
               />
             ) : (
-              <View style={[styles.addHairdresserBtn, styles.addedGhost]}>
+              <View
+                style={[
+                  styles.addHairdresserBtnBase,
+                  layout.tablet
+                    ? styles.addHairdresserBtnTablet
+                    : styles.addHairdresserBtnPhone,
+                  styles.addedGhost,
+                ]}
+              >
                 <Text style={[Typography.label, styles.addedGhostLabel]}>
-                  Hairdresser added
+                  {relationshipCta.addedTitle}
                 </Text>
               </View>
             )}
@@ -281,7 +409,17 @@ export function PublicProfessionalProfileView({
                     <Pressable
                       key={`${url}-${index}`}
                       style={styles.pillWithIcon}
-                      onPress={() => openExternalUrl(normalizeWebUrl(url))}
+                      onPress={() => {
+                        if (mode === "client" && lane && profileUserId) {
+                          void recordProfessionalAnalyticsEvent({
+                            subjectProfileId: profileUserId,
+                            professionCode: lane,
+                            event: "social_click",
+                            socialPlatform: kind,
+                          });
+                        }
+                        void openExternalUrl(normalizeWebUrl(url));
+                      }}
                       accessibilityRole="link"
                       accessibilityLabel={label}
                     >
@@ -350,41 +488,41 @@ export function PublicProfessionalProfileView({
             </View>
           ) : null}
 
-          <View style={styles.sectionBlock}>
-            <Text style={[Typography.label, styles.sectionTitle]}>
-              {first}&apos;s superpower
-            </Text>
-            <View
-              style={[
-                styles.superpowerBox,
-                !aboutMe?.trim() && styles.superpowerBoxPlaceholderShell,
-              ]}
-            >
-              <Text
+          {mode === "self" || aboutMe?.trim() ? (
+            <View style={styles.sectionBlock}>
+              <Text style={[Typography.label, styles.sectionTitle]}>
+                {first}&apos;s superpower
+              </Text>
+              <View
                 style={[
-                  Typography.outfitRegular16,
-                  aboutMe?.trim()
-                    ? styles.superpowerText
-                    : styles.superpowerPlaceholder,
+                  styles.superpowerBox,
+                  !aboutMe?.trim() && styles.superpowerBoxPlaceholderShell,
                 ]}
               >
-                {aboutMe?.trim()
-                  ? aboutMe.trim()
-                  : "Tell your clients about your skills"}
-              </Text>
+                <Text
+                  style={[
+                    Typography.outfitRegular16,
+                    aboutMe?.trim()
+                      ? styles.superpowerText
+                      : styles.superpowerPlaceholder,
+                  ]}
+                >
+                  {aboutMe?.trim()
+                    ? aboutMe.trim()
+                    : "Tell your clients about your skills"}
+                </Text>
+              </View>
             </View>
-          </View>
+          ) : null}
 
-          <View style={styles.sectionBlock}>
-            <Text style={[Typography.label, styles.sectionTitle]}>
-              {first}&apos;s work
-            </Text>
-            <PublicProfileWorkGrid
-              profileUserId={profileUserId}
-              showTitle={false}
-              professionCode={activeProfessionCode ?? undefined}
-            />
-          </View>
+          <PublicProfileWorkGrid
+            profileUserId={profileUserId}
+            showTitle={false}
+            sectionHeading={`${first}'s work`}
+            professionCode={activeProfessionCode ?? undefined}
+            contentMaxWidth={layout.workGridMaxWidth}
+          />
+        </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -399,27 +537,25 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: {
     paddingBottom: responsivePadding(48),
+    width: "100%",
   },
-  headerRow: {
-    flexDirection: "row",
+  scrollContentTablet: {
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsiveMargin(8),
   },
-  backPress: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: responsiveMargin(4),
+  columnShell: {
+    alignSelf: "center",
+    width: "100%",
   },
-  backText: { color: primaryBlack },
   headerRightWrap: {
     minWidth: responsiveScale(40),
     alignItems: "flex-end",
   },
+  /** Keeps Back aligned when no menu — mirrors VisitRecordScreenHeader trail placeholder. */
+  headerRightPlaceholder: {
+    minWidth: responsiveScale(40),
+  },
   hero: {
     alignItems: "center",
-    paddingHorizontal: responsivePadding(16),
     marginTop: responsiveMargin(4),
     paddingBottom: responsivePadding(6),
   },
@@ -437,26 +573,38 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: responsiveMargin(20),
   },
+  /** Do not override `Typography.anton20` lineHeight — a fixed responsiveScale (28)
+   * mismatches scaled font on tablets and clips Anton caps for the salon line. */
   businessName: {
     color: primaryBlack,
     textAlign: "center",
     marginTop: 0,
-    paddingVertical: responsivePadding(2),
-    lineHeight: responsiveScale(28),
+  },
+  /** Extra vertical room so the salon line clears the username block on large tiles. */
+  businessNameTablet: {
+    marginTop: responsiveMargin(4),
+    paddingVertical: responsivePadding(4),
   },
   ctaWrap: {
-    paddingHorizontal: responsivePadding(20),
     marginTop: responsiveMargin(20),
     marginBottom: responsiveMargin(8),
     alignItems: "center",
   },
-  addHairdresserBtn: {
-    alignSelf: "stretch",
-    maxWidth: 400,
-    width: "100%",
+  addHairdresserBtnBase: {
     backgroundColor: primaryBlack,
     borderRadius: responsiveBorderRadius(999),
     alignItems: "center",
+  },
+  /** Full-width bar on phone (max readable width). */
+  addHairdresserBtnPhone: {
+    alignSelf: "stretch",
+    maxWidth: 400,
+    width: "100%",
+  },
+  /** Fills `columnShell`, which already applies the tablet content max width. */
+  addHairdresserBtnTablet: {
+    alignSelf: "stretch",
+    width: "100%",
   },
   addHairdresserBtnLabel: {
     color: primaryWhite,
@@ -475,10 +623,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   sections: {
-    paddingHorizontal: responsivePadding(20),
     marginTop: responsiveMargin(24),
-    maxWidth: 480,
-    alignSelf: "center",
     width: "100%",
   },
   sectionBlock: {

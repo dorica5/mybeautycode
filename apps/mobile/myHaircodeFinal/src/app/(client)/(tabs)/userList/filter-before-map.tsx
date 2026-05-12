@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -10,7 +10,11 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsFocused } from "@react-navigation/native";
 import { router, useLocalSearchParams } from "expo-router";
-import { CaretLeft } from "phosphor-react-native";
+import {
+  NavBackRow,
+  navBackChromeStyles,
+  navBackPlaceholderStyle,
+} from "@/src/components/NavBackRow";
 import { StatusBar } from "expo-status-bar";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import { Typography } from "@/src/constants/Typography";
@@ -19,6 +23,8 @@ import {
   responsiveScale,
   responsivePadding,
   responsiveMargin,
+  contentCardMaxWidth,
+  isTablet,
 } from "@/src/utils/responsive";
 
 type Profession = "hair" | "nails" | "brows";
@@ -33,7 +39,7 @@ const OPTIONS: { key: Profession; label: string }[] = [
 const SELECTION_FEEDBACK_MS = 180;
 
 const FilterBeforeMapScreen = () => {
-  const { width: windowWidth } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { fromTab } = useLocalSearchParams<{ fromTab?: string }>();
   const hideBack = fromTab === "1";
@@ -42,6 +48,16 @@ const FilterBeforeMapScreen = () => {
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
   const heroPatternVerticalNudge = heroHeight * 0.34;
+
+  const optionTileWidth = useMemo(() => {
+    const shortSide = Math.min(windowWidth, windowHeight);
+    const phoneW = responsiveScale(342);
+    if (!isTablet()) return phoneW;
+    return Math.min(
+      contentCardMaxWidth(shortSide),
+      windowWidth - responsivePadding(20) * 2
+    );
+  }, [windowWidth, windowHeight]);
 
   const [selected, setSelected] = useState<Profession | undefined>(undefined);
   const navTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,17 +102,11 @@ const FilterBeforeMapScreen = () => {
         keyboardShouldPersistTaps="handled"
       >
         {!hideBack ? (
-          <Pressable
-            onPress={() => router.back()}
-            style={styles.backRow}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-            <Text style={styles.backLabel}>Back</Text>
-          </Pressable>
+          <View style={navBackChromeStyles.screenBar}>
+            <NavBackRow onPress={() => router.back()} />
+          </View>
         ) : (
-          <View style={styles.backPlaceholder} />
+          <View style={[navBackChromeStyles.screenBar, navBackPlaceholderStyle()]} />
         )}
 
         <View
@@ -128,14 +138,18 @@ const FilterBeforeMapScreen = () => {
             What kind of professional?
           </Text>
 
-          <View style={styles.options}>
+          <View style={[styles.options, { width: optionTileWidth }]}>
             {OPTIONS.map(({ key, label }) => {
               const on = selected === key;
               return (
                 <Pressable
                   key={key}
                   onPress={() => onPickProfession(key)}
-                  style={[styles.option, on && styles.optionSelected]}
+                  style={[
+                    styles.option,
+                    { width: optionTileWidth },
+                    on && styles.optionSelected,
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={label}
                   accessibilityState={{ selected: on }}
@@ -169,20 +183,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: responsiveMargin(24),
   },
-  backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: responsivePadding(8),
-    paddingVertical: responsivePadding(8),
-    alignSelf: "flex-start",
-  },
-  backPlaceholder: {
-    height: responsiveScale(40),
-  },
-  backLabel: {
-    ...Typography.bodyMedium,
-    marginLeft: responsivePadding(4),
-  },
   heroBleed: {
     marginTop: responsiveMargin(8),
     marginBottom: responsiveMargin(-30),
@@ -208,12 +208,10 @@ const styles = StyleSheet.create({
     marginBottom: responsiveMargin(20),
   },
   options: {
-    width: responsiveScale(342),
     alignSelf: "center",
     gap: responsiveScale(8),
   },
   option: {
-    width: responsiveScale(342),
     height: responsiveScale(59),
     paddingVertical: 0,
     paddingHorizontal: 0,

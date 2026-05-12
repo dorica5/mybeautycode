@@ -61,6 +61,13 @@ import {
   coerceProfessionCode,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import {
+  DISCOVERY_SECTION_TITLE,
+  type DiscoveryCategoryOption,
+  discoveryOptionsForProfession,
+  normalizeDiscoveryCategoriesFromApi,
+  sanitizeDiscoveryCategoriesForProfession,
+} from "@/src/constants/profDiscoveryCategories";
 import type { ProfessionDetailApi } from "@/src/constants/types";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import OptimizedImage from "@/src/components/OptimizedImage";
@@ -82,6 +89,13 @@ const NUM_WORK_COLS = 2;
 const MAX_WORK_IMAGES = 6;
 const MAX_COLOR_BRANDS = 6;
 
+function sameDiscoverySelection(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.every((x, i) => x === sb[i]);
+}
+
 function bookingRowLabel(url: string): string {
   const t = url.trim();
   if (!t) return "";
@@ -97,7 +111,7 @@ function normalizeLinksForCompare(raw: string | null): string {
   return JSON.stringify(parseSocialLinks(raw ?? ""));
 }
 
-function chunkIntoRows<T>(items: T[], rowSize: number): T[][] {
+function chunkIntoRows<T>(items: readonly T[], rowSize: number): T[][] {
   const rows: T[][] = [];
   for (let i = 0; i < items.length; i += rowSize) {
     rows.push(items.slice(i, i + rowSize));
@@ -143,6 +157,14 @@ const AboutMe = () => {
     () => detailForActive?.booking_site ?? profile.booking_site ?? "",
     [detailForActive, profile.booking_site]
   );
+  const baselineDiscoveryCategories = useMemo(
+    () =>
+      sanitizeDiscoveryCategoriesForProfession(
+        normalizeDiscoveryCategoriesFromApi(detailForActive?.discovery_categories),
+        activeProfessionCode
+      ),
+    [detailForActive, activeProfessionCode]
+  );
   const originalColorBrand = profile.color_brand ?? "";
   const id = profile.id;
 
@@ -151,6 +173,12 @@ const AboutMe = () => {
     parseSocialLinks(baselineSocialMedia)
   );
   const [booking_site, setBookingSite] = useState(baselineBookingSite);
+  const [discoveryCategories, setDiscoveryCategories] = useState<string[]>(() =>
+    sanitizeDiscoveryCategoriesForProfession(
+      normalizeDiscoveryCategoriesFromApi(detailForActive?.discovery_categories),
+      activeProfessionCode
+    )
+  );
   const [colorBrands, setColorBrands] = useState<string[]>(() =>
     parseColorBrands(originalColorBrand)
   );
@@ -159,6 +187,16 @@ const AboutMe = () => {
     if (!storedProfessionReady || activeProfessionCode == null) return null;
     return activeProfessionCode;
   }, [storedProfessionReady, activeProfessionCode]);
+
+  const discoveryCategoryOptions = useMemo(
+    () => discoveryOptionsForProfession(professionApi ?? null),
+    [professionApi]
+  );
+  const discoveryCategoryRows = useMemo(
+    () => chunkIntoRows(discoveryCategoryOptions, 2),
+    [discoveryCategoryOptions]
+  );
+  const showDiscoveryCategoryPicker = discoveryCategoryOptions.length > 0;
 
   useEffect(() => {
     if (professionApi == null) return;
@@ -169,6 +207,12 @@ const AboutMe = () => {
     setAboutMe(d?.about_me ?? profile.about_me ?? "");
     setSocialLinks(parseSocialLinks(d?.social_media ?? profile.social_media));
     setBookingSite(d?.booking_site ?? profile.booking_site ?? "");
+    setDiscoveryCategories(
+      sanitizeDiscoveryCategoriesForProfession(
+        normalizeDiscoveryCategoriesFromApi(d?.discovery_categories),
+        professionApi
+      )
+    );
   }, [
     professionApi,
     profile.id,
@@ -435,6 +479,14 @@ const AboutMe = () => {
         about_me: about_me.trim() || null,
         social_media: serializedSocial || null,
         booking_site: booking_site.trim() || null,
+        ...(showDiscoveryCategoryPicker
+          ? {
+              discovery_categories: sanitizeDiscoveryCategoriesForProfession(
+                discoveryCategories,
+                professionApi
+              ),
+            }
+          : {}),
         ...(hasHairSurface
           ? { color_brand: serializeColorBrands(colorBrands) }
           : {}),
@@ -458,6 +510,11 @@ const AboutMe = () => {
           normalizeLinksForCompare(baselineSocialMedia ?? "") ||
         booking_site !== baselineBookingSite ||
         workDirty ||
+        (showDiscoveryCategoryPicker &&
+          !sameDiscoverySelection(
+            discoveryCategories,
+            baselineDiscoveryCategories
+          )) ||
         (hasHairSurface &&
           serializeColorBrands(colorBrands) !==
             serializeColorBrands(parseColorBrands(originalColorBrand)))
@@ -469,15 +526,79 @@ const AboutMe = () => {
     baselineSocialMedia,
     booking_site,
     baselineBookingSite,
+    discoveryCategories,
+    baselineDiscoveryCategories,
     colorBrands,
     originalColorBrand,
     workDirty,
     hasHairSurface,
+    showDiscoveryCategoryPicker,
   ]);
 
   const scrollToInput = (y: number) => {
     scrollViewRef.current?.scrollTo({ y, animated: true });
   };
+
+  /** Two-column chip rows; `omitTrailingRowGap` drops margin under the final row. */
+  const discoveryChipPairRows = (
+    rows: DiscoveryCategoryOption[][],
+    keyPrefix: string,
+    omitTrailingRowGap: boolean
+  ) =>
+    rows.map((pair, rowIndex) => (
+      <View
+        key={`${keyPrefix}-${rowIndex}`}
+        style={[
+          styles.discoveryPairRow,
+          omitTrailingRowGap &&
+            rowIndex === rows.length - 1 &&
+            styles.discoveryPairRowLast,
+        ]}
+      >
+        {pair.map((opt) => {
+          const selected = discoveryCategories.includes(opt.code);
+          return (
+            <Pressable
+              key={opt.code}
+              accessibilityRole="button"
+              accessibilityLabel={opt.label}
+              accessibilityState={{ selected }}
+              onPress={() => {
+                setDiscoveryCategories((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(opt.code)) next.delete(opt.code);
+                  else next.add(opt.code);
+                  return [...next].sort();
+                });
+              }}
+              style={[
+                styles.focusChip,
+                styles.focusChipInGrid,
+                selected && styles.focusChipSelected,
+              ]}
+            >
+              <Text
+                style={[
+                  Typography.label,
+                  styles.focusChipText,
+                  selected
+                    ? styles.focusChipLabelSelected
+                    : styles.focusChipLabel,
+                ]}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+        {pair.length === 1 ? (
+          <View
+            accessible={false}
+            style={styles.discoveryGridCellSpacer}
+          />
+        ) : null}
+      </View>
+    ));
 
   const commitSocialUrl = () => {
     if (!socialUrlModal) return;
@@ -614,6 +735,26 @@ const AboutMe = () => {
               to know or see.
             </Text>
           </View>
+
+          {showDiscoveryCategoryPicker && professionApi ? (
+            <View
+              style={[
+                styles.section,
+                sectionMaxStyle,
+                styles.discoverySection,
+              ]}
+            >
+              <Text style={[Typography.label, styles.sectionLabel]}>
+                {DISCOVERY_SECTION_TITLE[professionApi] ?? "Categories"}
+              </Text>
+              <Text style={[Typography.outfitRegular16, styles.focusHint]}>
+                Select all that apply for search and discovery.
+              </Text>
+              <View style={styles.discoveryGrid}>
+                {discoveryChipPairRows(discoveryCategoryRows, "disc", true)}
+              </View>
+            </View>
+          ) : null}
 
           <View style={[styles.section, sectionMaxStyle]}>
             <View style={styles.labelRow}>
@@ -1115,7 +1256,7 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingHorizontal: responsivePadding(8),
     marginTop: responsiveMargin(20),
-    marginBottom: responsiveMargin(32),
+    marginBottom: responsiveMargin(22),
     alignItems: "center",
     gap: responsiveMargin(6),
   },
@@ -1137,11 +1278,64 @@ const styles = StyleSheet.create({
   sectionAfterLinks: {
     marginTop: responsiveMargin(6),
   },
+  /** Tighter rhythm than generic sections so the chips read as one block. */
+  discoverySection: {
+    marginBottom: responsiveMargin(16),
+  },
   sectionLabel: {
     color: primaryBlack,
-    marginBottom: responsiveMargin(10),
+    marginBottom: responsiveMargin(8),
     alignSelf: "flex-start",
   },
+  focusHint: {
+    color: primaryBlack,
+    opacity: 0.88,
+    marginBottom: responsiveMargin(12),
+    alignSelf: "flex-start",
+  },
+  discoveryGrid: {
+    width: "100%",
+    alignSelf: "stretch",
+  },
+  discoveryPairRow: {
+    flexDirection: "row",
+    width: "100%",
+    gap: responsiveMargin(10),
+    marginBottom: responsiveMargin(10),
+  },
+  discoveryPairRowLast: {
+    marginBottom: 0,
+  },
+  /** Empty cell so a single chip on the last row does not stretch full width. */
+  discoveryGridCellSpacer: {
+    flex: 1,
+    minWidth: 0,
+  },
+  focusChip: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: responsivePadding(12),
+    paddingHorizontal: responsivePadding(14),
+    borderRadius: responsiveBorderRadius(20),
+    borderWidth: 1,
+    borderColor: primaryBlack,
+    backgroundColor: primaryWhite,
+  },
+  /** Two equal columns per row. */
+  focusChipInGrid: {
+    flex: 1,
+    minWidth: 0,
+    alignSelf: "stretch",
+  },
+  /** Allow longer labels without breaking alignment. */
+  focusChipText: {
+    textAlign: "center",
+  },
+  focusChipSelected: {
+    backgroundColor: primaryBlack,
+  },
+  focusChipLabel: { color: primaryBlack },
+  focusChipLabelSelected: { color: primaryWhite },
   labelRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,7 +1,12 @@
 import React from "react";
 import { Href, Redirect, Stack, useSegments } from "expo-router";
-import { useAuth } from "../../providers/AuthProvider";
+import {
+  profileSetupIsComplete,
+  useAuth,
+} from "../../providers/AuthProvider";
 import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
+import LoadingScreen from "../(setup)/LoadingScreen";
+import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
 
 const AuthLayout = () => {
   const { session, profile, loading, lastAppSurfacePref } = useAuth();
@@ -17,35 +22,31 @@ const AuthLayout = () => {
   });
 
   if (loading) {
-    return null;
+    return <LoadingScreen />;
   }
 
   // Fully set up users should not stay on auth stack (avoids root index loading loop)
   if (
     session &&
-    profile?.setup_status === true &&
+    profile &&
+    profileSetupIsComplete(profile) &&
     segments[1] !== "Delete" &&
     segments[1] !== "ChangePassword"
   ) {
     const canPro = profileHasProfessionalCapability(profile);
     const home: Href =
       canPro && lastAppSurfacePref === "professional"
-        ? "/(hairdresser)/(tabs)/home"
+        ? "/(professional)/(tabs)/home"
         : "/(client)/(tabs)/home";
     console.log("🔄 AuthLayout redirecting to main app", home);
     return <Redirect href={home} />;
   }
 
-  // If user has session but setup is incomplete, DON'T redirect here
-  // Let AuthProvider handle the navigation to setup screens
-  if (session && profile && profile.setup_status === false) {
-    console.log("⚠️ AuthLayout: User needs setup, letting AuthProvider handle navigation");
-    // Don't redirect, let the setup flow work
-  }
-
   console.log("📱 AuthLayout: Rendering auth stack");
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{ headerShown: false, ...nativeStackHorizontalIOSLike }}
+    >
       <Stack.Screen name="Splash" />
       <Stack.Screen name="SignIn" />
       <Stack.Screen name="SignUp" />

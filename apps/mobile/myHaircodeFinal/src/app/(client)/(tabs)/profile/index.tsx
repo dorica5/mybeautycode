@@ -110,7 +110,7 @@ const ProfileScreen = () => {
                   hasProfessionalAccount
                     ? router.push({
                         pathname:
-                          "/(hairdresser)/(tabs)/profile/SwitchAccount",
+                          "/(professional)/(tabs)/profile/SwitchAccount",
                         params: {
                           activeSurface: "client",
                           returnTo: "client-profile",
@@ -209,7 +209,12 @@ const ProfileScreen = () => {
                 tileStyle="light"
                 bottom
                 lightMarginBottom={46}
-                onPress={() => router.push("/(auth)/Delete")}
+                onPress={() =>
+                  router.push({
+                    pathname: "/(auth)/Delete",
+                    params: { scope: "client" },
+                  } as Href)
+                }
               />
 
               <Text

@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { CaretLeft, CheckCircle } from "phosphor-react-native";
+import { CheckCircle } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import Logo from "../../../assets/images/myBeautyCode_logo.svg";
 import { Typography } from "@/src/constants/Typography";
@@ -31,7 +31,16 @@ import {
   MintBrandModalPrimaryButton,
   MintBrandModalSecondaryButton,
 } from "@/src/components/MintBrandModal";
+import { NavBackRow } from "@/src/components/NavBackRow";
 import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
+import {
+  clearPendingProfessionalSetup,
+  getPendingProfessionalSetup,
+} from "@/src/lib/pendingProfessionalSetup";
+import { runProfessionalSetupCompletionSideEffects } from "@/src/lib/professionalSetupCompletion";
+import { useUpdateSupabaseProfile } from "@/src/api/profiles";
+import { useAuth } from "@/src/providers/AuthProvider";
+import { usePostHog } from "posthog-react-native";
 
 type Plan = "monthly" | "annual" | "lifetime";
 
@@ -44,6 +53,9 @@ const PRICES_NOK: Record<Plan, string> = {
 const Paywall = () => {
   const logoSize = useBeautyCodeLogoSize();
   const { from } = useLocalSearchParams<{ from?: string }>();
+  const { profile, setLoadingSetup } = useAuth();
+  const posthog = usePostHog();
+  const { mutateAsync: persistProfile } = useUpdateSupabaseProfile();
   const [selectedPlan, setSelectedPlan] = useState<Plan>("annual");
   const [busy, setBusy] = useState(false);
 
@@ -71,18 +83,54 @@ const Paywall = () => {
   const handlePrimary = async () => {
     setBusy(true);
     try {
+      if (from === "professional-setup") {
+        const pending = getPendingProfessionalSetup();
+        if (!pending) {
+          Alert.alert(
+            "Could not continue",
+            "Your setup data was lost. Go back and tap Save again."
+          );
+          return;
+        }
+        setLoadingSetup(true);
+        try {
+          await persistProfile(pending.updateBody);
+          await runProfessionalSetupCompletionSideEffects({
+            userId: pending.userId,
+            professionCode: pending.professionCode,
+            profile,
+            posthog,
+          });
+          clearPendingProfessionalSetup();
+        } catch (e) {
+          console.error("Professional setup save after paywall:", e);
+          const msg =
+            e instanceof Error ? e.message : "Please try again.";
+          Alert.alert("Could not save your profile", msg);
+          return;
+        } finally {
+          setLoadingSetup(false);
+        }
+      }
+
       // UI-only paywall for now (backend / billing integration later).
       Alert.alert(
         "Coming soon",
         "Billing will be added later. This screen is the final design + flow."
       );
-      // While developing, let pro continue after onboarding.
       if (from === "professional-setup") {
-        router.replace("/(hairdresser)/(tabs)/home");
+        router.replace("/(professional)/(tabs)/home");
       }
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleBack = () => {
+    if (from === "professional-setup") {
+      clearPendingProfessionalSetup();
+    }
+    router.back();
   };
 
   const PlanCard = ({
@@ -146,16 +194,12 @@ const Paywall = () => {
       <StatusBar style="dark" />
 
       <View style={styles.topBar}>
-        <Pressable
-          onPress={() => router.back()}
+        <NavBackRow
+          onPress={handleBack}
           style={styles.backRow}
           hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <CaretLeft size={responsiveScale(28)} color={primaryBlack} />
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+          accessibilityLabel="Go back"
+        />
       </View>
 
       <ScrollView
@@ -266,16 +310,9 @@ const styles = StyleSheet.create({
     paddingTop: responsiveMargin(6),
   },
   backRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: responsiveScale(4),
+    alignSelf: "flex-start",
     paddingHorizontal: responsivePadding(12),
     paddingVertical: responsivePadding(10),
-    alignSelf: "flex-start",
-  },
-  backText: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
   },
   scroll: {
     paddingHorizontal: responsivePadding(24),

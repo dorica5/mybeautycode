@@ -10,7 +10,7 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 
-/** Pro / client row avatar — matches “View all visits” (`see_haircode`). */
+/** Pro / client row avatar — matches “View all visits” (`see_visits`). */
 export const VISIT_TIMELINE_AVATAR_SIZE = responsiveScale(64);
 
 export type VisitTimelineCardProps = {
@@ -22,7 +22,7 @@ export type VisitTimelineCardProps = {
   onPressIn?: () => void;
 };
 
-/** White bordered row with avatar, date (Anton 16), subtitle (Outfit), chevron — matches `see_haircode` (“View all visits”). */
+/** White bordered row with avatar, date (Anton 16), subtitle (Outfit), chevron — matches `see_visits` (“View all visits”). */
 export const VisitTimelineCard = React.memo(function VisitTimelineCard({
   avatarUri,
   dateLine,

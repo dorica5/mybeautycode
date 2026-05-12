@@ -1,42 +1,64 @@
-import { StyleSheet, Text, View, Pressable } from "react-native";
+import { StyleSheet, Text, Pressable, View } from "react-native";
 import React from "react";
-import { IconProps, CaretRight, Trash } from "phosphor-react-native";
-import { Colors } from "../constants/Colors";
+import type { IconProps } from "phosphor-react-native";
+import { Typography } from "@/src/constants/Typography";
+import {
+  primaryBlack,
+  primaryWhite,
+  secondaryGreen,
+} from "@/src/constants/Colors";
+import {
+  responsiveScale,
+  responsivePadding,
+  responsiveMargin,
+} from "@/src/utils/responsive";
+import { moderationDestructive } from "@/src/components/moderation/ModerationSheetParts";
 
 type ProfileModalProps = {
-  bottom?: boolean;
-  top?: boolean;
   title: string;
   Icon: React.ComponentType<IconProps>;
+  /** Delete / destructive row — matches safety sheet styling */
+  destructive?: boolean;
 } & React.ComponentPropsWithoutRef<typeof Pressable>;
 
+/**
+ * Action row for mint bottom sheets — layout matches {@link RapportUserModal}
+ * and {@link ModerationReasonRow} / moderation sheets.
+ */
 const ProfileModal = ({
-  bottom = false,
-  top = false,
   title,
   Icon,
+  destructive = false,
+  style,
   ...pressableProps
 }: ProfileModalProps) => {
-  const iconColor = Icon === Trash ? "#F00" : "#000";
+  const iconColor = destructive ? moderationDestructive : primaryBlack;
+  const iconSize = responsiveScale(22);
+
   return (
     <Pressable
       style={({ pressed }) => [
-        styles.container,
-        {
-          borderTopLeftRadius: top ? 20 : 0,
-          borderTopRightRadius: top ? 20 : 0,
-          borderBottomLeftRadius: bottom ? 20 : 0,
-          borderBottomRightRadius: bottom ? 20 : 0,
-          backgroundColor: pressed
-            ? Colors.dark.warmGreen
-            : Colors.dark.yellowish,
-        },
+        styles.row,
+        destructive && styles.rowDestructive,
+        pressed && styles.rowPressed,
+        style,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={title}
       {...pressableProps}
     >
-      <View style={styles.subContainer}>
-        {Icon && <Icon size={32} color={iconColor} />}
-        <Text style={styles.title}>{title}</Text>
+      <View style={styles.rowInner}>
+        <Icon size={iconSize} color={iconColor} weight="regular" />
+        <Text
+          style={[
+            Typography.bodyMedium,
+            styles.label,
+            destructive && styles.labelDestructive,
+          ]}
+          numberOfLines={2}
+        >
+          {title}
+        </Text>
       </View>
     </Pressable>
   );
@@ -44,22 +66,36 @@ const ProfileModal = ({
 
 export default ProfileModal;
 
+const hairline = StyleSheet.hairlineWidth;
+
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginVertical: 4,
-    marginHorizontal: "1%",
-    padding: "3%",
+  row: {
+    marginBottom: responsiveMargin(10),
+    paddingVertical: responsivePadding(16, 14),
+    paddingHorizontal: responsivePadding(18, 16),
+    borderRadius: responsiveScale(14),
+    backgroundColor: primaryWhite,
+    borderWidth: hairline,
+    borderColor: `${primaryBlack}18`,
+    alignSelf: "stretch",
   },
-  subContainer: {
+  rowDestructive: {
+    borderColor: `${moderationDestructive}35`,
+  },
+  rowPressed: {
+    backgroundColor: secondaryGreen,
+  },
+  rowInner: {
     flexDirection: "row",
-    justifyContent: "space-around",
     alignItems: "center",
+    gap: responsiveScale(14),
   },
-  title: {
-    fontFamily: "Inter-SemiBold",
-    fontSize: 16,
-    marginLeft: "10%",
+  label: {
+    color: primaryBlack,
+    flex: 1,
+    flexShrink: 1,
+  },
+  labelDestructive: {
+    color: moderationDestructive,
   },
 });

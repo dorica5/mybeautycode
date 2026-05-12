@@ -35,9 +35,11 @@ export const salonController = {
         .json({ error: "neLat, neLng, swLat, swLng are required." });
     }
     try {
+      const viewerId = req.userId ?? null;
       const results = await salonService.findInBounds(
         { neLat, neLng, swLat, swLng },
-        readProfessionCode(req.query)
+        readProfessionCode(req.query),
+        viewerId
       );
       res.json(results);
     } catch (err: unknown) {
