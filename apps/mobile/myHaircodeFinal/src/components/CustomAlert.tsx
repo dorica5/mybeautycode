@@ -8,6 +8,8 @@ interface CustomAlertProps {
   onClose: () => void;
   fromDelete?: boolean;
   onDelete?: () => void;
+  /** Tighter card when copy is short (e.g. info tooltips). */
+  compact?: boolean;
 }
 
 const CustomAlert: React.FC<CustomAlertProps> = ({
@@ -17,6 +19,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   onClose,
   fromDelete,
   onDelete,
+  compact,
 }) => {
   return (
     <MintBrandModal
@@ -24,6 +27,7 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
       onClose={onClose}
       title={title}
       message={message}
+      variant={compact ? "compact" : "default"}
       footer={
         fromDelete ? (
           <MintBrandModalFooterRow>

@@ -1,9 +1,24 @@
-import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View, Dimensions, ScrollView } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import {
   MintBrandModalPrimaryButton,
@@ -21,8 +36,8 @@ import { allBlockerIds } from "@/src/api/moderation";
 import {
   moderateScale,
   responsiveMargin,
+  responsiveScale,
   scale,
-  scalePercent,
   verticalScale,
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
@@ -31,6 +46,7 @@ import {
   VisitRecordDetailView,
   type VisitRecordDetailMedia,
 } from "@/src/components/visits/VisitRecordDetailView";
+import { VisitClientPersonalNoteSection } from "@/src/components/visits/VisitClientPersonalNoteSection";
 import { signVisitMedia } from "@/src/lib/storageSignedUrl";
 import {
   professionCodeForVisitRecord,
@@ -61,7 +77,19 @@ function recordSummary(r: ApiRecord | undefined, fallback: string): string {
   return s != null ? String(s) : fallback;
 }
 
+function recordClientPrivateNote(r: ApiRecord | undefined): string | null {
+  if (!r) return null;
+  const snake = r.client_private_note;
+  if (typeof snake === "string") return snake;
+  const camel = (r as { clientPrivateNote?: unknown }).clientPrivateNote;
+  return typeof camel === "string" ? camel : null;
+}
+
 const SingleVisitClient = () => {
+  const keyboardAwareRef = useRef<{
+    scrollToEnd?: (animated?: boolean) => void;
+    update?: () => void;
+  } | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isBlockedByHairdresser, setIsBlockedByHairdresser] = useState(false);
   const [signedMedia, setSignedMedia] = useState<VisitRecordDetailMedia[]>([]);
@@ -130,7 +158,9 @@ const SingleVisitClient = () => {
       : hairdresserIdFromApi ?? "";
 
   const { profile } = useAuth();
+  const { height: windowHeight } = useWindowDimensions();
   const screenHeight = Dimensions.get("window").height;
+  const insets = useSafeAreaInsets();
   const carouselHeight = screenHeight * IMAGE_CROP_VIEWPORT_HEIGHT_RATIO;
   const { mutate: deleteHaircode } = useDeleteHaircodeClient();
 
@@ -146,6 +176,18 @@ const SingleVisitClient = () => {
     "Me";
   const clientPhone = profile?.phone_number?.trim() ?? "";
   const phoneLine = clientPhone ? `Tlf: ${clientPhone}` : "";
+
+  const scrollPersonalNoteIntoView = useCallback(() => {
+    const bump = () => {
+      const r = keyboardAwareRef.current;
+      r?.update?.();
+      r?.scrollToEnd?.(true);
+    };
+    requestAnimationFrame(bump);
+    setTimeout(bump, 80);
+    setTimeout(bump, 280);
+    setTimeout(bump, 520);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -257,11 +299,34 @@ const SingleVisitClient = () => {
     <>
       <StatusBar style="dark" />
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoiding}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
         >
+          <KeyboardAwareScrollView
+            ref={keyboardAwareRef}
+            style={styles.scroll}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingBottom:
+                  verticalScale(28) +
+                  Math.max(insets.bottom, verticalScale(8)),
+                minHeight: windowHeight + verticalScale(220),
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid
+            enableAutomaticScroll
+            keyboardOpeningTime={250}
+            extraScrollHeight={responsiveScale(200)}
+            extraHeight={responsiveScale(120)}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            enableResetScrollToCoords={false}
+            nestedScrollEnabled
+          >
           <VisitRecordScreenHeader
             title={displayClientName}
             subtitle={phoneLine || undefined}
@@ -299,7 +364,14 @@ const SingleVisitClient = () => {
             }
             professionalDisabled={isBlockedByHairdresser}
           />
-        </ScrollView>
+
+          <VisitClientPersonalNoteSection
+            haircodeId={haircodeId}
+            remoteNote={recordClientPrivateNote(record)}
+            onPersonalNoteFocus={scrollPersonalNoteIntoView}
+          />
+        </KeyboardAwareScrollView>
+        </KeyboardAvoidingView>
 
         <SmallDraggableModal
           isVisible={isModalVisible}
@@ -321,13 +393,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: primaryGreen,
   },
+  keyboardAvoiding: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
   scroll: {
     flex: 1,
     backgroundColor: primaryGreen,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: verticalScale(24),
   },
   menuBtn: {
     padding: scale(4),
