@@ -1,6 +1,8 @@
 import { prisma } from "../lib/prisma";
+import { Prisma } from "@prisma/client";
 import { professionService } from "./professionService";
 import { profileDisplayName } from "../lib/profileDisplay";
+import { storedCategoriesIncludeCode } from "../lib/profDiscoveryCategories";
 
 export type BoundsInput = {
   neLat: number;
@@ -14,6 +16,54 @@ const MAX_VIEWPORT_DEGREES = 5; // ~550km at the equator; plenty for city-level 
 /** Hard upper bound on salons per response. */
 const MAX_RESULTS = 200;
 
+function jsonbArrayContainsLiteral(normalizedDiscoveryCode: string): Prisma.Sql {
+  const lit = `'${JSON.stringify([normalizedDiscoveryCode])}'::jsonb`;
+  return Prisma.raw(lit);
+}
+
+/** SQL fragment: lane row’s discovery JSON includes this tag (and legacy brow/lash compound when relevant). */
+function discoveryCategoriesSqlFragment(
+  normalizedDiscoveryCode: string | undefined
+): Prisma.Sql {
+  if (!normalizedDiscoveryCode) return Prisma.sql``;
+  /** Exclude non-array / empty JSON — `@>` can behave unexpectedly on scalars; `[]` must not match a tag. */
+  const isNonEmptyArray = Prisma.sql`jsonb_typeof(pp.discovery_categories::jsonb) = 'array'
+    AND jsonb_array_length(pp.discovery_categories::jsonb) > 0`;
+  const primary = jsonbArrayContainsLiteral(normalizedDiscoveryCode);
+  if (
+    normalizedDiscoveryCode === "lash_tinting" ||
+    normalizedDiscoveryCode === "lash_lift"
+  ) {
+    const legacy = jsonbArrayContainsLiteral("lash_lift_tint");
+    return Prisma.sql`AND ${isNonEmptyArray}
+      AND (
+      pp.discovery_categories::jsonb @> ${primary}
+      OR pp.discovery_categories::jsonb @> ${legacy}
+    )`;
+  }
+  return Prisma.sql`AND ${isNonEmptyArray}
+    AND pp.discovery_categories::jsonb @> ${primary}`;
+}
+
+async function countActiveProsAtSalonForLane(
+  salonId: string,
+  professionId: string,
+  discoveryNormalized: string | undefined
+): Promise<number> {
+  const rows = await prisma.professionalProfession.findMany({
+    where: {
+      salonId,
+      professionId,
+      OR: [{ isActive: true }, { isActive: null }],
+    },
+    select: { discoveryCategories: true },
+  });
+  if (!discoveryNormalized) return rows.length;
+  return rows.filter((r) =>
+    storedCategoriesIncludeCode(r.discoveryCategories, discoveryNormalized)
+  ).length;
+}
+
 export const salonService = {
   /**
    * Salons inside the given map bounds that have at least one active professional
@@ -24,7 +74,9 @@ export const salonService = {
     bounds: BoundsInput,
     professionCode?: string | null,
     /** Logged-in client: ensures salons for pros they’re linked with still appear (e.g. lane inactive, edge cases). */
-    viewerProfileId?: string | null
+    viewerProfileId?: string | null,
+    /** When set, only salons with ≥1 matching pro whose get-discovered categories include this tag. */
+    discoveryCategory?: string | null
   ): Promise<
     Array<{
       id: string;
@@ -63,54 +115,55 @@ export const salonService = {
         ? await professionService.getProfessionIdByCode(professionCode.trim())
         : undefined;
 
-    const rows = await prisma.salon.findMany({
-      where: {
-        latitude: { gte: swLat, lte: neLat },
-        longitude: { gte: swLng, lte: neLng },
-        professionalProfessions: professionId
-          ? {
-              some: {
-                professionId,
-                OR: [{ isActive: true }, { isActive: null }],
-              },
-            }
-          : {
-              some: {
-                OR: [{ isActive: true }, { isActive: null }],
-              },
-            },
-      },
-      select: {
-        id: true,
-        googlePlaceId: true,
-        name: true,
-        formattedAddress: true,
-        latitude: true,
-        longitude: true,
-        _count: {
-          select: {
-            professionalProfessions: {
-              where: professionId
-                ? {
-                    professionId,
-                    OR: [{ isActive: true }, { isActive: null }],
-                  }
-                : { OR: [{ isActive: true }, { isActive: null }] },
-            },
-          },
-        },
-      },
-      take: MAX_RESULTS,
-    });
+    const normalizedDiscovery =
+      typeof discoveryCategory === "string" && discoveryCategory.trim()
+        ? discoveryCategory.trim().toLowerCase()
+        : undefined;
 
-    const base = rows.map((r) => ({
+    const professionSql = professionId
+      ? Prisma.sql`AND pp.profession_id = ${professionId}::uuid`
+      : Prisma.sql``;
+    const discoverySql = discoveryCategoriesSqlFragment(normalizedDiscovery);
+
+    const aggregated = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        google_place_id: string;
+        name: string | null;
+        formatted_address: string;
+        latitude: number;
+        longitude: number;
+        professional_count: bigint;
+      }>
+    >(Prisma.sql`
+      SELECT s.id,
+             s.google_place_id AS google_place_id,
+             s.name,
+             s.formatted_address AS formatted_address,
+             s.latitude,
+             s.longitude,
+             COUNT(pp.id)::bigint AS professional_count
+      FROM salons s
+      INNER JOIN professional_professions pp ON pp.salon_id = s.id
+      WHERE s.latitude >= ${swLat} AND s.latitude <= ${neLat}
+        AND s.longitude >= ${swLng} AND s.longitude <= ${neLng}
+        AND pp.salon_id IS NOT NULL
+        AND (pp.is_active IS NULL OR pp.is_active = true)
+        ${professionSql}
+        ${discoverySql}
+      GROUP BY s.id, s.google_place_id, s.name, s.formatted_address, s.latitude, s.longitude
+      ORDER BY s.id
+      LIMIT ${MAX_RESULTS}
+    `);
+
+    const base = aggregated.map((r) => ({
       id: r.id,
-      google_place_id: r.googlePlaceId,
+      google_place_id: r.google_place_id,
       name: r.name,
-      formatted_address: r.formattedAddress,
+      formatted_address: r.formatted_address,
       latitude: r.latitude,
       longitude: r.longitude,
-      professional_count: r._count.professionalProfessions,
+      professional_count: Number(r.professional_count),
     }));
 
     const byId = new Map(base.map((s) => [s.id, s]));
@@ -134,12 +187,21 @@ export const salonService = {
             professionalProfileId: { in: profileIds },
             professionId,
             salonId: { not: null },
+            OR: [{ isActive: true }, { isActive: null }],
           },
-          select: { salonId: true },
+          select: { salonId: true, discoveryCategories: true },
         });
+        const filteredLinks = normalizedDiscovery
+          ? ppWithSalon.filter((row) =>
+              storedCategoriesIncludeCode(
+                row.discoveryCategories,
+                normalizedDiscovery
+              )
+            )
+          : ppWithSalon;
         const linkedSalonIds = [
           ...new Set(
-            ppWithSalon
+            filteredLinks
               .map((r) => r.salonId)
               .filter((id): id is string => id != null)
           ),
@@ -158,21 +220,16 @@ export const salonService = {
               formattedAddress: true,
               latitude: true,
               longitude: true,
-              _count: {
-                select: {
-                  professionalProfessions: {
-                    where: {
-                      professionId,
-                      OR: [{ isActive: true }, { isActive: null }],
-                    },
-                  },
-                },
-              },
             },
           });
           for (const r of extras) {
             if (byId.has(r.id)) continue;
-            const cnt = r._count.professionalProfessions;
+            const cnt = await countActiveProsAtSalonForLane(
+              r.id,
+              professionId,
+              normalizedDiscovery
+            );
+            if (cnt < 1) continue;
             byId.set(r.id, {
               id: r.id,
               google_place_id: r.googlePlaceId,
@@ -180,7 +237,7 @@ export const salonService = {
               formatted_address: r.formattedAddress,
               latitude: r.latitude,
               longitude: r.longitude,
-              professional_count: cnt > 0 ? cnt : 1,
+              professional_count: cnt,
             });
           }
         }
@@ -198,7 +255,8 @@ export const salonService = {
   async listProfessionals(
     salonId: string,
     viewerProfileId: string,
-    professionCode?: string | null
+    professionCode?: string | null,
+    discoveryCategory?: string | null
   ): Promise<
     Array<{
       professional_profile_id: string;
@@ -228,9 +286,15 @@ export const salonService = {
       throw Object.assign(new Error("Salon not found."), { statusCode: 404 });
     }
 
+    const normalizedDiscovery =
+      typeof discoveryCategory === "string" && discoveryCategory.trim()
+        ? discoveryCategory.trim().toLowerCase()
+        : undefined;
+
     const rowSelect = {
       professionId: true,
       businessName: true,
+      discoveryCategories: true,
       professionalProfile: {
         select: {
           id: true,
@@ -296,6 +360,15 @@ export const salonService = {
           merged.push(viewerMembership);
         }
       }
+    }
+
+    if (normalizedDiscovery) {
+      merged = merged.filter((r) =>
+        storedCategoriesIncludeCode(
+          r.discoveryCategories,
+          normalizedDiscovery
+        )
+      );
     }
 
     if (merged.length === 0) return [];

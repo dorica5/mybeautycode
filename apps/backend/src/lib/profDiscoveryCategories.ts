@@ -110,3 +110,52 @@ export function normalizeDiscoveryCategoriesForProfession(
   }
   return [...out].sort();
 }
+
+/**
+ * Single discovery tag from a query string (map / salon filters). Returns a
+ * normalized code or `undefined` when absent/invalid for the lane.
+ */
+export function parseDiscoveryCategoryForProfession(
+  professionCode: string | null | undefined,
+  raw: unknown
+): string | undefined {
+  if (raw === null || raw === undefined) return undefined;
+  const s = typeof raw === "string" ? raw.trim() : "";
+  if (!s) return undefined;
+  const code = professionCode?.trim() || "";
+  if (!code) return undefined;
+  try {
+    const normalized = normalizeDiscoveryCategoriesForProfession(code, [s]);
+    return normalized[0];
+  } catch {
+    return undefined;
+  }
+}
+
+/** Codes effectively stored on a lane row (expands legacy DB values like `lash_lift_tint`). */
+export function expandStoredDiscoveryCategoryCodes(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out = new Set<string>();
+  for (const item of raw) {
+    if (typeof item !== "string" || !item.trim()) continue;
+    const c = item.trim().toLowerCase();
+    const expansion = LEGACY_BROW_LASH_ALIASES[c];
+    if (expansion) {
+      for (const x of expansion) out.add(x);
+    } else {
+      out.add(c);
+    }
+  }
+  return [...out];
+}
+
+/** Whether a profile lane’s `discovery_categories` JSON includes a normalized tag. */
+export function storedCategoriesIncludeCode(
+  discoveryCategories: unknown,
+  normalizedCode: string
+): boolean {
+  const needle = normalizedCode.toLowerCase();
+  return expandStoredDiscoveryCategoryCodes(discoveryCategories).some(
+    (c) => c === needle
+  );
+}

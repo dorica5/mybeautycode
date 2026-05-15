@@ -98,6 +98,8 @@ import {
   shouldClusterByZoom,
   type SalonMapCluster,
 } from "@/src/utils/mapClustering";
+import { discoveryOptionsForProfession } from "@/src/constants/profDiscoveryCategories";
+import type { ProfessionChoiceCode } from "@/src/constants/professionCodes";
 
 const ROW_HEIGHT = 52;
 /** Location search pill on map (design dp). */
@@ -158,6 +160,17 @@ type MapProfession = "hair" | "nails" | "brows";
 function parseValidProfession(raw?: string): MapProfession | undefined {
   if (raw === "hair" || raw === "nails" || raw === "brows") return raw;
   return undefined;
+}
+
+function mapProfessionKeyToChoiceCode(key: MapProfession): ProfessionChoiceCode {
+  switch (key) {
+    case "hair":
+      return "hair";
+    case "nails":
+      return "nails";
+    case "brows":
+      return "brows_lashes";
+  }
 }
 
 function professionPlural(profession: MapProfession, count: number): string {
@@ -409,6 +422,10 @@ const MapLocationScreen = () => {
   );
 
   useEffect(() => {
+    setSelectedDiscoveryCategory(null);
+  }, [professionKey]);
+
+  useEffect(() => {
     if (!professionKey) {
       router.replace("/(client)/(tabs)/userList/filter-before-map");
     }
@@ -446,6 +463,10 @@ const MapLocationScreen = () => {
   const [selectedSalon, setSelectedSalon] = useState<SalonPin | null>(null);
   /** Last committed region, used as the query key for /api/salons/nearby. */
   const [boundsRegion, setBoundsRegion] = useState<Region | null>(null);
+  /** Get-discovered specialty filter (same codes as About me / Get discovered). */
+  const [selectedDiscoveryCategory, setSelectedDiscoveryCategory] = useState<
+    string | null
+  >(null);
   const mapViewRef = useRef<MapView | null>(null);
   /** Debounce timer so pan/zoom settles before we re-query. */
   const regionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -670,6 +691,16 @@ const MapLocationScreen = () => {
     [professionKey]
   );
 
+  const discoveryChipOptions = useMemo(
+    () =>
+      professionKey
+        ? discoveryOptionsForProfession(
+            mapProfessionKeyToChoiceCode(professionKey)
+          )
+        : [],
+    [professionKey]
+  );
+
   const bounds = useMemo(
     () => (boundsRegion ? regionToBounds(boundsRegion) : null),
     [boundsRegion]
@@ -677,7 +708,8 @@ const MapLocationScreen = () => {
 
   const { data: salons = [], isFetching: salonsFetching } = useSalonsInBounds(
     bounds,
-    backendProfessionCode
+    backendProfessionCode,
+    selectedDiscoveryCategory
   );
 
   const showAggregatedSalonPins = Boolean(
@@ -697,7 +729,15 @@ const MapLocationScreen = () => {
     data: salonProfessionals = [],
     isPending: salonProsLoading,
     isError: salonProsError,
-  } = useSalonProfessionals(selectedSalon?.id ?? null, backendProfessionCode);
+  } = useSalonProfessionals(
+    selectedSalon?.id ?? null,
+    backendProfessionCode,
+    selectedDiscoveryCategory
+  );
+
+  useEffect(() => {
+    setSelectedSalon(null);
+  }, [selectedDiscoveryCategory]);
 
   const sheetBottomReserve = useMemo(() => {
     if (!selectedSalon) return 0;
@@ -1045,6 +1085,79 @@ const MapLocationScreen = () => {
                       left: responsiveScale(12),
                     }}
                   >
+                    {discoveryChipOptions.length > 0 ? (
+                      <View
+                        style={styles.mapDiscoveryChipsWrap}
+                        pointerEvents="box-none"
+                      >
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={
+                            styles.mapDiscoveryChipsScrollContent
+                          }
+                          keyboardShouldPersistTaps="handled"
+                        >
+                          <Pressable
+                            onPress={() => setSelectedDiscoveryCategory(null)}
+                            style={({ pressed }) => [
+                              styles.mapDiscoveryChip,
+                              selectedDiscoveryCategory === null &&
+                                styles.mapDiscoveryChipSelected,
+                              pressed && styles.mapDiscoveryChipPressed,
+                            ]}
+                            accessibilityRole="button"
+                            accessibilityState={{
+                              selected: selectedDiscoveryCategory === null,
+                            }}
+                            accessibilityLabel="All specialties"
+                          >
+                            <Text
+                              style={[
+                                styles.mapDiscoveryChipLabel,
+                                selectedDiscoveryCategory === null &&
+                                  styles.mapDiscoveryChipLabelSelected,
+                              ]}
+                            >
+                              All
+                            </Text>
+                          </Pressable>
+                          {discoveryChipOptions.map((opt) => {
+                            const active =
+                              selectedDiscoveryCategory === opt.code;
+                            return (
+                              <Pressable
+                                key={opt.code}
+                                onPress={() =>
+                                  setSelectedDiscoveryCategory(
+                                    active ? null : opt.code
+                                  )
+                                }
+                                style={({ pressed }) => [
+                                  styles.mapDiscoveryChip,
+                                  active && styles.mapDiscoveryChipSelected,
+                                  pressed && styles.mapDiscoveryChipPressed,
+                                ]}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: active }}
+                                accessibilityLabel={opt.label}
+                              >
+                                <Text
+                                  style={[
+                                    styles.mapDiscoveryChipLabel,
+                                    active &&
+                                      styles.mapDiscoveryChipLabelSelected,
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {opt.label}
+                                </Text>
+                              </Pressable>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    ) : null}
                     {showAggregatedSalonPins && salonClusters
                       ? salonClusters.map((c) => (
                           <SalonClusterMapMarker
@@ -1371,6 +1484,44 @@ const styles = StyleSheet.create({
     borderRadius: responsiveScale(MAP_CARD_RADIUS),
     overflow: "hidden",
     backgroundColor: "#1a2e35",
+  },
+  mapDiscoveryChipsWrap: {
+    position: "absolute",
+    top: responsiveMargin(10),
+    left: responsivePadding(12),
+    right: responsivePadding(12),
+    zIndex: 6,
+    maxHeight: responsiveScale(48),
+  },
+  mapDiscoveryChipsScrollContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveMargin(8),
+    paddingRight: responsivePadding(8),
+  },
+  mapDiscoveryChip: {
+    paddingVertical: responsivePadding(8),
+    paddingHorizontal: responsivePadding(14),
+    borderRadius: responsiveScale(999),
+    backgroundColor: `${primaryWhite}E6`,
+    borderWidth: 1,
+    borderColor: `${primaryBlack}22`,
+    maxWidth: responsiveScale(220),
+  },
+  mapDiscoveryChipSelected: {
+    backgroundColor: primaryBlack,
+    borderColor: primaryBlack,
+  },
+  mapDiscoveryChipPressed: {
+    opacity: 0.88,
+  },
+  mapDiscoveryChipLabel: {
+    ...Typography.outfitRegular16,
+    fontSize: responsiveFontSize(14, 14),
+    color: primaryBlack,
+  },
+  mapDiscoveryChipLabelSelected: {
+    color: primaryWhite,
   },
   pinDetailSheet: {
     position: "absolute",

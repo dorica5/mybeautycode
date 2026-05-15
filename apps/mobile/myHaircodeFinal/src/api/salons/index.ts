@@ -1,5 +1,5 @@
 import { api } from "@/src/lib/apiClient";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 /** One salon pin = one Google Place with ≥1 matching pro listing it as a business address. */
 export type SalonPin = {
@@ -56,19 +56,24 @@ function roundBounds(b: SalonBounds): SalonBounds {
 
 export function salonProfessionalsQueryKey(
   salonId: string,
-  professionCode: string | null | undefined
+  professionCode: string | null | undefined,
+  discoveryCategory: string | null | undefined
 ) {
   const code = professionCode?.trim() || null;
-  return ["salons", "professionals", salonId, code ?? "any"] as const;
+  const disc = discoveryCategory?.trim() || null;
+  return ["salons", "professionals", salonId, code ?? "any", disc ?? "all"] as const;
 }
 
 export async function fetchSalonProfessionals(
   salonId: string,
-  professionCode: string | null | undefined
+  professionCode: string | null | undefined,
+  discoveryCategory?: string | null
 ): Promise<SalonProfessional[]> {
   const code = professionCode?.trim() || null;
+  const disc = discoveryCategory?.trim() || null;
   const params = new URLSearchParams();
   if (code) params.set("profession_code", code);
+  if (disc) params.set("discovery_category", disc);
   const qs = params.toString();
   return api.get<SalonProfessional[]>(
     `/api/salons/${salonId}/professionals${qs ? `?${qs}` : ""}`
@@ -77,10 +82,14 @@ export async function fetchSalonProfessionals(
 
 export const useSalonsInBounds = (
   bounds: SalonBounds | null,
-  professionCode: string | null | undefined
+  professionCode: string | null | undefined,
+  discoveryCategory?: string | null
 ) => {
   const rounded = bounds ? roundBounds(bounds) : null;
   const code = professionCode?.trim() || null;
+  const disc = discoveryCategory?.trim() || null;
+  const profKey = code ?? "any";
+  const discKey = disc ?? "all";
   return useQuery<SalonPin[]>({
     queryKey: [
       "salons",
@@ -89,7 +98,8 @@ export const useSalonsInBounds = (
       rounded?.neLng,
       rounded?.swLat,
       rounded?.swLng,
-      code ?? "any",
+      profKey,
+      discKey,
     ],
     queryFn: () => {
       const params = new URLSearchParams({
@@ -99,12 +109,25 @@ export const useSalonsInBounds = (
         swLng: String(rounded!.swLng),
       });
       if (code) params.set("profession_code", code);
+      if (disc) params.set("discovery_category", disc);
       return api.get<SalonPin[]>(`/api/salons/nearby?${params.toString()}`);
     },
     enabled: !!rounded,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
-    placeholderData: keepPreviousData,
+    /**
+     * Do not keep pins from another discovery filter (or profession) while the
+     * new query loads — that showed salons without the selected specialty.
+     * Still reuse pins when only map bounds changed (same prof + discovery keys).
+     */
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery?.queryKey) return previousData;
+      const pk = previousQuery.queryKey;
+      const prevProf = pk[6];
+      const prevDisc = pk[7];
+      if (prevProf !== profKey || prevDisc !== discKey) return undefined;
+      return previousData;
+    },
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   });
@@ -112,13 +135,15 @@ export const useSalonsInBounds = (
 
 export const useSalonProfessionals = (
   salonId: string | null,
-  professionCode: string | null | undefined
+  professionCode: string | null | undefined,
+  discoveryCategory?: string | null
 ) => {
+  const disc = discoveryCategory?.trim() || null;
   return useQuery<SalonProfessional[]>({
     queryKey: salonId
-      ? salonProfessionalsQueryKey(salonId, professionCode)
-      : ["salons", "professionals", null, "any"],
-    queryFn: () => fetchSalonProfessionals(salonId!, professionCode),
+      ? salonProfessionalsQueryKey(salonId, professionCode, disc)
+      : ["salons", "professionals", null, "any", "all"],
+    queryFn: () => fetchSalonProfessionals(salonId!, professionCode, disc),
     enabled: !!salonId,
     staleTime: 60_000,
     gcTime: 5 * 60_000,

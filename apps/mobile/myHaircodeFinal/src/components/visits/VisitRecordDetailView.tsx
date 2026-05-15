@@ -79,8 +79,9 @@ export function VisitRecordDetailView({
     Math.round(windowWidth - 2 * responsivePadding(20))
   );
   const previewScrollRef = useRef<ScrollView>(null);
-  const hasMedia = mediaSlides.length > 0;
-  const slideCount = mediaSlides.length;
+  const visibleSlides = mediaSlides.filter((m) => Boolean(m.uri?.trim()));
+  const hasMedia = visibleSlides.length > 0;
+  const slideCount = visibleSlides.length;
   const [activeSlide, setActiveSlide] = useState(0);
 
   const professionalLabel = `${PROFESSION_HEADLINE_ROLE[professionCode]}:`;
@@ -94,7 +95,7 @@ export function VisitRecordDetailView({
   useEffect(() => {
     setActiveSlide(0);
     previewScrollRef.current?.scrollTo({ x: 0, animated: false });
-  }, [hasMedia, slideCount, mediaSlides.length]);
+  }, [hasMedia, slideCount, visibleSlides.length]);
 
   const goPrev = () => {
     const next = Math.max(0, activeSlide - 1);
@@ -264,7 +265,7 @@ export function VisitRecordDetailView({
               ]}
               contentContainerStyle={styles.carouselScrollRow}
             >
-              {mediaSlides.map((item, index) => (
+              {visibleSlides.map((item, index) => (
                 <View
                   key={item.uri ?? `slide-${index}`}
                   style={[
@@ -335,7 +336,6 @@ export function VisitRecordDetailView({
 
 const styles = StyleSheet.create({
   root: {
-    flexGrow: 1,
     backgroundColor: primaryGreen,
     paddingHorizontal: responsivePadding(20),
     paddingBottom: responsiveMargin(28),
