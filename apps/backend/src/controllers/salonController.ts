@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { salonService } from "../services/salonService";
+import { parseDiscoveryCategoryForProfession } from "../lib/profDiscoveryCategories";
 
 function readNumberQuery(value: unknown): number | null {
   if (typeof value === "string" && value.trim()) {
@@ -22,6 +23,18 @@ function readProfessionCode(q: Request["query"]): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function readDiscoveryCategory(q: Request["query"]): string | undefined {
+  const raw =
+    typeof q.discovery_category === "string"
+      ? q.discovery_category
+      : typeof q.discoveryCategory === "string"
+        ? q.discoveryCategory
+        : undefined;
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export const salonController = {
   /** GET /api/salons/nearby?neLat&neLng&swLat&swLng&profession_code */
   async nearby(req: Request, res: Response) {
@@ -36,10 +49,27 @@ export const salonController = {
     }
     try {
       const viewerId = req.userId ?? null;
+      const profession = readProfessionCode(req.query);
+      const discoveryRaw = readDiscoveryCategory(req.query);
+      if (discoveryRaw && !profession) {
+        return res.status(400).json({
+          error: "profession_code is required when discovery_category is set.",
+        });
+      }
+      const discoveryParsed = parseDiscoveryCategoryForProfession(
+        profession ?? null,
+        discoveryRaw
+      );
+      if (discoveryRaw && !discoveryParsed) {
+        return res.status(400).json({
+          error: "Invalid discovery_category for this profession.",
+        });
+      }
       const results = await salonService.findInBounds(
         { neLat, neLng, swLat, swLng },
-        readProfessionCode(req.query),
-        viewerId
+        profession,
+        viewerId,
+        discoveryParsed ?? null
       );
       res.json(results);
     } catch (err: unknown) {
@@ -63,10 +93,27 @@ export const salonController = {
       return res.status(401).json({ error: "Unauthorized" });
     }
     try {
+      const profession = readProfessionCode(req.query);
+      const discoveryRaw = readDiscoveryCategory(req.query);
+      if (discoveryRaw && !profession) {
+        return res.status(400).json({
+          error: "profession_code is required when discovery_category is set.",
+        });
+      }
+      const discoveryParsed = parseDiscoveryCategoryForProfession(
+        profession ?? null,
+        discoveryRaw
+      );
+      if (discoveryRaw && !discoveryParsed) {
+        return res.status(400).json({
+          error: "Invalid discovery_category for this profession.",
+        });
+      }
       const results = await salonService.listProfessionals(
         salonId,
         viewerId,
-        readProfessionCode(req.query)
+        profession,
+        discoveryParsed ?? null
       );
       res.json(results);
     } catch (err: unknown) {

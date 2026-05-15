@@ -6,15 +6,15 @@ import React, {
 } from "react";
 import {
   Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -86,10 +86,8 @@ function recordClientPrivateNote(r: ApiRecord | undefined): string | null {
 }
 
 const SingleVisitClient = () => {
-  const keyboardAwareRef = useRef<{
-    scrollToEnd?: (animated?: boolean) => void;
-    update?: () => void;
-  } | null>(null);
+  const visitScrollRef = useRef<ScrollView>(null);
+  const noteScrollCleanupRef = useRef<(() => void) | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isBlockedByHairdresser, setIsBlockedByHairdresser] = useState(false);
   const [signedMedia, setSignedMedia] = useState<VisitRecordDetailMedia[]>([]);
@@ -158,7 +156,6 @@ const SingleVisitClient = () => {
       : hairdresserIdFromApi ?? "";
 
   const { profile } = useAuth();
-  const { height: windowHeight } = useWindowDimensions();
   const screenHeight = Dimensions.get("window").height;
   const insets = useSafeAreaInsets();
   const carouselHeight = screenHeight * IMAGE_CROP_VIEWPORT_HEIGHT_RATIO;
@@ -177,16 +174,40 @@ const SingleVisitClient = () => {
   const clientPhone = profile?.phone_number?.trim() ?? "";
   const phoneLine = clientPhone ? `Tlf: ${clientPhone}` : "";
 
+  /**
+   * One scroll after the keyboard has finished opening (`keyboardDidShow`), so we
+   * don’t stack multiple animated `scrollToEnd` calls (raf + staggered timeouts).
+   */
   const scrollPersonalNoteIntoView = useCallback(() => {
-    const bump = () => {
-      const r = keyboardAwareRef.current;
-      r?.update?.();
-      r?.scrollToEnd?.(true);
+    noteScrollCleanupRef.current?.();
+    noteScrollCleanupRef.current = null;
+
+    let finished = false;
+
+    const scrollOnce = () => {
+      if (finished) return;
+      finished = true;
+      subscription.remove();
+      clearTimeout(fallbackId);
+      noteScrollCleanupRef.current = null;
+      requestAnimationFrame(() => {
+        visitScrollRef.current?.scrollToEnd({ animated: true });
+      });
     };
-    requestAnimationFrame(bump);
-    setTimeout(bump, 80);
-    setTimeout(bump, 280);
-    setTimeout(bump, 520);
+
+    const subscription = Keyboard.addListener("keyboardDidShow", scrollOnce);
+    const fallbackId = setTimeout(scrollOnce, Platform.OS === "ios" ? 400 : 280);
+    noteScrollCleanupRef.current = () => {
+      subscription.remove();
+      clearTimeout(fallbackId);
+      noteScrollCleanupRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      noteScrollCleanupRef.current?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -302,75 +323,67 @@ const SingleVisitClient = () => {
         <KeyboardAvoidingView
           style={styles.keyboardAvoiding}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+          keyboardVerticalOffset={
+            Platform.OS === "ios" ? 0 : responsiveScale(20)
+          }
         >
-          <KeyboardAwareScrollView
-            ref={keyboardAwareRef}
+          <ScrollView
+            ref={visitScrollRef}
             style={styles.scroll}
-            contentContainerStyle={[
-              styles.scrollContent,
-              {
-                paddingBottom:
-                  verticalScale(28) +
-                  Math.max(insets.bottom, verticalScale(8)),
-                minHeight: windowHeight + verticalScale(220),
-              },
-            ]}
-            showsVerticalScrollIndicator={false}
-            enableOnAndroid
-            enableAutomaticScroll
-            keyboardOpeningTime={250}
-            extraScrollHeight={responsiveScale(200)}
-            extraHeight={responsiveScale(120)}
+            contentContainerStyle={{
+              paddingBottom:
+                verticalScale(28) +
+                Math.max(insets.bottom, verticalScale(8)),
+            }}
             keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            enableResetScrollToCoords={false}
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
             nestedScrollEnabled
           >
-          <VisitRecordScreenHeader
-            title={displayClientName}
-            subtitle={phoneLine || undefined}
-            rightSlot={
-              <Pressable
-                onPress={toggleModal}
-                style={styles.menuBtn}
-                hitSlop={12}
-                accessibilityRole="button"
-                accessibilityLabel="Visit actions"
-              >
-                <DotsThree size={32} color={primaryBlack} />
-              </Pressable>
-            }
-          />
+            <VisitRecordScreenHeader
+              title={displayClientName}
+              subtitle={phoneLine || undefined}
+              rightSlot={
+                <Pressable
+                  onPress={toggleModal}
+                  style={styles.menuBtn}
+                  hitSlop={12}
+                  accessibilityRole="button"
+                  accessibilityLabel="Visit actions"
+                >
+                  <DotsThree size={32} color={primaryBlack} />
+                </Pressable>
+              }
+            />
 
-          <VisitRecordDetailView
-            dateText={createdAt}
-            serviceText={services}
-            commentText={descriptionText}
-            showDurationRow={false}
-            showPriceRow={false}
-            durationText=""
-            priceText=""
-            professionCode={professionCode}
-            professional={{
-              full_name: hairdresserName,
-              salon_name: salon_name?.trim() ? salon_name : undefined,
-              avatar_url: hairdresser_profile_pic || undefined,
-            }}
-            mediaSlides={signedMedia}
-            carouselHeight={carouselHeight}
-            onPressProfessional={
-              isBlockedByHairdresser ? undefined : handleHairdresserPress
-            }
-            professionalDisabled={isBlockedByHairdresser}
-          />
+            <VisitRecordDetailView
+              dateText={createdAt}
+              serviceText={services}
+              commentText={descriptionText}
+              showDurationRow={false}
+              showPriceRow={false}
+              durationText=""
+              priceText=""
+              professionCode={professionCode}
+              professional={{
+                full_name: hairdresserName,
+                salon_name: salon_name?.trim() ? salon_name : undefined,
+                avatar_url: hairdresser_profile_pic || undefined,
+              }}
+              mediaSlides={signedMedia}
+              carouselHeight={carouselHeight}
+              onPressProfessional={
+                isBlockedByHairdresser ? undefined : handleHairdresserPress
+              }
+              professionalDisabled={isBlockedByHairdresser}
+            />
 
-          <VisitClientPersonalNoteSection
-            haircodeId={haircodeId}
-            remoteNote={recordClientPrivateNote(record)}
-            onPersonalNoteFocus={scrollPersonalNoteIntoView}
-          />
-        </KeyboardAwareScrollView>
+            <VisitClientPersonalNoteSection
+              haircodeId={haircodeId}
+              remoteNote={recordClientPrivateNote(record)}
+              onPersonalNoteFocus={scrollPersonalNoteIntoView}
+            />
+          </ScrollView>
         </KeyboardAvoidingView>
 
         <SmallDraggableModal
@@ -400,9 +413,6 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
     backgroundColor: primaryGreen,
-  },
-  scrollContent: {
-    flexGrow: 1,
   },
   menuBtn: {
     padding: scale(4),
