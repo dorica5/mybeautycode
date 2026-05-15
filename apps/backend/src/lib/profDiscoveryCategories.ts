@@ -8,7 +8,6 @@ export const DISCOVERY_OPTIONS_HAIR = [
   { code: "colour", label: "Colour" },
   { code: "highlights_balayage", label: "Highlights/Balayage" },
   { code: "blowout_styling", label: "Blowout & styling" },
-  { code: "hair_treatments", label: "Hair treatments" },
   { code: "bridal_hair", label: "Bridal hair" },
   { code: "makeup_hair_lane", label: "Makeup" },
 ] as const;
@@ -55,6 +54,9 @@ export function allowedDiscoveryCodesForProfession(
   return BY_PROFESSION[professionCode] ?? null;
 }
 
+/** Retired codes still present in DB or old clients — dropped on write, no error. */
+const DEPRECATED_DISCOVERY_CODES = new Set<string>(["hair_treatments"]);
+
 /** Maps legacy compound tag to granular tags during normalization (not in allowlist alone). */
 const LEGACY_BROW_LASH_ALIASES: Record<string, readonly string[]> = {
   lash_lift_tint: ["lash_tinting", "lash_lift"],
@@ -87,6 +89,7 @@ export function normalizeDiscoveryCategoriesForProfession(
   for (const item of raw) {
     if (typeof item !== "string" || !item.trim()) continue;
     const c = item.trim().toLowerCase();
+    if (DEPRECATED_DISCOVERY_CODES.has(c)) continue;
     const expansion = LEGACY_BROW_LASH_ALIASES[c];
     if (expansion) {
       for (const x of expansion) {
@@ -139,6 +142,7 @@ export function expandStoredDiscoveryCategoryCodes(raw: unknown): string[] {
   for (const item of raw) {
     if (typeof item !== "string" || !item.trim()) continue;
     const c = item.trim().toLowerCase();
+    if (DEPRECATED_DISCOVERY_CODES.has(c)) continue;
     const expansion = LEGACY_BROW_LASH_ALIASES[c];
     if (expansion) {
       for (const x of expansion) out.add(x);

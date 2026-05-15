@@ -43,6 +43,16 @@ export function toBackendProfessionCode(
   return null;
 }
 
+/** Stable cache/API key fragment for discovery filter list (sorted unique codes). */
+export function discoveryCategoriesQueryKeyPart(
+  cats: readonly string[] | null | undefined
+): string {
+  if (!cats?.length) return "all";
+  return [...new Set(cats.map((c) => c.trim().toLowerCase()).filter(Boolean))]
+    .sort()
+    .join(",");
+}
+
 /** Round bounds to avoid spamming the cache/network with tiny pan deltas. */
 function roundBounds(b: SalonBounds): SalonBounds {
   const r = (n: number) => Math.round(n * 1e4) / 1e4;
@@ -57,23 +67,25 @@ function roundBounds(b: SalonBounds): SalonBounds {
 export function salonProfessionalsQueryKey(
   salonId: string,
   professionCode: string | null | undefined,
-  discoveryCategory: string | null | undefined
+  discoveryCategories: readonly string[] | null | undefined
 ) {
   const code = professionCode?.trim() || null;
-  const disc = discoveryCategory?.trim() || null;
-  return ["salons", "professionals", salonId, code ?? "any", disc ?? "all"] as const;
+  const discKey = discoveryCategoriesQueryKeyPart(discoveryCategories ?? null);
+  return ["salons", "professionals", salonId, code ?? "any", discKey] as const;
 }
 
 export async function fetchSalonProfessionals(
   salonId: string,
   professionCode: string | null | undefined,
-  discoveryCategory?: string | null
+  discoveryCategories?: readonly string[] | null
 ): Promise<SalonProfessional[]> {
   const code = professionCode?.trim() || null;
-  const disc = discoveryCategory?.trim() || null;
+  const discStr = discoveryCategoriesQueryKeyPart(discoveryCategories ?? null);
   const params = new URLSearchParams();
   if (code) params.set("profession_code", code);
-  if (disc) params.set("discovery_category", disc);
+  if (discStr !== "all") {
+    params.set("discovery_categories", discStr);
+  }
   const qs = params.toString();
   return api.get<SalonProfessional[]>(
     `/api/salons/${salonId}/professionals${qs ? `?${qs}` : ""}`
@@ -83,13 +95,12 @@ export async function fetchSalonProfessionals(
 export const useSalonsInBounds = (
   bounds: SalonBounds | null,
   professionCode: string | null | undefined,
-  discoveryCategory?: string | null
+  discoveryCategories?: readonly string[] | null
 ) => {
   const rounded = bounds ? roundBounds(bounds) : null;
   const code = professionCode?.trim() || null;
-  const disc = discoveryCategory?.trim() || null;
+  const discKey = discoveryCategoriesQueryKeyPart(discoveryCategories ?? null);
   const profKey = code ?? "any";
-  const discKey = disc ?? "all";
   return useQuery<SalonPin[]>({
     queryKey: [
       "salons",
@@ -109,17 +120,14 @@ export const useSalonsInBounds = (
         swLng: String(rounded!.swLng),
       });
       if (code) params.set("profession_code", code);
-      if (disc) params.set("discovery_category", disc);
+      if (discKey !== "all") {
+        params.set("discovery_categories", discKey);
+      }
       return api.get<SalonPin[]>(`/api/salons/nearby?${params.toString()}`);
     },
     enabled: !!rounded,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
-    /**
-     * Do not keep pins from another discovery filter (or profession) while the
-     * new query loads — that showed salons without the selected specialty.
-     * Still reuse pins when only map bounds changed (same prof + discovery keys).
-     */
     placeholderData: (previousData, previousQuery) => {
       if (!previousQuery?.queryKey) return previousData;
       const pk = previousQuery.queryKey;
@@ -136,21 +144,17 @@ export const useSalonsInBounds = (
 export const useSalonProfessionals = (
   salonId: string | null,
   professionCode: string | null | undefined,
-  discoveryCategory?: string | null
+  discoveryCategories?: readonly string[] | null
 ) => {
-  const disc = discoveryCategory?.trim() || null;
   return useQuery<SalonProfessional[]>({
     queryKey: salonId
-      ? salonProfessionalsQueryKey(salonId, professionCode, disc)
+      ? salonProfessionalsQueryKey(salonId, professionCode, discoveryCategories)
       : ["salons", "professionals", null, "any", "all"],
-    queryFn: () => fetchSalonProfessionals(salonId!, professionCode, disc),
+    queryFn: () =>
+      fetchSalonProfessionals(salonId!, professionCode, discoveryCategories),
     enabled: !!salonId,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
-    /**
-     * Map runs inside a `Modal`; AppState / focus can churn and repeatedly refocus.
-     * Refetching then cancels in-flight fetches in a loop — endless spinner, no data.
-     */
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   });

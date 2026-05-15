@@ -192,6 +192,7 @@ const FindProfessionalsScreen = () => {
                     </View>
 
                     <View style={styles.mapSection}>
+                      <Text style={styles.mapOrLabel}>or</Text>
                       <PaddedLabelButton
                         title="Go to map"
                         horizontalPadding={0}
@@ -322,6 +323,12 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     alignItems: "center",
     marginBottom: responsiveMargin(8),
+  },
+  mapOrLabel: {
+    ...Typography.agLabel16,
+    textAlign: "center",
+    width: "100%",
+    marginBottom: responsiveMargin(10),
   },
   fieldLabel: {
     ...Typography.agLabel16,

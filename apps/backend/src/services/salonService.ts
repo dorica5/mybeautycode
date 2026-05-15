@@ -35,28 +35,44 @@ function sqlLaneHasDiscoveryTag(normalizedDiscoveryCode: string): Prisma.Sql {
   )`;
 }
 
-/** SQL fragment: lane row’s discovery JSON includes this tag (and legacy brow/lash compound when relevant). */
-function discoveryCategoriesSqlFragment(
-  normalizedDiscoveryCode: string | undefined
-): Prisma.Sql {
-  if (!normalizedDiscoveryCode) return Prisma.sql``;
-  const usable = discoveryJsonIsNonEmptyArray();
+/** Compound lash tags in DB can match granular filters. */
+function sqlLaneDiscoveryNeedle(normalizedDiscoveryCode: string): Prisma.Sql {
   const needle = normalizedDiscoveryCode;
   if (needle === "lash_tinting" || needle === "lash_lift") {
-    return Prisma.sql`AND ${usable}
-      AND (
-        ${sqlLaneHasDiscoveryTag(needle)}
-        OR ${sqlLaneHasDiscoveryTag("lash_lift_tint")}
-      )`;
+    return Prisma.sql`(${sqlLaneHasDiscoveryTag(needle)} OR ${sqlLaneHasDiscoveryTag("lash_lift_tint")})`;
+  }
+  return sqlLaneHasDiscoveryTag(needle);
+}
+
+/** Include lane if discovery JSON lists any tag in `normalizedCodes` (OR). */
+function discoveryCategoriesSqlFragment(
+  normalizedCodes: string[] | undefined
+): Prisma.Sql {
+  if (!normalizedCodes?.length) return Prisma.sql``;
+  const usable = discoveryJsonIsNonEmptyArray();
+
+  let combined = sqlLaneDiscoveryNeedle(normalizedCodes[0]);
+  for (let i = 1; i < normalizedCodes.length; i++) {
+    combined = Prisma.sql`(${combined} OR ${sqlLaneDiscoveryNeedle(normalizedCodes[i])})`;
   }
   return Prisma.sql`AND ${usable}
-    AND (${sqlLaneHasDiscoveryTag(needle)})`;
+    AND (${combined})`;
+}
+
+function laneMatchesAnyDiscoveryCategories(
+  discoveryCategoriesJson: unknown,
+  normalizedCodes: string[] | undefined
+): boolean {
+  if (!normalizedCodes?.length) return true;
+  return normalizedCodes.some((tag) =>
+    storedCategoriesIncludeCode(discoveryCategoriesJson, tag)
+  );
 }
 
 async function countActiveProsAtSalonForLane(
   salonId: string,
   professionId: string,
-  discoveryNormalized: string | undefined
+  discoveryNormalizedCodes: string[] | undefined
 ): Promise<number> {
   const rows = await prisma.professionalProfession.findMany({
     where: {
@@ -66,9 +82,9 @@ async function countActiveProsAtSalonForLane(
     },
     select: { discoveryCategories: true },
   });
-  if (!discoveryNormalized) return rows.length;
+  if (!discoveryNormalizedCodes?.length) return rows.length;
   return rows.filter((r) =>
-    storedCategoriesIncludeCode(r.discoveryCategories, discoveryNormalized)
+    laneMatchesAnyDiscoveryCategories(r.discoveryCategories, discoveryNormalizedCodes)
   ).length;
 }
 
@@ -83,8 +99,8 @@ export const salonService = {
     professionCode?: string | null,
     /** Logged-in client: ensures salons for pros they’re linked with still appear (e.g. lane inactive, edge cases). */
     viewerProfileId?: string | null,
-    /** When set, only salons with ≥1 matching pro whose get-discovered categories include this tag. */
-    discoveryCategory?: string | null
+    /** When non-empty: ≥1 lane row includes any listed get-discovered tag (OR). */
+    discoveryCategories?: string[] | null
   ): Promise<
     Array<{
       id: string;
@@ -123,15 +139,15 @@ export const salonService = {
         ? await professionService.getProfessionIdByCode(professionCode.trim())
         : undefined;
 
-    const normalizedDiscovery =
-      typeof discoveryCategory === "string" && discoveryCategory.trim()
-        ? discoveryCategory.trim().toLowerCase()
+    const discoveryCodes =
+      Array.isArray(discoveryCategories) && discoveryCategories.length > 0
+        ? [...discoveryCategories].sort()
         : undefined;
 
     const professionSql = professionId
       ? Prisma.sql`AND pp.profession_id = ${professionId}::uuid`
       : Prisma.sql``;
-    const discoverySql = discoveryCategoriesSqlFragment(normalizedDiscovery);
+    const discoverySql = discoveryCategoriesSqlFragment(discoveryCodes);
 
     const aggregated = await prisma.$queryRaw<
       Array<{
@@ -199,11 +215,11 @@ export const salonService = {
           },
           select: { salonId: true, discoveryCategories: true },
         });
-        const filteredLinks = normalizedDiscovery
+        const filteredLinks = discoveryCodes?.length
           ? ppWithSalon.filter((row) =>
-              storedCategoriesIncludeCode(
+              laneMatchesAnyDiscoveryCategories(
                 row.discoveryCategories,
-                normalizedDiscovery
+                discoveryCodes
               )
             )
           : ppWithSalon;
@@ -235,7 +251,7 @@ export const salonService = {
             const cnt = await countActiveProsAtSalonForLane(
               r.id,
               professionId,
-              normalizedDiscovery
+              discoveryCodes
             );
             if (cnt < 1) continue;
             byId.set(r.id, {
@@ -264,7 +280,7 @@ export const salonService = {
     salonId: string,
     viewerProfileId: string,
     professionCode?: string | null,
-    discoveryCategory?: string | null
+    discoveryCategories?: string[] | null
   ): Promise<
     Array<{
       professional_profile_id: string;
@@ -294,9 +310,9 @@ export const salonService = {
       throw Object.assign(new Error("Salon not found."), { statusCode: 404 });
     }
 
-    const normalizedDiscovery =
-      typeof discoveryCategory === "string" && discoveryCategory.trim()
-        ? discoveryCategory.trim().toLowerCase()
+    const discoveryCodes =
+      Array.isArray(discoveryCategories) && discoveryCategories.length > 0
+        ? [...discoveryCategories].sort()
         : undefined;
 
     const rowSelect = {
@@ -370,12 +386,9 @@ export const salonService = {
       }
     }
 
-    if (normalizedDiscovery) {
+    if (discoveryCodes?.length) {
       merged = merged.filter((r) =>
-        storedCategoriesIncludeCode(
-          r.discoveryCategories,
-          normalizedDiscovery
-        )
+        laneMatchesAnyDiscoveryCategories(r.discoveryCategories, discoveryCodes)
       );
     }
 

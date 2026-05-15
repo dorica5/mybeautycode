@@ -2,6 +2,45 @@ import { Request, Response } from "express";
 import { salonService } from "../services/salonService";
 import { parseDiscoveryCategoryForProfession } from "../lib/profDiscoveryCategories";
 
+/** Raw query tokens for discovery filter (comma list + legacy single/multi param). */
+function gatherDiscoveryTokensFromQuery(q: Request["query"]): string[] {
+  const tokens: string[] = [];
+  const multi = q.discovery_categories ?? q.discoveryCategories;
+  if (typeof multi === "string" && multi.trim()) {
+    for (const part of multi.split(",")) {
+      const t = part.trim();
+      if (t) tokens.push(t);
+    }
+  }
+  const single = q.discovery_category ?? q.discoveryCategory;
+  if (single !== undefined) {
+    const parts = Array.isArray(single) ? single : [single];
+    for (const x of parts) {
+      if (typeof x === "string" && x.trim()) tokens.push(x.trim());
+    }
+  }
+  return [...new Set(tokens)];
+}
+
+function normalizeDiscoveryCategoriesForRequest(
+  profession: string | undefined,
+  tokens: string[]
+): string[] {
+  const out = new Set<string>();
+  const prof = profession?.trim();
+  if (tokens.length === 0 || !prof) return [];
+  for (const t of tokens) {
+    const normalized = parseDiscoveryCategoryForProfession(prof, t);
+    if (!normalized) {
+      throw Object.assign(new Error(`Invalid discovery category for this profession.`),
+        { statusCode: 400 }
+      );
+    }
+    out.add(normalized);
+  }
+  return [...out].sort();
+}
+
 function readNumberQuery(value: unknown): number | null {
   if (typeof value === "string" && value.trim()) {
     const n = Number(value);
@@ -23,20 +62,7 @@ function readProfessionCode(q: Request["query"]): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function readDiscoveryCategory(q: Request["query"]): string | undefined {
-  const raw =
-    typeof q.discovery_category === "string"
-      ? q.discovery_category
-      : typeof q.discoveryCategory === "string"
-        ? q.discoveryCategory
-        : undefined;
-  if (!raw) return undefined;
-  const trimmed = raw.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
-}
-
 export const salonController = {
-  /** GET /api/salons/nearby?neLat&neLng&swLat&swLng&profession_code */
   async nearby(req: Request, res: Response) {
     const neLat = readNumberQuery(req.query.neLat ?? req.query.ne_lat);
     const neLng = readNumberQuery(req.query.neLng ?? req.query.ne_lng);
@@ -50,26 +76,32 @@ export const salonController = {
     try {
       const viewerId = req.userId ?? null;
       const profession = readProfessionCode(req.query);
-      const discoveryRaw = readDiscoveryCategory(req.query);
-      if (discoveryRaw && !profession) {
+      const discoveryTokens = gatherDiscoveryTokensFromQuery(req.query);
+      if (discoveryTokens.length > 0 && !profession) {
         return res.status(400).json({
-          error: "profession_code is required when discovery_category is set.",
+          error:
+            "profession_code is required when discovery categories are set.",
         });
       }
-      const discoveryParsed = parseDiscoveryCategoryForProfession(
-        profession ?? null,
-        discoveryRaw
-      );
-      if (discoveryRaw && !discoveryParsed) {
-        return res.status(400).json({
-          error: "Invalid discovery_category for this profession.",
-        });
+      let discoveryNormalized: string[] | null = null;
+      try {
+        const codes = normalizeDiscoveryCategoriesForRequest(
+          profession,
+          discoveryTokens
+        );
+        discoveryNormalized = codes.length ? codes : null;
+      } catch (e: unknown) {
+        const er = e as Error & { statusCode?: number };
+        if (er.statusCode === 400) {
+          return res.status(400).json({ error: er.message });
+        }
+        throw e;
       }
       const results = await salonService.findInBounds(
         { neLat, neLng, swLat, swLng },
         profession,
         viewerId,
-        discoveryParsed ?? null
+        discoveryNormalized
       );
       res.json(results);
     } catch (err: unknown) {
@@ -94,26 +126,32 @@ export const salonController = {
     }
     try {
       const profession = readProfessionCode(req.query);
-      const discoveryRaw = readDiscoveryCategory(req.query);
-      if (discoveryRaw && !profession) {
+      const discoveryTokens = gatherDiscoveryTokensFromQuery(req.query);
+      if (discoveryTokens.length > 0 && !profession) {
         return res.status(400).json({
-          error: "profession_code is required when discovery_category is set.",
+          error:
+            "profession_code is required when discovery categories are set.",
         });
       }
-      const discoveryParsed = parseDiscoveryCategoryForProfession(
-        profession ?? null,
-        discoveryRaw
-      );
-      if (discoveryRaw && !discoveryParsed) {
-        return res.status(400).json({
-          error: "Invalid discovery_category for this profession.",
-        });
+      let discoveryNormalized: string[] | null = null;
+      try {
+        const codes = normalizeDiscoveryCategoriesForRequest(
+          profession,
+          discoveryTokens
+        );
+        discoveryNormalized = codes.length ? codes : null;
+      } catch (e: unknown) {
+        const er = e as Error & { statusCode?: number };
+        if (er.statusCode === 400) {
+          return res.status(400).json({ error: er.message });
+        }
+        throw e;
       }
       const results = await salonService.listProfessionals(
         salonId,
         viewerId,
         profession,
-        discoveryParsed ?? null
+        discoveryNormalized
       );
       res.json(results);
     } catch (err: unknown) {

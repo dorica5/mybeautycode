@@ -89,8 +89,6 @@ import {
   responsiveFontSize,
   responsivePadding,
   responsiveMargin,
-  contentCardMaxWidth,
-  isTablet,
 } from "@/src/utils/responsive";
 import {
   clusterSalonPins,
@@ -100,11 +98,11 @@ import {
 } from "@/src/utils/mapClustering";
 import { discoveryOptionsForProfession } from "@/src/constants/profDiscoveryCategories";
 import type { ProfessionChoiceCode } from "@/src/constants/professionCodes";
+import { HorizontalScrollHintRow } from "@/src/components/HorizontalScrollHintRow";
 
 const ROW_HEIGHT = 52;
-/** Location search pill on map (design dp). */
-const LOCATION_SEARCH_FIELD_W = 342;
-const LOCATION_SEARCH_FIELD_H = 46;
+/** Match `SearchInput` default white pill width (design dp) — same as Find professionals. */
+const FIND_PROS_SEARCH_BAR_W = 343;
 /** Black Search CTA under location field (design dp). */
 const MAP_SEARCH_BTN_W = 114;
 const MAP_SEARCH_BTN_H = 46;
@@ -388,21 +386,12 @@ const SalonClusterMapMarker = React.memo(function SalonClusterMapMarker({
 const MapLocationScreen = () => {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
   const heroPatternVerticalNudge = heroHeight * 0.34;
 
-  const locationSearchPillWidth = useMemo(() => {
-    const shortSide = Math.min(windowWidth, windowHeight);
-    if (!isTablet()) {
-      return responsiveScale(LOCATION_SEARCH_FIELD_W);
-    }
-    return Math.min(
-      contentCardMaxWidth(shortSide),
-      windowWidth - responsivePadding(40)
-    );
-  }, [windowWidth, windowHeight]);
+  const predictionsCardWidth = responsiveScale(FIND_PROS_SEARCH_BAR_W);
 
   const { profession } = useLocalSearchParams<{
     profession?: string | string[];
@@ -429,7 +418,7 @@ const MapLocationScreen = () => {
   );
 
   useEffect(() => {
-    setSelectedDiscoveryCategory(null);
+    setSelectedDiscoveryCategories([]);
   }, [professionKey]);
 
   useEffect(() => {
@@ -470,10 +459,9 @@ const MapLocationScreen = () => {
   const [selectedSalon, setSelectedSalon] = useState<SalonPin | null>(null);
   /** Last committed region, used as the query key for /api/salons/nearby. */
   const [boundsRegion, setBoundsRegion] = useState<Region | null>(null);
-  /** Get-discovered specialty filter (same codes as About me / Get discovered). */
-  const [selectedDiscoveryCategory, setSelectedDiscoveryCategory] = useState<
-    string | null
-  >(null);
+  /** Get-discovered specialty filters — OR match (pins / sheet list any category). */
+  const [selectedDiscoveryCategories, setSelectedDiscoveryCategories] =
+    useState<string[]>([]);
   const mapViewRef = useRef<MapView | null>(null);
   /** Debounce timer so pan/zoom settles before we re-query. */
   const regionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -719,7 +707,9 @@ const MapLocationScreen = () => {
   } = useSalonsInBounds(
     bounds,
     backendProfessionCode,
-    selectedDiscoveryCategory
+    selectedDiscoveryCategories.length > 0
+      ? selectedDiscoveryCategories
+      : null
   );
 
   const showAggregatedSalonPins = Boolean(
@@ -775,12 +765,14 @@ const MapLocationScreen = () => {
   } = useSalonProfessionals(
     selectedSalon?.id ?? null,
     backendProfessionCode,
-    selectedDiscoveryCategory
+    selectedDiscoveryCategories.length > 0
+      ? selectedDiscoveryCategories
+      : null
   );
 
   useEffect(() => {
     setSelectedSalon(null);
-  }, [selectedDiscoveryCategory]);
+  }, [selectedDiscoveryCategories]);
 
   const sheetBottomReserve = useMemo(() => {
     if (!selectedSalon) return 0;
@@ -1101,6 +1093,74 @@ const MapLocationScreen = () => {
               </View>
             </View>
 
+            {discoveryChipOptions.length > 0 ? (
+              <View style={styles.mapDiscoveryChipsBar}>
+                <HorizontalScrollHintRow
+                  contentContainerStyle={styles.mapDiscoveryChipsScrollContent}
+                >
+                  <Pressable
+                    onPress={() => setSelectedDiscoveryCategories([])}
+                    style={({ pressed }) => [
+                      styles.mapDiscoveryChip,
+                      selectedDiscoveryCategories.length === 0 &&
+                        styles.mapDiscoveryChipSelected,
+                      pressed && styles.mapDiscoveryChipPressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      selected: selectedDiscoveryCategories.length === 0,
+                    }}
+                    accessibilityLabel="All specialties"
+                  >
+                    <Text
+                      style={[
+                        styles.mapDiscoveryChipLabel,
+                        selectedDiscoveryCategories.length === 0 &&
+                          styles.mapDiscoveryChipLabelSelected,
+                      ]}
+                    >
+                      All
+                    </Text>
+                  </Pressable>
+                  {discoveryChipOptions.map((opt) => {
+                    const active = selectedDiscoveryCategories.includes(
+                      opt.code
+                    );
+                    return (
+                      <Pressable
+                        key={opt.code}
+                        onPress={() =>
+                          setSelectedDiscoveryCategories((prev) =>
+                            prev.includes(opt.code)
+                              ? prev.filter((c) => c !== opt.code)
+                              : [...prev, opt.code]
+                          )
+                        }
+                        style={({ pressed }) => [
+                          styles.mapDiscoveryChip,
+                          active && styles.mapDiscoveryChipSelected,
+                          pressed && styles.mapDiscoveryChipPressed,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        accessibilityLabel={opt.label}
+                      >
+                        <Text
+                          style={[
+                            styles.mapDiscoveryChipLabel,
+                            active && styles.mapDiscoveryChipLabelSelected,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </HorizontalScrollHintRow>
+              </View>
+            ) : null}
+
             {mapLoading ? (
               <View style={styles.mapLoadingWrap}>
                 <ActivityIndicator size="large" color={primaryBlack} />
@@ -1162,79 +1222,6 @@ const MapLocationScreen = () => {
                           />
                         ))}
                   </MapView>
-                  {discoveryChipOptions.length > 0 ? (
-                    <View
-                      style={styles.mapDiscoveryChipsWrap}
-                      pointerEvents="box-none"
-                    >
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={
-                          styles.mapDiscoveryChipsScrollContent
-                        }
-                        keyboardShouldPersistTaps="handled"
-                      >
-                        <Pressable
-                          onPress={() => setSelectedDiscoveryCategory(null)}
-                          style={({ pressed }) => [
-                            styles.mapDiscoveryChip,
-                            selectedDiscoveryCategory === null &&
-                              styles.mapDiscoveryChipSelected,
-                            pressed && styles.mapDiscoveryChipPressed,
-                          ]}
-                          accessibilityRole="button"
-                          accessibilityState={{
-                            selected: selectedDiscoveryCategory === null,
-                          }}
-                          accessibilityLabel="All specialties"
-                        >
-                          <Text
-                            style={[
-                              styles.mapDiscoveryChipLabel,
-                              selectedDiscoveryCategory === null &&
-                                styles.mapDiscoveryChipLabelSelected,
-                            ]}
-                          >
-                            All
-                          </Text>
-                        </Pressable>
-                        {discoveryChipOptions.map((opt) => {
-                          const active =
-                            selectedDiscoveryCategory === opt.code;
-                          return (
-                            <Pressable
-                              key={opt.code}
-                              onPress={() =>
-                                setSelectedDiscoveryCategory(
-                                  active ? null : opt.code
-                                )
-                              }
-                              style={({ pressed }) => [
-                                styles.mapDiscoveryChip,
-                                active && styles.mapDiscoveryChipSelected,
-                                pressed && styles.mapDiscoveryChipPressed,
-                              ]}
-                              accessibilityRole="button"
-                              accessibilityState={{ selected: active }}
-                              accessibilityLabel={opt.label}
-                            >
-                              <Text
-                                style={[
-                                  styles.mapDiscoveryChipLabel,
-                                  active &&
-                                    styles.mapDiscoveryChipLabelSelected,
-                                ]}
-                                numberOfLines={1}
-                              >
-                                {opt.label}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </ScrollView>
-                    </View>
-                  ) : null}
                   {selectedSalon ? (
                     <View
                       style={styles.pinDetailSheet}
@@ -1412,26 +1399,15 @@ const MapLocationScreen = () => {
                   <Text style={styles.outlineBtnLabel}>Check my location</Text>
                 </Pressable>
 
-                <Text style={styles.locationSectionLabel}>
-                  Or search for location
-                </Text>
-                <View style={styles.locationSearchBlock}>
+                <Text style={styles.fieldLabel}>Or search for location</Text>
+                <View style={styles.locationSearchSection}>
                   <View style={styles.locationSearchFieldWrap}>
                     <SearchInput
                       variant="whitePill"
-                      whitePillWidth={locationSearchPillWidth}
-                      whitePillHeight={LOCATION_SEARCH_FIELD_H}
-                      /**
-                       * Controlled: parent owns the text. This short-circuits the
-                       * uncontrolled effect chain in SearchInput (which clears on
-                       * route focus + writes back via onSearch) that otherwise
-                       * interacts with TextInput's layout effect on this screen
-                       * and trips the "Maximum update depth" guard.
-                       */
                       value={locationQuery}
                       onSearch={handleLocationQueryChange}
                       initialQuery={locationQuery}
-                      placeholder=""
+                      placeholder="Search…"
                       clearSearch={() => {
                         setLocationQuery("");
                         setPredictions([]);
@@ -1442,7 +1418,7 @@ const MapLocationScreen = () => {
                       <View
                         style={[
                           styles.predictionsCard,
-                          { width: locationSearchPillWidth },
+                          { width: predictionsCardWidth },
                         ]}
                       >
                         {predictionsLoading && predictions.length === 0 ? (
@@ -1543,13 +1519,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#1a2e35",
   },
-  mapDiscoveryChipsWrap: {
-    position: "absolute",
-    top: responsiveMargin(10),
-    left: responsivePadding(12),
-    right: responsivePadding(12),
-    zIndex: 6,
-    maxHeight: responsiveScale(48),
+  /** Filter chips below the map modal title. */
+  mapDiscoveryChipsBar: {
+    paddingHorizontal: responsivePadding(20),
+    paddingTop: responsiveMargin(4),
+    paddingBottom: responsiveMargin(10),
   },
   mapDiscoveryChipsScrollContent: {
     flexDirection: "row",
@@ -1716,7 +1690,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   mapScrollBody: {
-    paddingHorizontal: responsivePadding(20),
+    paddingHorizontal: responsivePadding(16),
     alignItems: "center",
   },
   title: {
@@ -1745,10 +1719,19 @@ const styles = StyleSheet.create({
     ...Typography.outfitRegular16,
     textAlign: "center",
   },
-  locationSearchBlock: {
+  fieldLabel: {
+    ...Typography.agLabel16,
+    alignSelf: "flex-start",
+    textAlign: "left",
     width: "100%",
+    marginBottom: responsiveMargin(10),
+  },
+  locationSearchSection: {
+    width: "100%",
+    alignSelf: "stretch",
     alignItems: "center",
-    gap: responsiveMargin(14),
+    gap: responsiveMargin(12),
+    marginBottom: responsiveScale(46),
   },
   locationSearchFieldWrap: {
     width: "100%",

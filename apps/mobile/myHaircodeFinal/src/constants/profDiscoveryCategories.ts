@@ -7,7 +7,6 @@ export const DISCOVERY_OPTIONS_HAIR: readonly DiscoveryCategoryOption[] = [
   { code: "colour", label: "Colour" },
   { code: "highlights_balayage", label: "Highlights/Balayage" },
   { code: "blowout_styling", label: "Blowout & styling" },
-  { code: "hair_treatments", label: "Hair treatments" },
   { code: "bridal_hair", label: "Bridal hair" },
   { code: "makeup_hair_lane", label: "Makeup" },
 ];
@@ -60,6 +59,7 @@ export function expandLegacyDiscoveryCategories(
   codes: readonly string[]
 ): string[] {
   const set = new Set(codes.filter(Boolean));
+  set.delete("hair_treatments");
   if (set.delete(LEGACY_LASH_LIFT_TINT)) {
     set.add("lash_tinting");
     set.add("lash_lift");
