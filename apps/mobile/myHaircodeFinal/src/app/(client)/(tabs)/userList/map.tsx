@@ -269,25 +269,30 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
- * Stable native marker identity (key stays `salon.id`) plus a short
- * `tracksViewChanges` pulse when selection changes so the pin bitmap updates
- * without remounting — remounting was hiding pins until the next map interaction.
+ * Custom-marker children on Google Maps are snapshotted. If `tracksViewChanges`
+ * turns off before the subtree finishes laying out—or before refetched pins
+ * replace the marker list—the bitmap can stay blank until the camera moves.
+ * Pulse `tracksViewChanges` whenever the pin snapshot inputs change; keep true
+ * briefly after mount so Bergen / search arrivals paint without requiring a pinch.
  */
 const SalonMapMarker = React.memo(function SalonMapMarker({
   salon,
   selected,
   onSalonPress,
+  renderPulseKey,
 }: {
   salon: SalonPin;
   selected: boolean;
   onSalonPress: (salon: SalonPin) => void;
+  /** Bump when fetched marker set / counts change so the native snapshot refreshes */
+  renderPulseKey: number;
 }) {
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
   useEffect(() => {
     setTracksViewChanges(true);
-    const t = setTimeout(() => setTracksViewChanges(false), 450);
+    const t = setTimeout(() => setTracksViewChanges(false), 900);
     return () => clearTimeout(t);
-  }, [selected]);
+  }, [selected, renderPulseKey]);
 
   const accessibility = salon.name
     ? `${salon.name}, ${salon.formatted_address}`
@@ -326,11 +331,13 @@ const SalonClusterMapMarker = React.memo(function SalonClusterMapMarker({
   selectedSalonId,
   onSalonPress,
   onMultiSalonClusterPress,
+  renderPulseKey,
 }: {
   cluster: SalonMapCluster;
   selectedSalonId: string | null;
   onSalonPress: (salon: SalonPin) => void;
   onMultiSalonClusterPress: (cluster: SalonMapCluster) => void;
+  renderPulseKey: number;
 }) {
   const totalPros = salonClusterTotalProfessionals(cluster.members);
   const singleMember = cluster.members.length === 1 ? cluster.members[0] : null;
@@ -341,9 +348,9 @@ const SalonClusterMapMarker = React.memo(function SalonClusterMapMarker({
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
   useEffect(() => {
     setTracksViewChanges(true);
-    const t = setTimeout(() => setTracksViewChanges(false), 450);
+    const t = setTimeout(() => setTracksViewChanges(false), 900);
     return () => clearTimeout(t);
-  }, [selected, totalPros, cluster.members.length]);
+  }, [selected, totalPros, cluster.members.length, renderPulseKey]);
 
   const accessibility = singleMember
     ? singleMember.name
@@ -706,7 +713,10 @@ const MapLocationScreen = () => {
     [boundsRegion]
   );
 
-  const { data: salons = [], isFetching: salonsFetching } = useSalonsInBounds(
+  const {
+    data: salons = [],
+    isFetching: salonsFetching,
+  } = useSalonsInBounds(
     bounds,
     backendProfessionCode,
     selectedDiscoveryCategory
@@ -724,6 +734,39 @@ const MapLocationScreen = () => {
       boundsRegion.longitudeDelta
     );
   }, [boundsRegion, showAggregatedSalonPins, salons]);
+
+  /** Bumps Marker `tracksViewChanges` pulses when fetched pins change so bitmaps repaint without a pinch. */
+  const markerPinSignature = useMemo(() => {
+    if (showAggregatedSalonPins && salonClusters && salonClusters.length > 0) {
+      return salonClusters
+        .map((c) => {
+          const total = salonClusterTotalProfessionals(c.members);
+          return `${c.id}:${total}:${c.members.map((m) => m.id).join(",")}`;
+        })
+        .join("|");
+    }
+    return salons
+      .map((s) => `${s.id}:${s.professional_count}:${s.latitude.toFixed(5)},${s.longitude.toFixed(5)}`)
+      .sort()
+      .join("|");
+  }, [salons, salonClusters, showAggregatedSalonPins]);
+
+  const [markerRenderPulseKey, setMarkerRenderPulseKey] = useState(0);
+
+  /** Bump after nearby data settles so Google snapshot markers repaint (pins often appear blank until pinch otherwise). */
+  useEffect(() => {
+    if (!mapModalVisible || !boundsRegion) return;
+    if (salonsFetching) return;
+    setMarkerRenderPulseKey((k) => k + 1);
+  }, [
+    mapModalVisible,
+    boundsRegion?.latitude,
+    boundsRegion?.longitude,
+    boundsRegion?.latitudeDelta,
+    boundsRegion?.longitudeDelta,
+    salonsFetching,
+    markerPinSignature,
+  ]);
 
   const {
     data: salonProfessionals = [],
@@ -919,6 +962,16 @@ const MapLocationScreen = () => {
     }, 160);
   }, []);
 
+  /** First layout often skips `onRegionChangeComplete`; commit bounds + refresh snapshots when native map loads. */
+  const handleMapReady = useCallback(() => {
+    if (mapRegion) {
+      setBoundsRegion(mapRegion);
+    }
+    requestAnimationFrame(() => {
+      setMarkerRenderPulseKey((k) => k + 1);
+    });
+  }, [mapRegion]);
+
   useEffect(
     () => () => {
       if (regionDebounceRef.current) clearTimeout(regionDebounceRef.current);
@@ -1071,6 +1124,7 @@ const MapLocationScreen = () => {
                     pitchEnabled={false}
                     toolbarEnabled={false}
                     onPress={handleMapPress}
+                    onMapReady={handleMapReady}
                     onRegionChangeComplete={handleRegionChangeComplete}
                     mapPadding={{
                       top: responsiveScale(10),
@@ -1085,79 +1139,6 @@ const MapLocationScreen = () => {
                       left: responsiveScale(12),
                     }}
                   >
-                    {discoveryChipOptions.length > 0 ? (
-                      <View
-                        style={styles.mapDiscoveryChipsWrap}
-                        pointerEvents="box-none"
-                      >
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={
-                            styles.mapDiscoveryChipsScrollContent
-                          }
-                          keyboardShouldPersistTaps="handled"
-                        >
-                          <Pressable
-                            onPress={() => setSelectedDiscoveryCategory(null)}
-                            style={({ pressed }) => [
-                              styles.mapDiscoveryChip,
-                              selectedDiscoveryCategory === null &&
-                                styles.mapDiscoveryChipSelected,
-                              pressed && styles.mapDiscoveryChipPressed,
-                            ]}
-                            accessibilityRole="button"
-                            accessibilityState={{
-                              selected: selectedDiscoveryCategory === null,
-                            }}
-                            accessibilityLabel="All specialties"
-                          >
-                            <Text
-                              style={[
-                                styles.mapDiscoveryChipLabel,
-                                selectedDiscoveryCategory === null &&
-                                  styles.mapDiscoveryChipLabelSelected,
-                              ]}
-                            >
-                              All
-                            </Text>
-                          </Pressable>
-                          {discoveryChipOptions.map((opt) => {
-                            const active =
-                              selectedDiscoveryCategory === opt.code;
-                            return (
-                              <Pressable
-                                key={opt.code}
-                                onPress={() =>
-                                  setSelectedDiscoveryCategory(
-                                    active ? null : opt.code
-                                  )
-                                }
-                                style={({ pressed }) => [
-                                  styles.mapDiscoveryChip,
-                                  active && styles.mapDiscoveryChipSelected,
-                                  pressed && styles.mapDiscoveryChipPressed,
-                                ]}
-                                accessibilityRole="button"
-                                accessibilityState={{ selected: active }}
-                                accessibilityLabel={opt.label}
-                              >
-                                <Text
-                                  style={[
-                                    styles.mapDiscoveryChipLabel,
-                                    active &&
-                                      styles.mapDiscoveryChipLabelSelected,
-                                  ]}
-                                  numberOfLines={1}
-                                >
-                                  {opt.label}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </ScrollView>
-                      </View>
-                    ) : null}
                     {showAggregatedSalonPins && salonClusters
                       ? salonClusters.map((c) => (
                           <SalonClusterMapMarker
@@ -1165,7 +1146,10 @@ const MapLocationScreen = () => {
                             cluster={c}
                             selectedSalonId={selectedSalon?.id ?? null}
                             onSalonPress={handleSalonMarkerPress}
-                            onMultiSalonClusterPress={handleMultiSalonClusterPress}
+                            onMultiSalonClusterPress={
+                              handleMultiSalonClusterPress
+                            }
+                            renderPulseKey={markerRenderPulseKey}
                           />
                         ))
                       : salons.map((salon) => (
@@ -1174,9 +1158,83 @@ const MapLocationScreen = () => {
                             salon={salon}
                             selected={selectedSalon?.id === salon.id}
                             onSalonPress={handleSalonMarkerPress}
+                            renderPulseKey={markerRenderPulseKey}
                           />
                         ))}
                   </MapView>
+                  {discoveryChipOptions.length > 0 ? (
+                    <View
+                      style={styles.mapDiscoveryChipsWrap}
+                      pointerEvents="box-none"
+                    >
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={
+                          styles.mapDiscoveryChipsScrollContent
+                        }
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        <Pressable
+                          onPress={() => setSelectedDiscoveryCategory(null)}
+                          style={({ pressed }) => [
+                            styles.mapDiscoveryChip,
+                            selectedDiscoveryCategory === null &&
+                              styles.mapDiscoveryChipSelected,
+                            pressed && styles.mapDiscoveryChipPressed,
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityState={{
+                            selected: selectedDiscoveryCategory === null,
+                          }}
+                          accessibilityLabel="All specialties"
+                        >
+                          <Text
+                            style={[
+                              styles.mapDiscoveryChipLabel,
+                              selectedDiscoveryCategory === null &&
+                                styles.mapDiscoveryChipLabelSelected,
+                            ]}
+                          >
+                            All
+                          </Text>
+                        </Pressable>
+                        {discoveryChipOptions.map((opt) => {
+                          const active =
+                            selectedDiscoveryCategory === opt.code;
+                          return (
+                            <Pressable
+                              key={opt.code}
+                              onPress={() =>
+                                setSelectedDiscoveryCategory(
+                                  active ? null : opt.code
+                                )
+                              }
+                              style={({ pressed }) => [
+                                styles.mapDiscoveryChip,
+                                active && styles.mapDiscoveryChipSelected,
+                                pressed && styles.mapDiscoveryChipPressed,
+                              ]}
+                              accessibilityRole="button"
+                              accessibilityState={{ selected: active }}
+                              accessibilityLabel={opt.label}
+                            >
+                              <Text
+                                style={[
+                                  styles.mapDiscoveryChipLabel,
+                                  active &&
+                                    styles.mapDiscoveryChipLabelSelected,
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {opt.label}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  ) : null}
                   {selectedSalon ? (
                     <View
                       style={styles.pinDetailSheet}

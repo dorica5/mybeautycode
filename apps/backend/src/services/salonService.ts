@@ -16,9 +16,23 @@ const MAX_VIEWPORT_DEGREES = 5; // ~550km at the equator; plenty for city-level 
 /** Hard upper bound on salons per response. */
 const MAX_RESULTS = 200;
 
-function jsonbArrayContainsLiteral(normalizedDiscoveryCode: string): Prisma.Sql {
-  const lit = `'${JSON.stringify([normalizedDiscoveryCode])}'::jsonb`;
-  return Prisma.raw(lit);
+/** Discovery JSON must be a non-empty array of tags (anything else excludes the row when filtering). */
+function discoveryJsonIsNonEmptyArray(): Prisma.Sql {
+  return Prisma.sql`jsonb_typeof(pp.discovery_categories::jsonb) = 'array'
+    AND jsonb_array_length(pp.discovery_categories::jsonb) > 0`;
+}
+
+/**
+ * Predicate: trimmed lower-case discovery tag equals `needle` (already lower-case).
+ * Avoids brittle `Prisma.raw` `@>` composition across Prisma/driver versions.
+ */
+function sqlLaneHasDiscoveryTag(normalizedDiscoveryCode: string): Prisma.Sql {
+  const needle = normalizedDiscoveryCode;
+  return Prisma.sql`EXISTS (
+    SELECT 1
+    FROM jsonb_array_elements_text(pp.discovery_categories::jsonb) dc(tag_txt)
+    WHERE lower(trim(tag_txt)) = ${needle}
+  )`;
 }
 
 /** SQL fragment: lane row’s discovery JSON includes this tag (and legacy brow/lash compound when relevant). */
@@ -26,23 +40,17 @@ function discoveryCategoriesSqlFragment(
   normalizedDiscoveryCode: string | undefined
 ): Prisma.Sql {
   if (!normalizedDiscoveryCode) return Prisma.sql``;
-  /** Exclude non-array / empty JSON — `@>` can behave unexpectedly on scalars; `[]` must not match a tag. */
-  const isNonEmptyArray = Prisma.sql`jsonb_typeof(pp.discovery_categories::jsonb) = 'array'
-    AND jsonb_array_length(pp.discovery_categories::jsonb) > 0`;
-  const primary = jsonbArrayContainsLiteral(normalizedDiscoveryCode);
-  if (
-    normalizedDiscoveryCode === "lash_tinting" ||
-    normalizedDiscoveryCode === "lash_lift"
-  ) {
-    const legacy = jsonbArrayContainsLiteral("lash_lift_tint");
-    return Prisma.sql`AND ${isNonEmptyArray}
+  const usable = discoveryJsonIsNonEmptyArray();
+  const needle = normalizedDiscoveryCode;
+  if (needle === "lash_tinting" || needle === "lash_lift") {
+    return Prisma.sql`AND ${usable}
       AND (
-      pp.discovery_categories::jsonb @> ${primary}
-      OR pp.discovery_categories::jsonb @> ${legacy}
-    )`;
+        ${sqlLaneHasDiscoveryTag(needle)}
+        OR ${sqlLaneHasDiscoveryTag("lash_lift_tint")}
+      )`;
   }
-  return Prisma.sql`AND ${isNonEmptyArray}
-    AND pp.discovery_categories::jsonb @> ${primary}`;
+  return Prisma.sql`AND ${usable}
+    AND (${sqlLaneHasDiscoveryTag(needle)})`;
 }
 
 async function countActiveProsAtSalonForLane(
