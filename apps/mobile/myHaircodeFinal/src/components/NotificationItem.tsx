@@ -73,6 +73,8 @@ export const NotificationItem = ({
       case "brows":
       case "brows_lashes":
         return "brow stylist";
+      case "barber":
+        return "barber";
       default:
         return "professional";
     }

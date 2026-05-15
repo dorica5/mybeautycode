@@ -18,6 +18,7 @@ function professionChipLabel(code: string | undefined): string {
   if (code === "hair") return "Hair";
   if (code === "nails") return "Nails";
   if (code === "brows_lashes") return "Brows / lashes";
+  if (code === "barber") return "Barber";
   return code;
 }
 

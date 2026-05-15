@@ -44,13 +44,19 @@ type ProRow = {
   lastInteraction?: string;
 };
 
-type ManageFilterTab = "all" | "hair" | "nails" | "brows_lashes";
+type ManageFilterTab =
+  | "all"
+  | "hair"
+  | "nails"
+  | "brows_lashes"
+  | "barber";
 
 const MANAGE_PRO_FILTERS: { key: ManageFilterTab; label: string }[] = [
   { key: "all", label: "All" },
   { key: "hair", label: "Hair" },
   { key: "nails", label: "Nails" },
   { key: "brows_lashes", label: "Brows" },
+  { key: "barber", label: "Barber" },
 ];
 
 const ManageProfessionals = () => {

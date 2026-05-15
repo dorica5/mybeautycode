@@ -39,14 +39,25 @@ export const DISCOVERY_OPTIONS_NAILS = [
   { code: "nail_art", label: "Nail art" },
 ] as const;
 
+export const DISCOVERY_OPTIONS_BARBER = [
+  { code: "haircut", label: "Haircut" },
+  { code: "beard_trim", label: "Beard trim" },
+  { code: "beard_shaping", label: "Beard shaping" },
+  { code: "hot_towel_shave", label: "Hot towel shave" },
+  { code: "hair_design_lineup", label: "Hair design/lineup" },
+  { code: "kids_haircut", label: "Kids haircut" },
+] as const;
+
 const ALLOWED_HAIR = new Set(DISCOVERY_OPTIONS_HAIR.map((x) => x.code));
 const ALLOWED_BROWS = new Set(DISCOVERY_OPTIONS_BROWS.map((x) => x.code));
 const ALLOWED_NAILS = new Set(DISCOVERY_OPTIONS_NAILS.map((x) => x.code));
+const ALLOWED_BARBER = new Set(DISCOVERY_OPTIONS_BARBER.map((x) => x.code));
 
 const BY_PROFESSION: Record<string, Set<string>> = {
   hair: ALLOWED_HAIR as Set<string>,
   brows_lashes: ALLOWED_BROWS as Set<string>,
   nails: ALLOWED_NAILS as Set<string>,
+  barber: ALLOWED_BARBER as Set<string>,
 };
 
 export function allowedDiscoveryCodesForProfession(
@@ -69,7 +80,7 @@ export function normalizeDiscoveryCategoriesForProfession(
   if (!allowed) {
     throw Object.assign(
       new Error(
-        "discovery_categories is only supported for hair, brows_lashes, and nails professions."
+        "discovery_categories is only supported for hair, brows_lashes, nails, and barber professions."
       ),
       { statusCode: 400 }
     );

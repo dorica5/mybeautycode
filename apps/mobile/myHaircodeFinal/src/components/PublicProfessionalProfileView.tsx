@@ -26,6 +26,7 @@ import { parseColorBrands } from "@/src/lib/colorBrandStorage";
 import {
   profileHasHairProfession,
   coerceProfessionCode,
+  establishmentNoun,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
@@ -98,6 +99,8 @@ function relationshipCtaLabelsForLane(
         addTitle: "Add esthetician",
         addedTitle: "Esthetician added",
       };
+    case "barber":
+      return { addTitle: "Add barber", addedTitle: "Barber added" };
     default:
       return {
         addTitle: "Add professional",
@@ -135,6 +138,8 @@ export type PublicProfessionalProfileViewProps = {
    * booking/social taps per profession lane for pro insights.
    */
   analyticsProfessionCode?: string | null;
+  /** Viewer's linked profession codes — used to gate hair color brand (hairdressers only). */
+  viewerProfessionCodes?: string[] | null;
 };
 
 export function PublicProfessionalProfileView({
@@ -160,6 +165,7 @@ export function PublicProfessionalProfileView({
   onAddHairdresser,
   headerRight,
   analyticsProfessionCode,
+  viewerProfessionCodes,
 }: PublicProfessionalProfileViewProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -196,6 +202,11 @@ export function PublicProfessionalProfileView({
   const relationshipCta = relationshipCtaLabelsForLane(
     relationshipLaneForCta
   );
+  /** "Call salon" / "Call barbershop" depending on the lane being viewed. */
+  const callSectionTitle = `Call ${establishmentNoun(
+    relationshipLaneForCta,
+    "lower"
+  )}`;
 
   useFocusEffect(
     useCallback(() => {
@@ -212,11 +223,20 @@ export function PublicProfessionalProfileView({
   const businessName = salonName?.trim() ?? "";
   const socialUrls = parseSocialLinks(socialMediaRaw ?? "");
   const colorBrands = parseColorBrands(colorBrandRaw ?? "");
-  const hairInThisView =
+  const targetHairLane =
     activeProfessionCode != null
       ? activeProfessionCode === "hair"
       : profileHasHairProfession({ profession_codes: professionCodes });
-  const showColorBrands = hairInThisView && colorBrands.length > 0;
+  const viewerIsHairdresser = profileHasHairProfession({
+    profession_codes: viewerProfessionCodes,
+  });
+  /** Color brand is hairdresser-to-hairdresser only (Get discovered + public profile). */
+  const showColorBrands =
+    colorBrands.length > 0 &&
+    targetHairLane &&
+    (mode === "self"
+      ? activeProfessionCode === "hair"
+      : viewerIsHairdresser);
 
   const handleCall = useCallback(() => {
     const p = salonPhone?.trim();
@@ -353,7 +373,7 @@ export function PublicProfessionalProfileView({
           {salonPhone?.trim() ? (
             <View style={styles.sectionBlock}>
               <Text style={[Typography.label, styles.sectionTitle]}>
-                Call salon
+                {callSectionTitle}
               </Text>
               <Pressable
                 onPress={handleCall}

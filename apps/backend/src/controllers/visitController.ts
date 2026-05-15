@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { visitService } from "../services/visitService";
 import { serviceRecordAccessService } from "../services/serviceRecordAccessService";
 import { readProfessionCodeQuery } from "../lib/readProfessionCodeQuery";
+import { viewerMaySeeServiceRecordPrice } from "../lib/visitPriceVisibility";
 
 export const visitController = {
   async listClientGallery(req: Request, res: Response) {
@@ -84,14 +85,30 @@ export const visitController = {
       const { clientPrivateNote, ...rest } = data as Record<string, unknown> & {
         clientPrivateNote?: string | null;
         clientUserId?: string;
+        professionId?: string;
+        price?: unknown;
       };
       const isClientViewer = rest.clientUserId === req.userId;
-      const payload = isClientViewer
+      const professionCode = readProfessionCodeQuery(req.query);
+      const visitProfessionId =
+        typeof rest.professionId === "string" ? rest.professionId : "";
+      const maySeePrice =
+        !isClientViewer &&
+        visitProfessionId &&
+        (await viewerMaySeeServiceRecordPrice(
+          req.userId!,
+          visitProfessionId,
+          professionCode
+        ));
+      const payload: Record<string, unknown> = isClientViewer
         ? {
             ...rest,
             client_private_note: clientPrivateNote ?? null,
           }
         : { ...rest };
+      if (!maySeePrice) {
+        payload.price = null;
+      }
       res.json(payload);
     } catch (err: unknown) {
       const e = err as { statusCode?: number; message?: string };

@@ -71,6 +71,7 @@ const CATEGORY_TABS: { code: InspirationProfession; label: string }[] = [
   { code: "hair", label: "Hair" },
   { code: "nails", label: "Nails" },
   { code: "brows", label: "Brows" },
+  { code: "barber", label: "Barber" },
 ];
 
 /** Align with backend inspirationService.deleteByImageUrls so Prisma + storage paths match. */

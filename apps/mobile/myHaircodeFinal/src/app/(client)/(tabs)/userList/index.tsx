@@ -37,10 +37,10 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 
-type Profession = "hair" | "nails" | "brows";
+type Profession = "hair" | "nails" | "brows" | "barber";
 
 function parseProfession(p: string | undefined): Profession | undefined {
-  if (p === "hair" || p === "nails" || p === "brows") return p;
+  if (p === "hair" || p === "nails" || p === "brows" || p === "barber") return p;
   return undefined;
 }
 

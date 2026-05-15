@@ -8,6 +8,7 @@ async function main() {
     { code: "brows_lashes", sortOrder: 2 },
     { code: "nails", sortOrder: 3 },
     { code: "esthetician", sortOrder: 4 },
+    { code: "barber", sortOrder: 5 },
   ];
 
   for (const p of professions) {

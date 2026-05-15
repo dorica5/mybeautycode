@@ -33,13 +33,16 @@ export type SalonBounds = {
 /**
  * Filter tile code (from filter-before-map.tsx) → backend profession code.
  * The "brows" tile maps to the merged `brows_lashes` profession lane.
+ * Barber is its own lane (NOT mapped to hair) — keeps the discovery surface
+ * isolated from hairdressers.
  */
 export function toBackendProfessionCode(
-  tile: "hair" | "nails" | "brows" | null | undefined
+  tile: "hair" | "nails" | "brows" | "barber" | null | undefined
 ): string | null {
   if (tile === "hair") return "hair";
   if (tile === "nails") return "nails";
   if (tile === "brows") return "brows_lashes";
+  if (tile === "barber") return "barber";
   return null;
 }
 

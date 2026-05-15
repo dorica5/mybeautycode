@@ -12,6 +12,8 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type NativeSyntheticEvent,
+  type TextInputContentSizeChangeEventData,
   View,
   ViewStyle,
 } from "react-native";
@@ -28,6 +30,29 @@ type Prediction = AutocompletePrediction;
 
 /** Back-compat alias — callers imported this before the helpers moved. */
 export type PlaceDetails = ResolvedPlace;
+
+/** One line + vertical padding — matches single-line brand fields when empty. */
+const ADDRESS_INPUT_MIN = responsiveScale(52, 48);
+const ADDRESS_INPUT_MAX = responsiveScale(280);
+
+function clampAddressInputHeight(h: number): number {
+  return Math.min(
+    ADDRESS_INPUT_MAX,
+    Math.max(ADDRESS_INPUT_MIN, Math.ceil(h))
+  );
+}
+
+/** Rough height before `onContentSizeChange` (prefill / lane switch). */
+function estimateAddressInputHeight(text: string): number {
+  const trimmed = text.trim();
+  if (!trimmed) return ADDRESS_INPUT_MIN;
+  const explicitLines = trimmed.split("\n").length;
+  const wrappedLines = Math.ceil(trimmed.length / 38);
+  const lines = Math.max(explicitLines, wrappedLines);
+  const linePx = responsiveScale(26, 24);
+  const pad = responsivePadding(14) * 2;
+  return clampAddressInputHeight(lines * linePx + pad);
+}
 
 export type BrandAddressAutocompleteFieldProps = {
   label: string;
@@ -162,6 +187,21 @@ export function BrandAddressAutocompleteField({
     }
   }, [value, onPlaceSelected]);
 
+  const [inputHeight, setInputHeight] = useState(() =>
+    estimateAddressInputHeight(value)
+  );
+
+  useEffect(() => {
+    setInputHeight(estimateAddressInputHeight(value));
+  }, [value]);
+
+  const onInputContentSizeChange = (
+    e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>
+  ) => {
+    const next = clampAddressInputHeight(e.nativeEvent.contentSize.height);
+    setInputHeight((prev) => (next === prev ? prev : next));
+  };
+
   const clearBlurTimer = () => {
     if (blurTimer.current) clearTimeout(blurTimer.current);
   };
@@ -196,7 +236,7 @@ export function BrandAddressAutocompleteField({
       <Text style={[Typography.label, styles.label]} accessibilityRole="text">
         {label}
       </Text>
-      <View style={styles.fieldShell}>
+      <View style={[styles.fieldShell, { minHeight: inputHeight }]}>
         <TextInput
           value={value}
           onChangeText={emitChangeText}
@@ -207,16 +247,25 @@ export function BrandAddressAutocompleteField({
           accessibilityLabel={label}
           textAlignVertical="top"
           multiline
-          scrollEnabled
+          scrollEnabled={inputHeight >= ADDRESS_INPUT_MAX}
           returnKeyType="default"
           autoCorrect={false}
+          onContentSizeChange={onInputContentSizeChange}
           onFocus={() => {
             clearBlurTimer();
             editedSinceFocusRef.current = false;
             setFieldFocused(true);
           }}
           onBlur={scheduleBlurClear}
-          style={[styles.input, Typography.bodyMedium, { color: primaryBlack }]}
+          style={[
+            styles.input,
+            Typography.bodyMedium,
+            {
+              color: primaryBlack,
+              height: inputHeight,
+              maxHeight: ADDRESS_INPUT_MAX,
+            },
+          ]}
         />
         {loading || picking ? (
           <View style={styles.loader}>
@@ -268,15 +317,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: primaryBlack,
     backgroundColor: primaryWhite,
-    minHeight: responsiveScale(104, 92),
     justifyContent: "flex-start",
   },
   input: {
     paddingVertical: responsivePadding(14),
     paddingHorizontal: responsivePadding(18),
     paddingRight: responsivePadding(44),
-    minHeight: responsiveScale(104, 92),
-    maxHeight: responsiveScale(280),
     width: "100%",
   },
   loader: {

@@ -38,6 +38,7 @@ import {
   PROFESSION_CHOICE_CODES,
   PROFESSION_HEADLINE_ROLE,
   coerceProfessionCode,
+  establishmentNoun,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { BYPASS_PRO_PAYWALL_FOR_DEV } from "@/src/lib/subscriptionFlags";
@@ -65,6 +66,9 @@ const ProfessionalSetup = () => {
       : "hair";
 
   const headlineRole = PROFESSION_HEADLINE_ROLE[professionCode];
+  /** "Salon" / "Barbershop" — applied to every business-place label & validation message. */
+  const placeNoun = establishmentNoun(professionCode);
+  const placeNounLower = establishmentNoun(professionCode, "lower");
   const { profile, setLoadingSetup } = useAuth();
 
   const [userId, setUserId] = useState<string | null>(null);
@@ -186,7 +190,7 @@ const ProfessionalSetup = () => {
         if (!trimmed) {
           setErrorMessages((prev) => ({
             ...prev,
-            businessName: "Please enter your salon name.",
+            businessName: `Please enter your ${placeNounLower} name.`,
           }));
           return false;
         }
@@ -216,7 +220,7 @@ const ProfessionalSetup = () => {
         if (!trimmed) {
           setErrorMessages((prev) => ({
             ...prev,
-            businessAddress: "Please enter your salon address.",
+            businessAddress: `Please enter your ${placeNounLower} address.`,
           }));
           return false;
         }
@@ -370,7 +374,7 @@ const ProfessionalSetup = () => {
 
           <View style={[styles.form, { maxWidth: formMaxW }]}>
             <BrandOutlineField
-              label="Salon name"
+              label={`${placeNoun} name`}
               value={fields.businessName}
               onChangeText={(value) => handleFieldChange("businessName", value)}
               autoCapitalize="words"
@@ -387,8 +391,8 @@ const ProfessionalSetup = () => {
             <BrandOutlineField
               label={
                 profileCountry
-                  ? `Salon phone number (${getCountryCode(profileCountry)})`
-                  : "Salon phone number"
+                  ? `${placeNoun} phone number (${getCountryCode(profileCountry)})`
+                  : `${placeNoun} phone number`
               }
               value={fields.businessPhone}
               onChangeText={(value) =>
@@ -411,7 +415,7 @@ const ProfessionalSetup = () => {
             {showFieldError(errorMessages.phone_number)}
 
             <BrandAddressAutocompleteField
-              label="Salon address"
+              label={`${placeNoun} address`}
               value={fields.businessAddress}
               onChangeText={(value) =>
                 handleFieldChange("businessAddress", value)
@@ -424,24 +428,13 @@ const ProfessionalSetup = () => {
             />
             {showFieldError(errorMessages.businessAddress)}
 
-            <BrandOutlineField
-              label="Social media (optional)"
-              value={fields.socialMedia}
-              onChangeText={(value) => handleFieldChange("socialMedia", value)}
-              autoCapitalize="none"
-              autoCorrect={false}
-              containerStyle={styles.formFieldSpacing}
-            />
-
-            <BrandOutlineField
-              label="Booking site (optional)"
-              value={fields.bookingSite}
-              onChangeText={(value) => handleFieldChange("bookingSite", value)}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              containerStyle={styles.formFieldSpacing}
-            />
+            {/**
+             * Social media + booking site are intentionally NOT collected during
+             * onboarding (kept short). They are edited later from the pro profile
+             * screens (`SocialMedia.tsx` / `BookingSite.tsx`). The save body still
+             * sends `social_media: null` / `booking_site: null` here, so the row
+             * is unchanged for users editing an existing setup.
+             */}
 
             <BrandOutlineField
               label="About me"

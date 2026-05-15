@@ -19,9 +19,14 @@ import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import { validateSalonBusinessName } from "@/src/lib/profileFieldValidation";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { establishmentNoun } from "@/src/constants/professionCodes";
 
 const SalonName = () => {
   const { profile, setProfile } = useAuth();
+  const { activeProfessionCode } = useActiveProfessionState(profile);
+  const placeNoun = establishmentNoun(activeProfessionCode);
+  const fieldLabel = `${placeNoun} name`;
   const originalName =
     profile.business_name ?? profile.salon_name ?? "";
   const id = profile.id;
@@ -108,7 +113,7 @@ const SalonName = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Salon name"
+        title={fieldLabel}
         showSaveButton
         saveChanged={changed}
         saveAction={updateUserProfile}
@@ -127,8 +132,8 @@ const SalonName = () => {
           showsVerticalScrollIndicator={false}
         >
           <BrandOutlineField
-            accessibilityLabel="Salon name"
-            placeholder="Salon name"
+            accessibilityLabel={fieldLabel}
+            placeholder={fieldLabel}
             value={businessName}
             onChangeText={handleBusinessNameChange}
             autoCapitalize="words"
