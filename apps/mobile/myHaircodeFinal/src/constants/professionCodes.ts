@@ -3,6 +3,7 @@ export const PROFESSION_CHOICE_CODES = [
   "brows_lashes",
   "nails",
   "esthetician",
+  "barber",
 ] as const;
 
 export type ProfessionChoiceCode = (typeof PROFESSION_CHOICE_CODES)[number];
@@ -13,6 +14,7 @@ export const PROFESSION_HEADLINE_ROLE: Record<ProfessionChoiceCode, string> = {
   brows_lashes: "Brow stylist",
   nails: "Nail technician",
   esthetician: "Esthetician",
+  barber: "Barber",
 };
 
 /** @deprecated Visit services are defined in `profDiscoveryCategories` (`visitServiceLayoutForProfession`). Kept for reference only. */
@@ -42,6 +44,7 @@ export const CHOOSE_PROFESSION_OPTIONS: {
   { code: "hair", label: "I'm a hairdresser" },
   { code: "brows_lashes", label: "I'm a brow stylist" },
   { code: "nails", label: "I'm a nail technician" },
+  { code: "barber", label: "I'm a barber" },
 ];
 
 /** Subtitle under “My visits” — matches linked `professional_professions` / `profession_codes`. */
@@ -50,7 +53,24 @@ export const PROFESSION_ACCOUNT_LABEL: Record<ProfessionChoiceCode, string> = {
   brows_lashes: "Brow stylist account",
   nails: "Nail technician account",
   esthetician: "Esthetician account",
+  barber: "Barber account",
 };
+
+/**
+ * What a professional's place of business is called in UI copy.
+ *
+ * Barbers call it a "barbershop", not a "salon" — and many actively dislike the
+ * latter. Every other lane keeps "Salon". DB columns (`business_name`,
+ * `salon_name`, `business_address`, …) are unchanged; this only affects what
+ * users read in onboarding, profile settings, and the public profile.
+ */
+export function establishmentNoun(
+  code: ProfessionChoiceCode | null | undefined,
+  variant: "title" | "lower" = "title"
+): string {
+  const title = code === "barber" ? "Barbershop" : "Salon";
+  return variant === "lower" ? title.toLowerCase() : title;
+}
 
 function isProfessionCode(c: string): c is ProfessionChoiceCode {
   return (PROFESSION_CHOICE_CODES as readonly string[]).includes(c);
@@ -122,7 +142,7 @@ export function pickActiveProfessionCode(
 
 /** Subtitle for professional home from `profession_codes` / last-visited code. */
 /** My Inspiration filter chips — maps to `professions.code` for `/api/inspirations`. */
-export type InspirationFilterTab = "hair" | "nails" | "brows";
+export type InspirationFilterTab = "hair" | "nails" | "brows" | "barber";
 
 export function inspirationFilterTabToProfessionCode(
   tab: InspirationFilterTab
@@ -134,12 +154,18 @@ export function inspirationFilterTabToProfessionCode(
 /** Consumer “My inspiration” bucket (distinct from pro hair/nails/brows for the same profile id). */
 export const CLIENT_INSPIRATION_PROFESSION_CODE = "client";
 
-/** Map active professional role to My Inspiration filter tabs. */
+/**
+ * Map active professional role to My Inspiration filter tabs.
+ *
+ * Barber maps to its own tab (NOT hair) so a barber-only account never sees a
+ * hairdresser's inspirations — `/api/inspirations` is scoped by `profession_id`.
+ */
 export function professionChoiceCodeToInspirationTab(
   code: ProfessionChoiceCode | null
 ): InspirationFilterTab {
   if (code === "nails") return "nails";
   if (code === "brows_lashes") return "brows";
+  if (code === "barber") return "barber";
   return "hair";
 }
 
@@ -158,6 +184,22 @@ export function profileHasProfessionalCapability(
     Boolean(profile.professional_profile_id) ||
     (profile.profession_codes?.length ?? 0) > 0
   );
+}
+
+/**
+ * Visit price is visible only when the viewer is a professional on the same
+ * profession lane as the visit (not clients, not another lane on the same login).
+ */
+export function canViewerSeeVisitPriceForLane(args: {
+  visitProfessionCode: ProfessionChoiceCode | null;
+  viewerActiveProfessionCode: ProfessionChoiceCode | null;
+  viewerIsProfessional: boolean;
+}): boolean {
+  if (!args.viewerIsProfessional) return false;
+  if (!args.visitProfessionCode || !args.viewerActiveProfessionCode) {
+    return false;
+  }
+  return args.visitProfessionCode === args.viewerActiveProfessionCode;
 }
 
 /** Hair-only profile fields (e.g. color brand on `professional_hair_profiles`). */
@@ -200,6 +242,8 @@ export function clientAddedProfessionalMessage(
       return `${name} has added you as their hairdresser.`;
     case "esthetician":
       return `${name} has added you as their esthetician.`;
+    case "barber":
+      return `${name} has added you as their barber.`;
     default:
       return `${name} has added you as their professional.`;
   }

@@ -1,164 +1,151 @@
+import Image from "next/image";
 import Link from "next/link";
+import { SectionBand } from "@/components/site/SectionBand";
+import { SectionShell } from "@/components/site/SectionShell";
+import { StepCircle } from "@/components/site/StepCircle";
+import type { StepIllustrationId } from "@/components/site/StepIllustration";
 import { BRAND_NAME } from "@/lib/brand";
+
+const CLIENT_STEPS: {
+  step: string;
+  label: string;
+  illustration: StepIllustrationId;
+}[] = [
+  { step: "1", label: "Download the app", illustration: "download" },
+  {
+    step: "2",
+    label: "Search for beauty professionals",
+    illustration: "search-map",
+  },
+  {
+    step: "3",
+    label: "Share access to your journal",
+    illustration: "share-journal",
+  },
+];
+
+const PRO_STEPS: {
+  step: string;
+  label: string;
+  illustration: StepIllustrationId;
+}[] = [
+  {
+    step: "4",
+    label: "Create a professional account",
+    illustration: "pro-account",
+  },
+  { step: "5", label: "Get discovered", illustration: "discovered" },
+  {
+    step: "6",
+    label: "See all client history",
+    illustration: "client-history",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <header className="border-b border-foreground/10 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <span className="font-display text-2xl tracking-tight lowercase">
-            {BRAND_NAME}
-          </span>
-          <nav className="flex items-center gap-6 text-sm font-medium">
-            <a
-              href="#for-deg"
-              className="hover:opacity-80 transition-opacity"
-            >
-              For deg
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-20 border-b border-foreground/10 bg-background/80 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <Link
+            href="/"
+            className="shrink-0 hover:opacity-85 transition-opacity"
+            aria-label={`${BRAND_NAME} home`}
+          >
+            <Image
+              src="/images/myne-logo.svg"
+              alt={BRAND_NAME}
+              width={92}
+              height={117}
+              className="h-11 w-auto"
+              priority
+            />
+          </Link>
+          <nav className="order-3 flex w-full flex-wrap justify-center gap-6 text-[15px] font-medium md:order-none md:w-auto md:gap-8">
+            <a href="#how-it-works" className="hover:opacity-70">
+              How it works
             </a>
-            <a
-              href="#for-proffen"
-              className="hover:opacity-80 transition-opacity"
-            >
-              For profesjonelle
+            <a href="#for-professionals" className="hover:opacity-70">
+              For professionals
+            </a>
+            <a href="#about-us" className="hover:opacity-70">
+              About us
             </a>
           </nav>
+          <Link
+            href="#payment"
+            className="inline-flex shrink-0 items-center justify-center rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-primary-white transition hover:opacity-90"
+          >
+            Download app
+          </Link>
         </div>
       </header>
 
-      <main className="flex-1">
-        <section className="mx-auto max-w-5xl px-6 pt-14 pb-20 md:pt-20 md:pb-28">
-          <div className="relative overflow-hidden rounded-3xl border-2 border-card-border bg-muted/70 px-8 py-16 md:px-16 md:py-22 shadow-[8px_8px_0_0_rgb(33,36,39)] md:shadow-[12px_12px_0_0_rgb(33,36,39)]">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-card/90 blur-2xl"
-            />
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -bottom-24 -left-16 h-72 w-72 rounded-full bg-background/90 blur-2xl"
-            />
-            <div className="relative max-w-2xl">
-              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-foreground/80">
-                Appen
-              </p>
-              <h1 className="font-display text-4xl leading-tight md:text-5xl lg:text-6xl lowercase">
-                Hår og velvære — samlet{" "}
-                <span className="whitespace-nowrap">på ett sted.</span>
-              </h1>
-              <p className="mt-6 text-lg leading-relaxed text-foreground/90 md:text-xl">
-                Finn fagfolk, loggfør besøk med bilder og notater, og hold
-                oversikt over din historie. Bygget for både deg som kunde og deg
-                som jobber i bransjen.
-              </p>
-              <div className="mt-10 flex flex-wrap gap-4">
-                <Link
-                  href="#last-ned"
-                  className="inline-flex items-center justify-center rounded-full border-2 border-card-border bg-foreground px-8 py-3.5 text-sm font-semibold text-card transition hover:opacity-90"
-                >
-                  Last ned appen
-                </Link>
-                <a
-                  href="#for-proffen"
-                  className="inline-flex items-center justify-center rounded-full border-2 border-card-border bg-card px-8 py-3.5 text-sm font-semibold text-foreground transition hover:bg-background"
-                >
-                  For profesjonelle
-                </a>
-              </div>
-            </div>
-          </div>
-        </section>
+      <SectionShell tone="primary">
+        <div className="min-h-[min(28vh,220px)]" aria-hidden />
+      </SectionShell>
 
-        <section
-          id="for-deg"
-          className="border-t border-foreground/10 bg-background py-20"
-        >
-          <div className="mx-auto max-w-5xl px-6">
-            <h2 className="font-display text-3xl lowercase md:text-4xl">
-              For deg
-            </h2>
-            <p className="mt-3 max-w-2xl text-foreground/85">
-              En rolig, oversiktlig opplevelse — samme myke grøntone som i appen
-              du kjenner.
-            </p>
-            <ul className="mt-12 grid gap-6 md:grid-cols-3">
-              {[
-                {
-                  title: "Oppdag og koble deg til",
-                  body: "Finn stylister og andre profesjonelle som matcher det du trenger.",
-                },
-                {
-                  title: "Besøk du faktisk husker",
-                  body: "Se tjenester, bilder og din egen private notat — bare for deg.",
-                },
-                {
-                  title: "Alt på ett sted",
-                  body: "Historikk og inspirasjon uten rot. Fokus på deg og håret ditt.",
-                },
-              ].map((item) => (
-                <li
-                  key={item.title}
-                  className="rounded-2xl border-2 border-card-border bg-card p-6 shadow-[4px_4px_0_0_rgb(33,36,39)]"
-                >
-                  <h3 className="font-display text-xl lowercase">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground/85">
-                    {item.body}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
+      <main>
+        <SectionBand id="how-it-works" tone="secondary" title="How it works">
+          <ul className="mx-auto grid max-w-4xl gap-14 sm:grid-cols-3 sm:gap-8">
+            {CLIENT_STEPS.map((item) => (
+              <StepCircle
+                key={item.step}
+                step={item.step}
+                label={item.label}
+                illustration={item.illustration}
+              />
+            ))}
+          </ul>
+        </SectionBand>
 
-        <section
-          id="for-proffen"
-          className="border-t border-foreground/10 bg-muted/40 py-20"
+        <SectionBand
+          id="for-professionals"
+          tone="primary"
+          title="For professionals"
         >
-          <div className="mx-auto max-w-5xl px-6">
-            <h2 className="font-display text-3xl lowercase md:text-4xl">
-              For profesjonelle
-            </h2>
-            <p className="mt-3 max-w-2xl text-foreground/85">
-              Dokumenter kundebesøk, vis frem arbeidet ditt og bygg relasjoner —
-              med et grensesnitt som føles trygt og profesjonelt.
-            </p>
-            <div className="mt-10 max-w-2xl rounded-2xl border-2 border-dashed border-foreground/25 bg-card/60 p-8">
-              <p className="text-sm font-medium text-foreground/80">
-                Kommer snart på nett: administrasjon og booking. Inntil videre
-                finner du alt i {BRAND_NAME}-appen.
-              </p>
-            </div>
-          </div>
-        </section>
+          <ul className="mx-auto grid max-w-4xl gap-14 sm:grid-cols-3 sm:gap-8">
+            {PRO_STEPS.map((item) => (
+              <StepCircle
+                key={item.step}
+                step={item.step}
+                label={item.label}
+                illustration={item.illustration}
+              />
+            ))}
+          </ul>
+        </SectionBand>
 
-        <section
-          id="last-ned"
-          className="border-t border-foreground/10 py-20"
-        >
-          <div className="mx-auto max-w-5xl px-6 text-center">
-            <h2 className="font-display text-3xl lowercase md:text-4xl">
-              Last ned {BRAND_NAME}
-            </h2>
-            <p className="mx-auto mt-4 max-w-lg text-foreground/85">
-              Legg inn lenker til App Store og Google Play når de er klare.
-            </p>
-            <div className="mt-10 flex flex-wrap justify-center gap-4">
-              <span className="inline-flex rounded-full border-2 border-card-border bg-card px-8 py-3.5 text-sm font-semibold text-foreground/50">
-                App Store (snart)
-              </span>
-              <span className="inline-flex rounded-full border-2 border-card-border bg-card px-8 py-3.5 text-sm font-semibold text-foreground/50">
-                Google Play (snart)
-              </span>
-            </div>
+        <SectionBand id="about-us" tone="secondary" title="About us">
+          <p className="mx-auto max-w-xl text-center text-base leading-relaxed text-foreground/85 md:text-lg">
+            {BRAND_NAME} er bygget for individuelle fagfolk og deres kunder i
+            Norge — ikke store kjeder. Din journal og historikk følger deg.
+          </p>
+        </SectionBand>
+
+        <SectionBand id="payment" tone="secondary" title="Payment">
+          <p className="mx-auto max-w-lg text-center text-base text-foreground/70 md:text-lg">
+            Simple plans for professionals. Always free for clients. Details
+            coming soon.
+          </p>
+          <div className="mt-10 flex flex-wrap justify-center gap-3">
+            <span className="rounded-full bg-white/80 px-6 py-3 text-sm font-medium">
+              App Store (snart)
+            </span>
+            <span className="rounded-full bg-white/80 px-6 py-3 text-sm font-medium">
+              Google Play (snart)
+            </span>
           </div>
-        </section>
+        </SectionBand>
       </main>
 
-      <footer className="border-t border-foreground/10 py-10">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 text-sm text-foreground/70 md:flex-row">
-          <span className="font-display lowercase">{BRAND_NAME}</span>
-          <p>© {new Date().getFullYear()} {BRAND_NAME}. Alle rettigheter forbeholdt.</p>
-        </div>
-      </footer>
+      <SectionShell tone="primary">
+        <footer className="px-6 py-8 text-center text-sm text-foreground/65 md:px-10">
+          <p>
+            © {new Date().getFullYear()} {BRAND_NAME}
+          </p>
+        </footer>
+      </SectionShell>
     </div>
   );
 }

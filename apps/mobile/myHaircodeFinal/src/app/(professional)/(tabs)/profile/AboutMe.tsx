@@ -938,11 +938,11 @@ const AboutMe = () => {
                   disabled={colorBrands.length >= MAX_COLOR_BRANDS}
                   style={[
                     styles.addPill,
-                    styles.addPillColorBrand,
                     colorBrands.length >= MAX_COLOR_BRANDS &&
                       styles.addPillDisabled,
                   ]}
                 >
+                  <PlusStroke24 />
                   <Text style={[Typography.label, styles.addPillLabel]}>
                     {colorBrands.length >= MAX_COLOR_BRANDS
                       ? "Maximum 6 brands"
@@ -1383,11 +1383,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: primaryBlack,
     marginBottom: responsiveMargin(18),
-  },
-  /** Color-brand add control is text-only (no leading plus icon). */
-  addPillColorBrand: {
-    gap: 0,
-    paddingHorizontal: responsivePadding(22),
   },
   addPillLabel: { color: primaryBlack },
   addPillDisabled: {

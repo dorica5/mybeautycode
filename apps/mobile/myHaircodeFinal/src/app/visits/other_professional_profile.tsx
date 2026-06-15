@@ -454,6 +454,7 @@ const OtherProfessionalProfileScreen = () => {
           Array.isArray(data.profession_codes) ? data.profession_codes : null
         }
         activeProfessionCode={professionCodeFromVisit}
+        viewerProfessionCodes={profile?.profession_codes}
         onBack={() => router.back()}
         showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}

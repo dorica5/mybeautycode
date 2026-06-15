@@ -8,6 +8,7 @@ const ALLOWED_PROFESSION = new Set([
   "brows_lashes",
   "nails",
   "esthetician",
+  "barber",
 ]);
 
 function normalizeProfession(code: string): string {

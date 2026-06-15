@@ -27,12 +27,13 @@ import {
   isTablet,
 } from "@/src/utils/responsive";
 
-type Profession = "hair" | "nails" | "brows";
+type Profession = "hair" | "nails" | "brows" | "barber";
 
 const OPTIONS: { key: Profession; label: string }[] = [
-  { key: "hair", label: "Hair" },
-  { key: "nails", label: "Nails" },
-  { key: "brows", label: "Brows" },
+  { key: "hair", label: "Hairdresser" },
+  { key: "barber", label: "Barber" },
+  { key: "nails", label: "Nail technician" },
+  { key: "brows", label: "Brow stylist" },
 ];
 
 /** Delay between the tile turning black (selected) and pushing the next screen. */

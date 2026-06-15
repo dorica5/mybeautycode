@@ -95,7 +95,10 @@ export const visitService = {
         hairdresser_name: pp?.displayName ?? (p ? profileDisplayName(p) : null),
         service_description: r.summary,
         services: (r.recordData as { services?: string })?.services ?? null,
-        price: r.price?.toString() ?? null,
+        price:
+          viewerProfileId === clientUserId
+            ? null
+            : r.price?.toString() ?? null,
         duration: r.durationMinutes?.toString() ?? null,
         preview_media_url: thumb?.mediaUrl ?? null,
         preview_media_type: thumb?.mediaType ?? null,

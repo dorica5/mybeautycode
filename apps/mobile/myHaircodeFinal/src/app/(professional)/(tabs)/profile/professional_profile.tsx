@@ -57,6 +57,7 @@ const ProfessionalProfile = () => {
         colorBrandRaw={profile.color_brand}
         professionCodes={profile.profession_codes}
         activeProfessionCode={activeProfessionCode}
+        viewerProfessionCodes={profile.profession_codes}
         onBack={() => router.back()}
       />
     </>

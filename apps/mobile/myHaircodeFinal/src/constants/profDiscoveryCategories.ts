@@ -43,13 +43,27 @@ export const DISCOVERY_OPTIONS_NAILS: readonly DiscoveryCategoryOption[] = [
   { code: "nail_art", label: "Nail art" },
 ];
 
+/**
+ * Barber lane — separate from hair (no shared specialties, no shared visit
+ * services, lane-isolated on the backend via `profession_id`).
+ */
+export const DISCOVERY_OPTIONS_BARBER: readonly DiscoveryCategoryOption[] = [
+  { code: "haircut", label: "Haircut" },
+  { code: "beard_trim", label: "Beard trim" },
+  { code: "beard_shaping", label: "Beard shaping" },
+  { code: "hot_towel_shave", label: "Hot towel shave" },
+  { code: "hair_design_lineup", label: "Hair design/lineup" },
+  { code: "kids_haircut", label: "Kids haircut" },
+];
+
 /** Section title shown above category chips on Get discovered. */
 export const DISCOVERY_SECTION_TITLE: Partial<
   Record<ProfessionChoiceCode, string>
 > = {
-  hair: "Hair",
-  brows_lashes: "Brows",
-  nails: "Nails",
+  hair: "Hairdresser",
+  brows_lashes: "Brow stylist",
+  nails: "Nail technician",
+  barber: "Barber",
 };
 
 const LEGACY_LASH_LIFT_TINT = "lash_lift_tint";
@@ -92,6 +106,8 @@ export function discoveryOptionsForProfession(
       return DISCOVERY_OPTIONS_BROWS;
     case "nails":
       return DISCOVERY_OPTIONS_NAILS;
+    case "barber":
+      return DISCOVERY_OPTIONS_BARBER;
     default:
       return [];
   }
@@ -120,6 +136,11 @@ export function visitServiceLayoutForProfession(
       return {
         primary: DISCOVERY_OPTIONS_NAILS,
         dropdown: [],
+      };
+    case "barber":
+      return {
+        primary: DISCOVERY_OPTIONS_BARBER.slice(0, VISIT_HAIR_PRIMARY_COUNT),
+        dropdown: DISCOVERY_OPTIONS_BARBER.slice(VISIT_HAIR_PRIMARY_COUNT),
       };
     default:
       return { primary: [], dropdown: [] };

@@ -140,6 +140,8 @@ function mapScreenTitle(profession?: string): string {
       return "Discover nail technicians";
     case "brows":
       return "Discover brow stylists";
+    case "barber":
+      return "Discover barbers";
     default:
       return "Discover salons";
   }
@@ -153,10 +155,17 @@ function normalizeProfessionParam(
   return undefined;
 }
 
-type MapProfession = "hair" | "nails" | "brows";
+type MapProfession = "hair" | "nails" | "brows" | "barber";
 
 function parseValidProfession(raw?: string): MapProfession | undefined {
-  if (raw === "hair" || raw === "nails" || raw === "brows") return raw;
+  if (
+    raw === "hair" ||
+    raw === "nails" ||
+    raw === "brows" ||
+    raw === "barber"
+  ) {
+    return raw;
+  }
   return undefined;
 }
 
@@ -168,6 +177,8 @@ function mapProfessionKeyToChoiceCode(key: MapProfession): ProfessionChoiceCode 
       return "nails";
     case "brows":
       return "brows_lashes";
+    case "barber":
+      return "barber";
   }
 }
 
@@ -180,6 +191,8 @@ function professionPlural(profession: MapProfession, count: number): string {
       return plural ? "nail technicians" : "nail technician";
     case "brows":
       return plural ? "brow stylists" : "brow stylist";
+    case "barber":
+      return plural ? "barbers" : "barber";
   }
 }
 

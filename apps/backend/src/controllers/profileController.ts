@@ -27,9 +27,13 @@ export const profileController = {
       ) {
         professionCodesSqlFallback = await fetchProfessionCodesForProfile(id);
       }
+      const exposeColorBrandToViewer = req.userId
+        ? await profileService.hasHairProfession(req.userId)
+        : false;
       res.json(
         serializeProfileForApi(profile, {
           professionCodesSqlFallback,
+          exposeColorBrandToViewer,
         })
       );
     } catch (err) {

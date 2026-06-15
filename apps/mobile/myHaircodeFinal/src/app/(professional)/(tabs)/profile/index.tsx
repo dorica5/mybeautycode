@@ -49,12 +49,15 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { usePostHog } from "posthog-react-native";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { establishmentNoun } from "@/src/constants/professionCodes";
 
 const ProfileScreen = () => {
   const { profile, loading, signOut } = useAuth();
   const { avatarImage } = useImageContext();
   const posthog = usePostHog();
   const { activeProfessionCode } = useActiveProfessionState(profile);
+  /** "Salon" / "Barbershop" for the menu rows that edit per-lane business fields. */
+  const placeNoun = establishmentNoun(activeProfessionCode);
 
   if (loading) {
     return <ActivityIndicator />;
@@ -154,7 +157,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Salon phone number"
+                title={`${placeNoun} phone number`}
                 Icon={Phone}
                 tileStyle="light"
                 onPress={() =>
@@ -162,7 +165,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Salon name"
+                title={`${placeNoun} name`}
                 Icon={HouseLine}
                 tileStyle="light"
                 onPress={() =>
@@ -170,7 +173,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Salon address"
+                title={`${placeNoun} address`}
                 Icon={MapPin}
                 tileStyle="light"
                 onPress={() =>

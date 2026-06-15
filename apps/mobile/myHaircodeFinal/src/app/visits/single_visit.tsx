@@ -43,8 +43,11 @@ import { signVisitMedia } from "@/src/lib/storageSignedUrl";
 import { formatDurationFromMinutes } from "@/src/utils/formatDurationFromFakeDate";
 import {
   professionCodeForVisitRecord,
+  canViewerSeeVisitPriceForLane,
+  profileHasProfessionalCapability,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { IMAGE_CROP_VIEWPORT_HEIGHT_RATIO } from "@/src/components/ImageCropModal";
 import { ModerationSheetHeading } from "@/src/components/moderation/ModerationSheetParts";
 
@@ -168,6 +171,7 @@ const SingleVisit = () => {
   const record = haircodeWithMedia as ApiRecord | undefined;
 
   const { profile } = useAuth();
+  const { activeProfessionCode } = useActiveProfessionState(profile);
   const { mutate: deleteHaircode } = useDeleteHaircodeHairdresser();
 
   const screenHeight = Dimensions.get("window").height;
@@ -441,7 +445,11 @@ const SingleVisit = () => {
     );
   }
 
-  const showPriceRow = Boolean(profile?.id && createdByUserId === profile.id);
+  const showPriceRow = canViewerSeeVisitPriceForLane({
+    visitProfessionCode: professionCode,
+    viewerActiveProfessionCode: activeProfessionCode,
+    viewerIsProfessional: profileHasProfessionalCapability(profile ?? null),
+  });
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>

@@ -19,9 +19,13 @@ import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import { parseProfilePhone } from "@/src/lib/profileFieldValidation";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { establishmentNoun } from "@/src/constants/professionCodes";
 
 const PhoneNumber = () => {
   const { profile, setProfile } = useAuth();
+  const { activeProfessionCode } = useActiveProfessionState(profile);
+  const fieldLabel = `${establishmentNoun(activeProfessionCode)} phone number`;
   const originalPhoneNumber =
     profile.business_number ?? profile.salon_phone_number ?? null;
   const userId = profile.id;
@@ -117,7 +121,7 @@ const PhoneNumber = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Salon phone number"
+        title={fieldLabel}
         showSaveButton
         saveChanged={changed}
         saveAction={updateUserProfile}
@@ -136,7 +140,7 @@ const PhoneNumber = () => {
           showsVerticalScrollIndicator={false}
         >
           <BrandOutlineField
-            accessibilityLabel="Salon phone number"
+            accessibilityLabel={fieldLabel}
             placeholder={
               countryHint
                 ? "e.g. +47… or national number"

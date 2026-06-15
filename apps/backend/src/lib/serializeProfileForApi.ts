@@ -38,6 +38,11 @@ export function needsProfessionCodesSqlFallback(
 export type SerializeProfileOptions = {
   /** Filled when nested Prisma include returns no join rows but DB has links. */
   professionCodesSqlFallback?: string[];
+  /**
+   * Hair color brand is hairdresser-to-hairdresser only. When false, `color_brand`
+   * is omitted from the payload even if the target has a hair profession.
+   */
+  exposeColorBrandToViewer?: boolean;
 };
 
 function toIsoString(value: Date | null | undefined): string | null {
@@ -102,11 +107,13 @@ export function serializeProfileForApi(
   const defaultRow = pickDefaultProfessionRow(rows);
   const professions_detail = professionsDetailSnakeCase(rows);
 
-  /** Public “salon color lines” — shown on pro public profile to any viewer when target lists `hair`. */
+  /** Public “salon color lines” — hairdresser viewers only when target lists `hair`. */
   const targetHasHairProfession = profession_codes.includes("hair");
-  const color_brand = targetHasHairProfession
-    ? (prof.professionalHairProfile?.colorBrand ?? null)
-    : null;
+  const exposeColorBrand = options?.exposeColorBrandToViewer !== false;
+  const color_brand =
+    targetHasHairProfession && exposeColorBrand
+      ? (prof.professionalHairProfile?.colorBrand ?? null)
+      : null;
 
   return {
     ...base,

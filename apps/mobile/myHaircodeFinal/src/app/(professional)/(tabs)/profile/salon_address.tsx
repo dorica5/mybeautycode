@@ -23,7 +23,10 @@ import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import type { ProfessionDetailApi } from "@/src/constants/types";
-import { coerceProfessionCode } from "@/src/constants/professionCodes";
+import {
+  coerceProfessionCode,
+  establishmentNoun,
+} from "@/src/constants/professionCodes";
 import { geocodeAddress, getGooglePlacesKey } from "@/src/lib/googlePlaces";
 
 const SalonAddress = () => {
@@ -52,6 +55,9 @@ const SalonAddress = () => {
   const originalAddress = detailForActive?.business_address ?? "";
   const id = profile?.id;
   const profileCountry = profile?.country?.trim() ?? "";
+  const placeNoun = establishmentNoun(activeProfessionCode);
+  const placeNounLower = establishmentNoun(activeProfessionCode, "lower");
+  const fieldLabel = `${placeNoun} address`;
 
   const [address, setAddress] = useState(originalAddress);
   const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
@@ -84,15 +90,18 @@ const SalonAddress = () => {
 
   const changed = hasEdited && address !== originalAddress;
 
-  const validate = useCallback((raw: string) => {
-    const trimmed = raw.trim();
-    if (!trimmed) {
-      setErrorMessage("Please enter your salon address.");
-      return false;
-    }
-    setErrorMessage("");
-    return true;
-  }, []);
+  const validate = useCallback(
+    (raw: string) => {
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        setErrorMessage(`Please enter your ${placeNounLower} address.`);
+        return false;
+      }
+      setErrorMessage("");
+      return true;
+    },
+    [placeNounLower]
+  );
 
   const handleAddressChange = (value: string) => {
     setAddress(value);
@@ -236,7 +245,7 @@ const SalonAddress = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Salon address"
+        title={fieldLabel}
         showSaveButton
         saveChanged={changed}
         saveAction={updateUserProfile}
@@ -255,7 +264,7 @@ const SalonAddress = () => {
           showsVerticalScrollIndicator={false}
         >
           <BrandAddressAutocompleteField
-            label="Salon address"
+            label={fieldLabel}
             value={address}
             onChangeText={handleAddressChange}
             onPlaceSelected={setPlaceDetails}

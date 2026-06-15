@@ -15,9 +15,10 @@ import { AvatarWithSpinner } from "./avatarSpinner";
 
 function professionChipLabel(code: string | undefined): string {
   if (!code) return "";
-  if (code === "hair") return "Hair";
-  if (code === "nails") return "Nails";
-  if (code === "brows_lashes") return "Brows / lashes";
+  if (code === "hair") return "Hairdresser";
+  if (code === "nails") return "Nail technician";
+  if (code === "brows_lashes") return "Brow stylist";
+  if (code === "barber") return "Barber";
   return code;
 }
 

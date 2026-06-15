@@ -68,9 +68,10 @@ const NUM_COLUMNS = 2;
 type InspirationProfession = InspirationFilterTab;
 
 const CATEGORY_TABS: { code: InspirationProfession; label: string }[] = [
-  { code: "hair", label: "Hair" },
-  { code: "nails", label: "Nails" },
-  { code: "brows", label: "Brows" },
+  { code: "hair", label: "Hairdresser" },
+  { code: "nails", label: "Nail technician" },
+  { code: "brows", label: "Brow stylist" },
+  { code: "barber", label: "Barber" },
 ];
 
 /** Align with backend inspirationService.deleteByImageUrls so Prisma + storage paths match. */
@@ -191,7 +192,7 @@ const MyInspiration = () => {
   const { profile, lastAppSurfacePref } = useAuth();
   const owner_id = profile?.id;
 
-  /** Hair / Nails / Brows on both client and pro — data is per owner + profession (`/api/inspirations`). */
+  /** Hairdresser / Nail technician / Brow stylist tabs — data is per owner + profession (`/api/inspirations`). */
   const visibleFilterTabs = CATEGORY_TABS;
 
   /** Invalidate inspiration cache only when switching client ↔ pro (not when switching pro lane). */
