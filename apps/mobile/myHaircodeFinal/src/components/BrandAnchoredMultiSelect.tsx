@@ -34,17 +34,29 @@ function listRowHeight(): number {
   return responsiveScale(48) + StyleSheet.hairlineWidth;
 }
 
+export type BrandAnchoredSelectItem = { value: string; label: string };
+
 export type BrandAnchoredMultiSelectProps = {
-  /** Section label above the trigger (e.g. “Other”). */
+  /** Section label above the trigger (e.g. “Other”). Hidden when `hideLabel` is true. */
   label: string;
-  /** Options shown in the anchored panel (labels = values). */
-  options: readonly string[];
-  /** Selected option labels. */
+  /** Option labels (label = stored value). Prefer `items` when values differ from labels. */
+  options?: readonly string[];
+  items?: readonly BrandAnchoredSelectItem[];
+  /** Selected values (option strings or `items[].value`). */
   value: readonly string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
+  hideLabel?: boolean;
   containerStyle?: ViewStyle;
 };
+
+function resolveSelectRows(
+  options: readonly string[] | undefined,
+  items: readonly BrandAnchoredSelectItem[] | undefined
+): BrandAnchoredSelectItem[] {
+  if (items?.length) return [...items];
+  return (options ?? []).map((label) => ({ value: label, label }));
+}
 
 /**
  * Multi-select anchored under a pill trigger — same interaction model as
@@ -53,11 +65,25 @@ export type BrandAnchoredMultiSelectProps = {
 export function BrandAnchoredMultiSelect({
   label,
   options,
+  items,
   value,
   onChange,
   placeholder = "Tap to add",
+  hideLabel = false,
   containerStyle,
 }: BrandAnchoredMultiSelectProps) {
+  const rows = useMemo(
+    () => resolveSelectRows(options, items),
+    [options, items]
+  );
+  const labelByValue = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of rows) {
+      map.set(row.value, row.label);
+    }
+    return map;
+  }, [rows]);
+
   const insets = useSafeAreaInsets();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const triggerRef = useRef<View>(null);
@@ -82,14 +108,15 @@ export function BrandAnchoredMultiSelect({
     if (value.length === 0) {
       return null;
     }
-    if (value.length === 1) {
-      return value[0];
+    const labels = value.map((v) => labelByValue.get(v) ?? v);
+    if (labels.length === 1) {
+      return labels[0];
     }
-    if (value.length === 2) {
-      return `${value[0]}, ${value[1]}`;
+    if (labels.length === 2) {
+      return `${labels[0]}, ${labels[1]}`;
     }
-    return `${value.length} services selected`;
-  }, [value]);
+    return `${labels.length} selected`;
+  }, [value, labelByValue]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -127,7 +154,7 @@ export function BrandAnchoredMultiSelect({
     const bottomPad = Math.max(insets.bottom, responsiveMargin(12)) + sidePad;
     const topPad = insets.top + sidePad;
 
-    const listContentHeight = options.length * rowHeight;
+    const listContentHeight = rows.length * rowHeight;
     const panelHeight = Math.min(
       maxPanelHeight,
       Math.max(listContentHeight, rowHeight)
@@ -168,12 +195,12 @@ export function BrandAnchoredMultiSelect({
     windowWidth,
     insets,
     maxPanelHeight,
-    options.length,
+    rows.length,
     rowHeight,
   ]);
 
   const getItemLayout = useCallback(
-    (_data: ArrayLike<string> | null | undefined, index: number) => ({
+    (_data: ArrayLike<BrandAnchoredSelectItem> | null | undefined, index: number) => ({
       length: rowHeight,
       offset: rowHeight * index,
       index,
@@ -183,9 +210,11 @@ export function BrandAnchoredMultiSelect({
 
   return (
     <View style={[styles.wrap, containerStyle]} pointerEvents="box-none">
-      <Text style={[Typography.label, styles.fieldLabel]} accessibilityRole="text">
-        {label}
-      </Text>
+      {hideLabel ? null : (
+        <Text style={[Typography.label, styles.fieldLabel]} accessibilityRole="text">
+          {label}
+        </Text>
+      )}
       <View ref={triggerRef} collapsable={false}>
         <Pressable
           onPress={() => {
@@ -239,8 +268,8 @@ export function BrandAnchoredMultiSelect({
             >
               <View style={styles.panelCard} accessibilityViewIsModal>
                 <FlatList
-                  data={[...options]}
-                  keyExtractor={(item) => item}
+                  data={rows}
+                  keyExtractor={(item) => item.value}
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator
                   style={styles.optionList}
@@ -248,11 +277,11 @@ export function BrandAnchoredMultiSelect({
                   initialNumToRender={16}
                   extraData={value.join("\u0001")}
                   renderItem={({ item, index }) => {
-                    const selected = selectedSet.has(item);
-                    const isLast = index === options.length - 1;
+                    const selected = selectedSet.has(item.value);
+                    const isLast = index === rows.length - 1;
                     return (
                       <Pressable
-                        onPress={() => toggle(item)}
+                        onPress={() => toggle(item.value)}
                         style={[
                           styles.row,
                           isLast && styles.rowLast,
@@ -267,7 +296,7 @@ export function BrandAnchoredMultiSelect({
                           ]}
                           numberOfLines={2}
                         >
-                          {item}
+                          {item.label}
                         </Text>
                       </Pressable>
                     );

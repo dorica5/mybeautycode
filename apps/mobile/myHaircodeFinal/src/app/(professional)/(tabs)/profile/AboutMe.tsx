@@ -21,6 +21,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 import { randomUUID } from "expo-crypto";
 import { Palette, XCircle } from "phosphor-react-native";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
+import { BrandAnchoredMultiSelect } from "@/src/components/BrandAnchoredMultiSelect";
 import {
   MintProfileScreenShell,
   mintProfileScrollContent,
@@ -63,7 +64,6 @@ import {
 } from "@/src/constants/professionCodes";
 import {
   DISCOVERY_SECTION_TITLE,
-  type DiscoveryCategoryOption,
   discoveryOptionsForProfession,
   normalizeDiscoveryCategoriesFromApi,
   sanitizeDiscoveryCategoriesForProfession,
@@ -191,10 +191,6 @@ const AboutMe = () => {
   const discoveryCategoryOptions = useMemo(
     () => discoveryOptionsForProfession(professionApi ?? null),
     [professionApi]
-  );
-  const discoveryCategoryRows = useMemo(
-    () => chunkIntoRows(discoveryCategoryOptions, 2),
-    [discoveryCategoryOptions]
   );
   const showDiscoveryCategoryPicker = discoveryCategoryOptions.length > 0;
 
@@ -539,66 +535,9 @@ const AboutMe = () => {
     scrollViewRef.current?.scrollTo({ y, animated: true });
   };
 
-  /** Two-column chip rows; `omitTrailingRowGap` drops margin under the final row. */
-  const discoveryChipPairRows = (
-    rows: DiscoveryCategoryOption[][],
-    keyPrefix: string,
-    omitTrailingRowGap: boolean
-  ) =>
-    rows.map((pair, rowIndex) => (
-      <View
-        key={`${keyPrefix}-${rowIndex}`}
-        style={[
-          styles.discoveryPairRow,
-          omitTrailingRowGap &&
-            rowIndex === rows.length - 1 &&
-            styles.discoveryPairRowLast,
-        ]}
-      >
-        {pair.map((opt) => {
-          const selected = discoveryCategories.includes(opt.code);
-          return (
-            <Pressable
-              key={opt.code}
-              accessibilityRole="button"
-              accessibilityLabel={opt.label}
-              accessibilityState={{ selected }}
-              onPress={() => {
-                setDiscoveryCategories((prev) => {
-                  const next = new Set(prev);
-                  if (next.has(opt.code)) next.delete(opt.code);
-                  else next.add(opt.code);
-                  return [...next].sort();
-                });
-              }}
-              style={[
-                styles.focusChip,
-                styles.focusChipInGrid,
-                selected && styles.focusChipSelected,
-              ]}
-            >
-              <Text
-                style={[
-                  Typography.label,
-                  styles.focusChipText,
-                  selected
-                    ? styles.focusChipLabelSelected
-                    : styles.focusChipLabel,
-                ]}
-              >
-                {opt.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-        {pair.length === 1 ? (
-          <View
-            accessible={false}
-            style={styles.discoveryGridCellSpacer}
-          />
-        ) : null}
-      </View>
-    ));
+  const commitDiscoveryCategories = useCallback((next: string[]) => {
+    setDiscoveryCategories([...next].sort());
+  }, []);
 
   const commitSocialUrl = () => {
     if (!socialUrlModal) return;
@@ -724,17 +663,6 @@ const AboutMe = () => {
           <Text style={[Typography.h3, styles.heroTitle]} accessibilityRole="header">
             Get discovered
           </Text>
-          <View style={styles.heroSubWrap}>
-            <Text style={[Typography.bodyLarge, styles.heroSubLine]}>
-              Write and add anything
-            </Text>
-            <Text style={[Typography.bodyLarge, styles.heroSubLine]}>
-              you would like your client
-            </Text>
-            <Text style={[Typography.bodyLarge, styles.heroSubLine]}>
-              to know or see.
-            </Text>
-          </View>
 
           {showDiscoveryCategoryPicker && professionApi ? (
             <View
@@ -750,9 +678,18 @@ const AboutMe = () => {
               <Text style={[Typography.outfitRegular16, styles.focusHint]}>
                 Select all that apply for search and discovery.
               </Text>
-              <View style={styles.discoveryGrid}>
-                {discoveryChipPairRows(discoveryCategoryRows, "disc", true)}
-              </View>
+              <BrandAnchoredMultiSelect
+                label={DISCOVERY_SECTION_TITLE[professionApi] ?? "Categories"}
+                hideLabel
+                items={discoveryCategoryOptions.map((opt) => ({
+                  value: opt.code,
+                  label: opt.label,
+                }))}
+                value={discoveryCategories}
+                onChange={commitDiscoveryCategories}
+                placeholder="Select categories"
+                containerStyle={styles.discoveryDropdown}
+              />
             </View>
           ) : null}
 
@@ -1251,19 +1188,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     width: "100%",
     marginTop: responsiveMargin(4),
-  },
-  heroSubWrap: {
-    width: "100%",
-    paddingHorizontal: responsivePadding(8),
-    marginTop: responsiveMargin(20),
     marginBottom: responsiveMargin(22),
-    alignItems: "center",
-    gap: responsiveMargin(6),
-  },
-  heroSubLine: {
-    color: primaryBlack,
-    textAlign: "center",
-    width: "100%",
   },
   section: {
     width: "100%",
@@ -1293,49 +1218,9 @@ const styles = StyleSheet.create({
     marginBottom: responsiveMargin(12),
     alignSelf: "flex-start",
   },
-  discoveryGrid: {
-    width: "100%",
-    alignSelf: "stretch",
-  },
-  discoveryPairRow: {
-    flexDirection: "row",
-    width: "100%",
-    gap: responsiveMargin(10),
-    marginBottom: responsiveMargin(10),
-  },
-  discoveryPairRowLast: {
+  discoveryDropdown: {
     marginBottom: 0,
   },
-  /** Empty cell so a single chip on the last row does not stretch full width. */
-  discoveryGridCellSpacer: {
-    flex: 1,
-    minWidth: 0,
-  },
-  focusChip: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: responsivePadding(12),
-    paddingHorizontal: responsivePadding(14),
-    borderRadius: responsiveBorderRadius(20),
-    borderWidth: 1,
-    borderColor: primaryBlack,
-    backgroundColor: primaryWhite,
-  },
-  /** Two equal columns per row. */
-  focusChipInGrid: {
-    flex: 1,
-    minWidth: 0,
-    alignSelf: "stretch",
-  },
-  /** Allow longer labels without breaking alignment. */
-  focusChipText: {
-    textAlign: "center",
-  },
-  focusChipSelected: {
-    backgroundColor: primaryBlack,
-  },
-  focusChipLabel: { color: primaryBlack },
-  focusChipLabelSelected: { color: primaryWhite },
   labelRow: {
     flexDirection: "row",
     alignItems: "center",

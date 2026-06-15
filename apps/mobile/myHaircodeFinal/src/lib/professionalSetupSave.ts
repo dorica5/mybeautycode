@@ -8,7 +8,6 @@ export type ProfessionalSetupFormFields = {
   businessAddress: string;
   socialMedia: string;
   bookingSite: string;
-  aboutMe: string;
 };
 
 export function buildProfessionalSetupProfilePutBody(args: {
@@ -45,7 +44,7 @@ export function buildProfessionalSetupProfilePutBody(args: {
     business_longitude: placeStillMatches ? placeDetails!.longitude : null,
     social_media: social.length > 0 ? social : null,
     booking_site: booking.length > 0 ? booking : null,
-    about_me: fields.aboutMe.trim(),
+    about_me: null,
     setup_status: true,
     profession_code: professionCode,
   };

@@ -81,7 +81,6 @@ const ProfessionalSetup = () => {
     businessAddress: "",
     socialMedia: "",
     bookingSite: "",
-    aboutMe: "",
   });
   /**
    * Canonical place identity from Google Places — captured when the user picks
@@ -103,8 +102,7 @@ const ProfessionalSetup = () => {
         !prev.businessPhone &&
         !prev.businessAddress &&
         !prev.socialMedia &&
-        !prev.bookingSite &&
-        !prev.aboutMe;
+        !prev.bookingSite;
       if (!empty) return prev;
 
       const rows = Array.isArray(
@@ -119,7 +117,6 @@ const ProfessionalSetup = () => {
                 business_address?: string | null;
                 social_media?: string | null;
                 booking_site?: string | null;
-                about_me?: string | null;
               }>;
             }).professions_detail ?? []
           )
@@ -153,7 +150,6 @@ const ProfessionalSetup = () => {
         businessAddress: detailForProfession.business_address ?? "",
         socialMedia: detailForProfession.social_media ?? "",
         bookingSite: detailForProfession.booking_site ?? "",
-        aboutMe: detailForProfession.about_me ?? "",
       };
     });
   }, [profile, professionCode]);
@@ -429,21 +425,12 @@ const ProfessionalSetup = () => {
             {showFieldError(errorMessages.businessAddress)}
 
             {/**
-             * Social media + booking site are intentionally NOT collected during
+             * Social media + booking site + about me are intentionally NOT collected during
              * onboarding (kept short). They are edited later from the pro profile
-             * screens (`SocialMedia.tsx` / `BookingSite.tsx`). The save body still
-             * sends `social_media: null` / `booking_site: null` here, so the row
-             * is unchanged for users editing an existing setup.
+             * screens (`SocialMedia.tsx` / `BookingSite.tsx` / `AboutMe.tsx`). The save
+             * body still sends `social_media: null` / `booking_site: null` / `about_me: null`
+             * here, so the row is unchanged for users editing an existing setup.
              */}
-
-            <BrandOutlineField
-              label="About me"
-              value={fields.aboutMe}
-              onChangeText={(value) => handleFieldChange("aboutMe", value)}
-              multiline
-              minInputHeight={responsiveScale(120, 96)}
-              containerStyle={styles.formFieldSpacing}
-            />
           </View>
 
           <View style={styles.btnContainer}>

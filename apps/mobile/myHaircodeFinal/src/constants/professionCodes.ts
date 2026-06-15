@@ -42,9 +42,9 @@ export const CHOOSE_PROFESSION_OPTIONS: {
   label: string;
 }[] = [
   { code: "hair", label: "I'm a hairdresser" },
+  { code: "barber", label: "I'm a barber" },
   { code: "brows_lashes", label: "I'm a brow stylist" },
   { code: "nails", label: "I'm a nail technician" },
-  { code: "barber", label: "I'm a barber" },
 ];
 
 /** Subtitle under “My visits” — matches linked `professional_professions` / `profession_codes`. */

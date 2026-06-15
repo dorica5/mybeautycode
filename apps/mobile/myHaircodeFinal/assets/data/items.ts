@@ -79,9 +79,9 @@ export const naturalHairColorItems = [
 
 export const countryItems = [
   { label: "Norway", value: "NO" },
+  { label: "Denmark", value: "DK" },
+  { label: "Sweden", value: "SE" },
   ...[
-    { label: "Sweden", value: "SE" },
-    { label: "Denmark", value: "DK" },
     { label: "Finland", value: "FI" },
     { label: "Iceland", value: "IS" },
     { label: "United Kingdom", value: "GB" },
