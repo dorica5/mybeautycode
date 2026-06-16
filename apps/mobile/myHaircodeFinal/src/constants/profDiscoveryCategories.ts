@@ -7,6 +7,8 @@ export const DISCOVERY_OPTIONS_HAIR: readonly DiscoveryCategoryOption[] = [
   { code: "colour", label: "Colour" },
   { code: "highlights_balayage", label: "Highlights/Balayage" },
   { code: "blowout_styling", label: "Blowout & styling" },
+  { code: "afro_hair", label: "Afro hair" },
+  { code: "perms", label: "Perms" },
   { code: "bridal_hair", label: "Bridal hair" },
   { code: "makeup_hair_lane", label: "Makeup" },
 ];
