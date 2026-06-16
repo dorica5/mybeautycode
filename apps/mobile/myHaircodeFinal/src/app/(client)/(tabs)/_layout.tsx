@@ -131,9 +131,9 @@ const _layout = () => {
         name="home"
         options={{
           href: "/(client)/(tabs)/home",
-          tabBarIcon: ({ focused }) => {
-            return <House size={32} weight={focused ? "fill" : "regular"} />;
-          },
+          tabBarIcon: ({ focused, color }) => (
+            <House size={32} color={color} weight={focused ? "fill" : "regular"} />
+          ),
         }}
         listeners={{
           tabPress: homeTabPress,

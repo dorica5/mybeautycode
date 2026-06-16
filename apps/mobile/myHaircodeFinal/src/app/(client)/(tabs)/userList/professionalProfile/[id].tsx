@@ -34,7 +34,7 @@ import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { responsiveScale } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
-import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
+import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 
 const ProfessionalProfileScreen = () => {
   const { id: hairdresser_id, profession } = useLocalSearchParams<{
@@ -81,7 +81,7 @@ const ProfessionalProfileScreen = () => {
         full_name: p.full_name,
         first_name: p.first_name,
         username: p.username,
-        avatar_url: p.avatar_url,
+        avatar_url: resolveAvatarStoragePath(p, scopedLane),
         about_me: scopedDetail?.about_me ?? p.about_me,
         salon_name: scopedDetail?.business_name ?? p.salon_name,
         business_address: scopedDetail?.business_address ?? p.business_address,

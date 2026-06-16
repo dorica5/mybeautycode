@@ -7,6 +7,7 @@ import {
   allowedDiscoveryCodesForProfession,
   normalizeDiscoveryCategoriesForProfession,
 } from "../lib/profDiscoveryCategories";
+import { resolveLaneAvatarUrl } from "../lib/professionBusinessHelpers";
 
 const nameSearch = (searchQuery: string) => ({
   OR: [
@@ -39,6 +40,7 @@ const PROFESSION_BUSINESS_FIELDS = [
   "socialMedia",
   "bookingSite",
   "discoveryCategories",
+  "avatarUrl",
 ] as const;
 
 const SNAKE_TO_CAMEL: Record<string, string> = {
@@ -150,6 +152,20 @@ export const profileService = {
     delete body.profession_code;
     delete body.professionCode;
 
+    /** When targeting a profession lane, store avatar on that row — not on `profiles`. */
+    let professionAvatarUpdate: string | null | undefined;
+    if (
+      professionCode &&
+      (Object.prototype.hasOwnProperty.call(body, "avatar_url") ||
+        Object.prototype.hasOwnProperty.call(body, "avatarUrl"))
+    ) {
+      const raw = body.avatar_url ?? body.avatarUrl;
+      delete body.avatar_url;
+      delete body.avatarUrl;
+      if (raw === null) professionAvatarUpdate = null;
+      else if (typeof raw === "string") professionAvatarUpdate = raw.trim() || null;
+    }
+
     // Pull salon identity (place_id, lat, lng) off the body so the generic field
     // loop doesn't try to store them on ProfessionalProfession.
     const salonInput = extractSalonInputFromBody(body);
@@ -224,6 +240,10 @@ export const profileService = {
       }
     }
 
+    if (professionAvatarUpdate !== undefined) {
+      professionBusinessData.avatarUrl = professionAvatarUpdate;
+    }
+
     if (Object.prototype.hasOwnProperty.call(filtered, "username")) {
       const u = filtered.username;
       if (u === "" || u === null || u === undefined) {
@@ -262,7 +282,8 @@ export const profileService = {
       const needProfessionalProfile =
         shouldApplyProfession ||
         Object.keys(displayNameData).length > 0 ||
-        Object.keys(professionBusinessData).length > 0;
+        Object.keys(professionBusinessData).length > 0 ||
+        professionAvatarUpdate !== undefined;
 
       const profProfileId = needProfessionalProfile
         ? await professionService.getOrCreateProfessionalProfileId(id)
@@ -291,7 +312,9 @@ export const profileService = {
 
       if (
         profProfileId &&
-        (Object.keys(professionBusinessData).length > 0 || needSalonWrite)
+        (Object.keys(professionBusinessData).length > 0 ||
+          needSalonWrite ||
+          professionAvatarUpdate !== undefined)
       ) {
         const codeForBusiness =
           professionCode ??
@@ -703,12 +726,31 @@ export const profileService = {
       else if (l.status === "pending") pendingProIds.add(l.professionalProfileId);
     }
 
+    let laneAvatarByProfProfileId = new Map<string, string | null>();
+    if (professionId) {
+      const laneRows = await prisma.professionalProfession.findMany({
+        where: {
+          professionalProfileId: { in: visible.map((pp) => pp.id) },
+          professionId,
+        },
+        select: { professionalProfileId: true, avatarUrl: true },
+      });
+      laneAvatarByProfProfileId = new Map(
+        laneRows.map((r) => [r.professionalProfileId, r.avatarUrl])
+      );
+    }
+
     return visible.map((pp) => ({
       professional_profile_id: pp.id,
       profile_id: pp.profileId,
       hairdresser_id: pp.profileId,
       full_name: pp.displayName ?? profileDisplayName(pp.profile),
-      avatar_url: pp.profile.avatarUrl,
+      avatar_url: professionId
+        ? resolveLaneAvatarUrl(
+            laneAvatarByProfProfileId.get(pp.id),
+            pp.profile.avatarUrl
+          )
+        : pp.profile.avatarUrl,
       has_relationship: activeProIds.has(pp.id),
       link_pending: pendingProIds.has(pp.id),
     }));

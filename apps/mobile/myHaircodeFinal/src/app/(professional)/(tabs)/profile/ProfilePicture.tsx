@@ -21,10 +21,13 @@ import {
   mintProfileScrollContent,
 } from "@/src/components/MintProfileScreenShell";
 import { Typography } from "@/src/constants/Typography";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 
 const ProfilePicture = () => {
   const { profile, setProfile } = useAuth();
   const { avatarImage } = useImageContext();
+  const { activeProfessionCode } = useActiveProfessionState(profile);
   const originalImage = avatarImage;
   const id = profile.id;
   const [image, setImage] = useState<string | null>(originalImage);
@@ -38,21 +41,30 @@ const ProfilePicture = () => {
       Alert.alert("User not found");
       return;
     }
+    if (!activeProfessionCode) {
+      Alert.alert(
+        "Pick a profession",
+        "Open Switch account and select the profession you want to update."
+      );
+      return;
+    }
     setLoading(true);
 
     const avatar_url = await uploadImage();
+    if (!avatar_url) {
+      setLoading(false);
+      return;
+    }
 
     updateProfile(
       {
         id,
         avatar_url,
+        profession_code: activeProfessionCode,
       },
       {
-        onSuccess: () => {
-          setProfile((prev) => ({
-            ...prev,
-            avatar_url,
-          }));
+        onSuccess: (fresh) => {
+          setProfile(fresh as never);
           setLoading(false);
           setChanged(false);
         },
@@ -65,7 +77,10 @@ const ProfilePicture = () => {
   };
 
   const uploadImage = async () => {
-    if (!image?.startsWith("file://")) return image;
+    if (!image?.startsWith("file://")) {
+      const path = resolveAvatarStoragePath(profile, activeProfessionCode);
+      return path;
+    }
     const path = await uploadAvatarToStorage(image);
     if (!path) Alert.alert("Error", "Failed to upload image");
     return path;
@@ -83,6 +98,10 @@ const ProfilePicture = () => {
       setImage(result.assets[0].uri);
     }
   };
+
+  useEffect(() => {
+    setImage(originalImage);
+  }, [originalImage]);
 
   useEffect(() => {
     setChanged(image !== originalImage);

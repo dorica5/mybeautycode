@@ -25,6 +25,8 @@ export type ProfessionDetailApi = {
   about_me: string | null;
   social_media: string | null;
   booking_site: string | null;
+  /** Lane-specific profile photo override; null = use client `avatar_url`. */
+  avatar_url?: string | null;
   /** Discovery specialization codes for this lane (hair / brows / nails). */
   discovery_categories?: string[] | null;
 };

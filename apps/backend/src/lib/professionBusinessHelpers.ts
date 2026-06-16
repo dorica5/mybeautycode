@@ -11,9 +11,23 @@ export type ProfessionJoinRow = {
   aboutMe: string | null;
   socialMedia: string | null;
   bookingSite: string | null;
+  avatarUrl?: string | null;
   /** JSON array of discovery category codes (see `profDiscoveryCategories.ts`). */
   discoveryCategories: unknown;
 };
+
+/** Lane-specific avatar when set; otherwise the base profile photo. */
+export function resolveLaneAvatarUrl(
+  laneAvatarUrl: string | null | undefined,
+  profileAvatarUrl: string | null | undefined
+): string | null {
+  const lane =
+    typeof laneAvatarUrl === "string" ? laneAvatarUrl.trim() : "";
+  if (lane) return lane;
+  const base =
+    typeof profileAvatarUrl === "string" ? profileAvatarUrl.trim() : "";
+  return base || null;
+}
 
 /** Prefer `hair`, else lowest `sort_order` (stable tie-break). */
 export function pickDefaultProfessionRow<T extends ProfessionJoinRow>(
@@ -37,6 +51,7 @@ export function professionsDetailSnakeCase(rows: ProfessionJoinRow[]) {
     about_me: r.aboutMe ?? null,
     social_media: r.socialMedia ?? null,
     booking_site: r.bookingSite ?? null,
+    avatar_url: r.avatarUrl ?? null,
     discovery_categories: Array.isArray(r.discoveryCategories)
       ? (r.discoveryCategories as string[])
       : [],

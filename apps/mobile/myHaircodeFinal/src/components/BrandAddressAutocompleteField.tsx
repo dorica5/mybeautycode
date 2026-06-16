@@ -1,4 +1,5 @@
 import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
+import { authFieldInputStyle } from "@/src/constants/authFieldInputStyle";
 import { Typography } from "@/src/constants/Typography";
 import {
   responsiveMargin,
@@ -35,25 +36,13 @@ export type PlaceDetails = ResolvedPlace;
 /** One line + vertical padding — matches single-line brand fields when empty. */
 const ADDRESS_INPUT_MIN = responsiveScale(52, 48);
 const ADDRESS_INPUT_MAX = responsiveScale(280);
-
-function clampAddressInputHeight(h: number): number {
-  return Math.min(
-    ADDRESS_INPUT_MAX,
-    Math.max(ADDRESS_INPUT_MIN, Math.ceil(h))
-  );
-}
-
-/** Rough height before `onContentSizeChange` (prefill / lane switch). */
-function estimateAddressInputHeight(text: string): number {
-  const trimmed = text.trim();
-  if (!trimmed) return ADDRESS_INPUT_MIN;
-  const explicitLines = trimmed.split("\n").length;
-  const wrappedLines = Math.ceil(trimmed.length / 38);
-  const lines = Math.max(explicitLines, wrappedLines);
-  const linePx = responsiveScale(26, 24);
-  const pad = responsivePadding(14) * 2;
-  return clampAddressInputHeight(lines * linePx + pad);
-}
+const INPUT_LINE_HEIGHT = authFieldInputStyle.lineHeight as number;
+const SINGLE_LINE_PAD = Math.max(
+  0,
+  Math.floor((ADDRESS_INPUT_MIN - INPUT_LINE_HEIGHT) / 2)
+);
+/** Switch to multiline before the line wraps (single-line inputs don't wrap). */
+const MULTILINE_CHAR_THRESHOLD = 44;
 
 export type BrandAddressAutocompleteFieldProps = {
   label: string;
@@ -188,20 +177,32 @@ export function BrandAddressAutocompleteField({
     }
   }, [value, onPlaceSelected]);
 
-  const [inputHeight, setInputHeight] = useState(() =>
-    estimateAddressInputHeight(value)
-  );
+  /** Only toggles scroll at max height — avoids height state fighting contentSize. */
+  const [scrollEnabled, setScrollEnabled] = useState(false);
+  const [isWrapped, setIsWrapped] = useState(false);
 
   useEffect(() => {
-    setInputHeight(estimateAddressInputHeight(value));
+    if (!value.trim()) {
+      setIsWrapped(false);
+    }
   }, [value]);
 
   const onInputContentSizeChange = (
     e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>
   ) => {
-    const next = clampAddressInputHeight(e.nativeEvent.contentSize.height);
-    setInputHeight((prev) => (next === prev ? prev : next));
+    const contentH = Math.ceil(e.nativeEvent.contentSize.height);
+    setScrollEnabled(contentH >= ADDRESS_INPUT_MAX - 4);
+    if (contentH > INPUT_LINE_HEIGHT + 8) {
+      setIsWrapped(true);
+    } else if (!value.includes("\n") && contentH <= INPUT_LINE_HEIGHT + 2) {
+      setIsWrapped(false);
+    }
   };
+
+  const isExpanded =
+    value.includes("\n") ||
+    value.length > MULTILINE_CHAR_THRESHOLD ||
+    isWrapped;
 
   const clearBlurTimer = () => {
     if (blurTimer.current) clearTimeout(blurTimer.current);
@@ -237,7 +238,7 @@ export function BrandAddressAutocompleteField({
       <Text style={[Typography.label, styles.label]} accessibilityRole="text">
         {label}
       </Text>
-      <View style={[styles.fieldShell, { minHeight: inputHeight }]}>
+      <View style={styles.fieldShell}>
         <TextInput
           value={value}
           onChangeText={emitChangeText}
@@ -246,9 +247,9 @@ export function BrandAddressAutocompleteField({
           selectionColor={primaryBlack}
           underlineColorAndroid="transparent"
           accessibilityLabel={label}
-          textAlignVertical={value.trim() ? "top" : "center"}
-          multiline
-          scrollEnabled={inputHeight >= ADDRESS_INPUT_MAX}
+          textAlignVertical={isExpanded ? "top" : "center"}
+          multiline={isExpanded}
+          scrollEnabled={scrollEnabled}
           returnKeyType="default"
           autoCorrect={false}
           {...(Platform.OS === "android" ? { includeFontPadding: false } : {})}
@@ -262,13 +263,11 @@ export function BrandAddressAutocompleteField({
           style={[
             styles.input,
             Typography.bodyMedium,
+            isExpanded ? authFieldInputStyle : styles.singleLineInput,
             {
               color: primaryBlack,
-              height: inputHeight,
+              minHeight: ADDRESS_INPUT_MIN,
               maxHeight: ADDRESS_INPUT_MAX,
-              paddingVertical: value.trim()
-                ? responsivePadding(14)
-                : 0,
             },
           ]}
         />
@@ -330,10 +329,17 @@ const styles = StyleSheet.create({
     width: "100%",
     margin: 0,
   },
+  singleLineInput: {
+    paddingTop: SINGLE_LINE_PAD,
+    paddingBottom: SINGLE_LINE_PAD,
+    lineHeight: INPUT_LINE_HEIGHT,
+  },
   loader: {
     position: "absolute",
     right: responsivePadding(12),
-    top: responsivePadding(14),
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
   },
   suggestions: {
     marginTop: responsiveMargin(6),

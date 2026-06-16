@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
+import { resolveLaneAvatarUrl } from "../lib/professionBusinessHelpers";
 import { professionService } from "./professionService";
 import { notificationService } from "./notificationService";
 
@@ -306,6 +307,7 @@ export const relationshipService = {
         id: true,
         createdAt: true,
         professionalProfileId: true,
+        professionId: true,
         profession: { select: { code: true } },
       },
     });
@@ -330,6 +332,26 @@ export const relationshipService = {
     });
     const ppById = new Map(profProfiles.map((pp) => [pp.id, pp]));
 
+    const laneRows = await prisma.professionalProfession.findMany({
+      where: {
+        professionalProfileId: { in: profProfileIds },
+        professionId: { in: [...new Set(rels.map((r) => r.professionId))] },
+      },
+      select: {
+        professionalProfileId: true,
+        professionId: true,
+        avatarUrl: true,
+      },
+    });
+    const laneAvatarKey = (profProfileId: string, professionId: string) =>
+      `${profProfileId}:${professionId}`;
+    const laneAvatarByKey = new Map(
+      laneRows.map((r) => [
+        laneAvatarKey(r.professionalProfileId, r.professionId),
+        r.avatarUrl,
+      ])
+    );
+
     const out: {
       link_id: string;
       id: string;
@@ -348,7 +370,12 @@ export const relationshipService = {
         id: pp.profile.id,
         profession_code: rel.profession.code,
         full_name: pp.displayName ?? profileDisplayName(pp.profile),
-        avatar_url: pp.profile.avatarUrl,
+        avatar_url: resolveLaneAvatarUrl(
+          laneAvatarByKey.get(
+            laneAvatarKey(rel.professionalProfileId, rel.professionId)
+          ),
+          pp.profile.avatarUrl
+        ),
         lastInteraction: rel.createdAt,
       });
     }

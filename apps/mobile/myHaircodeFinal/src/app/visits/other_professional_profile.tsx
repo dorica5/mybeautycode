@@ -38,6 +38,7 @@ import {
   coerceProfessionCode,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 
 /**
  * Same public profile UI as `(client)/(tabs)/userList/professionalProfile/[id]` and
@@ -86,7 +87,7 @@ const OtherProfessionalProfileScreen = () => {
         full_name: p.full_name,
         first_name: p.first_name,
         username: p.username,
-        avatar_url: p.avatar_url,
+        avatar_url: resolveAvatarStoragePath(p, professionCodeFromVisit),
         about_me: scopedDetail?.about_me ?? p.about_me,
         salon_name: scopedDetail?.business_name ?? p.salon_name,
         business_address: scopedDetail?.business_address ?? p.business_address,

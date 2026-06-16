@@ -2,6 +2,7 @@ import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 import { professionService } from "./professionService";
 import { profileDisplayName } from "../lib/profileDisplay";
+import { resolveLaneAvatarUrl } from "../lib/professionBusinessHelpers";
 import {
   storedCategoriesIncludeCode,
   storedDiscoveryCategoriesNonEmpty,
@@ -332,6 +333,7 @@ export const salonService = {
     const rowSelect = {
       professionId: true,
       businessName: true,
+      avatarUrl: true,
       discoveryCategories: true,
       professionalProfile: {
         select: {
@@ -438,7 +440,10 @@ export const salonService = {
         profile_id: pp.profile.id,
         hairdresser_id: pp.profile.id,
         full_name: pp.displayName ?? profileDisplayName(pp.profile),
-        avatar_url: pp.profile.avatarUrl,
+        avatar_url: resolveLaneAvatarUrl(
+          r.avatarUrl,
+          pp.profile.avatarUrl
+        ),
         has_relationship: activeSet.has(pp.id),
         link_pending: pendingSet.has(pp.id),
         business_name: r.businessName,

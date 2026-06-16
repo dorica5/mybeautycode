@@ -10,6 +10,7 @@ import { api } from "../lib/apiClient";
 import { useAuth } from "./AuthProvider";
 import { pickActiveProfessionCode } from "../constants/professionCodes";
 import { getLastProfessionCode } from "../lib/lastVisitPreference";
+import { resolveAvatarStoragePath } from "../lib/resolveAvatarStoragePath";
 import {
   fetchSignedStorageUrl,
   fetchSignedStorageUrls,
@@ -169,18 +170,34 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const fetchAvatarImage = useCallback(async () => {
-    if (!profile?.avatar_url) {
+    if (!profile) {
+      setAvatarImage(null);
+      return;
+    }
+    const stored = profile.id ? await getLastProfessionCode(profile.id) : null;
+    const activeCode =
+      lastAppSurfacePref === "client"
+        ? null
+        : pickActiveProfessionCode(profile.profession_codes, stored ?? undefined);
+
+    const path = resolveAvatarStoragePath(profile, activeCode);
+    if (!path) {
       setAvatarImage(null);
       return;
     }
     try {
-      const url = await fetchSignedStorageUrl("avatars", profile.avatar_url);
+      const url = await fetchSignedStorageUrl("avatars", path);
       setAvatarImage(url);
     } catch (error) {
       console.error("Error fetching avatar:", error);
       setAvatarImage(null);
     }
-  }, [profile?.avatar_url]);
+  }, [profile, lastAppSurfacePref]);
+
+  const professionAvatarsKey =
+    profile?.professions_detail
+      ?.map((row) => `${row.profession_code ?? ""}:${row.avatar_url ?? ""}`)
+      .join("|") ?? "";
 
   useEffect(() => {
     if (!session) {
@@ -190,7 +207,7 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     if (profile?.id) {
-      fetchAvatarImage();
+      void fetchAvatarImage();
       void (async () => {
         const stored = await getLastProfessionCode(profile.id);
         const code =
@@ -204,6 +221,8 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
   }, [
     session,
     profile?.id,
+    profile?.avatar_url,
+    professionAvatarsKey,
     profile?.profession_codes,
     lastAppSurfacePref,
     refreshInspirationImages,

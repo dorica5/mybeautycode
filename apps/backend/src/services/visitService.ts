@@ -6,7 +6,10 @@ import {
   professionService,
   normalizeProfessionCodeInput,
 } from "./professionService";
-import { pickDefaultProfessionRow } from "../lib/professionBusinessHelpers";
+import {
+  pickDefaultProfessionRow,
+  resolveLaneAvatarUrl,
+} from "../lib/professionBusinessHelpers";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -236,7 +239,8 @@ export const visitService = {
     const biz = matched ?? pickDefaultProfessionRow(profRows);
     const profPayload = pp
       ? {
-          avatar_url: p?.avatarUrl ?? undefined,
+          avatar_url:
+            resolveLaneAvatarUrl(matched?.avatarUrl, p?.avatarUrl) ?? undefined,
           business_name: biz?.businessName ?? undefined,
           business_number: biz?.businessNumber ?? undefined,
           business_address: biz?.businessAddress ?? undefined,

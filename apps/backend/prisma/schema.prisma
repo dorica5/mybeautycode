@@ -129,6 +129,8 @@ model ProfessionalProfession {
   aboutMe               String?             @map("about_me")
   socialMedia           String?             @map("social_media")
   bookingSite           String?             @map("booking_site")
+  /// Optional profile photo for this profession lane; falls back to `profiles.avatar_url` when null.
+  avatarUrl             String?             @map("avatar_url")
   /// FK to the canonical Salon (grouped by Google place_id). Null for legacy free-text addresses.
   salonId               String?             @map("salon_id") @db.Uuid
   /// Public profile views (client app) for this profession lane.
