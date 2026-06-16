@@ -49,6 +49,8 @@ model Profile {
   sharedInspirationsReceived        SharedInspiration[]       @relation("SharedInspirationRecipient")
   sharedInspirationsSent            SharedInspiration[]       @relation("SharedInspirationSender")
   supportTickets                    SupportTicket[]
+  feedbackItemsSubmitted            FeedbackItem[]            @relation("FeedbackItemSubmitter")
+  feedbackVotes                     FeedbackVote[]
   userRestrictionsApplied           UserRestriction[]         @relation("UserRestrictionApplier")
   userRestrictions                  UserRestriction[]
   userStrike                        UserStrike?
@@ -565,4 +567,56 @@ enum SupportTicketPriority {
   urgent
 
   @@map("support_ticket_priority")
+}
+
+enum FeedbackItemType {
+  feature
+  improvement
+  bug
+  other
+
+  @@map("feedback_item_type")
+}
+
+enum FeedbackItemStatus {
+  reviewing
+  planned
+  in_development
+  shipped
+  declined
+
+  @@map("feedback_item_status")
+}
+
+/// User-submitted ideas and team-curated roadmap items (in-app feedback board).
+model FeedbackItem {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  description String?
+  type        FeedbackItemType   @default(feature)
+  status      FeedbackItemStatus @default(reviewing)
+  submitterId String?            @map("submitter_id") @db.Uuid
+  submitter   Profile?           @relation("FeedbackItemSubmitter", fields: [submitterId], references: [id], onDelete: SetNull)
+  votes       FeedbackVote[]
+  /// Supabase storage paths in `feedback_screenshots` bucket (`{profileId}/{uuid}.jpg`).
+  screenshotPaths Json           @default("[]") @map("screenshot_paths")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime?          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("feedback_items")
+}
+
+model FeedbackVote {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  feedbackItemId String       @map("feedback_item_id") @db.Uuid
+  userId         String       @map("user_id") @db.Uuid
+  feedbackItem   FeedbackItem @relation(fields: [feedbackItemId], references: [id], onDelete: Cascade)
+  user           Profile      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([feedbackItemId, userId])
+  @@index([userId])
+  @@map("feedback_votes")
 }

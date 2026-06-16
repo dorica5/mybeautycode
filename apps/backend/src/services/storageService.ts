@@ -14,6 +14,7 @@ export const SIGNABLE_BUCKETS = new Set([
   "public_profile_work",
   "haircode_images",
   "shared_inspiration_images",
+  "feedback_screenshots",
 ]);
 
 export function assertSignableBucket(bucket: string) {
