@@ -89,7 +89,7 @@ export function serializeProfileForApi(
       business_name: null,
       business_number: null,
       business_address: null,
-      about_me: null,
+      about_me: profile.aboutMe ?? null,
       social_media: null,
       booking_site: null,
       salon_name: null,

@@ -196,12 +196,8 @@ function professionPlural(profession: MapProfession, count: number): string {
   }
 }
 
-function salonSummaryLine(
-  profession: MapProfession,
-  count: number,
-  salonLabel: string
-): string {
-  return `${count} ${professionPlural(profession, count)} at ${salonLabel}`;
+function salonSummaryLine(profession: MapProfession, count: number): string {
+  return `${count} ${professionPlural(profession, count)} at this location`;
 }
 
 /** Region (center + deltas) → backend bounds (NE + SW corners). */
@@ -305,9 +301,7 @@ const SalonMapMarker = React.memo(function SalonMapMarker({
     return () => clearTimeout(t);
   }, [selected, renderPulseKey]);
 
-  const accessibility = salon.name
-    ? `${salon.name}, ${salon.formatted_address}`
-    : salon.formatted_address;
+  const accessibility = salon.formatted_address;
 
   return (
     <Marker
@@ -472,9 +466,13 @@ const MapLocationScreen = () => {
   const [selectedSalon, setSelectedSalon] = useState<SalonPin | null>(null);
   /** Last committed region, used as the query key for /api/salons/nearby. */
   const [boundsRegion, setBoundsRegion] = useState<Region | null>(null);
-  /** Get-discovered specialty filters — OR match (pins / sheet list any category). */
+  /** Get-discovered specialty filters — single-select (or All). */
   const [selectedDiscoveryCategories, setSelectedDiscoveryCategories] =
     useState<string[]>([]);
+  const activeDiscoveryCategory =
+    selectedDiscoveryCategories.length === 1
+      ? selectedDiscoveryCategories[0]
+      : null;
   const mapViewRef = useRef<MapView | null>(null);
   /** Debounce timer so pan/zoom settles before we re-query. */
   const regionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -715,8 +713,9 @@ const MapLocationScreen = () => {
   );
 
   const {
-    data: salons = [],
+    data: nearbySalons,
     isFetching: salonsFetching,
+    isPending: salonsPending,
   } = useSalonsInBounds(
     bounds,
     backendProfessionCode,
@@ -724,6 +723,9 @@ const MapLocationScreen = () => {
       ? selectedDiscoveryCategories
       : null
   );
+
+  /** Drop pins while a new discovery filter fetch is in flight (avoid stale pins). */
+  const salons = salonsPending ? [] : (nearbySalons ?? []);
 
   const showAggregatedSalonPins = Boolean(
     boundsRegion && shouldClusterByZoom(boundsRegion.latitudeDelta)
@@ -1136,17 +1138,13 @@ const MapLocationScreen = () => {
                     </Text>
                   </Pressable>
                   {discoveryChipOptions.map((opt) => {
-                    const active = selectedDiscoveryCategories.includes(
-                      opt.code
-                    );
+                    const active = activeDiscoveryCategory === opt.code;
                     return (
                       <Pressable
                         key={opt.code}
                         onPress={() =>
-                          setSelectedDiscoveryCategories((prev) =>
-                            prev.includes(opt.code)
-                              ? prev.filter((c) => c !== opt.code)
-                              : [...prev, opt.code]
+                          setSelectedDiscoveryCategories(
+                            active ? [] : [opt.code]
                           )
                         }
                         style={({ pressed }) => [
@@ -1269,15 +1267,7 @@ const MapLocationScreen = () => {
                           />
                         </Pressable>
                         <Text style={styles.pinDetailLine}>
-                          {selectedSalon.name ?? selectedSalon.formatted_address}
-                          {selectedSalon.name ? (
-                            <>
-                              {"\n"}
-                              <Text style={styles.pinDetailLineSub}>
-                                {selectedSalon.formatted_address}
-                              </Text>
-                            </>
-                          ) : null}
+                          {selectedSalon.formatted_address}
                         </Text>
                         {salonProsError ? (
                           <Text style={styles.clusterRowAddress}>
@@ -1288,15 +1278,14 @@ const MapLocationScreen = () => {
                           <ActivityIndicator color={primaryBlack} />
                         ) : salonProfessionals.length === 0 ? (
                           <Text style={styles.clusterRowAddress}>
-                            No professionals at this salon yet.
+                            No professionals at this location yet.
                           </Text>
                         ) : (
                           <>
                             <Text style={styles.clusterRowAddress}>
                               {salonSummaryLine(
                                 professionKey,
-                                salonProfessionals.length,
-                                selectedSalon.name ?? "this salon"
+                                salonProfessionals.length
                               )}
                             </Text>
                             <ScrollView
@@ -1618,11 +1607,6 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingRight: responsivePadding(32),
     paddingLeft: responsivePadding(8),
-  },
-  pinDetailLineSub: {
-    ...Typography.outfitRegular16,
-    color: primaryBlack,
-    opacity: 0.7,
   },
   mapLoadingOverlay: {
     position: "absolute",

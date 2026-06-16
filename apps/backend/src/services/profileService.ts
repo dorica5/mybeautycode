@@ -154,6 +154,25 @@ export const profileService = {
     // loop doesn't try to store them on ProfessionalProfession.
     const salonInput = extractSalonInputFromBody(body);
 
+    const hasProfessionalProfile = Boolean(
+      await prisma.professionalProfile.findUnique({
+        where: { profileId: id },
+        select: { id: true },
+      })
+    );
+
+    let aboutMeUpdate: string | null | undefined;
+    if (
+      Object.prototype.hasOwnProperty.call(body, "about_me") ||
+      Object.prototype.hasOwnProperty.call(body, "aboutMe")
+    ) {
+      const raw = body.about_me ?? body.aboutMe;
+      delete body.about_me;
+      delete body.aboutMe;
+      if (raw === null) aboutMeUpdate = null;
+      else if (typeof raw === "string") aboutMeUpdate = raw.trim() || null;
+    }
+
     /** Only persist profession when finishing professional onboarding in one request (with setup complete). */
     const completingSetup =
       data.setup_status === true || data.setupStatus === true;
@@ -196,6 +215,14 @@ export const profileService = {
       }
     }
     filtered.updatedAt = new Date();
+
+    if (aboutMeUpdate !== undefined) {
+      if (hasProfessionalProfile) {
+        professionBusinessData.aboutMe = aboutMeUpdate;
+      } else {
+        filtered.aboutMe = aboutMeUpdate;
+      }
+    }
 
     if (Object.prototype.hasOwnProperty.call(filtered, "username")) {
       const u = filtered.username;

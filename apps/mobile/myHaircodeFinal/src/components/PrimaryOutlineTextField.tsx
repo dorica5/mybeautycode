@@ -1,4 +1,5 @@
 import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
+import { authFieldInputStyle } from "@/src/constants/authFieldInputStyle";
 import { Typography } from "@/src/constants/Typography";
 import {
   sanitizeDecimalNumericInput,
@@ -15,7 +16,6 @@ import {
 import React, { useMemo, useState } from "react";
 import type { Ref } from "react";
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -148,9 +148,6 @@ export function PrimaryOutlineTextField({
           accessibilityLabel={showLabel ? label : accessibilityLabel}
           multiline={multiline}
           textAlignVertical={multiline ? "top" : "center"}
-          {...(Platform.OS === "android" && !multiline
-            ? { includeFontPadding: false }
-            : {})}
           style={[
             styles.input,
             multiline
@@ -227,8 +224,8 @@ const styles = StyleSheet.create({
     borderRadius: responsiveScale(999),
   },
   inputSingleLine: {
-    paddingVertical: responsivePadding(14),
     width: "100%",
+    ...authFieldInputStyle,
   },
   inputArea: {
     minHeight: responsiveScale(120),

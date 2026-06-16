@@ -2,7 +2,10 @@ import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 import { professionService } from "./professionService";
 import { profileDisplayName } from "../lib/profileDisplay";
-import { storedCategoriesIncludeCode } from "../lib/profDiscoveryCategories";
+import {
+  storedCategoriesIncludeCode,
+  storedDiscoveryCategoriesNonEmpty,
+} from "../lib/profDiscoveryCategories";
 
 export type BoundsInput = {
   neLat: number;
@@ -44,11 +47,16 @@ function sqlLaneDiscoveryNeedle(normalizedDiscoveryCode: string): Prisma.Sql {
   return sqlLaneHasDiscoveryTag(needle);
 }
 
+/** Map pins only include pros who opted in via Get discovered (non-empty tag list). */
+function discoveryOptInSqlFragment(): Prisma.Sql {
+  return Prisma.sql`AND ${discoveryJsonIsNonEmptyArray()}`;
+}
+
 /** Include lane if discovery JSON lists any tag in `normalizedCodes` (OR). */
 function discoveryCategoriesSqlFragment(
   normalizedCodes: string[] | undefined
 ): Prisma.Sql {
-  if (!normalizedCodes?.length) return Prisma.sql``;
+  if (!normalizedCodes?.length) return discoveryOptInSqlFragment();
   const usable = discoveryJsonIsNonEmptyArray();
 
   let combined = sqlLaneDiscoveryNeedle(normalizedCodes[0]);
@@ -82,7 +90,11 @@ async function countActiveProsAtSalonForLane(
     },
     select: { discoveryCategories: true },
   });
-  if (!discoveryNormalizedCodes?.length) return rows.length;
+  if (!discoveryNormalizedCodes?.length) {
+    return rows.filter((r) =>
+      storedDiscoveryCategoriesNonEmpty(r.discoveryCategories)
+    ).length;
+  }
   return rows.filter((r) =>
     laneMatchesAnyDiscoveryCategories(r.discoveryCategories, discoveryNormalizedCodes)
   ).length;
@@ -222,7 +234,9 @@ export const salonService = {
                 discoveryCodes
               )
             )
-          : ppWithSalon;
+          : ppWithSalon.filter((row) =>
+              storedDiscoveryCategoriesNonEmpty(row.discoveryCategories)
+            );
         const linkedSalonIds = [
           ...new Set(
             filteredLinks
@@ -389,6 +403,10 @@ export const salonService = {
     if (discoveryCodes?.length) {
       merged = merged.filter((r) =>
         laneMatchesAnyDiscoveryCategories(r.discoveryCategories, discoveryCodes)
+      );
+    } else {
+      merged = merged.filter((r) =>
+        storedDiscoveryCategoriesNonEmpty(r.discoveryCategories)
       );
     }
 

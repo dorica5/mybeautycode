@@ -84,19 +84,13 @@ const UserProfile = () => {
   const data = profileData
     ? {
         full_name: profileData.fullName ?? profileData.full_name,
+        first_name: profileData.firstName ?? profileData.first_name,
         username:
           profileData.username ??
           (profileData as { Username?: string }).Username,
         avatar_url: profileData.avatarUrl ?? profileData.avatar_url,
         phone_number: profileData.phoneNumber ?? profileData.phone_number,
-        hair_structure:
-          profileData.hairStructure ?? profileData.hair_structure,
-        hair_thickness:
-          profileData.hairThickness ?? profileData.hair_thickness,
-        natural_hair_color:
-          profileData.naturalHairColor ?? profileData.natural_hair_color,
-        grey_hair_percentage:
-          profileData.greyHairPercentage ?? profileData.grey_hair_percentage,
+        about_me: profileData.aboutMe ?? profileData.about_me,
       }
     : undefined;
 
@@ -537,62 +531,31 @@ const UserProfile = () => {
                       @{displayUsername}
                     </Text>
                   ) : null}
-                  <View style={styles.aboutHairRow}>
-                    <Text style={styles.aboutHairHeader}>Hair structure</Text>
-                    <View style={styles.dropDownContainers}>
-                      <Text
-                        style={[
-                          styles.aboutHairText,
-                          { fontSize: responsiveFontSize(16, 14) },
-                        ]}
-                      >
-                        {data?.hair_structure ?? ""}
+                  {data?.about_me?.trim() ? (
+                    <View style={styles.aboutSection}>
+                      <Text style={styles.aboutSectionTitle}>
+                        About{" "}
+                        {(() => {
+                          const first = data?.first_name?.trim();
+                          if (first) return first;
+                          const full = data?.full_name?.trim() ?? "";
+                          if (!full) return "them";
+                          const sp = full.indexOf(" ");
+                          return sp === -1 ? full : full.slice(0, sp);
+                        })()}
                       </Text>
+                      <View style={styles.aboutTextBox}>
+                        <Text
+                          style={[
+                            styles.aboutText,
+                            { fontSize: responsiveFontSize(16, 14) },
+                          ]}
+                        >
+                          {data.about_me.trim()}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  <View style={styles.aboutHairRow}>
-                    <Text style={styles.aboutHairHeader}>Hair thickness</Text>
-                    <View style={styles.dropDownContainers}>
-                      <Text
-                        style={[
-                          styles.aboutHairText,
-                          { fontSize: responsiveFontSize(16, 14) },
-                        ]}
-                      >
-                        {data?.hair_thickness ?? ""}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.aboutHairRow}>
-                    <Text style={styles.aboutHairHeader}>
-                      Natural hair color
-                    </Text>
-                    <View style={styles.dropDownContainers}>
-                      <Text
-                        style={[
-                          styles.aboutHairText,
-                          { fontSize: responsiveFontSize(16, 14) },
-                        ]}
-                      >
-                        {data?.natural_hair_color ?? ""}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.aboutHairRow}>
-                    <Text style={styles.aboutHairHeader}>
-                      Grey hair percentage
-                    </Text>
-                    <View style={styles.dropDownContainers}>
-                      <Text
-                        style={[
-                          styles.aboutHairText,
-                          { fontSize: responsiveFontSize(16, 14) },
-                        ]}
-                      >
-                        {data?.grey_hair_percentage ?? ""}
-                      </Text>
-                    </View>
-                  </View>
+                  ) : null}
                 </>
               )}
             </View>
@@ -716,34 +679,31 @@ const styles = StyleSheet.create({
     width: "95%",
     alignSelf: "center",
   },
-  aboutHairRow: {
-    flexDirection: "row",
+  aboutSection: {
+    width: "100%",
     marginTop: responsiveScale(8),
+    paddingHorizontal: scalePercent(2),
   },
-  aboutHairHeader: {
+  aboutSectionTitle: {
     fontSize: responsiveFontSize(20, 16),
-    marginTop: responsiveScale(35),
+    marginTop: responsiveScale(20),
     fontFamily: "Inter-SemiBold",
     marginBottom: responsiveScale(10),
     textAlign: "left",
-    marginRight: scalePercent(10),
-    width: scalePercent(40),
+    alignSelf: "flex-start",
   },
-  dropDownContainers: {
+  aboutTextBox: {
     backgroundColor: Colors.dark.light,
     borderColor: Colors.dark.yellowish,
     borderWidth: responsiveScale(3),
     borderRadius: responsiveBorderRadius(20, 10),
-    height: responsiveScale(50, 50),
-    width: scalePercent(35),
-    marginTop: responsiveScale(20, 30),
+    width: "100%",
+    padding: responsivePadding(16, 12),
+    marginTop: responsiveScale(4),
   },
-  aboutHairText: {
-    textAlign: "center",
-    fontSize: responsiveFontSize(16, 12),
+  aboutText: {
     fontFamily: "Inter-Regular",
-    width: scalePercent(22),
-    marginTop: responsiveScale(12),
+    color: Colors.dark.dark,
   },
   addClientPill: {
     alignSelf: "center",

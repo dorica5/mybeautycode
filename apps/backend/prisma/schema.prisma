@@ -21,6 +21,8 @@ model Profile {
   firstName                         String?                   @map("first_name")
   lastName                          String?                   @map("last_name")
   country                           String?                   @map("country")
+  /// Client personal bio (free text). Professional bios live on `professional_professions.about_me`.
+  aboutMe                           String?                   @map("about_me")
   /// Lowercase [a-z][a-z0-9_]{2,29}; unique when set (see profileService).
   username                          String?                   @unique @map("username")
   adminActionsAsAdmin               AdminAction[]             @relation("AdminActionAdmin")

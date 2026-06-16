@@ -1,5 +1,5 @@
-import { Pressable, StyleSheet,  View } from "react-native";
-import { Colors } from "@constants/Colors";
+import { Pressable, StyleSheet, View } from "react-native";
+import { Colors, primaryBlack } from "@constants/Colors";
 import { forwardRef } from "react";
 import { scale, scalePercent } from "../utils/responsive";
 import { ResponsiveText } from "./ResponsiveText";
@@ -40,8 +40,8 @@ const styles = StyleSheet.create({
     padding: scale(14),
     alignItems: "center",
     borderRadius: scale(100),
-    borderWidth: scale(2),
-    borderColor: Colors.light.warmGreen, // Outline color
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: primaryBlack,
     backgroundColor: "transparent",
     width: scale(145), 
   },

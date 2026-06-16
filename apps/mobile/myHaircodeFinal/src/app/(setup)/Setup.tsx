@@ -118,7 +118,7 @@ const Setup = () => {
       fontSize: layout.bodyConsentSize,
       lineHeight: Math.round(layout.bodyConsentSize * 1.38),
       color: primaryBlack,
-      textAlign: "left" as const,
+      textAlign: "center" as const,
     }),
     [layout.bodyConsentSize]
   );
@@ -268,20 +268,18 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
   },
-  /** Bounded width so consent lines wrap; centered under checkboxOuter. */
+  /** Shrink-wrap row so checkbox + copy sit centered in the column. */
   checkboxInner: {
-    width: "100%",
     alignSelf: "center",
+    maxWidth: "100%",
   },
   checkboxRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    width: "100%",
+    alignSelf: "center",
   },
   checkboxTextCol: {
-    flex: 1,
     flexShrink: 1,
-    minWidth: 0,
   },
   checkboxHit: {
     marginRight: responsivePadding(10),
@@ -303,7 +301,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: primaryBlack,
     marginTop: responsiveMargin(4),
-    textAlign: "left",
+    textAlign: "center",
   },
   cta: {
     alignSelf: "center",

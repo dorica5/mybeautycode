@@ -174,3 +174,8 @@ export function storedCategoriesIncludeCode(
     (c) => c === needle
   );
 }
+
+/** Lane row has at least one get-discovered tag (map “All” still requires opt-in). */
+export function storedDiscoveryCategoriesNonEmpty(raw: unknown): boolean {
+  return expandStoredDiscoveryCategoryCodes(raw).length > 0;
+}

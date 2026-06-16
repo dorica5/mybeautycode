@@ -132,7 +132,7 @@ export const useSalonsInBounds = (
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     placeholderData: (previousData, previousQuery) => {
-      if (!previousQuery?.queryKey) return previousData;
+      if (!previousQuery?.queryKey) return undefined;
       const pk = previousQuery.queryKey;
       const prevProf = pk[6];
       const prevDisc = pk[7];

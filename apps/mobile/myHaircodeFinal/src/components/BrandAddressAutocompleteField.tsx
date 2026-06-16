@@ -8,6 +8,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -245,11 +246,12 @@ export function BrandAddressAutocompleteField({
           selectionColor={primaryBlack}
           underlineColorAndroid="transparent"
           accessibilityLabel={label}
-          textAlignVertical="top"
+          textAlignVertical={value.trim() ? "top" : "center"}
           multiline
           scrollEnabled={inputHeight >= ADDRESS_INPUT_MAX}
           returnKeyType="default"
           autoCorrect={false}
+          {...(Platform.OS === "android" ? { includeFontPadding: false } : {})}
           onContentSizeChange={onInputContentSizeChange}
           onFocus={() => {
             clearBlurTimer();
@@ -264,6 +266,9 @@ export function BrandAddressAutocompleteField({
               color: primaryBlack,
               height: inputHeight,
               maxHeight: ADDRESS_INPUT_MAX,
+              paddingVertical: value.trim()
+                ? responsivePadding(14)
+                : 0,
             },
           ]}
         />
@@ -320,10 +325,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
   },
   input: {
-    paddingVertical: responsivePadding(14),
     paddingHorizontal: responsivePadding(18),
     paddingRight: responsivePadding(44),
     width: "100%",
+    margin: 0,
   },
   loader: {
     position: "absolute",
