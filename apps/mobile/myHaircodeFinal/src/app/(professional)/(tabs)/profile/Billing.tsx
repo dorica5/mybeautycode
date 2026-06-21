@@ -9,13 +9,11 @@ import { NavBackRow } from "@/src/components/NavBackRow";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import Profile from "@/src/components/Profile";
 import { responsiveScale, scalePercent } from "@/src/utils/responsive";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 export default function BillingScreen() {
-  const subtitle = useMemo(
-    () =>
-      "Your current plan will appear here once billing is integrated.\n\nTrial: 7 days · Monthly: NOK 199 · Yearly: NOK 1,999 · Lifetime: NOK 4,999",
-    []
-  );
+  const { t } = useI18n();
+  const subtitle = useMemo(() => t("profile.billingSubtitle"), [t]);
 
   return (
     <>
@@ -25,7 +23,7 @@ export default function BillingScreen() {
           onPress={() => router.back()}
           style={styles.backRow}
           hitSlop={12}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("common.goBack")}
         />
 
         <ScrollView
@@ -33,45 +31,36 @@ export default function BillingScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.title} accessibilityRole="header">
-            Billing
+            {t("profile.billing")}
           </Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
 
           <View style={styles.cardStack}>
             <Profile
-              title="Manage / cancel subscription"
+              title={t("profile.manageCancelSubscription")}
               Icon={CreditCard}
               tileStyle="light"
               groupPosition="first"
               onPress={() =>
-                Alert.alert(
-                  "Coming soon",
-                  "Manage/cancel subscription will be available when billing is integrated."
-                )
+                Alert.alert(t("common.comingSoon"), t("profile.manageCancelSoon"))
               }
             />
             <Profile
-              title="Change plan"
+              title={t("profile.changePlan")}
               Icon={ArrowsLeftRight}
               tileStyle="light"
               groupPosition="middle"
               onPress={() =>
-                Alert.alert(
-                  "Coming soon",
-                  "Plan changes will be available when billing is integrated."
-                )
+                Alert.alert(t("common.comingSoon"), t("profile.changePlanSoon"))
               }
             />
             <Profile
-              title="Restore purchases"
+              title={t("profile.restorePurchases")}
               Icon={ArrowCounterClockwise}
               tileStyle="light"
               groupPosition="last"
               onPress={() =>
-                Alert.alert(
-                  "Restore purchases",
-                  "Restore will be enabled when billing is integrated."
-                )
+                Alert.alert(t("profile.restorePurchases"), t("profile.restorePurchasesSoon"))
               }
             />
           </View>

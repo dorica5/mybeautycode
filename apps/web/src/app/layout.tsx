@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Anton, Outfit } from "next/font/google";
+import { LanguageProvider } from "@/providers/LanguageProvider";
 import "./globals.css";
 
 const anton = Anton({
@@ -29,11 +30,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="nb">
+    <html lang="en">
       <body
         className={`${anton.variable} ${outfit.variable} ${outfit.className} min-h-screen antialiased`}
       >
-        {children}
+        <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
   );

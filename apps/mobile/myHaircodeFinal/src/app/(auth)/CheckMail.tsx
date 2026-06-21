@@ -10,8 +10,11 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const CheckMail = () => {
+  const { t } = useI18n();
+
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
@@ -20,11 +23,11 @@ const CheckMail = () => {
           accessibilityRole="header"
           style={[Typography.h3, styles.headline]}
         >
-          Password sent
+          {t("auth.passwordSent")}
         </Text>
         <View style={styles.card}>
           <Text style={[Typography.bodyLarge, styles.cardText]}>
-            Please check your e-mail
+            {t("auth.checkEmail")}
           </Text>
         </View>
       </View>

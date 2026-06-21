@@ -28,10 +28,27 @@ import {
   CHOOSE_PROFESSION_OPTIONS,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 export type { ProfessionChoiceCode };
 
+const professionLabelKey: Record<
+  ProfessionChoiceCode,
+  | "profession.imHair"
+  | "profession.imBarber"
+  | "profession.imBrows"
+  | "profession.imNails"
+  | "profession.imEsthetician"
+> = {
+  hair: "profession.imHair",
+  barber: "profession.imBarber",
+  brows_lashes: "profession.imBrows",
+  nails: "profession.imNails",
+  esthetician: "profession.imEsthetician",
+};
+
 const ChooseProfession = () => {
+  const { t } = useI18n();
   const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<ProfessionChoiceCode | null>(null);
@@ -59,7 +76,7 @@ const ChooseProfession = () => {
       >
         <View style={styles.paddedHorizontal}>
           <NavBackRow
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("common.back")}
             onPress={() => router.back()}
             style={styles.backRow}
             hitSlop={12}
@@ -91,7 +108,7 @@ const ChooseProfession = () => {
 
         <View style={styles.paddedHorizontal}>
           <Text style={[Typography.h3, styles.title]} accessibilityRole="header">
-            Choose profession
+            {t("setup.chooseProfession")}
           </Text>
 
           <View style={styles.cards}>
@@ -115,7 +132,7 @@ const ChooseProfession = () => {
                       isSel && styles.cardLabelSelected,
                     ]}
                   >
-                    {opt.label}
+                    {t(professionLabelKey[opt.code])}
                   </Text>
                 </Pressable>
               );
@@ -145,7 +162,7 @@ const ChooseProfession = () => {
                 selected ? styles.nextButtonTextOnBlack : styles.nextButtonTextOutline,
               ]}
             >
-              Next
+              {t("common.next")}
             </Text>
           </Pressable>
         </View>

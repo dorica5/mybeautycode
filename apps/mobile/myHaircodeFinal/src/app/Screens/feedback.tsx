@@ -47,6 +47,7 @@ import {
   useSubmitFeedback,
   useToggleFeedbackVote,
 } from "@/src/api/feedback";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const MAX_DESCRIPTION = 1000;
 const SCREENSHOT_THUMB = responsiveScale(72);
@@ -75,6 +76,7 @@ function FeedbackBoardRow({
   onVote: (id: string) => void;
   voting: boolean;
 }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const chip = statusChipStyle(item.status);
   const hasDetails =
@@ -119,7 +121,7 @@ function FeedbackBoardRow({
         ) : null}
         {!expanded && hasDetails ? (
           <Text style={[Typography.bodySmall, styles.tapHint]}>
-            Tap for details
+            {t("feedback.tapForDetails")}
           </Text>
         ) : null}
       </Pressable>
@@ -132,7 +134,7 @@ function FeedbackBoardRow({
           pressed && styles.voteButtonPressed,
         ]}
         accessibilityRole="button"
-        accessibilityLabel={`Vote, ${item.vote_count} votes`}
+        accessibilityLabel={t("feedback.voteA11y", { count: item.vote_count })}
         accessibilityState={{ selected: item.viewer_has_voted }}
       >
         <CaretUp
@@ -147,6 +149,7 @@ function FeedbackBoardRow({
 }
 
 export default function FeedbackScreen() {
+  const { t } = useI18n();
   const { data: items = [], isPending, isError, refetch } = useFeedbackBoard();
   const submitMutation = useSubmitFeedback();
   const voteMutation = useToggleFeedbackVote();
@@ -185,7 +188,7 @@ export default function FeedbackScreen() {
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission needed", "Photo library access is required.");
+        Alert.alert(t("common.permissionNeeded"), t("feedback.photoLibraryRequired"));
         return;
       }
       const remaining = MAX_FEEDBACK_SCREENSHOTS - pendingScreenshots.length;
@@ -199,8 +202,10 @@ export default function FeedbackScreen() {
       const assets = result.assets.slice(0, remaining);
       if (result.assets.length > remaining) {
         Alert.alert(
-          "Screenshot limit",
-          `You can attach up to ${MAX_FEEDBACK_SCREENSHOTS} screenshots.`
+          t("feedback.screenshotLimitTitle"),
+          t("feedback.screenshotLimitMessage", {
+            count: MAX_FEEDBACK_SCREENSHOTS,
+          })
         );
       }
 
@@ -216,11 +221,11 @@ export default function FeedbackScreen() {
       }
       setPendingScreenshots((prev) => [...prev, ...prepared]);
     } catch {
-      Alert.alert("Error", "Could not add screenshots.");
+      Alert.alert(t("common.error"), t("feedback.couldNotAddScreenshots"));
     } finally {
       setPreparingScreenshots(false);
     }
-  }, [pendingScreenshots.length, preparingScreenshots]);
+  }, [pendingScreenshots.length, preparingScreenshots, t]);
 
   const removeScreenshot = useCallback((localId: string) => {
     setPendingScreenshots((prev) => prev.filter((s) => s.localId !== localId));
@@ -229,7 +234,7 @@ export default function FeedbackScreen() {
   const handleSubmit = useCallback(async () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      Alert.alert("Missing title", "Please add a short title for your idea.");
+      Alert.alert(t("feedback.missingTitle"), t("feedback.missingTitleMessage"));
       return;
     }
     Keyboard.dismiss();
@@ -243,7 +248,7 @@ export default function FeedbackScreen() {
           "image/jpeg"
         );
         if (!path) {
-          throw new Error("Could not upload a screenshot. Please try again.");
+          throw new Error(t("feedback.couldNotUploadScreenshot"));
         }
         screenshotPaths.push(path);
       }
@@ -260,31 +265,30 @@ export default function FeedbackScreen() {
       setType("feature");
       setPendingScreenshots([]);
       Alert.alert(
-        "Thanks!",
-        "Your suggestion is on the board. Vote for other ideas you'd like us to prioritise."
+        t("feedback.thanksTitle"),
+        t("feedback.thanksMessage")
       );
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : "Could not send your suggestion.";
-      Alert.alert("Something went wrong", message);
+        e instanceof Error ? e.message : t("feedback.couldNotSendSuggestion");
+      Alert.alert(t("feedback.somethingWentWrong"), message);
     }
-  }, [description, pendingScreenshots, submitMutation, title, type]);
+  }, [description, pendingScreenshots, submitMutation, t, title, type]);
 
   return (
     <MintProfileScreenShell>
       <Stack.Screen options={{ headerShown: false }} />
-      <TopNav title="Feedback" />
+      <TopNav title={t("feedback.title")} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={mintProfileScrollContent}
       >
         <Text style={[Typography.body, styles.intro]}>
-          Vote for what we should build next. Submit your own idea below. We
-          review everything and update status as we go.
+          {t("feedback.intro")}
         </Text>
 
         <Text style={[Typography.label, styles.sectionTitle]}>
-          Community board
+          {t("feedback.communityBoard")}
         </Text>
 
         {isPending ? (
@@ -292,15 +296,15 @@ export default function FeedbackScreen() {
         ) : isError ? (
           <View style={styles.emptyWrap}>
             <Text style={[Typography.bodySmall, styles.emptyText]}>
-              Could not load the board.
+              {t("feedback.couldNotLoadBoard")}
             </Text>
             <Pressable onPress={() => refetch()}>
-              <Text style={[Typography.label, styles.retryLink]}>Try again</Text>
+              <Text style={[Typography.label, styles.retryLink]}>{t("common.tryAgain")}</Text>
             </Pressable>
           </View>
         ) : sortedItems.length === 0 ? (
           <Text style={[Typography.bodySmall, styles.emptyText]}>
-            No ideas on the board yet. Be the first to suggest something below.
+            {t("feedback.emptyBoard")}
           </Text>
         ) : (
           sortedItems.map((item) => (
@@ -316,11 +320,10 @@ export default function FeedbackScreen() {
         <View style={styles.divider} />
 
         <Text style={[Typography.label, styles.sectionTitle]}>
-          Have a suggestion?
+          {t("feedback.haveSuggestion")}
         </Text>
         <Text style={[Typography.bodySmall, styles.formHint]}>
-          Send an idea, improvement, or bug. We&apos;ll add it to the board for
-          others to vote on.
+          {t("feedback.formHint")}
         </Text>
 
         <View style={styles.typeRow}>
@@ -351,19 +354,19 @@ export default function FeedbackScreen() {
         </View>
 
         <PrimaryOutlineTextField
-          label="Title"
+          label={t("feedback.titleLabel")}
           value={title}
           onChangeText={setTitle}
-          placeholder="e.g. Filter map by price range"
+          placeholder={t("feedback.titlePlaceholder")}
           maxLength={120}
           singleLineShape="rounded"
         />
 
         <PrimaryOutlineTextField
-          label="Description"
+          label={t("feedback.descriptionLabel")}
           value={description}
           onChangeText={setDescription}
-          placeholder="What should it do, and why would it help you?"
+          placeholder={t("feedback.descriptionPlaceholder")}
           multiline
           minInputHeight={responsiveScale(120)}
           maxLength={MAX_DESCRIPTION}
@@ -374,7 +377,7 @@ export default function FeedbackScreen() {
         </Text>
 
         <Text style={[Typography.label, styles.screenshotLabel]}>
-          Screenshots (optional)
+          {t("feedback.screenshotsOptional")}
         </Text>
         <View style={styles.screenshotRow}>
           {pendingScreenshots.map((shot) => (
@@ -388,7 +391,7 @@ export default function FeedbackScreen() {
                 onPress={() => removeScreenshot(shot.localId)}
                 style={styles.screenshotRemove}
                 accessibilityRole="button"
-                accessibilityLabel="Remove screenshot"
+                accessibilityLabel={t("feedback.removeScreenshot")}
                 hitSlop={8}
               >
                 <X size={responsiveScale(14)} color={primaryWhite} weight="bold" />
@@ -404,7 +407,7 @@ export default function FeedbackScreen() {
                 pressed && styles.screenshotAddPressed,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Add screenshot"
+              accessibilityLabel={t("feedback.addScreenshot")}
             >
               {preparingScreenshots ? (
                 <ActivityIndicator color={primaryBlack} size="small" />
@@ -412,7 +415,7 @@ export default function FeedbackScreen() {
                 <>
                   <Images size={responsiveScale(22)} color={primaryBlack} />
                   <Text style={[Typography.bodySmall, styles.screenshotAddLabel]}>
-                    Add
+                    {t("feedback.add")}
                   </Text>
                 </>
               )}
@@ -423,10 +426,10 @@ export default function FeedbackScreen() {
         <MyButton
           text={
             submitMutation.isPending
-              ? "Sending…"
+              ? t("feedback.sending")
               : preparingScreenshots
-                ? "Preparing…"
-                : "Send to team"
+                ? t("feedback.preparing")
+                : t("feedback.sendToTeam")
           }
           onPress={handleSubmit}
           disabled={!canSubmit}

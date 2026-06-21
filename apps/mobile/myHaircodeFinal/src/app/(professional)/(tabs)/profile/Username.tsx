@@ -23,8 +23,10 @@ import {
   sanitizeUsername,
   validateUsernameInput,
 } from "@/src/lib/profileFieldValidation";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const Username = () => {
+  const { t } = useI18n();
   const { profile, setProfile } = useAuth();
   const original = profile.username ?? "";
   const id = profile.id;
@@ -39,15 +41,9 @@ const Username = () => {
   const { mutate: updateProfile } = useUpdateSupabaseProfile();
 
   const validate = (raw: string) => {
-    const v = sanitize(raw);
-    if (!v) {
-      setErrorMessage("Enter a username (3–30 characters, letter first).");
-      return false;
-    }
-    if (!USERNAME_RE.test(v)) {
-      setErrorMessage(
-        "Lowercase letters, digits, underscore only; must start with a letter."
-      );
+    const result = validateUsernameInput(raw);
+    if (!result.ok) {
+      setErrorMessage(result.message);
       return false;
     }
     setErrorMessage("");
@@ -55,22 +51,24 @@ const Username = () => {
   };
 
   const handleChange = (value: string) => {
-    setUsername(sanitize(value));
+    setUsername(sanitizeUsername(value));
     setChanged(true);
     if (attemptedSubmit) {
-      setError(!validate(sanitize(value)));
+      setError(!validate(sanitizeUsername(value)));
     }
   };
 
   const save = () => {
     setAttemptedSubmit(true);
-    const v = sanitize(username);
-    if (!validate(v)) {
+    const result = validateUsernameInput(username);
+    if (!result.ok) {
+      setErrorMessage(result.message);
       setError(true);
       return;
     }
+    const v = result.value;
     if (!id) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
     setLoading(true);
@@ -92,9 +90,9 @@ const Username = () => {
           setLoading(false);
           const msg = (err?.message ?? "").toLowerCase();
           if (msg.includes("username") && msg.includes("taken")) {
-            Alert.alert("Username taken", "Try another username.");
+            Alert.alert(t("profile.usernameTaken"), t("profile.usernameTakenMessage"));
           } else {
-            Alert.alert("Failed to update profile", err.message);
+            Alert.alert(t("profile.updateFailed"), err.message);
           }
         },
       }
@@ -108,7 +106,7 @@ const Username = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Username"
+        title={t("profile.username")}
         showSaveButton
         saveChanged={changed}
         saveAction={save}
@@ -127,8 +125,8 @@ const Username = () => {
           showsVerticalScrollIndicator={false}
         >
           <BrandOutlineField
-            accessibilityLabel="Username"
-            placeholder="username"
+            accessibilityLabel={t("profile.username")}
+            placeholder={t("profile.usernamePlaceholder")}
             value={username}
             onChangeText={handleChange}
             autoCapitalize="none"

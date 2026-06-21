@@ -62,16 +62,20 @@ import {
   inspirationFilterTabToProfessionCode,
   profileHasProfessionalCapability,
 } from "@/src/constants/professionCodes";
+import {
+  useI18n,
+  useProfessionLabel,
+} from "@/src/providers/LanguageProvider";
 
 const NUM_COLUMNS = 2;
 
 type InspirationProfession = InspirationFilterTab;
 
-const CATEGORY_TABS: { code: InspirationProfession; label: string }[] = [
-  { code: "hair", label: "Hairdresser" },
-  { code: "nails", label: "Nail technician" },
-  { code: "brows", label: "Brow stylist" },
-  { code: "barber", label: "Barber" },
+const CATEGORY_TAB_CODES: InspirationProfession[] = [
+  "hair",
+  "nails",
+  "brows",
+  "barber",
 ];
 
 /** Align with backend inspirationService.deleteByImageUrls so Prisma + storage paths match. */
@@ -96,6 +100,17 @@ function toInspirationDeletePath(url: string): string {
 }
 
 const MyInspiration = () => {
+  const { t } = useI18n();
+  const hairTabLabel = useProfessionLabel("hair");
+  const nailsTabLabel = useProfessionLabel("nails");
+  const browsTabLabel = useProfessionLabel("brows");
+  const barberTabLabel = useProfessionLabel("barber");
+  const professionTabLabels: Record<InspirationProfession, string> = {
+    hair: hairTabLabel,
+    nails: nailsTabLabel,
+    brows: browsTabLabel,
+    barber: barberTabLabel,
+  };
   const [inspirationCategory, setInspirationCategory] =
     useState<InspirationProfession>("hair");
   const inspirationCategoryRef = useRef<InspirationProfession>("hair");
@@ -193,7 +208,7 @@ const MyInspiration = () => {
   const owner_id = profile?.id;
 
   /** Hairdresser / Nail technician / Brow stylist tabs — data is per owner + profession (`/api/inspirations`). */
-  const visibleFilterTabs = CATEGORY_TABS;
+  const visibleFilterTabs = CATEGORY_TAB_CODES;
 
   /** Invalidate inspiration cache only when switching client ↔ pro (not when switching pro lane). */
   const prevSurfaceRef = useRef<"client" | "pro" | null>(null);
@@ -334,7 +349,7 @@ const MyInspiration = () => {
       closeImageDetailModal();
     } catch (error) {
       console.error("Detail delete error:", error);
-      Alert.alert("Error", "Failed to delete image");
+      Alert.alert(t("common.error"), t("inspiration.failed"));
     }
   }, [
     detailDeleteTargetId,
@@ -343,6 +358,7 @@ const MyInspiration = () => {
     refreshInspirationImages,
     setImageGallery,
     closeImageDetailModal,
+    t,
   ]);
 
   const resizeImage = async (uri: string, width: number, quality: number) => {
@@ -415,7 +431,10 @@ const MyInspiration = () => {
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission needed", "Camera roll access is required");
+        Alert.alert(
+          t("inspiration.permissionTitle"),
+          t("inspiration.permissionMessage")
+        );
         return;
       }
 
@@ -435,7 +454,7 @@ const MyInspiration = () => {
       setImageToCrop(result.assets[0].uri);
     } catch (error) {
       console.error("Error in pickImage:", error);
-      Alert.alert("Error", "Failed to access image picker");
+      Alert.alert(t("common.error"), t("inspiration.pickerErrorMessage"));
     }
   };
 
@@ -577,18 +596,18 @@ const MyInspiration = () => {
       <StatusBar style="dark" />
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.topNav}>
-          <InspirationTopNav title="My inspiration" goHome={goHome} />
+          <InspirationTopNav title={t("inspiration.title")} goHome={goHome} />
         </View>
 
         {visibleFilterTabs.length > 0 ? (
           <View style={styles.filtersRow}>
-            {visibleFilterTabs.map((tab) => {
-              const active = inspirationCategory === tab.code;
+            {visibleFilterTabs.map((code) => {
+              const active = inspirationCategory === code;
               return (
                 <Pressable
-                  key={tab.code}
+                  key={code}
                   style={[styles.filterPill, active && styles.filterPillActive]}
-                  onPress={() => selectCategory(tab.code)}
+                  onPress={() => selectCategory(code)}
                 >
                   <Text
                     style={[
@@ -596,7 +615,7 @@ const MyInspiration = () => {
                       active && styles.filterPillTextActive,
                     ]}
                   >
-                    {tab.label}
+                    {professionTabLabels[code]}
                   </Text>
                 </Pressable>
               );
@@ -606,7 +625,7 @@ const MyInspiration = () => {
 
         <Pressable style={styles.addImageButton} onPress={pickImage}>
           <Plus size={responsiveScale(22)} color={primaryBlack} weight="bold" />
-          <Text style={styles.addImageButtonText}>Add image</Text>
+          <Text style={styles.addImageButtonText}>{t("inspiration.addImage")}</Text>
         </Pressable>
 
         <Modal
@@ -637,7 +656,7 @@ const MyInspiration = () => {
                 ]}
               >
                 <InspirationTopNav
-                  title="My inspiration"
+                  title={t("inspiration.title")}
                   onBack={closeImageDetailModal}
                 />
               </View>
@@ -767,8 +786,8 @@ const MyInspiration = () => {
                     if (!item) return;
                     if (item.isTemp) {
                       Alert.alert(
-                        "Please wait",
-                        "This image is still uploading."
+                        t("inspiration.pleaseWait"),
+                        t("inspiration.stillUploading")
                       );
                       return;
                     }
@@ -784,7 +803,7 @@ const MyInspiration = () => {
                   }}
                 >
                   <X size={responsiveScale(22)} color={primaryBlack} weight="bold" />
-                  <Text style={styles.detailDeleteLabel}>Delete</Text>
+                  <Text style={styles.detailDeleteLabel}>{t("common.delete")}</Text>
                 </Pressable>
               </View>
             </SafeAreaView>
@@ -792,16 +811,16 @@ const MyInspiration = () => {
             <MintBrandModal
               visible={detailDeleteAlertVisible}
               onClose={() => setDetailDeleteAlertVisible(false)}
-              title="Delete inspiration"
-              message="Delete this image?"
+              title={t("inspiration.deleteTitle")}
+              message={t("inspiration.deleteMessage")}
               footer={
                 <MintBrandModalFooterRow>
                   <MintBrandModalSecondaryButton
-                    label="Cancel"
+                    label={t("common.cancel")}
                     onPress={() => setDetailDeleteAlertVisible(false)}
                   />
                   <MintBrandModalPrimaryButton
-                    label="Delete"
+                    label={t("common.delete")}
                     onPress={() => {
                       void performDetailDelete();
                     }}
@@ -888,7 +907,9 @@ const MyInspiration = () => {
                       {uploadProgress[item.image_url] >= 0 ? (
                         <ActivityIndicator size="small" color="#fff" />
                       ) : (
-                        <Text style={styles.uploadErrorText}>Failed</Text>
+                        <Text style={styles.uploadErrorText}>
+                          {t("inspiration.failed")}
+                        </Text>
                       )}
                     </View>
                   )}
@@ -915,7 +936,9 @@ const MyInspiration = () => {
                 {fetchingCategory === inspirationCategory ? (
                   <>
                     <ActivityIndicator size="large" color={primaryBlack} />
-                    <Text style={styles.emptyStateLoading}>Loading…</Text>
+                    <Text style={styles.emptyStateLoading}>
+                      {t("common.loading")}
+                    </Text>
                   </>
                 ) : (
                   <View style={styles.emptyStateCard}>
@@ -927,16 +950,12 @@ const MyInspiration = () => {
                       />
                     </View>
                     <Text style={styles.emptyStateTitle}>
-                      No inspiration yet
+                      {t("inspiration.emptyTitle")}
                     </Text>
                     <Text style={styles.emptyStateSubtitle}>
-                      Build your{" "}
-                      {
-                        CATEGORY_TABS.find((t) => t.code === inspirationCategory)
-                          ?.label
-                      }{" "}
-                      moodboard here. Use Add image above to save photos you
-                      love.
+                      {t("inspiration.emptySubtitle", {
+                        profession: professionTabLabels[inspirationCategory],
+                      })}
                     </Text>
                   </View>
                 )}

@@ -13,7 +13,6 @@ import {
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
-  PROFESSION_HEADLINE_ROLE,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
@@ -29,6 +28,10 @@ import {
   responsivePadding,
   responsiveScale,
 } from "@/src/utils/responsive";
+import {
+  professionLabelFromT,
+  useI18n,
+} from "@/src/providers/LanguageProvider";
 
 export type VisitRecordDetailMedia = { uri: string; type: string };
 
@@ -73,6 +76,7 @@ export function VisitRecordDetailView({
   onPressProfessional,
   professionalDisabled = false,
 }: VisitRecordDetailViewProps) {
+  const { t } = useI18n();
   const { width: windowWidth } = useWindowDimensions();
   const carouselTrackWidth = Math.max(
     1,
@@ -84,7 +88,7 @@ export function VisitRecordDetailView({
   const slideCount = visibleSlides.length;
   const [activeSlide, setActiveSlide] = useState(0);
 
-  const professionalLabel = `${PROFESSION_HEADLINE_ROLE[professionCode]}:`;
+  const professionalLabel = `${professionLabelFromT(t, professionCode)}:`;
   const displayDate = dateText?.trim() ? dateText : "";
   const displayService = serviceText?.trim() ? serviceText : "";
   const displayComment = commentText?.trim() ? commentText : "";
@@ -140,14 +144,14 @@ export function VisitRecordDetailView({
   return (
     <View style={styles.root}>
       <View style={styles.block}>
-        <Text style={[Typography.label, styles.fieldLabel]}>Date:</Text>
+        <Text style={[Typography.label, styles.fieldLabel]}>{t("visits.dateLabel")}</Text>
         <Text style={[Typography.bodyMedium, styles.fieldValue]}>
           {displayDate}
         </Text>
       </View>
 
       <View style={styles.block}>
-        <Text style={[Typography.label, styles.fieldLabel]}>Service:</Text>
+        <Text style={[Typography.label, styles.fieldLabel]}>{t("visits.serviceLabel")}</Text>
         <Text style={[Typography.bodyMedium, styles.fieldValue]}>
           {displayService}
         </Text>
@@ -155,7 +159,7 @@ export function VisitRecordDetailView({
 
       <View style={styles.block}>
         <Text style={[Typography.label, styles.fieldLabel]}>
-          Service description:
+          {t("visits.serviceDescriptionLabel")}
         </Text>
         <Text style={[Typography.bodyMedium, styles.fieldValue]}>
           {displayComment}
@@ -164,7 +168,7 @@ export function VisitRecordDetailView({
 
       {showDurationBlock ? (
         <View style={styles.block}>
-          <Text style={[Typography.label, styles.fieldLabel]}>Duration:</Text>
+          <Text style={[Typography.label, styles.fieldLabel]}>{t("visits.durationLabel")}</Text>
           <Text style={[Typography.bodyMedium, styles.fieldValue]}>
             {displayDuration}
           </Text>
@@ -173,7 +177,7 @@ export function VisitRecordDetailView({
 
       {showPriceBlock ? (
         <View style={styles.block}>
-          <Text style={[Typography.label, styles.fieldLabel]}>Price:</Text>
+          <Text style={[Typography.label, styles.fieldLabel]}>{t("visits.priceLabel")}</Text>
           <Text style={[Typography.bodyMedium, styles.fieldValue]}>
             {displayPrice}
           </Text>
@@ -192,7 +196,7 @@ export function VisitRecordDetailView({
               pressed && !professionalDisabled && styles.proCardPressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Open professional profile"
+            accessibilityLabel={t("visits.openProfessionalProfile")}
           >
             <View style={styles.proCard}>
               <AvatarWithSpinner
@@ -306,7 +310,7 @@ export function VisitRecordDetailView({
                 activeSlide <= 0 && styles.navCircleDisabled,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Previous image"
+              accessibilityLabel={t("visits.previousImage")}
             >
               <PreviewArrowLeftIcon />
             </Pressable>
@@ -323,7 +327,7 @@ export function VisitRecordDetailView({
                 activeSlide >= slideCount - 1 && styles.navCircleDisabled,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Next image"
+              accessibilityLabel={t("visits.nextImage")}
             >
               <PreviewArrowRightIcon />
             </Pressable>

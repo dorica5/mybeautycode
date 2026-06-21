@@ -16,7 +16,12 @@ import {
   setLastAppSurface,
   type LastAppSurface,
 } from "../lib/lastVisitPreference";
-import { profileHasProfessionalCapability } from "../constants/professionCodes";
+import { resolveAppHome } from "../lib/resolveAppHome";
+import {
+  clearCachedProfile,
+  readCachedProfile,
+  writeCachedProfile,
+} from "../lib/profileCache";
 import { router, usePathname, useSegments, type Href } from "expo-router";
 
 /** Cross-group route so replace() leaves (auth)/Splash and lands in the setup stack. */
@@ -48,6 +53,8 @@ function legacyProfileLooksCompleteForSetupSync(
   const hasUsername = Boolean(profile.username?.trim());
   if (hasName && hasContact && hasUsername) return true;
   if (hasContact && Boolean(display && display.length > 0)) return true;
+  /** ClientSetup legacy rows: name + phone + country without username. */
+  if (hasName && hasContact) return true;
   return false;
 }
 
@@ -166,10 +173,12 @@ type AuthData = {
   userStatus: UserStatus | null;
   /** Mirrors AsyncStorage last visit; `undefined` while loading for dual-role users. */
   lastAppSurfacePref: LastAppSurface | null | undefined;
+  profileConnectionError: boolean;
   setProfile: (profile: any) => void;
   signOut: () => void;
   clearProfile: () => void;
   setLoadingSetup: (loadingSetup: boolean) => void;
+  retryProfileFetch: () => void;
 };
 
 export const AuthContext = createContext<AuthData>({
@@ -181,10 +190,12 @@ export const AuthContext = createContext<AuthData>({
   isSigningOut: false,
   userStatus: null,
   lastAppSurfacePref: undefined,
+  profileConnectionError: false,
   setProfile: () => {},
   signOut: () => {},
   clearProfile: () => {},
   setLoadingSetup: () => {},
+  retryProfileFetch: () => {},
 });
 
 export default function AuthProvider({ children }: PropsWithChildren) {
@@ -199,6 +210,8 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const [isSignUp, setIsSignUp] = useState(false);
   /** Backend returned 404 / explicit absent row (not network ambiguity) — used when persisting signup intent. */
   const [profileMissingConfirmed, setProfileMissingConfirmed] = useState(false);
+  const [profileConnectionError, setProfileConnectionError] = useState(false);
+  const profileRetryCountRef = useRef(0);
   const [loadingSetup, setLoadingSetup] = useState(false);
   const initialLoadComplete = useRef(false);
   const prevLoadingSetupRef = useRef<boolean | null>(null);
@@ -291,8 +304,11 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     setUserStatus(null);
     setProfileMissingConfirmed(false);
     initialLoadComplete.current = false;
+    setProfileConnectionError(false);
+    profileRetryCountRef.current = 0;
     await AsyncStorage.removeItem("session");
     await AsyncStorage.removeItem("profile");
+    await clearCachedProfile();
   };
 
   const checkUserStatus = async (userId: string): Promise<UserStatus | null> => {
@@ -487,8 +503,17 @@ export default function AuthProvider({ children }: PropsWithChildren) {
             "Profile API unavailable — keeping session, not signup setup",
             { status, msg },
           );
-          profileData = null;
-          profileResolvedMissing = false;
+          const cached = await readCachedProfile(sessionSnap.user.id as string);
+          if (cached) {
+            console.log("Using cached profile while API is unavailable");
+            profileData = cached;
+            profileResolvedMissing = false;
+            setProfileConnectionError(false);
+          } else {
+            profileData = null;
+            profileResolvedMissing = false;
+            setProfileConnectionError(true);
+          }
         } else {
           console.error("Error fetching profile:", profileError);
           await clearProfile();
@@ -503,6 +528,9 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         setIsSignUp(profileResolvedMissing);
         return;
       }
+
+      setProfileConnectionError(false);
+      profileRetryCountRef.current = 0;
 
       if (profileData) {
         const status = await checkUserStatus(sessionSnap.user.id as string);
@@ -525,6 +553,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         setProfile(profileData as Profile);
         const setupComplete = profileSetupIsComplete(profileData as Profile);
         setIsSignUp(!setupComplete);
+        await writeCachedProfile(sessionSnap.user.id as string, profileData as Profile);
         await syncSignupDate(sessionSnap, profileData);
         try {
           postHog.capture("App Opened", {
@@ -632,6 +661,17 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (!profile) {
+        /**
+         * Session exists but `/api/auth/me` failed transiently — keep the loading shell and retry.
+         * Do not open Welcome/setup; that traps returning users when the API is briefly unreachable.
+         */
+        if (!profileMissingConfirmed) {
+          console.log(
+            "Session without profile (transient) — waiting for profile retry",
+          );
+          return;
+        }
+
         const setupScreens = [
           "/Setup",
           "/GeneralSetup",
@@ -720,24 +760,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (profile && setupComplete) {
-        const isHairdresser = profileHasProfessionalCapability(profile);
-
-        const clientHome = "/(client)/(tabs)/home";
-        const proHome = "/(professional)/(tabs)/home";
-
-        let home: string;
-        if (!isHairdresser) {
-          home = clientHome;
-        } else if (lastAppSurfacePref === undefined) {
-          console.log(
-            "Blocking navigation: waiting for last-visited app surface preference"
-          );
-          return;
-        } else if (lastAppSurfacePref === "client") {
-          home = clientHome;
-        } else {
-          home = proHome;
-        }
+        const home = resolveAppHome(profile, lastAppSurfacePref);
 
         const leaveBootstrap = shouldCompletedUserLeaveForHome(pathname);
         const shouldGoHome =
@@ -748,7 +771,6 @@ export default function AuthProvider({ children }: PropsWithChildren) {
             home,
             leaveBootstrap,
             pathname,
-            isHairdresser,
             lastAppSurfacePref,
           });
           setIsNavigating(true);
@@ -796,6 +818,38 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   };
 
   useEffect(() => {
+    if (
+      !session?.user?.id ||
+      profile ||
+      profileMissingConfirmed ||
+      loadingProfile ||
+      profileConnectionError
+    ) {
+      return;
+    }
+    if (profileRetryCountRef.current >= 8) {
+      setProfileConnectionError(true);
+      return;
+    }
+    profileRetryCountRef.current += 1;
+    const delayMs = Math.min(2500 * profileRetryCountRef.current, 15000);
+    console.log("Profile fetch transient miss — scheduling retry", {
+      attempt: profileRetryCountRef.current,
+      delayMs,
+    });
+    const retryTimer = setTimeout(() => {
+      void fetchSessionAndProfile();
+    }, delayMs);
+    return () => clearTimeout(retryTimer);
+  }, [
+    session?.user?.id,
+    profile,
+    profileMissingConfirmed,
+    loadingProfile,
+    profileConnectionError,
+  ]);
+
+  useEffect(() => {
     if (!isNavigating) {
       handleNavigation();
     }
@@ -811,6 +865,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     firstLaunchLoading,
     isFirstLaunch,
     lastAppSurfacePref,
+    profileMissingConfirmed,
   ]);
 
   useEffect(() => {
@@ -930,21 +985,29 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   useSyncSignupDate();
 
   const isAuthed = !!session;
-  const setupCompleteForNav = profileSetupIsComplete(profile);
-  const isHairdresserCapable =
-    !!profile &&
-    setupCompleteForNav &&
-    profileHasProfessionalCapability(profile);
+  const profileFetchPending =
+    isAuthed &&
+    !profile &&
+    !profileMissingConfirmed &&
+    !loadingProfile &&
+    !profileConnectionError;
 
   /**
    * Keep one loading shell until we know routing (session + `/me` fetch), so `/` doesn’t briefly show Splash
-   * before this overlay.
+   * before this overlay. Also hold when profile is still retrying after a transient API failure.
    */
   const shouldHoldTree =
     loading ||
     firstLaunchLoading ||
     (isAuthed && loadingProfile) ||
-    (isAuthed && isHairdresserCapable && lastAppSurfacePref === undefined);
+    profileFetchPending;
+
+  const retryProfileFetch = () => {
+    if (!session?.user?.id) return;
+    setProfileConnectionError(false);
+    profileRetryCountRef.current = 0;
+    void fetchSessionAndProfile();
+  };
 
   return (
     <AuthContext.Provider
@@ -957,13 +1020,21 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         isSigningOut: isSigningOut.current,
         userStatus,
         lastAppSurfacePref,
+        profileConnectionError,
         setProfile,
         signOut,
         clearProfile,
         setLoadingSetup,
+        retryProfileFetch,
       }}
     >
-      {shouldHoldTree ? <LoadingScreen /> : children}
+      {shouldHoldTree ? (
+        <LoadingScreen />
+      ) : profileConnectionError && isAuthed && !profile ? (
+        <LoadingScreen connectionError onRetry={retryProfileFetch} />
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 }

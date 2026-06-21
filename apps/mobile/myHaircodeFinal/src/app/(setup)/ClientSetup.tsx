@@ -44,8 +44,10 @@ import {
   isTablet,
 } from "@/src/utils/responsive";
 import { usePostHog } from "posthog-react-native";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const ClientSetup = () => {
+  const { t } = useI18n();
   const { profilePicture, setProfilePicture } = useSetup();
 
   const { setLoadingSetup } = useAuth();
@@ -95,7 +97,7 @@ const ClientSetup = () => {
     const fetchUserId = async () => {
       const { data, error } = await supabase.auth.getUser();
       if (error) {
-        Alert.alert("Error fetching user.", error.message);
+        Alert.alert(t("common.errorFetchingUser"), error.message);
       } else {
         setUserId(data?.user?.id || null);
       }
@@ -127,7 +129,7 @@ const ClientSetup = () => {
         if (!trimmed) {
           setErrorMessages((prev) => ({
             ...prev,
-            fullName: "Please enter your full name.",
+            fullName: t("setup.fullNameRequired"),
           }));
           return false;
         }
@@ -137,8 +139,7 @@ const ClientSetup = () => {
         if (!nameRegex.test(trimmed)) {
           setErrorMessages((prev) => ({
             ...prev,
-            fullName:
-              "Remove any numbers or unusual symbols. Letters, spaces, hyphens (–), apostrophes (‘), and dots (.) are allowed.",
+            fullName: t("setup.fullNameInvalid"),
           }));
           return false;
         }
@@ -152,7 +153,7 @@ const ClientSetup = () => {
         const isValid = validatePhoneNumber(value.trim(), fields.country);
         setErrorMessages((prev) => ({
           ...prev,
-          phone_number: isValid ? "" : "Please enter a valid phone number.",
+          phone_number: isValid ? "" : t("setup.validPhoneRequired"),
         }));
         return isValid;
       }
@@ -161,7 +162,7 @@ const ClientSetup = () => {
         const valid = value.trim().length > 0;
         setErrorMessages((prev) => ({
           ...prev,
-          country: valid ? "" : "Please select your country.",
+          country: valid ? "" : t("setup.selectCountryRequired"),
         }));
         return valid;
       }
@@ -261,7 +262,7 @@ const ClientSetup = () => {
     } catch (error) {
       console.error("Setup error:", error);
       setLoadingSetup(false);
-      Alert.alert("Failed to complete setup", "Please try again.");
+      Alert.alert(t("setup.failedCompleteSetup"), t("setup.pleaseTryAgain"));
     } finally {
       setLoading(false);
     }
@@ -273,12 +274,12 @@ const ClientSetup = () => {
       const path = await uploadAvatarToStorage(profilePicture);
       return path;
     } catch (error) {
-      Alert.alert("Error uploading image", String(error));
+      Alert.alert(t("setup.errorUploadingImage"), String(error));
       return null;
     }
   };
 
-  const [uploadText, setUploadText] = useState("Upload Profile Picture");
+  const [uploadText, setUploadText] = useState(() => t("setup.uploadProfilePicture"));
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -291,7 +292,7 @@ const ClientSetup = () => {
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setProfilePicture(result.assets[0].uri);
       setErrors((prev) => ({ ...prev, profilePicture: false }));
-      setUploadText("Upload new profile picture");
+      setUploadText(t("setup.uploadNewProfilePicture"));
     }
   };
 
@@ -313,7 +314,7 @@ const ClientSetup = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TopNav title="Client Account" />
+      <TopNav title={t("setup.clientAccount")} />
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
@@ -321,10 +322,10 @@ const ClientSetup = () => {
       >
         <View style={styles.inputContainer}>
           <ResponsiveText size={16} weight="SemiBold" style={styles.label}>
-            Full Name
+            {t("setup.clientFullName")}
           </ResponsiveText>
           <MyTextinput
-            placeholder="Enter your full name"
+            placeholder={t("setup.enterFullName")}
             value={fields.fullName}
             handleChangeText={(value) => handleFieldChange("fullName", value)}
             title=""
@@ -344,7 +345,7 @@ const ClientSetup = () => {
             weight="SemiBold"
             style={[styles.label, { marginBottom: scale(8) }]}
           >
-            Country
+            {t("setup.country")}
           </ResponsiveText>
           <Dropdown
             onSelect={(value: string) => {
@@ -356,19 +357,19 @@ const ClientSetup = () => {
             zIndex={3}
             zIndexInverse={0}
             item={countryItems}
-            placeholder="Select your country"
+            placeholder={t("setup.selectCountry")}
             containerStyle={getDropdownStyle("country")}
           />
           {attemptedSubmit && errors.country && (
             <ResponsiveText size={12} style={styles.errorText}>
-              Please select your country.
+              {t("setup.selectCountryRequired")}
             </ResponsiveText>
           )}
         </View>
 
         <View style={styles.inputContainer}>
           <ResponsiveText size={16} weight="SemiBold" style={styles.label}>
-            Phone Number{" "}
+            {t("setup.phoneNumberLabel")}{" "}
             {fields.country && (
               <ResponsiveText size={14} style={styles.countryCodeText}>
                 ({getCountryCode(fields.country)})
@@ -378,8 +379,8 @@ const ClientSetup = () => {
           <MyTextinput
             placeholder={
               fields.country
-                ? "Enter your phone number"
-                : "Select country first"
+                ? t("setup.enterPhoneNumber")
+                : t("setup.selectCountryFirst")
             }
             value={fields.phone_number}
             checkmark={attemptedSubmit && !errors.phone_number}
@@ -392,7 +393,7 @@ const ClientSetup = () => {
           />
           {attemptedSubmit && errors.phone_number && (
             <ResponsiveText size={12} style={styles.errorText}>
-              Please enter a valid phone number for {fields.country}.
+              {t("setup.validPhoneForCountry", { country: fields.country })}
             </ResponsiveText>
           )}
         </View>
@@ -406,8 +407,8 @@ const ClientSetup = () => {
 
         <CustomAlert
           visible={alertVisible}
-          title="Not sure what to choose?"
-          message={`Please ask your hairdresser if you need help filling out this section.\n\nYou can edit in your profile later.`}
+          title={t("setup.notSureWhatToChoose")}
+          message={t("setup.notSureHairMessage")}
           onClose={() => setAlertVisible(false)}
         />
 
@@ -417,7 +418,7 @@ const ClientSetup = () => {
             weight="SemiBold"
             style={styles.SelectionTextHeader}
           >
-            Hair structure
+            {t("setup.hairStructure")}
           </ResponsiveText>
           <Dropdown
             onSelect={(value: string) => {
@@ -433,7 +434,7 @@ const ClientSetup = () => {
           {attemptedSubmit && errors.hair_structure && (
             <ResponsiveText style={styles.errorText}>
               {" "}
-              Please select a hair structure.{" "}
+              {t("setup.selectHairStructure")}
             </ResponsiveText>
           )}
 
@@ -442,7 +443,7 @@ const ClientSetup = () => {
             weight="SemiBold"
             style={styles.SelectionTextHeader}
           >
-            Hair thickness
+            {t("setup.hairThickness")}
           </ResponsiveText>
           <Dropdown
             onSelect={(value: string) => {
@@ -458,7 +459,7 @@ const ClientSetup = () => {
           {attemptedSubmit && errors.hair_thickness && (
             <ResponsiveText style={styles.errorText}>
               {" "}
-              Please select a hair thickness.{" "}
+              {t("setup.selectHairThickness")}
             </ResponsiveText>
           )}
 
@@ -467,7 +468,7 @@ const ClientSetup = () => {
             weight="SemiBold"
             style={styles.SelectionTextHeader}
           >
-            Natural hair color
+            {t("setup.naturalHairColor")}
           </ResponsiveText>
           <Dropdown
             onSelect={(value: string) => {
@@ -483,7 +484,7 @@ const ClientSetup = () => {
           {attemptedSubmit && errors.natural_hair_color && (
             <ResponsiveText style={styles.errorText}>
               {" "}
-              Please select a hair color.{" "}
+              {t("setup.selectNaturalHairColor")}
             </ResponsiveText>
           )}
 
@@ -492,7 +493,7 @@ const ClientSetup = () => {
             weight="SemiBold"
             style={styles.SelectionTextHeader}
           >
-            Grey hair percentage
+            {t("setup.greyHairPercentage")}
           </ResponsiveText>
           <Dropdown
             onSelect={(value: string) => {
@@ -508,7 +509,7 @@ const ClientSetup = () => {
           {attemptedSubmit && errors.grey_hair_percentage && (
             <ResponsiveText style={styles.errorText}>
               {" "}
-              Please select grey hair percentage.{" "}
+              {t("setup.selectGreyHairPercentage")}
             </ResponsiveText>
           )}
         </View>
@@ -545,7 +546,7 @@ const ClientSetup = () => {
 
         <View style={styles.btnContainer}>
           <MyButton
-            text={loading ? "Almost done..." : "Finish"}
+            text={loading ? t("setup.almostDone") : t("common.finish")}
             onPress={setUpDone}
             disabled={loading}
           />

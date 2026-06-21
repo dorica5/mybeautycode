@@ -22,8 +22,10 @@ import {
 } from "@/src/components/MintProfileScreenShell";
 import { Typography } from "@/src/constants/Typography";
 import { Profile } from "@/src/constants/types";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const ProfilePicture = () => {
+  const { t } = useI18n();
   const { profile, setProfile } = useAuth();
   const { avatarImage } = useImageContext();
   const originalImage = avatarImage;
@@ -36,7 +38,7 @@ const ProfilePicture = () => {
 
   const updateUserProfile = async () => {
     if (!id) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
     setLoading(true);
@@ -59,7 +61,7 @@ const ProfilePicture = () => {
         },
         onError: (error) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", error.message);
+          Alert.alert(t("profile.updateFailed"), error.message);
         },
       }
     );
@@ -68,7 +70,7 @@ const ProfilePicture = () => {
   const uploadImage = async () => {
     if (!image?.startsWith("file://")) return image;
     const path = await uploadAvatarToStorage(image);
-    if (!path) Alert.alert("Error", "Failed to upload image");
+    if (!path) Alert.alert(t("common.error"), t("profile.uploadImageFailed"));
     return path;
   };
 
@@ -92,7 +94,7 @@ const ProfilePicture = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Profile picture"
+        title={t("profile.profilePicture")}
         showSaveButton
         saveAction={updateUserProfile}
         loading={loading}

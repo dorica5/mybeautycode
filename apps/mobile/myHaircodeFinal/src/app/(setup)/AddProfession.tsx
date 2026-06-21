@@ -4,7 +4,6 @@ import {
   primaryBlack,
   primaryGreen,
   primaryWhite,
-  secondaryGreen,
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -32,12 +31,29 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/src/providers/AuthProvider";
+import { useI18n } from "@/src/providers/LanguageProvider";
+
+const professionLabelKey: Record<
+  ProfessionChoiceCode,
+  | "profession.imHair"
+  | "profession.imBarber"
+  | "profession.imBrows"
+  | "profession.imNails"
+  | "profession.imEsthetician"
+> = {
+  hair: "profession.imHair",
+  barber: "profession.imBarber",
+  brows_lashes: "profession.imBrows",
+  nails: "profession.imNails",
+  esthetician: "profession.imEsthetician",
+};
 
 /**
  * Same layout as Choose Profession, for adding a profession you do not already have.
  * Used from “Add account” (switch account) and “Become a professional” (client profile).
  */
 const AddProfession = () => {
+  const { t } = useI18n();
   const { profile, loading } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -88,7 +104,7 @@ const AddProfession = () => {
       >
         <View style={styles.paddedHorizontal}>
           <NavBackRow
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("common.back")}
             onPress={() => router.back()}
             style={styles.backRow}
             hitSlop={12}
@@ -127,19 +143,18 @@ const AddProfession = () => {
             ]}
             accessibilityRole="header"
           >
-            Choose what kind
+            {t("setup.chooseWhatKind")}
           </Text>
 
           {options.length > 0 ? (
             <Text style={styles.description}>
-              You can have an account both as a client and as a professional. You
-              can add accounts later.
+              {t("setup.addProfessionDescription")}
             </Text>
           ) : null}
 
           {options.length === 0 ? (
             <Text style={styles.emptyMessage}>
-              You already have every profession type on your account.
+              {t("setup.allProfessionsLinked")}
             </Text>
           ) : (
             <View style={styles.cards}>
@@ -153,8 +168,14 @@ const AddProfession = () => {
                     onPress={() => setSelected(opt.code)}
                     style={[styles.card, isSel && styles.cardSelected]}
                   >
-                    <Text style={[Typography.bodyLarge, styles.cardLabel]}>
-                      {opt.label}
+                    <Text
+                      style={[
+                        Typography.bodyLarge,
+                        styles.cardLabel,
+                        isSel && styles.cardLabelSelected,
+                      ]}
+                    >
+                      {t(professionLabelKey[opt.code])}
                     </Text>
                   </Pressable>
                 );
@@ -163,7 +184,7 @@ const AddProfession = () => {
           )}
 
           <PaddedLabelButton
-            title="Next"
+            title={t("common.next")}
             horizontalPadding={32}
             verticalPadding={16}
             disabled={!selected || options.length === 0}
@@ -243,11 +264,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cardSelected: {
-    backgroundColor: secondaryGreen,
+    backgroundColor: primaryBlack,
+    borderColor: primaryBlack,
   },
   cardLabel: {
     color: primaryBlack,
     textAlign: "center",
+  },
+  cardLabelSelected: {
+    color: primaryWhite,
   },
   nextButton: {
     alignSelf: "center",

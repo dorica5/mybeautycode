@@ -23,8 +23,10 @@ import {
 import { Typography } from "@/src/constants/Typography";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const ProfilePicture = () => {
+  const { t } = useI18n();
   const { profile, setProfile } = useAuth();
   const { avatarImage } = useImageContext();
   const { activeProfessionCode } = useActiveProfessionState(profile);
@@ -38,13 +40,13 @@ const ProfilePicture = () => {
 
   const updateUserProfile = async () => {
     if (!id) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
     if (!activeProfessionCode) {
       Alert.alert(
-        "Pick a profession",
-        "Open Switch account and select the profession you want to update."
+        t("profile.pickProfessionTitle"),
+        t("profile.pickProfessionUpdateMessage")
       );
       return;
     }
@@ -70,7 +72,7 @@ const ProfilePicture = () => {
         },
         onError: (error) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", error.message);
+          Alert.alert(t("profile.updateFailed"), error.message);
         },
       }
     );
@@ -82,7 +84,7 @@ const ProfilePicture = () => {
       return path;
     }
     const path = await uploadAvatarToStorage(image);
-    if (!path) Alert.alert("Error", "Failed to upload image");
+    if (!path) Alert.alert(t("common.error"), t("profile.uploadImageFailed"));
     return path;
   };
 
@@ -110,7 +112,7 @@ const ProfilePicture = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Profile picture"
+        title={t("profile.profilePicture")}
         showSaveButton
         saveAction={updateUserProfile}
         loading={loading}

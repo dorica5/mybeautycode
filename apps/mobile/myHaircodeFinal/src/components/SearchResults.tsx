@@ -17,11 +17,13 @@ import {
   scalePercent,
 } from "../utils/responsive";
 import { isUuid } from "../utils/isUuid";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type SearchResultProps = {
   item: {
-    id: string;
+    id?: string;
     hairdresser_id?: string;
+    profile_id?: string;
     client_id?: string;
     full_name: string;
     avatar_url: string | null;
@@ -37,6 +39,7 @@ type SearchResultProps = {
 };
 
 const SearchResults = ({ item, context, query, professionCode }: SearchResultProps) => {
+  const { t } = useI18n();
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [actionBusyClientId, setActionBusyClientId] = useState<string | null>(null);
@@ -107,7 +110,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
   const linkPending = Boolean(item.link_pending);
 
   const displayName =
-    item.full_name?.trim() || item.phone_number || "Client";
+    item.full_name?.trim() || item.phone_number || t("common.client");
 
   if (isProClientRow) {
     const clientId = item.client_id ?? item.id;
@@ -198,7 +201,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
               onPress={navigateToPendingClientProfile}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel="Request pending, open client profile"
+              accessibilityLabel={t("search.requestPendingA11y")}
             >
               <PendingClockRowIcon
                 size={trailingIconDp}
@@ -221,8 +224,8 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
                   const msg =
                     err instanceof Error
                       ? err.message
-                      : "Could not send the request.";
-                  Alert.alert("Request failed", msg);
+                      : t("search.couldNotSendRequest");
+                  Alert.alert(t("search.requestFailed"), msg);
                 } finally {
                   setActionBusyClientId(null);
                 }
@@ -230,7 +233,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
               disabled={rowActionBusy}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel="Add client"
+              accessibilityLabel={t("search.addClientA11y")}
             >
               {rowActionBusy ? (
                 <ActivityIndicator color={primaryBlack} />
@@ -247,7 +250,10 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
     );
   }
 
-  const href = `/(client)/(tabs)/userList/professionalProfile/${item.hairdresser_id}`;
+  const proId = item.hairdresser_id ?? item.profile_id ?? item.id;
+  const href = proId
+    ? `/(client)/(tabs)/userList/professionalProfile/${proId}`
+    : null;
 
   const rowContent = (
     <>
@@ -263,6 +269,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
   );
 
   return (
+    href ? (
     <Link
       href={{
         pathname: href,
@@ -285,6 +292,9 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
         {rowContent}
       </Pressable>
     </Link>
+    ) : (
+      <View style={styles.resultItem}>{rowContent}</View>
+    )
   );
 };
 

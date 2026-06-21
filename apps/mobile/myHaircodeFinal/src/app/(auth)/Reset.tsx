@@ -24,8 +24,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const Reset = () => {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -56,7 +58,7 @@ const Reset = () => {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.container}>
           <NavBackRow
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("common.back")}
             onPress={() => router.back()}
             style={styles.backRow}
             hitSlop={12}
@@ -77,14 +79,14 @@ const Reset = () => {
                   accessibilityRole="header"
                   style={[Typography.h3, styles.textOnGreen, styles.headline]}
                 >
-                  Forgot password
+                  {t("auth.forgotPasswordTitle")}
                 </Text>
 
                 <PrimaryOutlineTextField
-                  label="E-mail"
+                  label={t("auth.email")}
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="E-mail"
+                  placeholder={t("auth.email")}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
@@ -97,7 +99,7 @@ const Reset = () => {
                 ) : null}
 
                 <PaddedLabelButton
-                  title={loading ? "Sending…" : "Send me a new password"}
+                  title={loading ? t("auth.sending") : t("auth.sendNewPassword")}
                   horizontalPadding={32}
                   verticalPadding={16}
                   disabled={loading || !email.trim()}

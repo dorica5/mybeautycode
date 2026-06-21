@@ -20,12 +20,15 @@ import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import { parseProfilePhone } from "@/src/lib/profileFieldValidation";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import { establishmentNoun } from "@/src/constants/professionCodes";
 
 const PhoneNumber = () => {
+  const { t } = useI18n();
   const { profile, setProfile } = useAuth();
   const { activeProfessionCode } = useActiveProfessionState(profile);
-  const fieldLabel = `${establishmentNoun(activeProfessionCode)} phone number`;
+  const placeNoun = establishmentNoun(activeProfessionCode);
+  const fieldLabel = t("profile.placePhoneNumber", { place: placeNoun });
   const originalPhoneNumber =
     profile.business_number ?? profile.salon_phone_number ?? null;
   const userId = profile.id;
@@ -53,7 +56,7 @@ const PhoneNumber = () => {
   const updateUserProfile = () => {
     setAttemptedSubmit(true);
     if (!userId) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
 
@@ -103,11 +106,11 @@ const PhoneNumber = () => {
               msg.includes("use"))
           ) {
             Alert.alert(
-              "Phone number in use",
-              "This number is already linked to another account."
+              t("profile.phoneInUse"),
+              t("profile.phoneInUseMessage")
             );
           } else {
-            Alert.alert("Failed to update profile", error.message);
+            Alert.alert(t("profile.updateFailed"), error.message);
           }
         },
       }
@@ -143,8 +146,8 @@ const PhoneNumber = () => {
             accessibilityLabel={fieldLabel}
             placeholder={
               countryHint
-                ? "e.g. +47… or national number"
-                : "e.g. +47… (set country in profile for national)"
+                ? t("profile.phonePlaceholderWithCountry")
+                : t("profile.phonePlaceholderNoCountry")
             }
             value={phoneNumber}
             onChangeText={(t) => {

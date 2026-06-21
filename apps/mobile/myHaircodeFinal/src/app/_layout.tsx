@@ -16,6 +16,7 @@ import LoadingScreen from "./(setup)/LoadingScreen";
 import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
 import useLoadFonts from "@/hooks/useLoadFonts";
 import { PostHogProvider } from "posthog-react-native";
+import LanguageProvider from "../providers/LanguageProvider";
 
 export const unstable_settings = {
   initialRouteName: "(auth)",
@@ -133,17 +134,12 @@ const RootLayout = () => {
   }, []);
   const fontsLoaded = useLoadFonts();
 
-  if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1 }}>
-        <LoadingScreen />
-        <PortraitEnforcer />
-      </View>
-    );
-  }
-
   return (
     <View style={{ flex: 1 }}>
+    <LanguageProvider>
+    {!fontsLoaded ? (
+      <LoadingScreen />
+    ) : (
     <PostHogProvider
       apiKey="phc_JdmTA0CNQRVrMvtk9zd2C9AXhrEt5mPEX09QRfd2WTR"
       options={{
@@ -217,6 +213,8 @@ const RootLayout = () => {
         </RealTimeProvider>
       </AuthProvider>
     </PostHogProvider>
+    )}
+    </LanguageProvider>
     <PortraitEnforcer />
     </View>
   );

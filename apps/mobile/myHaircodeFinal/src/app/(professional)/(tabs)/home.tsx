@@ -35,6 +35,7 @@ import {
   primaryWhite,
 } from "@/src/constants/Colors";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { useI18n, formatVisitListDateForLocale } from "@/src/providers/LanguageProvider";
 
 type VisitListItem = {
   id: string;
@@ -90,8 +91,8 @@ function visitClientProfileNormalized(
   return { displayName, avatarUrl, phone };
 }
 
-function visitClientName(item: VisitListItem): string {
-  return visitClientProfileNormalized(item)?.displayName ?? "Client";
+function visitClientName(item: VisitListItem, clientLabel: string): string {
+  return visitClientProfileNormalized(item)?.displayName ?? clientLabel;
 }
 
 function visitClientAvatarUrl(item: VisitListItem): string | undefined {
@@ -103,6 +104,7 @@ function visitClientPhone(item: VisitListItem): string {
 }
 
 const HomeScreen = () => {
+  const { t, locale } = useI18n();
   const { profile } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -150,14 +152,10 @@ const HomeScreen = () => {
   const clientListData = (showClientSearchResults ? searchResults : []) as never[];
 
   /** Same as `see_visits` / “View all visits” list. */
-  const formatVisitListDate = useCallback((createdAt: string) => {
-    const date = new Date(createdAt);
-    return date.toLocaleDateString("nb-NO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  }, []);
+  const formatVisitListDate = useCallback(
+    (createdAt: string) => formatVisitListDateForLocale(locale, createdAt),
+    [locale]
+  );
 
   const { data: latestHaircodes = [] } = useLatestHaircodes(
     profile?.id,
@@ -214,14 +212,14 @@ const HomeScreen = () => {
                 ? item.services
                 : JSON.stringify(item.services),
           createdAt: ts ? formatVisitListDate(ts) : "",
-          full_name: visitClientName(item),
+          full_name: visitClientName(item, t("common.client")),
           number: visitClientPhone(item),
           price: item.price,
           duration: item.duration,
         },
       });
     },
-    [router, formatVisitListDate, queryClient]
+    [router, formatVisitListDate, queryClient, t]
   );
 
   const visitCards = useMemo(
@@ -229,7 +227,7 @@ const HomeScreen = () => {
       latestVisitsSorted.map((item) => (
         <VisitCard
           key={item.id}
-          name={visitClientName(item)}
+          name={visitClientName(item, t("common.client"))}
           date={
             visitCreatedAtIso(item)
               ? formatVisitListDate(visitCreatedAtIso(item)!)
@@ -241,7 +239,7 @@ const HomeScreen = () => {
           onPress={() => openHaircode(item)}
         />
       )),
-    [latestVisitsSorted, formatVisitListDate, queryClient, openHaircode]
+    [latestVisitsSorted, formatVisitListDate, queryClient, openHaircode, t]
   );
 
   return (
@@ -262,7 +260,7 @@ const HomeScreen = () => {
                   style={[Typography.h3, styles.visitsTitle]}
                   accessibilityRole="header"
                 >
-                  My clients
+                  {t("home.proTitle")}
                 </Text>
                 <Text
                   style={[Typography.anton16, styles.accountSubtitle]}
@@ -274,13 +272,13 @@ const HomeScreen = () => {
 
               <View style={styles.contentContainer}>
                 <Text style={[Typography.agLabel16, styles.searchLabelOnGreen]}>
-                  Search for clients
+                  {t("home.proSearchLabel")}
                 </Text>
                 <SearchInput
                   onSearch={handleSearch}
                   initialQuery=""
                   value={searchQuery}
-                  placeholder="Search for clients"
+                  placeholder={t("home.proSearchPlaceholder")}
                   variant="whitePill"
                   whitePillFill={primaryWhite}
                   whitePillStretch
@@ -303,7 +301,7 @@ const HomeScreen = () => {
                           styles.latestVisitsSectionTitle,
                         ]}
                       >
-                        Latest visits
+                        {t("home.latestVisits")}
                       </Text>
                       {visitCards}
                     </ScrollView>
@@ -315,7 +313,7 @@ const HomeScreen = () => {
                           styles.idlePromptText,
                         ]}
                       >
-                        Search for a client to get started
+                        {t("home.proIdlePrompt")}
                       </Text>
                     </View>
                   )
@@ -354,10 +352,14 @@ const HomeScreen = () => {
                         ) : (
                           <View style={styles.emptyContainer}>
                             <Text style={styles.noResultsText}>
-                              No results found for "{debouncedQuery.trim()}"
+                              {t("home.noResultsFor", {
+                                query: debouncedQuery.trim(),
+                              })}
                             </Text>
                             <Text style={styles.helperText}>
-                              {`Seems like your client hasn't joined ${BRAND_DISPLAY_NAME} yet. You can invite them to download the app.`}
+                              {t("home.clientInviteHelper", {
+                                brand: BRAND_DISPLAY_NAME,
+                              })}
                             </Text>
                           </View>
                         )

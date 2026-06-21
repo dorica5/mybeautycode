@@ -20,6 +20,7 @@ import {
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import { VisitTimelineCard } from "@/src/components/visits/VisitTimelineCard";
+import { useI18n, formatVisitListDateForLocale } from "@/src/providers/LanguageProvider";
 
 type ClientHaircodeRow = {
   id: string;
@@ -45,6 +46,7 @@ type ClientHaircodeRow = {
  * Client “My visits” — sage screen, profile-style title below back, VisitTimelineCard rows.
  */
 const SeeVisitsClient = () => {
+  const { t, locale } = useI18n();
   const { profile } = useAuth();
   const clientId = profile?.id ?? "";
   const queryClient = useQueryClient();
@@ -61,19 +63,15 @@ const SeeVisitsClient = () => {
       .join(" ")
       .trim();
     if (fromParts.length > 0) return fromParts;
-    return profile?.full_name?.trim() || "Client";
-  }, [profile?.first_name, profile?.last_name, profile?.full_name]);
+    return profile?.full_name?.trim() || t("common.client");
+  }, [profile?.first_name, profile?.last_name, profile?.full_name, t]);
 
   const normalizedPhoneNumber = profile?.phone_number?.trim() ?? "";
 
-  const formatVisitDate = (createdAt: string) => {
-    const date = new Date(createdAt);
-    return date.toLocaleDateString("nb-NO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
+  const formatVisitDate = useCallback(
+    (createdAt: string) => formatVisitListDateForLocale(locale, createdAt),
+    [locale]
+  );
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: { item: { id: string } }[] }) => {
@@ -105,7 +103,7 @@ const SeeVisitsClient = () => {
               <NavBackRow onPress={() => router.back()} />
             </View>
             <Text style={styles.screenTitle} accessibilityRole="header">
-              My visits
+              {t("visits.myVisits")}
             </Text>
           </View>
 
@@ -118,7 +116,7 @@ const SeeVisitsClient = () => {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={() => (
               <Text style={styles.emptyText}>
-                {isLoading ? "Loading visits…" : "No visits yet"}
+                {isLoading ? t("visits.loading") : t("visits.empty")}
               </Text>
             )}
             renderItem={({ item }) => {

@@ -35,8 +35,11 @@ import {
 } from "@/src/utils/responsive";
 import { router } from "expo-router";
 import { NavBackRow } from "@/src/components/NavBackRow";
+import { useI18n } from "@/src/providers/LanguageProvider";
 /** Description field limit for new/edit visit (spaces count). */
 export const VISIT_DESCRIPTION_MAX_CHARS = 240;
+/** Max photos (images) per visit when creating or editing. */
+export const VISIT_MAX_PHOTOS = 10;
 
 type MediaItem = {
   uri?: string;
@@ -71,6 +74,8 @@ export type NailVisitFormProps = {
   capturedMedia: MediaItem[];
   pickImage: (index?: number) => void;
   removeMedia: (index: number) => void;
+  /** Disable add while cropping or uploading. */
+  pickImageDisabled?: boolean;
   isPending: boolean;
   isUploadingMedia: boolean;
   onSave: () => void;
@@ -99,11 +104,15 @@ export function NailVisitForm({
   capturedMedia,
   pickImage,
   removeMedia,
+  pickImageDisabled = false,
   isPending,
   isUploadingMedia,
   onSave,
   onPreviewPress,
 }: NailVisitFormProps) {
+  const { t } = useI18n();
+  const mediaAtLimit = capturedMedia.length >= VISIT_MAX_PHOTOS;
+  const addMediaDisabled = pickImageDisabled || mediaAtLimit;
   const { width, height } = useWindowDimensions();
   const dropdownLabelSet = useMemo(
     () => new Set(serviceDropdownOptions),
@@ -134,7 +143,7 @@ export function NailVisitForm({
         <NavBackRow
           layout="inlineBar"
           onPress={() => router.back()}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("common.goBack")}
           hitSlop={12}
         />
         <Pressable
@@ -142,9 +151,9 @@ export function NailVisitForm({
           style={styles.nailPreviewContainer}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Preview visit"
+          accessibilityLabel={t("visits.previewVisit")}
         >
-          <Text style={styles.nailPreviewText}>Preview</Text>
+          <Text style={styles.nailPreviewText}>{t("visits.preview")}</Text>
         </Pressable>
       </View>
 
@@ -160,12 +169,12 @@ export function NailVisitForm({
             style={[Typography.h3, styles.nailScreenTitle]}
             accessibilityRole="header"
           >
-            {isEditing ? "Edit visit" : "New visit"}
+            {isEditing ? t("visits.editVisit") : t("visits.newVisit")}
           </Text>
 
           <View style={[styles.nailFormAlignedColumn, { maxWidth: columnMax }]}>
             <Text style={[Typography.label, styles.nailSectionLabelFirst]}>
-              What kind of service?
+              {t("visits.whatKindOfService")}
             </Text>
 
             <View style={styles.nailServiceBlock}>
@@ -197,22 +206,22 @@ export function NailVisitForm({
             {serviceDropdownOptions.length > 0 &&
             onChangeDropdownServices ? (
               <BrandAnchoredMultiSelect
-                label="Other"
+                label={t("visits.other")}
                 options={serviceDropdownOptions}
                 value={dropdownValue}
                 onChange={onChangeDropdownServices}
-                placeholder="Tap to add services"
+                placeholder={t("visits.tapToAddServices")}
               />
             ) : null}
 
             <View style={styles.nailFieldBlock}>
               <PrimaryOutlineTextField
-                label="Describe the service"
+                label={t("visits.describeService")}
                 value={newHaircode}
                 onChangeText={onChangeDescription}
                 multiline
                 minInputHeight={responsiveScale(120)}
-                placeholder="Describe the service"
+                placeholder={t("visits.describeService")}
                 containerStyle={[
                   styles.nailDescribeOutlineContainer,
                   { maxWidth: columnMax },
@@ -229,7 +238,7 @@ export function NailVisitForm({
                 style={[Typography.label, styles.nailTimeLabel]}
                 accessibilityRole="text"
               >
-                Time used
+                {t("visits.timeUsed")}
               </Text>
               <Pressable
                 onPress={onTimePickerOpen}
@@ -238,7 +247,7 @@ export function NailVisitForm({
                   pressed && styles.nailTimePressablePressed,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Time used on the treatment"
+                accessibilityLabel={t("visits.timeUsedOnTreatment")}
               >
                 <Text
                   style={[
@@ -250,7 +259,7 @@ export function NailVisitForm({
                 >
                   {durationMinutes > 0
                     ? formatDurationDisplay(durationMinutes)
-                    : "Time used on the treatment"}
+                    : t("visits.timeUsedOnTreatment")}
                 </Text>
               </Pressable>
 
@@ -271,7 +280,7 @@ export function NailVisitForm({
                         onPress={onTimePickerDismiss}
                         style={styles.nailTimePickerDone}
                       >
-                        <Text style={styles.nailTimePickerDoneText}>Done</Text>
+                        <Text style={styles.nailTimePickerDoneText}>{t("visits.done")}</Text>
                       </Pressable>
                     </View>
                   ) : null}
@@ -280,7 +289,7 @@ export function NailVisitForm({
             </View>
 
             <BrandOutlineField
-              label="Price"
+              label={t("visits.price")}
               value={price}
               onChangeText={onChangePrice}
               inputRestriction="decimal"
@@ -289,7 +298,7 @@ export function NailVisitForm({
             />
 
             <Text style={[Typography.label, styles.nailSectionLabel]}>
-              Upload images and video
+              {t("visits.uploadImagesVideo")}
             </Text>
 
             <View style={styles.nailUploadSection}>
@@ -301,7 +310,7 @@ export function NailVisitForm({
                       style={styles.nailThumbCell}
                     >
                       <View style={styles.nailThumbInner}>
-                        {item.uri && item.type === "image" ? (
+                        {item.uri && item.type !== "video" ? (
                           <Image
                             source={{ uri: item.uri }}
                             style={styles.nailThumb}
@@ -321,7 +330,7 @@ export function NailVisitForm({
                           style={styles.nailThumbDelete}
                           hitSlop={8}
                           accessibilityRole="button"
-                          accessibilityLabel="Remove media"
+                          accessibilityLabel={t("visits.removeMedia")}
                         >
                           <XCircle
                             size={responsiveScale(22)}
@@ -336,13 +345,17 @@ export function NailVisitForm({
 
               <Pressable
                 onPress={() => pickImage()}
+                disabled={addMediaDisabled}
                 style={({ pressed }) => [
                   styles.nailUploadAddRow,
                   capturedMedia.length > 0 && styles.nailUploadAddRowBelowGrid,
-                  pressed && styles.nailUploadAddRowPressed,
+                  pressed && !addMediaDisabled && styles.nailUploadAddRowPressed,
+                  addMediaDisabled && styles.nailUploadAddRowDisabled,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel="Add image"
+                accessibilityLabel={
+                  mediaAtLimit ? t("visits.maxPhotosReached") : t("visits.addImage")
+                }
               >
                 <Plus
                   size={responsiveScale(20)}
@@ -350,7 +363,9 @@ export function NailVisitForm({
                   strokeWidth={1.5}
                 />
                 <Text style={[Typography.bodyMedium, styles.nailUploadAddText]}>
-                  Add image
+                  {mediaAtLimit
+                    ? t("visits.maximumPhotos", { count: String(VISIT_MAX_PHOTOS) })
+                    : t("visits.addImage")}
                 </Text>
                 <View style={styles.nailUploadAddRowEndSpacer} />
               </Pressable>
@@ -359,8 +374,8 @@ export function NailVisitForm({
             <PaddedLabelButton
               title={
                 isPending || isUploadingMedia
-                  ? "Saving…"
-                  : "Save visit"
+                  ? t("common.saving")
+                  : t("visits.saveVisit")
               }
               horizontalPadding={32}
               verticalPadding={16}
@@ -556,6 +571,9 @@ const styles = StyleSheet.create({
   },
   nailUploadAddRowPressed: {
     opacity: 0.88,
+  },
+  nailUploadAddRowDisabled: {
+    opacity: 0.45,
   },
   nailUploadAddText: {
     flex: 1,

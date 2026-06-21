@@ -29,7 +29,10 @@ import {
 } from "@/src/constants/professionCodes";
 import { geocodeAddress, getGooglePlacesKey } from "@/src/lib/googlePlaces";
 
+import { useI18n } from "@/src/providers/LanguageProvider";
+
 const SalonAddress = () => {
+  const { t } = useI18n();
   const { profile } = useAuth();
   const { storedProfessionReady, activeProfessionCode } =
     useActiveProfessionState(profile);
@@ -57,7 +60,7 @@ const SalonAddress = () => {
   const profileCountry = profile?.country?.trim() ?? "";
   const placeNoun = establishmentNoun(activeProfessionCode);
   const placeNounLower = establishmentNoun(activeProfessionCode, "lower");
-  const fieldLabel = `${placeNoun} address`;
+  const fieldLabel = t("profile.placeAddress", { place: placeNoun });
 
   const [address, setAddress] = useState(originalAddress);
   const [placeDetails, setPlaceDetails] = useState<PlaceDetails | null>(null);
@@ -94,13 +97,13 @@ const SalonAddress = () => {
     (raw: string) => {
       const trimmed = raw.trim();
       if (!trimmed) {
-        setErrorMessage(`Please enter your ${placeNounLower} address.`);
+        setErrorMessage(t("profile.enterPlaceAddress", { place: placeNounLower }));
         return false;
       }
       setErrorMessage("");
       return true;
     },
-    [placeNounLower]
+    [placeNounLower, t]
   );
 
   const handleAddressChange = (value: string) => {
@@ -121,13 +124,13 @@ const SalonAddress = () => {
       return;
     }
     if (!id) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
     if (!activeProfessionCode) {
       Alert.alert(
-        "Pick a profession first",
-        "Open Switch account and select the profession you want to edit."
+        t("profile.pickProfessionTitle"),
+        t("profile.pickProfessionEditMessage")
       );
       return;
     }
@@ -184,12 +187,12 @@ const SalonAddress = () => {
     if (resolvedLat == null || resolvedLng == null) {
       setLoading(false);
       Alert.alert(
-        "Address not recognized",
-        `We couldn't verify "${trimmed}". Try adding your city or postal code so it can be mapped.`,
+        t("profile.addressNotRecognized"),
+        t("profile.addressNotRecognizedMessage", { address: trimmed }),
         [
-          { text: "Edit address", style: "cancel" },
+          { text: t("profile.editAddress"), style: "cancel" },
           {
-            text: "Save anyway",
+            text: t("profile.saveAnyway"),
             style: "destructive",
             onPress: () => submitProfile(trimmed, null, null, null),
           },
@@ -234,8 +237,8 @@ const SalonAddress = () => {
         onError: (err) => {
           setLoading(false);
           Alert.alert(
-            "Failed to update profile",
-            err instanceof Error ? err.message : "Please try again."
+            t("profile.updateFailed"),
+            err instanceof Error ? err.message : t("setup.pleaseTryAgain")
           );
         },
       }

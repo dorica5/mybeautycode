@@ -25,6 +25,7 @@ import {
   MintBrandModalSecondaryButton,
 } from "@/src/components/MintBrandModal";
 import { ModerationSheetHeading } from "@/src/components/moderation/ModerationSheetParts";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import { VisitRecordScreenHeader } from "@/src/components/visits/VisitRecordScreenHeader";
 import {
   useDeleteHaircodeClient,
@@ -86,6 +87,7 @@ function recordClientPrivateNote(r: ApiRecord | undefined): string | null {
 }
 
 const SingleVisitClient = () => {
+  const { t } = useI18n();
   const visitScrollRef = useRef<ScrollView>(null);
   const noteScrollCleanupRef = useRef<(() => void) | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -165,6 +167,12 @@ const SingleVisitClient = () => {
     record,
     (hairdresserProfile as { profession_codes?: string[] } | null | undefined)
       ?.profession_codes
+  );
+
+  const isOwnProfessionalOnVisit = Boolean(
+    profile?.id &&
+      hairdresser_id &&
+      String(profile.id) === String(hairdresser_id)
   );
 
   const displayClientName =
@@ -255,29 +263,30 @@ const SingleVisitClient = () => {
   };
 
   const handleHairdresserPress = () => {
-    if (!isBlockedByHairdresser && hairdresser_id) {
-      router.push({
-        pathname: "./other_professional_profile",
-        params: { hairdresser_id: String(hairdresser_id) },
-      });
+    if (isOwnProfessionalOnVisit || isBlockedByHairdresser || !hairdresser_id) {
+      return;
     }
+    router.push({
+      pathname: "./other_professional_profile",
+      params: { hairdresser_id: String(hairdresser_id) },
+    });
   };
 
   const modalContent = (
     <View style={styles.sheetFooter}>
       <ModerationSheetHeading
-        title="Delete visit?"
-        subtitle="This removes it from your visit history."
+        title={t("visits.deleteVisitTitle")}
+        subtitle={t("visits.deleteVisitSubtitle")}
       />
       <MintBrandModalPrimaryButton
-        label="Delete"
-        accessibilityLabel="Delete visit"
+        label={t("common.delete")}
+        accessibilityLabel={t("visits.deleteVisitA11y")}
         onPress={() =>
           handleDelete(haircodeId ?? "", (hairdresser_id || profile?.id) ?? "")
         }
       />
       <MintBrandModalSecondaryButton
-        label="Cancel"
+        label={t("common.cancel")}
         onPress={toggleModal}
       />
     </View>
@@ -288,7 +297,7 @@ const SingleVisitClient = () => {
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <StatusBar style="dark" />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Missing visit ID</Text>
+          <Text style={styles.loadingText}>{t("visits.missingVisitId")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -299,7 +308,7 @@ const SingleVisitClient = () => {
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <StatusBar style="dark" />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading…</Text>
+          <Text style={styles.loadingText}>{t("common.loading")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -310,7 +319,7 @@ const SingleVisitClient = () => {
       <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
         <StatusBar style="dark" />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Visit not found</Text>
+          <Text style={styles.loadingText}>{t("visits.visitNotFoundShort")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -349,7 +358,7 @@ const SingleVisitClient = () => {
                   style={styles.menuBtn}
                   hitSlop={12}
                   accessibilityRole="button"
-                  accessibilityLabel="Visit actions"
+                  accessibilityLabel={t("visits.visitActions")}
                 >
                   <DotsThree size={32} color={primaryBlack} />
                 </Pressable>
@@ -373,9 +382,13 @@ const SingleVisitClient = () => {
               mediaSlides={signedMedia}
               carouselHeight={carouselHeight}
               onPressProfessional={
-                isBlockedByHairdresser ? undefined : handleHairdresserPress
+                isOwnProfessionalOnVisit || isBlockedByHairdresser
+                  ? undefined
+                  : handleHairdresserPress
               }
-              professionalDisabled={isBlockedByHairdresser}
+              professionalDisabled={
+                isOwnProfessionalOnVisit || isBlockedByHairdresser
+              }
             />
 
             <VisitClientPersonalNoteSection
@@ -389,7 +402,7 @@ const SingleVisitClient = () => {
         <SmallDraggableModal
           isVisible={isModalVisible}
           onClose={toggleModal}
-          modalHeight={"48%"}
+          modalHeight={"68%"}
           sheetVariant="brand"
           renderContent={modalContent}
           done={false}

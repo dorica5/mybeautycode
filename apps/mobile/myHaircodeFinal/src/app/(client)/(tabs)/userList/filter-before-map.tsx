@@ -26,20 +26,27 @@ import {
   contentCardMaxWidth,
   isTablet,
 } from "@/src/utils/responsive";
+import { useI18n, useProfessionLabel } from "@/src/providers/LanguageProvider";
 
 type Profession = "hair" | "nails" | "brows" | "barber";
 
-const OPTIONS: { key: Profession; label: string }[] = [
-  { key: "hair", label: "Hairdresser" },
-  { key: "barber", label: "Barber" },
-  { key: "nails", label: "Nail technician" },
-  { key: "brows", label: "Brow stylist" },
-];
+const OPTION_KEYS: Profession[] = ["hair", "barber", "nails", "brows"];
 
 /** Delay between the tile turning black (selected) and pushing the next screen. */
 const SELECTION_FEEDBACK_MS = 180;
 
 const FilterBeforeMapScreen = () => {
+  const { t } = useI18n();
+  const hairLabel = useProfessionLabel("hair");
+  const barberLabel = useProfessionLabel("barber");
+  const nailsLabel = useProfessionLabel("nails");
+  const browsLabel = useProfessionLabel("brows");
+  const professionLabels: Record<Profession, string> = {
+    hair: hairLabel,
+    barber: barberLabel,
+    nails: nailsLabel,
+    brows: browsLabel,
+  };
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { fromTab } = useLocalSearchParams<{ fromTab?: string }>();
@@ -134,13 +141,16 @@ const FilterBeforeMapScreen = () => {
         </View>
 
         <View style={styles.content}>
-          <Text style={[Typography.h3, styles.heading]}>Find professionals</Text>
+          <Text style={[Typography.h3, styles.heading]}>
+            {t("discover.findProfessionals")}
+          </Text>
           <Text style={[Typography.agLabel16, styles.sub]}>
-            What kind of professional?
+            {t("discover.whatKind")}
           </Text>
 
           <View style={[styles.options, { width: optionTileWidth }]}>
-            {OPTIONS.map(({ key, label }) => {
+            {OPTION_KEYS.map((key) => {
+              const label = professionLabels[key];
               const on = selected === key;
               return (
                 <Pressable

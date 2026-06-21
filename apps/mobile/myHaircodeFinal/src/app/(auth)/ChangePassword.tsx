@@ -21,6 +21,7 @@ import {
   MintProfileScreenShell,
   mintProfileScrollContent,
 } from "@/src/components/MintProfileScreenShell";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import {
   moderateScale,
   responsiveFontSize,
@@ -37,13 +38,14 @@ type ErrorMessages = {
 };
 
 const ChangePassword = () => {
+  const { t } = useI18n();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordStrength, setPasswordStrength] = useState({
-    strength: "Weak",
+    strength: t("authPassword.passwordWeak"),
     color: "red",
-    feedback: "Password must be at least 8 characters.",
+    feedback: t("authPassword.passwordMinLength"),
   });
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [errorMessages, setErrorMessages] = useState<ErrorMessages>({});
@@ -55,17 +57,17 @@ const ChangePassword = () => {
       oldPassword.length > 0 &&
       newPassword.length >= 8 &&
       confirmPassword.length > 0 &&
-      (passwordStrength.strength === "Medium" ||
-        passwordStrength.strength === "Strong")
+      (passwordStrength.strength === t("authPassword.passwordMedium") ||
+        passwordStrength.strength === t("authPassword.passwordStrong"))
     );
   };
 
   const resetPassword = () => router.push("../../Reset");
 
   const checkPasswordStrength = (password: string) => {
-    let strength = "Weak";
+    let strength = t("authPassword.passwordWeak");
     let color = "red";
-    let feedback = "Password must be at least 8 characters.";
+    let feedback = t("authPassword.passwordMinLength");
 
     const hasUppercase = /[A-ZÆØÅ]/.test(password);
     const hasLowercase = /[a-zæøå]/.test(password);
@@ -73,9 +75,8 @@ const ChangePassword = () => {
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
     if (password.length >= 8) {
-      feedback =
-        "Add an uppercase letter, a number, and a special character for a stronger password.";
-      strength = "Medium";
+      feedback = t("authPassword.passwordStrengthHint");
+      strength = t("authPassword.passwordMedium");
       color = "orange";
     }
 
@@ -86,8 +87,8 @@ const ChangePassword = () => {
       hasSpecialChar &&
       password.length >= 8
     ) {
-      feedback = "Strong password!";
-      strength = "Strong";
+      feedback = t("auth.strongPassword");
+      strength = t("authPassword.passwordStrong");
       color = "green";
     }
 
@@ -100,9 +101,9 @@ const ChangePassword = () => {
       setPasswordStrength(checkPasswordStrength(value));
     } else {
       setPasswordStrength({
-        strength: "Weak",
+        strength: t("authPassword.passwordWeak"),
         color: "red",
-        feedback: "Password must be at least 8 characters.",
+        feedback: t("authPassword.passwordMinLength"),
       });
     }
   };
@@ -116,11 +117,11 @@ const ChangePassword = () => {
 
     try {
       if (newPassword !== confirmPassword) {
-        errors.confirmPassword = "Passwords do not match.";
+        errors.confirmPassword = t("authPassword.passwordsNoMatch");
       }
 
-      if (passwordStrength.strength === "Weak") {
-        errors.newPassword = "Password must be at least 8 characters.";
+      if (passwordStrength.strength === t("authPassword.passwordWeak")) {
+        errors.newPassword = t("authPassword.passwordMinLength");
       }
 
       if (Object.keys(errors).length > 0) {
@@ -133,7 +134,7 @@ const ChangePassword = () => {
       const email = sessionData.session?.user?.email;
 
       if (!email) {
-        errors.oldPassword = "Error verifying session. Please try again.";
+        errors.oldPassword = t("authPassword.sessionVerifyFailed");
         setErrorMessages(errors);
         setIsUpdating(false);
         return;
@@ -154,7 +155,7 @@ const ChangePassword = () => {
       );
 
       if (!verifyResponse.ok) {
-        errors.oldPassword = "Incorrect old password.";
+        errors.oldPassword = t("authPassword.incorrectOldPassword");
         setErrorMessages(errors);
         setIsUpdating(false);
         return;
@@ -177,7 +178,7 @@ const ChangePassword = () => {
     } catch (error) {
       console.error("Error updating password:", error);
       setErrorMessages({
-        oldPassword: "An unexpected error occurred. Please try again.",
+        oldPassword: t("authPassword.unexpectedPasswordError"),
       });
       setIsUpdating(false);
     }
@@ -185,7 +186,7 @@ const ChangePassword = () => {
 
   return (
     <MintProfileScreenShell>
-      <TopNav title="Change password" />
+      <TopNav title={t("profile.changePassword")} />
       <KeyboardAvoidingView
         style={styles.keyboard}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -199,8 +200,8 @@ const ChangePassword = () => {
           showsVerticalScrollIndicator={false}
         >
           <PrimaryOutlineTextField
-            label="Current password"
-            placeholder="Enter old password"
+            label={t("authPassword.currentPassword")}
+            placeholder={t("authPassword.enterOldPassword")}
             value={oldPassword}
             onChangeText={setOldPassword}
             password
@@ -221,7 +222,7 @@ const ChangePassword = () => {
                 { fontSize: responsiveFontSize(16, 12) },
               ]}
             >
-              Don&apos;t remember your password?
+              {t("auth.forgotPassword")}
             </Text>
             <Pressable onPress={resetPassword}>
               <Text
@@ -231,14 +232,14 @@ const ChangePassword = () => {
                   { fontSize: responsiveFontSize(16, 12) },
                 ]}
               >
-                Reset
+                {t("authPassword.reset")}
               </Text>
             </Pressable>
           </View>
 
           <PrimaryOutlineTextField
-            label="New password"
-            placeholder="Enter new password"
+            label={t("authPassword.newPassword")}
+            placeholder={t("authPassword.enterNewPassword")}
             value={newPassword}
             onChangeText={handlePasswordChange}
             password
@@ -273,8 +274,8 @@ const ChangePassword = () => {
           ) : null}
 
           <PrimaryOutlineTextField
-            label="Confirm new password"
-            placeholder="Confirm new password"
+            label={t("authPassword.confirmNewPassword")}
+            placeholder={t("authPassword.confirmNewPassword")}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             password
@@ -288,7 +289,7 @@ const ChangePassword = () => {
           ) : null}
 
           <PaddedLabelButton
-            title={isUpdating ? "Updating password…" : "Update password"}
+            title={isUpdating ? t("authPassword.updatingPassword") : t("authPassword.updatePassword")}
             horizontalPadding={32}
             verticalPadding={16}
             onPress={updatePassword}
@@ -299,8 +300,8 @@ const ChangePassword = () => {
 
           <CustomAlert
             visible={alertVisible}
-            title="Success"
-            message="Your password has been updated successfully."
+            title={t("common.success")}
+            message={t("authPassword.passwordUpdated")}
             onClose={() => {
               setAlertVisible(false);
               router.replace("/(professional)/home" as Href);

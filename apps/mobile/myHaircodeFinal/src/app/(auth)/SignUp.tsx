@@ -27,6 +27,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type StrengthState = { strength: string; feedback: string };
 
@@ -58,6 +59,7 @@ function signUpRuleMessages(
 }
 
 const SignUp = () => {
+  const { t } = useI18n();
   const passwordRef = useRef<TextInput>(null);
   const { height: windowHeight } = useWindowDimensions();
   const logoSize = useBeautyCodeLogoSize();
@@ -228,7 +230,7 @@ const SignUp = () => {
         >
           <View style={styles.topSection}>
             <NavBackRow
-              accessibilityLabel="Go back"
+              accessibilityLabel={t("common.back")}
               onPress={() => router.back()}
               style={styles.backRow}
               hitSlop={12}
@@ -243,14 +245,14 @@ const SignUp = () => {
               accessibilityRole="header"
               style={[Typography.h4, styles.textOnGreen, styles.title]}
             >
-              Sign up
+              {t("auth.signUp")}
             </Text>
 
             <PrimaryOutlineTextField
-              label="Email"
+              label={t("auth.email")}
               value={email}
               onChangeText={handleEmailChange}
-              placeholder="Email"
+              placeholder={t("auth.email")}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -263,11 +265,11 @@ const SignUp = () => {
 
             <PrimaryOutlineTextField
               inputRef={passwordRef}
-              label="Your password"
+              label={t("auth.password")}
               value={password}
               onChangeText={handlePasswordChange}
               password
-              placeholder="Your password"
+              placeholder={t("auth.password")}
               autoCapitalize="none"
               autoComplete="password"
               returnKeyType="done"
@@ -279,7 +281,7 @@ const SignUp = () => {
             ) : null}
 
             <PaddedLabelButton
-              title={loading ? "Creating account…" : "Create account"}
+              title={loading ? t("auth.creatingAccount") : t("auth.createAccount")}
               horizontalPadding={32}
               verticalPadding={16}
               disabled={loading}
@@ -292,7 +294,7 @@ const SignUp = () => {
 
           <View style={styles.footerRow}>
             <Text style={[Typography.label, styles.textOnGreen]}>
-              Already have an account?{" "}
+              {`${t("auth.alreadyHaveAccount")} `}
             </Text>
             <Pressable onPress={goToSignIn} hitSlop={8}>
               <Text
@@ -302,7 +304,7 @@ const SignUp = () => {
                   styles.footerLink,
                 ]}
               >
-                Sign in
+                {t("auth.signIn")}
               </Text>
             </Pressable>
           </View>

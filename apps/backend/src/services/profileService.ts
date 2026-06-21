@@ -2,12 +2,14 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileWithProfessionalForApiInclude } from "../lib/profileIncludes";
 import { profileDisplayName } from "../lib/profileDisplay";
-import { professionService } from "./professionService";
+import {
+  normalizeProfessionCodeInput,
+  professionService,
+} from "./professionService";
 import {
   allowedDiscoveryCodesForProfession,
   normalizeDiscoveryCategoriesForProfession,
 } from "../lib/profDiscoveryCategories";
-import { resolveLaneAvatarUrl } from "../lib/professionBusinessHelpers";
 
 const nameSearch = (searchQuery: string) => ({
   OR: [
@@ -16,6 +18,35 @@ const nameSearch = (searchQuery: string) => ({
     { username: { contains: searchQuery, mode: "insensitive" as const } },
   ],
 });
+
+/** Client discovery: match display name, profile fields, or lane business name (multi-token AND). */
+function professionalDiscoverySearch(
+  searchQuery: string
+): Prisma.ProfessionalProfileWhereInput {
+  const q = searchQuery.trim();
+  if (!q) return {};
+
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const tokenMatch = (token: string): Prisma.ProfessionalProfileWhereInput => ({
+    OR: [
+      { displayName: { contains: token, mode: "insensitive" } },
+      { profile: nameSearch(token) },
+      {
+        professionalProfessions: {
+          some: {
+            OR: [{ isActive: true }, { isActive: null }],
+            businessName: { contains: token, mode: "insensitive" },
+          },
+        },
+      },
+    ],
+  });
+
+  if (tokens.length <= 1) {
+    return tokenMatch(tokens[0] ?? q);
+  }
+  return { AND: tokens.map(tokenMatch) };
+}
 
 const PROFILE_FIELDS = [
   "firstName",
@@ -636,6 +667,9 @@ export const profileService = {
     professionCode?: string | null
   ) {
     const normalizedCode = professionCode?.trim() || undefined;
+    const canonicalCode = normalizedCode
+      ? normalizeProfessionCodeInput(normalizedCode)
+      : undefined;
     let professionId: string | undefined;
     if (normalizedCode) {
       professionId = await professionService.getProfessionIdByCode(
@@ -675,10 +709,10 @@ export const profileService = {
                   },
                 },
               },
-              ...(normalizedCode === "hair"
+              ...(canonicalCode === "hair"
                 ? [{ professionalHairProfile: { isNot: null } as const }]
                 : []),
-              ...(normalizedCode === "nails"
+              ...(canonicalCode === "nails"
                 ? [{ professionalNailsProfile: { isNot: null } as const }]
                 : []),
               {
@@ -694,7 +728,7 @@ export const profileService = {
       where: {
         // Don't surface yourself in a client-side search.
         profileId: { not: clientUserId },
-        profile: nameSearch(searchQuery),
+        ...professionalDiscoverySearch(searchQuery),
         ...(laneFilter ?? {}),
       },
       include: {
@@ -726,31 +760,12 @@ export const profileService = {
       else if (l.status === "pending") pendingProIds.add(l.professionalProfileId);
     }
 
-    let laneAvatarByProfProfileId = new Map<string, string | null>();
-    if (professionId) {
-      const laneRows = await prisma.professionalProfession.findMany({
-        where: {
-          professionalProfileId: { in: visible.map((pp) => pp.id) },
-          professionId,
-        },
-        select: { professionalProfileId: true, avatarUrl: true },
-      });
-      laneAvatarByProfProfileId = new Map(
-        laneRows.map((r) => [r.professionalProfileId, r.avatarUrl])
-      );
-    }
-
     return visible.map((pp) => ({
       professional_profile_id: pp.id,
       profile_id: pp.profileId,
       hairdresser_id: pp.profileId,
       full_name: pp.displayName ?? profileDisplayName(pp.profile),
-      avatar_url: professionId
-        ? resolveLaneAvatarUrl(
-            laneAvatarByProfProfileId.get(pp.id),
-            pp.profile.avatarUrl
-          )
-        : pp.profile.avatarUrl,
+      avatar_url: pp.profile.avatarUrl,
       has_relationship: activeProIds.has(pp.id),
       link_pending: pendingProIds.has(pp.id),
     }));

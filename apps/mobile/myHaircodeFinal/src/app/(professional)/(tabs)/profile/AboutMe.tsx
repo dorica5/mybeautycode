@@ -128,7 +128,10 @@ type DraftWorkPending = {
 };
 type DraftWorkItem = DraftWorkSaved | DraftWorkPending;
 
+import { useI18n } from "@/src/providers/LanguageProvider";
+
 const AboutMe = () => {
+  const { t } = useI18n();
   const { profile } = useAuth();
   const { storedProfessionReady, activeProfessionCode } =
     useActiveProfessionState(profile);
@@ -338,7 +341,7 @@ const AboutMe = () => {
       const { status } =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permission needed", "Camera roll access is required");
+        Alert.alert(t("common.permissionNeeded"), t("aboutMePro.cameraRollRequired"));
         return;
       }
       const remaining = MAX_WORK_IMAGES - draftWorkItems.length;
@@ -353,8 +356,8 @@ const AboutMe = () => {
       const assets = result.assets.slice(0, remaining);
       if (result.assets.length > remaining) {
         Alert.alert(
-          "Image limit",
-          `You can add up to ${MAX_WORK_IMAGES} public portfolio images.`
+          t("aboutMePro.imageLimitTitle"),
+          t("aboutMePro.imageLimitMessage", { count: MAX_WORK_IMAGES })
         );
       }
       setPreparingWorkImages(true);
@@ -392,7 +395,7 @@ const AboutMe = () => {
       }
     } catch (e) {
       console.error("addPublicWorkFromLibrary:", e);
-      Alert.alert("Error", "Failed to add images.");
+      Alert.alert(t("common.error"), t("aboutMePro.failedAddImages"));
     } finally {
       setPreparingWorkImages(false);
     }
@@ -400,12 +403,12 @@ const AboutMe = () => {
 
   const confirmDeleteWorkImage = (savedIdOrLocalId: string) => {
     Alert.alert(
-      "Remove image",
-      "Remove this photo from your public profile?",
+      t("aboutMePro.removeImageTitle"),
+      t("aboutMePro.removeImageMessage"),
       [
-        { text: "Cancel", style: "cancel" },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: "Remove",
+          text: t("profile.remove"),
           style: "destructive",
           onPress: () => {
             setDraftWorkItems((prev) =>
@@ -423,11 +426,11 @@ const AboutMe = () => {
 
   const updateUserProfile = async () => {
     if (!id) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
     if (professionApi == null) {
-      Alert.alert("Loading", "Please wait a moment and try again.");
+      Alert.alert(t("common.loading"), t("profile.pleaseWaitTryAgain"));
       return;
     }
     setLoading(true);
@@ -460,7 +463,7 @@ const AboutMe = () => {
           "image/jpeg"
         );
         if (!lowPath || !highPath) {
-          throw new Error("Could not upload portfolio image.");
+          throw new Error(t("aboutMePro.couldNotUploadPortfolio"));
         }
         await addMyPublicProfileWork({
           profession_code: professionApi,
@@ -492,8 +495,9 @@ const AboutMe = () => {
       setChanged(false);
       Keyboard.dismiss();
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Something went wrong.";
-      Alert.alert("Failed to save", message);
+      const message =
+        e instanceof Error ? e.message : t("visits.somethingWentWrong");
+      Alert.alert(t("profile.failedToSave"), message);
     } finally {
       setLoading(false);
     }
@@ -552,7 +556,7 @@ const AboutMe = () => {
     try {
       void new URL(u);
     } catch {
-      Alert.alert("Invalid link", "Enter a valid URL.");
+      Alert.alert(t("profile.invalidLink"), t("profile.enterValidUrl"));
       return;
     }
     setSocialLinks((prev) => {
@@ -582,7 +586,7 @@ const AboutMe = () => {
     try {
       void new URL(u);
     } catch {
-      Alert.alert("Invalid link", "Enter a valid website URL.");
+      Alert.alert(t("profile.invalidLink"), t("profile.enterValidWebsiteUrl"));
       return;
     }
     setBookingSite(u);
@@ -603,9 +607,9 @@ const AboutMe = () => {
 
   const commitColorBrandModal = () => {
     if (!colorBrandModal) return;
-    const t = colorBrandModal.draft.trim();
+    const brandDraft = colorBrandModal.draft.trim();
     const idx = colorBrandModal.editIndex;
-    if (!t) {
+    if (!brandDraft) {
       if (idx !== undefined && idx >= 0) {
         setColorBrands((prev) => prev.filter((_, i) => i !== idx));
       }
@@ -615,11 +619,11 @@ const AboutMe = () => {
     setColorBrands((prev) => {
       const next = [...prev];
       if (idx !== undefined && idx >= 0 && idx < next.length) {
-        next[idx] = t;
+        next[idx] = brandDraft;
         return next;
       }
       if (next.length >= MAX_COLOR_BRANDS) return next;
-      next.push(t);
+      next.push(brandDraft);
       return next;
     });
     setColorBrandModal(null);
@@ -646,7 +650,7 @@ const AboutMe = () => {
       >
         <View style={navBackChromeStyles.screenBar}>
           <NavBackRow
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("common.goBack")}
             onPress={() => router.back()}
             layout="inlineBar"
             hitSlop={12}
@@ -661,7 +665,7 @@ const AboutMe = () => {
           keyboardDismissMode="interactive"
         >
           <Text style={[Typography.h3, styles.heroTitle]} accessibilityRole="header">
-            Get discovered
+            {t("aboutMePro.getDiscovered")}
           </Text>
 
           {showDiscoveryCategoryPicker && professionApi ? (
@@ -673,13 +677,13 @@ const AboutMe = () => {
               ]}
             >
               <Text style={[Typography.label, styles.sectionLabel]}>
-                {DISCOVERY_SECTION_TITLE[professionApi] ?? "Categories"}
+                {DISCOVERY_SECTION_TITLE[professionApi] ?? t("aboutMePro.categories")}
               </Text>
               <Text style={[Typography.outfitRegular16, styles.focusHint]}>
-                Select all that apply for search and discovery.
+                {t("aboutMePro.discoveryHint")}
               </Text>
               <BrandAnchoredMultiSelect
-                label={DISCOVERY_SECTION_TITLE[professionApi] ?? "Categories"}
+                label={DISCOVERY_SECTION_TITLE[professionApi] ?? t("aboutMePro.categories")}
                 hideLabel
                 items={discoveryCategoryOptions.map((opt) => ({
                   value: opt.code,
@@ -687,7 +691,7 @@ const AboutMe = () => {
                 }))}
                 value={discoveryCategories}
                 onChange={commitDiscoveryCategories}
-                placeholder="Select categories"
+                placeholder={t("aboutMePro.selectCategories")}
                 containerStyle={styles.discoveryDropdown}
               />
             </View>
@@ -696,18 +700,18 @@ const AboutMe = () => {
           <View style={[styles.section, sectionMaxStyle]}>
             <View style={styles.labelRow}>
               <Text style={[Typography.label, styles.labelFlex]}>
-                What&apos;s your superpower?
+                {t("aboutMePro.superpowerLabel")}
               </Text>
               {about_me.trim().length > 0 ? (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Edit superpower"
+                  accessibilityLabel={t("aboutMePro.editSuperpowerA11y")}
                   onPress={() => superPowerRef.current?.focus()}
                   style={styles.editCtrl}
                   hitSlop={8}
                 >
                   <Text style={[Typography.outfitRegular16, styles.editLabel]}>
-                    Edit
+                    {t("profile.edit")}
                   </Text>
                   <PencilStroke16 />
                 </Pressable>
@@ -715,8 +719,8 @@ const AboutMe = () => {
             </View>
             <BrandOutlineField
               label=""
-              accessibilityLabel="What's your superpower?"
-              placeholder="Tell your clients about your skills"
+              accessibilityLabel={t("aboutMePro.superpowerA11y")}
+              placeholder={t("publicProfile.superpowerPlaceholder")}
               value={about_me}
               inputRef={superPowerRef}
               onChangeText={(text) => {
@@ -736,7 +740,7 @@ const AboutMe = () => {
 
           <View style={[styles.section, sectionMaxStyle, styles.sectionLinkBlock]}>
             <Text style={[Typography.label, styles.sectionLabel]}>
-              Link to social media
+              {t("publicProfile.linkToSocialMedia")}
             </Text>
             {socialLinks.map((url, index) => {
               const kind = inferSocialFromUrl(url).kind;
@@ -751,13 +755,15 @@ const AboutMe = () => {
                   </Text>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`Edit ${socialLinkRowLabel(url)}`}
+                    accessibilityLabel={t("aboutMePro.editSocialA11y", {
+                      label: socialLinkRowLabel(url),
+                    })}
                     onPress={() => openEditSocial(index)}
                     style={styles.editCtrl}
                     hitSlop={8}
                   >
                     <Text style={[Typography.outfitRegular16, styles.editLabel]}>
-                      Edit
+                      {t("profile.edit")}
                     </Text>
                     <PencilStroke16 />
                   </Pressable>
@@ -766,18 +772,18 @@ const AboutMe = () => {
             })}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Add media"
+              accessibilityLabel={t("aboutMePro.addMediaA11y")}
               onPress={openAddSocial}
               style={styles.addPill}
             >
               <PlusStroke24 />
-              <Text style={[Typography.label, styles.addPillLabel]}>Add media</Text>
+              <Text style={[Typography.label, styles.addPillLabel]}>{t("aboutMePro.addMedia")}</Text>
             </Pressable>
           </View>
 
           <View style={[styles.section, sectionMaxStyle, styles.sectionLinkBlock]}>
             <Text style={[Typography.label, styles.sectionLabel]}>
-              Link to booking site
+              {t("publicProfile.linkToBookingSite")}
             </Text>
             {booking_site.trim().length > 0 ? (
               <View style={styles.summaryCard}>
@@ -790,13 +796,13 @@ const AboutMe = () => {
                 </Text>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Edit booking site"
+                  accessibilityLabel={t("aboutMePro.editBookingSiteA11y")}
                   onPress={openBookingEdit}
                   style={styles.editCtrl}
                   hitSlop={8}
                 >
                   <Text style={[Typography.outfitRegular16, styles.editLabel]}>
-                    Edit
+                    {t("profile.edit")}
                   </Text>
                   <PencilStroke16 />
                 </Pressable>
@@ -804,12 +810,12 @@ const AboutMe = () => {
             ) : null}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Add website"
+              accessibilityLabel={t("aboutMePro.addWebsiteA11y")}
               onPress={() => setBookingUrlModal({ draft: booking_site })}
               style={styles.addPill}
             >
               <PlusStroke24 />
-              <Text style={[Typography.label, styles.addPillLabel]}>Add website</Text>
+              <Text style={[Typography.label, styles.addPillLabel]}>{t("aboutMePro.addWebsite")}</Text>
             </Pressable>
           </View>
 
@@ -825,13 +831,13 @@ const AboutMe = () => {
               >
                 <View style={styles.labelRow}>
                   <Text style={[Typography.label, styles.labelFlex]}>
-                    What color brand does your salon use?
+                    {t("aboutMePro.colorBrandSalonQuestion")}
                   </Text>
                   <Pressable
                     onPress={() => setAlertVisible(true)}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel="About color brand"
+                    accessibilityLabel={t("aboutMePro.aboutColorBrandA11y")}
                   >
                     <InfoStroke16 />
                   </Pressable>
@@ -854,7 +860,9 @@ const AboutMe = () => {
                     </Text>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Edit color brand ${brand}`}
+                      accessibilityLabel={t("aboutMePro.editColorBrandA11y", {
+                        brand,
+                      })}
                       onPress={() => openEditColorBrand(index)}
                       style={styles.editCtrl}
                       hitSlop={8}
@@ -862,7 +870,7 @@ const AboutMe = () => {
                       <Text
                         style={[Typography.outfitRegular16, styles.editLabel]}
                       >
-                        Edit
+                        {t("profile.edit")}
                       </Text>
                       <PencilStroke16 />
                     </Pressable>
@@ -870,7 +878,7 @@ const AboutMe = () => {
                 ))}
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Add color brand"
+                  accessibilityLabel={t("aboutMePro.addColorBrand")}
                   onPress={openAddColorBrand}
                   disabled={colorBrands.length >= MAX_COLOR_BRANDS}
                   style={[
@@ -882,23 +890,23 @@ const AboutMe = () => {
                   <PlusStroke24 />
                   <Text style={[Typography.label, styles.addPillLabel]}>
                     {colorBrands.length >= MAX_COLOR_BRANDS
-                      ? "Maximum 6 brands"
-                      : "Add color brand"}
+                      ? t("aboutMePro.maxBrands")
+                      : t("aboutMePro.addColorBrand")}
                   </Text>
                 </Pressable>
               </View>
 
               <CustomAlert
                 visible={alertVisible}
-                title="Color brand"
-                message="Color brand will only be visible to other hairdressers"
+                title={t("aboutMePro.colorBrandTitle")}
+                message={t("aboutMePro.colorBrandMessage")}
                 onClose={() => setAlertVisible(false)}
               />
             </>
           ) : null}
 
           <View style={[styles.section, sectionMaxStyle]}>
-            <Text style={[Typography.label, styles.sectionLabel]}>My work</Text>
+            <Text style={[Typography.label, styles.sectionLabel]}>{t("aboutMePro.myWork")}</Text>
             {draftWorkItems.length > 0 ? (
               <View style={styles.workGrid}>
                 {workRows.map((row, rowIndex) => (
@@ -943,7 +951,7 @@ const AboutMe = () => {
                               style={styles.workThumbDelete}
                               hitSlop={8}
                               accessibilityRole="button"
-                              accessibilityLabel="Remove portfolio photo"
+                              accessibilityLabel={t("aboutMePro.removePortfolioPhotoA11y")}
                             >
                               <XCircle
                                 size={responsiveScale(22)}
@@ -981,7 +989,7 @@ const AboutMe = () => {
                             style={styles.workThumbDelete}
                             hitSlop={8}
                             accessibilityRole="button"
-                            accessibilityLabel="Remove portfolio photo"
+                            accessibilityLabel={t("aboutMePro.removePortfolioPhotoA11y")}
                           >
                             <XCircle
                               size={responsiveScale(22)}
@@ -997,7 +1005,7 @@ const AboutMe = () => {
             ) : null}
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Add portfolio images"
+              accessibilityLabel={t("aboutMePro.addPortfolioImagesA11y")}
               onPress={addPublicWorkFromLibrary}
               disabled={
                 preparingWorkImages ||
@@ -1019,14 +1027,14 @@ const AboutMe = () => {
               )}
               <Text style={[Typography.label, styles.addPillLabel]}>
                 {draftWorkItems.length >= MAX_WORK_IMAGES
-                  ? "Maximum 6 photos"
-                  : "Add images"}
+                  ? t("aboutMePro.maxPhotos")
+                  : t("aboutMePro.addImages")}
               </Text>
             </Pressable>
           </View>
 
           <PaddedLabelButton
-            title={loading ? "Saving…" : "Save"}
+            title={loading ? t("common.saving") : t("common.save")}
             horizontalPadding={32}
             verticalPadding={16}
             onPress={updateUserProfile}
@@ -1050,8 +1058,8 @@ const AboutMe = () => {
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <Text style={[Typography.label, styles.modalTitle]}>
               {socialUrlModal?.editIndex !== undefined
-                ? "Edit social link"
-                : "Add social link"}
+                ? t("aboutMePro.editSocialLink")
+                : t("aboutMePro.addSocialLink")}
             </Text>
             <TextInput
               value={socialUrlModal?.draft ?? ""}
@@ -1070,10 +1078,10 @@ const AboutMe = () => {
                 onPress={() => setSocialUrlModal(null)}
                 style={styles.modalSecondary}
               >
-                <Text style={Typography.label}>Cancel</Text>
+                <Text style={Typography.label}>{t("common.cancel")}</Text>
               </Pressable>
               <Pressable onPress={commitSocialUrl} style={styles.modalPrimary}>
-                <Text style={[Typography.label, styles.saveLabel]}>Save</Text>
+                <Text style={[Typography.label, styles.saveLabel]}>{t("common.save")}</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -1092,7 +1100,7 @@ const AboutMe = () => {
         >
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <Text style={[Typography.label, styles.modalTitle]}>
-              Booking site
+              {t("aboutMePro.bookingSite")}
             </Text>
             <TextInput
               value={bookingUrlModal?.draft ?? ""}
@@ -1111,10 +1119,10 @@ const AboutMe = () => {
                 onPress={() => setBookingUrlModal(null)}
                 style={styles.modalSecondary}
               >
-                <Text style={Typography.label}>Cancel</Text>
+                <Text style={Typography.label}>{t("common.cancel")}</Text>
               </Pressable>
               <Pressable onPress={commitBookingUrl} style={styles.modalPrimary}>
-                <Text style={[Typography.label, styles.saveLabel]}>Save</Text>
+                <Text style={[Typography.label, styles.saveLabel]}>{t("common.save")}</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -1138,15 +1146,15 @@ const AboutMe = () => {
             >
               <Text style={[Typography.label, styles.modalTitle]}>
                 {colorBrandModal?.editIndex !== undefined
-                  ? "Edit color brand"
-                  : "Add color brand"}
+                  ? t("aboutMePro.editColorBrand")
+                  : t("aboutMePro.addColorBrand")}
               </Text>
               <TextInput
                 value={colorBrandModal?.draft ?? ""}
                 onChangeText={(t) =>
                   setColorBrandModal((m) => (m ? { draft: t } : m))
                 }
-                placeholder="e.g. Wella, Redken"
+                placeholder={t("aboutMePro.colorBrandPlaceholder")}
                 placeholderTextColor={`${primaryBlack}99`}
                 autoCapitalize="words"
                 style={styles.modalInput}
@@ -1156,13 +1164,13 @@ const AboutMe = () => {
                   onPress={() => setColorBrandModal(null)}
                   style={styles.modalSecondary}
                 >
-                  <Text style={Typography.label}>Cancel</Text>
+                  <Text style={Typography.label}>{t("common.cancel")}</Text>
                 </Pressable>
                 <Pressable
                   onPress={commitColorBrandModal}
                   style={styles.modalPrimary}
                 >
-                  <Text style={[Typography.label, styles.saveLabel]}>Save</Text>
+                  <Text style={[Typography.label, styles.saveLabel]}>{t("common.save")}</Text>
                 </Pressable>
               </View>
             </Pressable>

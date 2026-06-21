@@ -40,6 +40,7 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 import { Images } from "phosphor-react-native";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const NUM_COLUMNS = 2;
 
@@ -73,6 +74,7 @@ function isImageMedia(row: GalleryRow): boolean {
 }
 
 const ViewGallery = () => {
+  const { t } = useI18n();
   const { clientId, clientName, professionCode: professionCodeParam } =
     useLocalSearchParams();
   const safeInsets = useSafeAreaInsets();
@@ -97,7 +99,7 @@ const ViewGallery = () => {
       ? clientName
       : Array.isArray(clientName)
       ? clientName[0]
-      : "Gallery";
+      : t("visits.gallery");
 
   const [rows, setRows] = useState<GalleryRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -267,7 +269,7 @@ const ViewGallery = () => {
     } catch (err) {
       console.error("view_gallery haircode fetch:", err);
       setHaircodeDetails(null);
-      Alert.alert("Error", "Could not load visit details.");
+      Alert.alert(t("common.error"), t("visits.couldNotLoadDetails"));
     }
   }, []);
 
@@ -434,10 +436,9 @@ const ViewGallery = () => {
                       weight="duotone"
                     />
                   </View>
-                  <Text style={styles.emptyStateTitle}>No visit photos yet</Text>
+                  <Text style={styles.emptyStateTitle}>{t("visits.noPhotos")}</Text>
                   <Text style={styles.emptyStateSubtitle}>
-                    Photos from this client&apos;s visits for your current
-                    professional profile will appear here.
+                    {t("visits.galleryEmptySubtitle")}
                   </Text>
                 </View>
               </View>
@@ -558,7 +559,7 @@ const ViewGallery = () => {
 
               <View style={styles.detailFooter}>
                 <PaddedLabelButton
-                  title={detailLoading ? "Loading…" : "View visit"}
+                  title={detailLoading ? t("common.loading") : t("visits.viewVisit")}
                   horizontalPadding={32}
                   verticalPadding={16}
                   onPress={navigateToHaircode}

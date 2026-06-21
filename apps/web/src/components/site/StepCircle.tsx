@@ -13,12 +13,12 @@ export function StepCircle({ step, label, illustration }: Props) {
   return (
     <li className="flex flex-col items-center text-center">
       <div
-        className="relative flex aspect-square w-full max-w-[200px] items-center justify-center overflow-hidden rounded-full bg-primary-white md:max-w-[220px]"
+        className="relative aspect-square w-full max-w-[200px] overflow-hidden rounded-full bg-primary-white sm:max-w-[220px] md:max-w-[240px]"
         aria-hidden
       >
         <StepIllustration id={illustration} />
       </div>
-      <p className="font-display mt-8 max-w-[220px] text-lg leading-snug lowercase md:text-xl">
+      <p className="font-display mt-5 max-w-[200px] text-sm leading-snug sm:max-w-[220px] md:max-w-[240px] md:text-base">
         <span className="font-normal">{step}: </span>
         {label}
       </p>

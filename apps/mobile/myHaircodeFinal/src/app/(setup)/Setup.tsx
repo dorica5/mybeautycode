@@ -32,12 +32,14 @@ import {
 } from "@/src/utils/responsive";
 import { Spacer } from "@/src/components/Spacer";
 import { StatusBar } from "expo-status-bar";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const PATTERN_ASPECT = 226 / 390;
 /** Footer logo viewBox 132×95 */
 const LOGO_ASPECT = 73 / 110;
 
 const Setup = () => {
+  const { t } = useI18n();
   const [isChecked, setIsChecked] = useState(false);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -161,7 +163,7 @@ const Setup = () => {
           <View style={[styles.body, { paddingHorizontal: layout.horizontalPad }]}>
             <Spacer vertical={layout.tablet ? 12 : 36} />
 
-            <Text style={welcomeTitleStyle}>Welcome to</Text>
+            <Text style={welcomeTitleStyle}>{t("setup.welcomeTitle")}</Text>
             <Text style={welcomeTitleStyle}>myne!</Text>
 
             <Spacer vertical={layout.tablet ? 36 : 48} />
@@ -198,13 +200,13 @@ const Setup = () => {
                     </View>
                   </Pressable>
                   <View style={styles.checkboxTextCol}>
-                    <Text style={consentStyle}>I have read and agree to the</Text>
+                    <Text style={consentStyle}>{t("setup.consentPrefix")}</Text>
                     <Text
                       accessibilityRole="link"
                       onPress={() => router.push("/(setup)/TermsAndPrivacy")}
                       style={[consentStyle, styles.link]}
                     >
-                      terms and privacy
+                      {t("setup.termsLink")}
                     </Text>
                   </View>
                 </View>
@@ -214,7 +216,7 @@ const Setup = () => {
             <Spacer vertical={layout.tablet ? 44 : 46} />
 
             <PaddedLabelButton
-              title="Set up my account"
+              title={t("setup.setupAccount")}
               horizontalPadding={layout.tablet ? 44 : 32}
               verticalPadding={layout.tablet ? 18 : 16}
               disabled={!isChecked}

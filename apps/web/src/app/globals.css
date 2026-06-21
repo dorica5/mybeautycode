@@ -5,6 +5,7 @@
   --background: #b2dcc5; /* primary green */
   --foreground: #212427;
   --card: #d8ede2; /* secondary green */
+  --secondary-green: #d8ede2;
   --card-border: #212427;
   --muted: #d8ede2;
   --primary-white: #f1f9f4;
@@ -14,6 +15,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
+  --color-secondary-green: var(--secondary-green);
   --color-card-border: var(--card-border);
   --color-muted: var(--muted);
   --color-primary-white: var(--primary-white);

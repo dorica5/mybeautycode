@@ -45,8 +45,10 @@ import { BYPASS_PRO_PAYWALL_FOR_DEV } from "@/src/lib/subscriptionFlags";
 import { setPendingProfessionalSetup } from "@/src/lib/pendingProfessionalSetup";
 import { buildProfessionalSetupProfilePutBody } from "@/src/lib/professionalSetupSave";
 import { runProfessionalSetupCompletionSideEffects } from "@/src/lib/professionalSetupCompletion";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const ProfessionalSetup = () => {
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
   const formMaxW = useMemo(() => {
@@ -170,7 +172,7 @@ const ProfessionalSetup = () => {
       const { data, error } = await supabase.auth.getUser();
       if (error) {
         console.error("Error fetching user:", error.message);
-        Alert.alert("Error fetching user.");
+        Alert.alert(t("common.errorFetchingUser"));
       } else {
         setUserId(data?.user?.id || null);
       }
@@ -186,7 +188,7 @@ const ProfessionalSetup = () => {
         if (!trimmed) {
           setErrorMessages((prev) => ({
             ...prev,
-            businessName: `Please enter your ${placeNounLower} name.`,
+            businessName: t("profile.enterPlaceName", { place: placeNounLower }),
           }));
           return false;
         }
@@ -198,8 +200,7 @@ const ProfessionalSetup = () => {
         if (!profileCountry) {
           setErrorMessages((prev) => ({
             ...prev,
-            phone_number:
-              "Your profile has no country. Add it under Profile, then try again.",
+            phone_number: t("profile.noCountryInProfile"),
           }));
           return false;
         }
@@ -216,7 +217,9 @@ const ProfessionalSetup = () => {
         if (!trimmed) {
           setErrorMessages((prev) => ({
             ...prev,
-            businessAddress: `Please enter your ${placeNounLower} address.`,
+            businessAddress: t("profile.enterPlaceAddress", {
+              place: placeNounLower,
+            }),
           }));
           return false;
         }
@@ -262,7 +265,7 @@ const ProfessionalSetup = () => {
       return;
     }
     if (!userId) {
-      Alert.alert("Setup error", "User not found.");
+      Alert.alert(t("setup.setupError"), t("setup.userNotFound"));
       return;
     }
     try {
@@ -311,8 +314,8 @@ const ProfessionalSetup = () => {
       console.error("Error during setup:", error);
       setLoadingSetup(false);
       const serverMsg =
-        error instanceof Error ? error.message : "Please try again.";
-      Alert.alert("Failed to complete setup", serverMsg);
+        error instanceof Error ? error.message : t("setup.pleaseTryAgain");
+      Alert.alert(t("setup.failedCompleteSetup"), serverMsg);
     } finally {
       setLoading(false);
     }
@@ -325,7 +328,7 @@ const ProfessionalSetup = () => {
     return (
       <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <Text style={[Typography.bodyMedium, { color: primaryBlack }]}>
-          Loading user data...
+          {t("setup.loadingUserData")}
         </Text>
       </SafeAreaView>
     );
@@ -335,7 +338,7 @@ const ProfessionalSetup = () => {
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
       <NavBackRow
-        accessibilityLabel="Go back"
+        accessibilityLabel={t("common.goBack")}
         onPress={() => router.back()}
         style={styles.backRow}
         hitSlop={12}
@@ -359,18 +362,18 @@ const ProfessionalSetup = () => {
           <Text
             style={[Typography.h3, styles.pageTitle]}
             accessibilityRole="header"
-            accessibilityLabel={`${headlineRole} account`}
+            accessibilityLabel={`${headlineRole} ${t("setup.accountSuffix")}`}
           >
             {headlineRole}
             {"\n"}
-            account
+            {t("setup.accountSuffix")}
           </Text>
 
-          <Text style={[Typography.h4, styles.aboutYouSubhead]}>About you</Text>
+          <Text style={[Typography.h4, styles.aboutYouSubhead]}>{t("setup.aboutYou")}</Text>
 
           <View style={[styles.form, { maxWidth: formMaxW }]}>
             <BrandOutlineField
-              label={`${placeNoun} name`}
+              label={t("profile.placeName", { place: placeNoun })}
               value={fields.businessName}
               onChangeText={(value) => handleFieldChange("businessName", value)}
               autoCapitalize="words"
@@ -380,15 +383,18 @@ const ProfessionalSetup = () => {
 
             {!profileCountry ? (
               <Text style={styles.countryHint}>
-                Add your country in Profile to use your local dialing code here.
+                {t("setup.addCountryInProfile")}
               </Text>
             ) : null}
 
             <BrandOutlineField
               label={
                 profileCountry
-                  ? `${placeNoun} phone number (${getCountryCode(profileCountry)})`
-                  : `${placeNoun} phone number`
+                  ? t("setup.placePhoneWithCode", {
+                      place: placeNoun,
+                      code: getCountryCode(profileCountry),
+                    })
+                  : t("setup.placePhone", { place: placeNoun })
               }
               value={fields.businessPhone}
               onChangeText={(value) =>
@@ -399,7 +405,7 @@ const ProfessionalSetup = () => {
               accessibilityState={{ disabled: !profileCountry }}
               accessibilityHint={
                 !profileCountry
-                  ? "Add your country in Profile first."
+                  ? t("setup.addCountryFirst")
                   : undefined
               }
               containerStyle={
@@ -411,7 +417,7 @@ const ProfessionalSetup = () => {
             {showFieldError(errorMessages.phone_number)}
 
             <BrandAddressAutocompleteField
-              label={`${placeNoun} address`}
+              label={t("profile.placeAddress", { place: placeNoun })}
               value={fields.businessAddress}
               onChangeText={(value) =>
                 handleFieldChange("businessAddress", value)
@@ -435,7 +441,7 @@ const ProfessionalSetup = () => {
 
           <View style={styles.btnContainer}>
             <PaddedLabelButton
-              title={loading ? "Saving…" : "Save"}
+              title={loading ? t("common.saving") : t("common.save")}
               horizontalPadding={32}
               verticalPadding={16}
               onPress={setUpDone}

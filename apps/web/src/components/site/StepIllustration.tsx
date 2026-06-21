@@ -1,4 +1,7 @@
-import Image from "next/image";
+"use client";
+
+import { MapPin } from "@phosphor-icons/react";
+import type { ReactElement, ReactNode } from "react";
 
 export type StepIllustrationId =
   | "download"
@@ -8,156 +11,286 @@ export type StepIllustrationId =
   | "discovered"
   | "client-history";
 
-const iconClass = "text-foreground";
+const stroke = "#212427";
+const green = "#D8EDE2";
+const mint = "#B2DCC5";
+const white = "#F1F9F4";
 
-/** Simple in-circle art — swap map phone for a real screenshot when you have one. */
-export function StepIllustration({ id }: { id: StepIllustrationId }) {
-  switch (id) {
-    case "download":
-      return (
-        <div className="flex flex-col items-center justify-center gap-3 p-6">
-          <div className="flex size-[5.5rem] shrink-0 items-center justify-center overflow-hidden rounded-full bg-background md:size-[6rem]">
-            <Image
-              src="/images/myne-logo.svg"
-              alt=""
-              width={92}
-              height={117}
-              className="h-[2.75rem] w-auto scale-110"
-            />
-          </div>
-          <svg
-            viewBox="0 0 24 24"
-            className={`h-12 w-12 shrink-0 ${iconClass}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden
-          >
-            <path d="M12 3v10" strokeLinecap="round" />
-            <path d="M8 11l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M5 19h14" strokeLinecap="round" />
-          </svg>
-        </div>
-      );
+function Phone({
+  x,
+  y,
+  w = 52,
+  h = 96,
+  children,
+}: {
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  children?: ReactNode;
+}) {
+  const r = w >= 58 ? 11 : 10;
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <rect
+        x={0}
+        y={0}
+        width={w}
+        height={h}
+        rx={r}
+        fill={green}
+        stroke={stroke}
+        strokeWidth={2.5}
+      />
+      <rect x={w / 2 - 8} y={6} width={16} height={4} rx={2} fill={stroke} opacity={0.25} />
+      {children}
+    </g>
+  );
+}
 
-    case "search-map":
-      return (
-        <div className="flex h-full w-full items-center justify-center p-5">
-          <div className="relative w-[58%] max-w-[120px] rounded-[1.1rem] border-2 border-foreground bg-background p-1 shadow-[3px_3px_0_0_#212427]">
-            <div className="overflow-hidden rounded-[0.85rem] bg-secondary">
-              <div className="relative aspect-[3/4] w-full">
-                <div className="absolute inset-0 bg-[linear-gradient(160deg,#d8ede2_0%,#b2dcc5_55%,#d8ede2_100%)]" />
-                <svg
-                  viewBox="0 0 100 120"
-                  className="absolute inset-0 h-full w-full"
-                  aria-hidden
-                >
-                  <path
-                    d="M22 38c8-6 18-6 26 0s18 6 26 0"
-                    stroke="#212427"
-                    strokeWidth="2"
-                    fill="none"
-                    opacity="0.2"
-                  />
-                  <circle cx="35" cy="52" r="5" fill="#212427" />
-                  <circle cx="58" cy="44" r="4" fill="#212427" />
-                  <circle cx="68" cy="62" r="4.5" fill="#212427" />
-                  <circle cx="42" cy="72" r="3.5" fill="#212427" opacity="0.7" />
-                </svg>
-                <div className="absolute bottom-2 left-1/2 h-1 w-8 -translate-x-1/2 rounded-full bg-foreground/25" />
-              </div>
-            </div>
-          </div>
-        </div>
-      );
+function DownloadIllustration() {
+  return (
+    <svg viewBox="0 0 200 200" className="absolute inset-0 size-full" aria-hidden>
+      <circle cx={100} cy={100} r={88} fill={white} />
+      <Phone x={70} y={30} w={60} h={110}>
+        <circle cx={30} cy={43} r={24} fill={mint} />
+        <image
+          href="/images/myne-logo.svg"
+          x={19}
+          y={26}
+          width={22}
+          height={34}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      </Phone>
+      <g
+        transform="translate(100 162) scale(1.25) translate(-16 -16)"
+        fill="none"
+        stroke={stroke}
+        strokeWidth={1.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M16 5v11" />
+        <path d="M12 13l4 4 4-4" />
+        <path d="M8 20v4h16v-4" />
+      </g>
+    </svg>
+  );
+}
 
-    case "share-journal":
-      return (
-        <div className="flex items-center justify-center gap-3 p-6">
-          <svg
-            viewBox="0 0 48 56"
-            className={`h-14 w-12 ${iconClass}`}
+function SearchMapIllustration() {
+  return (
+    <svg viewBox="0 0 200 200" className="absolute inset-0 size-full" aria-hidden>
+      <circle cx={100} cy={100} r={88} fill={white} />
+      <Phone x={70} y={45} w={60} h={110}>
+        <g transform="scale(1.154 1.146)">
+          <rect x={8} y={22} width={36} height={58} rx={4} fill={mint} opacity={0.6} />
+          <path
+            d="M14 52c8-10 16-6 20-2s12 8 20-2"
             fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden
-          >
-            <rect x="4" y="6" width="32" height="44" rx="4" />
-            <path d="M12 18h20M12 26h16M12 34h12" strokeLinecap="round" />
-          </svg>
-          <svg
-            viewBox="0 0 24 24"
-            className={`h-8 w-8 shrink-0 ${iconClass}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden
-          >
-            <path d="M7 12h10" strokeLinecap="round" />
-            <path d="M13 8l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-      );
+            stroke={stroke}
+            strokeWidth={1.5}
+            opacity={0.25}
+          />
+          <circle cx={18} cy={44} r={5} fill={stroke} />
+          <circle cx={18} cy={44} r={2} fill={white} />
+          <circle cx={34} cy={58} r={5} fill={stroke} />
+          <circle cx={34} cy={58} r={2} fill={white} />
+          <circle cx={24} cy={72} r={5} fill={stroke} />
+          <circle cx={24} cy={72} r={2} fill={white} />
+        </g>
+      </Phone>
+      <circle cx={128} cy={88} r={22} fill={white} stroke={stroke} strokeWidth={2.5} />
+      <circle cx={128} cy={88} r={14} fill="none" stroke={stroke} strokeWidth={2} />
+      <line x1={140} y1={100} x2={152} y2={112} stroke={stroke} strokeWidth={3} strokeLinecap="round" />
+    </svg>
+  );
+}
 
-    case "pro-account":
-      return (
-        <div className="flex flex-col items-center justify-center gap-2 p-6">
-          <svg
-            viewBox="0 0 64 64"
-            className={`h-16 w-16 ${iconClass}`}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            aria-hidden
-          >
-            <circle cx="32" cy="22" r="10" />
-            <path d="M14 52c4-10 12-14 18-14s14 4 18 14" strokeLinecap="round" />
-          </svg>
-          <span className="rounded-full border-2 border-foreground px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-            Pro
-          </span>
-        </div>
-      );
+function ShareJournalIllustration() {
+  const phoneW = 52;
+  const phoneH = 98;
+  const phoneGap = 4;
+  const phoneY = (200 - phoneH) / 2;
+  const leftPhoneX = (200 - (phoneW * 2 + phoneGap)) / 2;
+  const rightPhoneX = leftPhoneX + phoneW + phoneGap;
 
-    case "discovered":
-      return (
-        <div className="relative flex h-full w-full items-center justify-center p-6">
-          <svg
-            viewBox="0 0 80 80"
-            className={`h-20 w-20 ${iconClass}`}
+  return (
+    <svg viewBox="0 0 200 200" className="absolute inset-0 size-full" aria-hidden>
+      <circle cx={100} cy={100} r={88} fill={white} />
+      <Phone x={leftPhoneX} y={phoneY} w={phoneW} h={phoneH}>
+        <g transform="scale(1.13 1.14)">
+          <rect x={8} y={20} width={30} height={4} rx={2} fill={stroke} opacity={0.2} />
+          <rect x={8} y={28} width={26} height={3} rx={1.5} fill={stroke} opacity={0.12} />
+          <rect x={8} y={34} width={28} height={3} rx={1.5} fill={stroke} opacity={0.12} />
+          <rect x={8} y={40} width={22} height={3} rx={1.5} fill={stroke} opacity={0.12} />
+          <rect x={8} y={50} width={30} height={18} rx={3} fill={mint} stroke={stroke} strokeWidth={1} />
+        </g>
+      </Phone>
+      <Phone x={rightPhoneX} y={phoneY} w={phoneW} h={phoneH}>
+        <g transform="scale(1.13 1.14)">
+          <circle cx={23} cy={32} r={10} fill={mint} stroke={stroke} strokeWidth={1.5} />
+          <rect x={8} y={48} width={30} height={3} rx={1.5} fill={stroke} opacity={0.15} />
+          <rect x={8} y={54} width={24} height={3} rx={1.5} fill={stroke} opacity={0.1} />
+          <rect x={8} y={60} width={28} height={3} rx={1.5} fill={stroke} opacity={0.1} />
+        </g>
+      </Phone>
+      <circle cx={100} cy={100} r={10} fill={stroke} />
+      <path
+        d="M96 100h8M100 96v8"
+        stroke={white}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ProAccountIllustration() {
+  return (
+    <svg viewBox="0 0 200 200" className="absolute inset-0 size-full" aria-hidden>
+      <circle cx={100} cy={100} r={88} fill={white} />
+      <Phone x={70} y={45} w={60} h={110}>
+        <g transform="scale(1.154 1.146)">
+          <circle cx={26} cy={36} r={16} fill={mint} stroke={stroke} strokeWidth={2} />
+          <circle cx={26} cy={32} r={6} fill={stroke} opacity={0.25} />
+          <path
+            d="M16 48c2-6 8-8 10-8s8 2 10 8"
             fill="none"
-            stroke="currentColor"
-            aria-hidden
-          >
-            <circle cx="40" cy="40" r="26" strokeWidth="1.5" opacity="0.25" />
-            <circle cx="40" cy="40" r="18" strokeWidth="1.5" opacity="0.4" />
-            <circle cx="40" cy="40" r="10" strokeWidth="1.5" opacity="0.55" />
+            stroke={stroke}
+            strokeWidth={2}
+            strokeLinecap="round"
+            opacity={0.25}
+          />
+          <rect x={10} y={58} width={32} height={3} rx={1.5} fill={stroke} opacity={0.12} />
+          <rect x={10} y={64} width={28} height={3} rx={1.5} fill={stroke} opacity={0.1} />
+          <rect x={10} y={72} width={32} height={14} rx={3} fill={green} stroke={stroke} strokeWidth={1} />
+        </g>
+      </Phone>
+      <circle cx={142} cy={73} r={16} fill={stroke} />
+      <path d="M136 73h12M142 67v12" stroke={white} strokeWidth={2.5} strokeLinecap="round" />
+      <rect x={136} y={98} width={36} height={24} rx={4} fill={green} stroke={stroke} strokeWidth={1.5} />
+      <text x={154} y={113} textAnchor="middle" fill={stroke} fontSize={7} fontWeight={600}>
+        PRO
+      </text>
+    </svg>
+  );
+}
+
+function DiscoveredIllustration() {
+  const phoneW = 60;
+  const phoneH = 110;
+  const phoneX = (200 - phoneW) / 2;
+  const phoneY = (200 - phoneH) / 2;
+
+  return (
+    <div className="absolute inset-0" aria-hidden>
+      <svg viewBox="0 0 200 200" className="size-full">
+        <circle cx={100} cy={100} r={88} fill={white} />
+        <circle cx={100} cy={100} r={36} fill="none" stroke={mint} strokeWidth={2} opacity={0.8} />
+        <circle cx={100} cy={100} r={50} fill="none" stroke={mint} strokeWidth={1.5} opacity={0.5} />
+        <circle cx={100} cy={100} r={64} fill="none" stroke={mint} strokeWidth={1} opacity={0.3} />
+        <Phone x={phoneX} y={phoneY} w={phoneW} h={phoneH}>
+          <g transform="scale(1.154 1.146)">
+            <rect x={8} y={22} width={36} height={50} rx={4} fill={mint} opacity={0.5} />
+            <circle cx={26} cy={44} r={10} fill={mint} />
+            <circle cx={26} cy={41} r={4} fill={stroke} opacity={0.25} />
             <path
-              d="M40 18c-8 0-14 6.5-14 14.5 0 10.5 14 27.5 14 27.5s14-17 14-27.5C54 24.5 48 18 40 18z"
-              strokeWidth="2"
-              fill="currentColor"
-              fillOpacity="0.12"
+              d="M19 51c1.2-3 3.8-4 7-4s5.8 1 7 4"
+              fill="none"
+              stroke={stroke}
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              opacity={0.25}
             />
-            <circle cx="40" cy="32" r="4" fill="currentColor" />
-          </svg>
-        </div>
-      );
+          </g>
+        </Phone>
+        <circle cx={48} cy={100} r={3} fill={green} stroke={stroke} strokeWidth={1} />
+        <circle cx={152} cy={100} r={2.5} fill={green} stroke={stroke} strokeWidth={1} />
+      </svg>
+      <MapPin
+        weight="light"
+        aria-hidden
+        className="absolute left-1/2 h-11 w-11 -translate-x-1/2 text-foreground md:h-12 md:w-12"
+        style={{ top: `${((phoneY - 26) / 200) * 100}%` }}
+      />
+    </div>
+  );
+}
 
-    case "client-history":
-      return (
-        <div className="flex flex-col items-center justify-center gap-1.5 p-7">
-          {[0.85, 1, 0.7].map((scale, i) => (
-            <div
-              key={i}
-              className="w-full max-w-[100px] rounded-lg border-2 border-foreground bg-primary-white px-2 py-1.5"
-              style={{ transform: `scale(${scale})`, opacity: 1 - i * 0.12 }}
-            >
-              <div className="mb-1 h-1.5 w-8 rounded-full bg-foreground/30" />
-              <div className="h-1 w-full rounded-full bg-foreground/15" />
-              <div className="mt-0.5 h-1 w-3/4 rounded-full bg-foreground/10" />
-            </div>
-          ))}
-        </div>
-      );
-  }
+function ClientHistoryIllustration() {
+  const cardW = 84;
+  const cardH = 52;
+  const offsetX = 6;
+  const offsetY = 10;
+  const stackW = cardW + offsetX * 2;
+  const stackH = cardH + offsetY * 2;
+  const frontX = (200 - stackW) / 2 + offsetX * 2;
+  const frontY = (200 - stackH) / 2;
+
+  return (
+    <svg viewBox="0 0 200 200" className="absolute inset-0 size-full" aria-hidden>
+      <circle cx={100} cy={100} r={88} fill={white} />
+      <rect
+        x={frontX - offsetX * 2}
+        y={frontY + offsetY * 2}
+        width={cardW}
+        height={cardH}
+        rx={6}
+        fill={green}
+        stroke={stroke}
+        strokeWidth={2}
+        opacity={0.7}
+      />
+      <rect
+        x={frontX - offsetX}
+        y={frontY + offsetY}
+        width={cardW}
+        height={cardH}
+        rx={6}
+        fill={green}
+        stroke={stroke}
+        strokeWidth={2}
+        opacity={0.85}
+      />
+      <rect
+        x={frontX}
+        y={frontY}
+        width={cardW}
+        height={cardH}
+        rx={6}
+        fill={green}
+        stroke={stroke}
+        strokeWidth={2}
+      />
+      <rect x={frontX + 8} y={frontY + 10} width={36} height={4} rx={2} fill={stroke} opacity={0.2} />
+      <rect x={frontX + 8} y={frontY + 18} width={52} height={3} rx={1.5} fill={stroke} opacity={0.12} />
+      <rect x={frontX + 8} y={frontY + 24} width={44} height={3} rx={1.5} fill={stroke} opacity={0.12} />
+      <rect
+        x={frontX + 8}
+        y={frontY + 32}
+        width={28}
+        height={12}
+        rx={3}
+        fill={mint}
+        stroke={stroke}
+        strokeWidth={1}
+      />
+    </svg>
+  );
+}
+
+const ILLUSTRATIONS: Record<StepIllustrationId, () => ReactElement> = {
+  download: DownloadIllustration,
+  "search-map": SearchMapIllustration,
+  "share-journal": ShareJournalIllustration,
+  "pro-account": ProAccountIllustration,
+  discovered: DiscoveredIllustration,
+  "client-history": ClientHistoryIllustration,
+};
+
+export function StepIllustration({ id }: { id: StepIllustrationId }) {
+  const Illustration = ILLUSTRATIONS[id];
+  return <Illustration />;
 }

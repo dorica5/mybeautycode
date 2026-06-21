@@ -43,6 +43,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import {
   getCountryCallingCode,
   parsePhoneNumberFromString,
@@ -92,6 +93,7 @@ type MeProfile = {
 };
 
 export default function GeneralSetup() {
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const { width: winW, height: winH } = useWindowDimensions();
   const formMaxW = useMemo(() => {
@@ -327,7 +329,7 @@ export default function GeneralSetup() {
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
       <NavBackRow
-        accessibilityLabel="Go back"
+        accessibilityLabel={t("common.back")}
         onPress={() => router.back()}
         hitSlop={12}
       />
@@ -350,10 +352,10 @@ export default function GeneralSetup() {
           bounces
         >
         <Text style={[Typography.h3, styles.centerHeading]} accessibilityRole="header">
-          Create account
+          {t("auth.createAccount")}
         </Text>
         <Text style={[Typography.h4, styles.centerSub, styles.aboutYou]}>
-          About you
+          {t("setup.aboutYou")}
         </Text>
 
         <View style={[styles.form, { maxWidth: formMaxW }]}>
@@ -475,7 +477,7 @@ export default function GeneralSetup() {
           </Pressable>
 
           <PaddedLabelButton
-            title={saving ? "Saving…" : "Save"}
+            title={saving ? t("common.saving") : t("common.save")}
             horizontalPadding={32}
             verticalPadding={16}
             disabled={saving}

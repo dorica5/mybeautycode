@@ -7,18 +7,19 @@ import {
   Modal,
   Dimensions,
   Pressable,
-  ScrollView,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from "react-native";
 import { X } from "phosphor-react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import {
+  GestureHandlerRootView,
+  ScrollView,
+} from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Colors,
   primaryBlack,
   primaryGreen,
 } from "@/src/constants/Colors";
-import { responsivePadding } from "@/src/utils/responsive";
+import { responsiveMargin, responsivePadding } from "@/src/utils/responsive";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -46,70 +47,14 @@ interface SmallDraggableModalProps {
 
 type PanRefs = {
   pan: Animated.Value;
-  isScrollAtTop: React.MutableRefObject<boolean>;
   lastGestureValue: React.MutableRefObject<number>;
   setVisible: (v: boolean) => void;
   onClose: () => void;
   onModalHide?: () => void;
 };
 
-/** Gate A: pull sheet down only when scroll content is scrolled to top (classic sheet). */
-function createScrollPanResponder({
-  pan,
-  isScrollAtTop,
-  lastGestureValue,
-  setVisible,
-  onClose,
-  onModalHide,
-}: PanRefs) {
-  return PanResponder.create({
-    onStartShouldSetPanResponder: () => false,
-    onMoveShouldSetPanResponder: (_, gestureState) => {
-      const { dy, dx } = gestureState;
-      return (
-        isScrollAtTop.current &&
-        Math.abs(dy) > Math.abs(dx) &&
-        Math.abs(dy) > 6 &&
-        dy > 0
-      );
-    },
-    onPanResponderGrant: () => {
-      pan.extractOffset();
-    },
-    onPanResponderMove: (_, gestureState) => {
-      const newY = lastGestureValue.current + gestureState.dy;
-      if (newY >= screenHeight * 0.1) {
-        pan.setValue(gestureState.dy);
-      }
-    },
-    onPanResponderRelease: (_, gestureState) => {
-      pan.flattenOffset();
-      if (gestureState.dy > 150) {
-        Animated.timing(pan, {
-          toValue: screenHeight,
-          duration: 300,
-          useNativeDriver: true,
-        }).start(() => {
-          setVisible(false);
-          onClose();
-          if (onModalHide) onModalHide();
-        });
-        lastGestureValue.current = screenHeight;
-      } else {
-        Animated.spring(pan, {
-          toValue: screenHeight * 0.1,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 12,
-        }).start();
-        lastGestureValue.current = screenHeight * 0.1;
-      }
-    },
-  });
-}
-
 /**
- * Gate B: handle / top chrome — no scroll coupling so dragging the pill always moves the sheet.
+ * Handle / top chrome — drag the pill to dismiss (scroll lives in RNGH ScrollView).
  */
 function createChromePanResponder({
   pan,
@@ -170,14 +115,14 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
   onModalHide,
   modalHeight,
   renderContent,
-  preview = true,
+  preview: _preview = true,
   done: _done = true,
   sheetVariant = "default",
 }) => {
   const pan = useRef(new Animated.Value(screenHeight)).current;
   const [visible, setVisible] = useState(isVisible);
-  const isScrollAtTop = useRef(true);
   const lastGestureValue = useRef(screenHeight * 0.1);
+  const insets = useSafeAreaInsets();
 
   const heightResolved = resolveModalHeight(modalHeight);
 
@@ -186,21 +131,9 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
   const closeIconColor = isBrand ? primaryBlack : Colors.dark.dark;
   const handleColor = isBrand ? `${primaryBlack}28` : `${primaryBlack}18`;
 
-  const scrollPanResponder = useRef(
-    createScrollPanResponder({
-      pan,
-      isScrollAtTop,
-      lastGestureValue,
-      setVisible,
-      onClose,
-      onModalHide,
-    })
-  ).current;
-
   const chromePanResponder = useRef(
     createChromePanResponder({
       pan,
-      isScrollAtTop,
       lastGestureValue,
       setVisible,
       onClose,
@@ -230,11 +163,10 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
     }
   }, [isVisible]);
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    isScrollAtTop.current = event.nativeEvent.contentOffset.y <= 0;
-  };
-
   const topRadius = isBrand ? 24 : 20;
+  /** Last row margins inside ScrollView are often omitted from content size on iOS — pad generously. */
+  const scrollBottomInset =
+    Math.max(insets.bottom, responsivePadding(16)) + responsiveMargin(40, 52);
 
   return (
     <Modal visible={visible} transparent animationType="none">
@@ -289,19 +221,21 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
           </View>
 
           <ScrollView
-            scrollEventThrottle={16}
-            onScroll={handleScroll}
             showsVerticalScrollIndicator={false}
-            bounces={false}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
             style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            {...(preview ? scrollPanResponder.panHandlers : {})}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: scrollBottomInset },
+            ]}
           >
             <View
               style={[
                 styles.contentContainer,
                 isBrand && styles.contentContainerBrand,
               ]}
+              collapsable={false}
             >
               {renderContent}
             </View>
@@ -364,18 +298,14 @@ const styles = StyleSheet.create({
    * bottom or clipped on small screens.
    */
   scrollContent: {
-    flexGrow: 1,
-    justifyContent: "flex-start",
     alignItems: "stretch",
   },
   contentContainer: {
     width: "100%",
     paddingHorizontal: 16,
-    paddingBottom: 24,
   },
   contentContainerBrand: {
     paddingTop: 4,
-    paddingBottom: responsivePadding(28, 32),
   },
 });
 
