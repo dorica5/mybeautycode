@@ -98,7 +98,7 @@ import {
   shouldClusterByZoom,
   type SalonMapCluster,
 } from "@/src/utils/mapClustering";
-import { discoveryOptionsForProfession } from "@/src/constants/profDiscoveryCategories";
+import { localizedDiscoveryOptionsForProfession } from "@/src/constants/profDiscoveryCategories";
 import type { ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import { HorizontalScrollHintRow } from "@/src/components/HorizontalScrollHintRow";
 import { useI18n } from "@/src/providers/LanguageProvider";
@@ -503,6 +503,8 @@ const MapLocationScreen = () => {
   const [selectedSalon, setSelectedSalon] = useState<SalonPin | null>(null);
   /** Last committed region, used as the query key for /api/salons/nearby. */
   const [boundsRegion, setBoundsRegion] = useState<Region | null>(null);
+  /** Bump to remount MapView after the modal was hidden (e.g. pro profile) so pin snapshots repaint. */
+  const [mapRemountKey, setMapRemountKey] = useState(0);
 
   const toggleDiscoveryCategory = useCallback((code: string) => {
     setSelectedDiscoveryCategories((prev) =>
@@ -537,6 +539,7 @@ const MapLocationScreen = () => {
   const markerPressConsumesMapPressRef = useRef(false);
   /** After opening a pro profile from the map, reopen the map modal on back (keep pins / camera). */
   const restoreMapModalAfterProfileRef = useRef(false);
+  const mapModalWasVisibleRef = useRef(false);
 
   const useStyledGoogleMap =
     Platform.OS === "android" || iosGoogleMapsConfigured();
@@ -746,11 +749,12 @@ const MapLocationScreen = () => {
   const discoveryChipOptions = useMemo(
     () =>
       professionKey
-        ? discoveryOptionsForProfession(
-            mapProfessionKeyToChoiceCode(professionKey)
+        ? localizedDiscoveryOptionsForProfession(
+            mapProfessionKeyToChoiceCode(professionKey),
+            t
           )
         : [],
-    [professionKey]
+    [professionKey, t]
   );
 
   const bounds = useMemo(
@@ -806,6 +810,30 @@ const MapLocationScreen = () => {
 
   const [markerRenderPulseKey, setMarkerRenderPulseKey] = useState(0);
 
+  /** Google Maps marker bitmaps often stay blank after a hidden Modal is shown again — pulse + remount. */
+  const refreshMapPinsAfterModalShown = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setMarkerRenderPulseKey((k) => k + 1);
+        if (mapRegion && mapViewRef.current) {
+          mapViewRef.current.animateToRegion(mapRegion, 0);
+        }
+      });
+    });
+    const delays = [200, 550, 950];
+    return delays.map((ms) =>
+      setTimeout(() => setMarkerRenderPulseKey((k) => k + 1), ms)
+    );
+  }, [mapRegion]);
+
+  const restoreMapAfterProfessionalProfile = useCallback(() => {
+    if (!restoreMapModalAfterProfileRef.current) return;
+    restoreMapModalAfterProfileRef.current = false;
+    setMaskMapLocationShell(false);
+    setMapModalVisible(true);
+    setMapRemountKey((k) => k + 1);
+  }, []);
+
   /** Bump after nearby data settles so Google snapshot markers repaint (pins often appear blank until pinch otherwise). */
   useEffect(() => {
     if (!mapModalVisible || !boundsRegion) return;
@@ -820,6 +848,15 @@ const MapLocationScreen = () => {
     salonsFetching,
     markerPinSignature,
   ]);
+
+  /** When the map modal becomes visible again, repaint custom marker snapshots. */
+  useEffect(() => {
+    const becameVisible = mapModalVisible && !mapModalWasVisibleRef.current;
+    mapModalWasVisibleRef.current = mapModalVisible;
+    if (!becameVisible || !boundsRegion) return;
+    const timers = refreshMapPinsAfterModalShown();
+    return () => timers.forEach(clearTimeout);
+  }, [mapModalVisible, boundsRegion, refreshMapPinsAfterModalShown]);
 
   const {
     data: salonProfessionals = [],
@@ -1094,10 +1131,8 @@ const MapLocationScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      if (!restoreMapModalAfterProfileRef.current) return;
-      restoreMapModalAfterProfileRef.current = false;
-      setMapModalVisible(true);
-    }, [])
+      restoreMapAfterProfessionalProfile();
+    }, [restoreMapAfterProfessionalProfile])
   );
 
   /** Modal is a separate window: SafeAreaView often mis-insets; pad explicitly like other screens. */
@@ -1257,6 +1292,7 @@ const MapLocationScreen = () => {
               <View style={styles.mapModalMapSection}>
                 <View style={styles.mapCardStack}>
                   <MapView
+                    key={`salon-discovery-map-${mapRemountKey}`}
                     ref={mapViewRef}
                     style={styles.mapView}
                     provider={

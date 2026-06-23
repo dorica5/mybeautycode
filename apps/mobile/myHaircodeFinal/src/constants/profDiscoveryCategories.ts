@@ -115,6 +115,33 @@ export function discoveryOptionsForProfession(
   }
 }
 
+/** Localized chip label for a stable discovery code (viewer app language). */
+export function discoveryCategoryLabel(
+  code: string,
+  t: (key: string, params?: Record<string, string>) => string
+): string {
+  return t(`discoveryCategories.${code.trim().toLowerCase()}`);
+}
+
+/** Localized section title for Get discovered (viewer app language). */
+export function discoverySectionTitleForProfession(
+  profession: ProfessionChoiceCode,
+  t: (key: string, params?: Record<string, string>) => string
+): string {
+  return t(`discoveryProfessions.${profession}`);
+}
+
+/** Discovery options with labels in the viewer's app language; values remain stable codes. */
+export function localizedDiscoveryOptionsForProfession(
+  code: ProfessionChoiceCode | null,
+  t: (key: string, params?: Record<string, string>) => string
+): readonly DiscoveryCategoryOption[] {
+  return discoveryOptionsForProfession(code).map((opt) => ({
+    code: opt.code,
+    label: discoveryCategoryLabel(opt.code, t),
+  }));
+}
+
 /** New visit: full-width rows vs “Other” modal multi-select (labels match discovery). */
 export function visitServiceLayoutForProfession(
   code: ProfessionChoiceCode | null

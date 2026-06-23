@@ -63,8 +63,8 @@ import {
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import {
-  DISCOVERY_SECTION_TITLE,
-  discoveryOptionsForProfession,
+  discoverySectionTitleForProfession,
+  localizedDiscoveryOptionsForProfession,
   normalizeDiscoveryCategoriesFromApi,
   sanitizeDiscoveryCategoriesForProfession,
 } from "@/src/constants/profDiscoveryCategories";
@@ -192,8 +192,8 @@ const AboutMe = () => {
   }, [storedProfessionReady, activeProfessionCode]);
 
   const discoveryCategoryOptions = useMemo(
-    () => discoveryOptionsForProfession(professionApi ?? null),
-    [professionApi]
+    () => localizedDiscoveryOptionsForProfession(professionApi ?? null, t),
+    [professionApi, t]
   );
   const showDiscoveryCategoryPicker = discoveryCategoryOptions.length > 0;
 
@@ -677,13 +677,19 @@ const AboutMe = () => {
               ]}
             >
               <Text style={[Typography.label, styles.sectionLabel]}>
-                {DISCOVERY_SECTION_TITLE[professionApi] ?? t("aboutMePro.categories")}
+                {professionApi
+                  ? discoverySectionTitleForProfession(professionApi, t)
+                  : t("aboutMePro.categories")}
               </Text>
               <Text style={[Typography.outfitRegular16, styles.focusHint]}>
                 {t("aboutMePro.discoveryHint")}
               </Text>
               <BrandAnchoredMultiSelect
-                label={DISCOVERY_SECTION_TITLE[professionApi] ?? t("aboutMePro.categories")}
+                label={
+                  professionApi
+                    ? discoverySectionTitleForProfession(professionApi, t)
+                    : t("aboutMePro.categories")
+                }
                 hideLabel
                 items={discoveryCategoryOptions.map((opt) => ({
                   value: opt.code,
