@@ -18,8 +18,10 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useListAllClientSearch } from "@/src/api/profiles";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { primaryBlack } from "@/src/constants/Colors";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const SearchPage = () => {
+  const { t } = useI18n();
   const router = useRouter();
   const { profile } = useAuth();
   const {
@@ -80,42 +82,38 @@ const SearchPage = () => {
   if (!hasQuery) {
     body = (
       <View style={styles.hintWrap}>
-        <Text style={styles.hintText}>Type a name to search</Text>
+        <Text style={styles.hintText}>{t("search.typeNameHint")}</Text>
       </View>
     );
   } else if (waitingAuth) {
     body = (
       <View style={styles.loadingWrap}>
         <ActivityIndicator color={primaryBlack} />
-        <Text style={styles.statusHint}>Loading profile…</Text>
+        <Text style={styles.statusHint}>{t("common.loading")}</Text>
       </View>
     );
   } else if (waitingLanePrefs) {
     body = (
       <View style={styles.loadingWrap}>
         <ActivityIndicator color={primaryBlack} />
-        <Text style={styles.statusHint}>Loading workspace…</Text>
+        <Text style={styles.statusHint}>{t("search.loadingWorkspace")}</Text>
       </View>
     );
   } else if (needsProfessionLane) {
     body = (
       <View style={styles.hintWrap}>
         <Text style={styles.statusHint}>
-          Choose your professional account on the home screen, then search again.
+          {t("search.chooseProfessionAccount")}
         </Text>
       </View>
     );
   } else if (canFetchClients && isError) {
     const msg =
-      error instanceof Error ? error.message : "Could not reach the server.";
+      error instanceof Error ? error.message : t("discover.couldNotReachServer");
     body = (
       <View style={styles.errorWrap}>
         <Text style={styles.errorText}>{msg}</Text>
-        <Text style={styles.errorHint}>
-          If the API runs on your machine, set EXPO_PUBLIC_API_URL to your
-          computer LAN IP (not localhost) in .env and restart Expo with{" "}
-          <Text style={styles.errorMono}>-c</Text>.
-        </Text>
+        <Text style={styles.errorHint}>{t("discover.apiHint")}</Text>
         <Pressable
           onPress={() => void refetch()}
           style={({ pressed }) => [
@@ -123,9 +121,9 @@ const SearchPage = () => {
             pressed && styles.retryBtnPressed,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Retry search"
+          accessibilityLabel={t("search.retryA11y")}
         >
-          <Text style={styles.retryBtnLabel}>Try again</Text>
+          <Text style={styles.retryBtnLabel}>{t("common.tryAgain")}</Text>
         </Pressable>
       </View>
     );
@@ -155,7 +153,7 @@ const SearchPage = () => {
         contentContainerStyle={styles.resultsContainer}
         ListEmptyComponent={
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>No results found</Text>
+            <Text style={styles.emptyText}>{t("common.noMatches")}</Text>
           </View>
         }
       />
@@ -167,11 +165,14 @@ const SearchPage = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.viewContainer}>
           <View style={styles.backChrome}>
-            <NavBackRow onPress={() => router.back()} accessibilityLabel="Go back" />
+            <NavBackRow
+              onPress={() => router.back()}
+              accessibilityLabel={t("common.goBack")}
+            />
           </View>
 
           <View style={{ alignItems: "flex-start" }}>
-            <Text style={styles.text}>Search for existing clients</Text>
+            <Text style={styles.text}>{t("search.searchExistingClients")}</Text>
           </View>
 
           <SearchInput onSearch={handleSearch} initialQuery={""} />

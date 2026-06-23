@@ -13,8 +13,10 @@ import { Colors } from "@/src/constants/Colors";
 import MyButton from "@/src/components/MyButton";
 import { router } from "expo-router";
 import { useSetup } from "@/src/providers/SetUpProvider";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const FullName = () => {
+  const { t } = useI18n();
   const { name, setName } = useSetup();
   const [isValid, setIsValid] = useState(false);
 
@@ -30,22 +32,22 @@ const FullName = () => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.container}>
-        <SetUpNav title="Full Name" />
+        <SetUpNav title={t("setup.clientFullName")} />
         <SetUpTextInput
           title={"fullName"}
           value={name}
-          placeholder="Enter your full name"
+          placeholder={t("setup.enterFullName")}
           handleChangeText={(e) => setName(e)}
         />
         <View style={styles.btnContainer}>
           <MyButton
-            text="Next"
+            text={t("common.next")}
             onPress={() => router.push("./ProfilePicture")}
             disabled={!isValid}
           />
           {!isValid && name.length > 0 && (
             <Text style={styles.errorText}>
-              Please enter a valid full name.
+              {t("setup.fullNameInvalid")}
             </Text>
           )}
         </View>

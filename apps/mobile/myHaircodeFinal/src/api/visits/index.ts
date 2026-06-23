@@ -11,6 +11,7 @@ import {
 import { router } from "expo-router";
 import { useEffect } from "react";
 import { Alert } from "react-native";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 export const useDeleteHaircodeHairdresser = () => {
   const queryClient = useQueryClient();
@@ -255,6 +256,7 @@ export const deleteMediaItems = async (
 
 export const useSubmitHaircode = () => {
   const queryClient = useQueryClient();
+  const { t } = useI18n();
 
   return useMutation({
     mutationFn: async ({
@@ -395,14 +397,14 @@ export const useSubmitHaircode = () => {
             client_id,
             profile.id,
             "HAIRCODE_ADDED",
-            `${profile.full_name} has added a new visit.`,
+            t("push.newVisitAddedBody", { name: profile.full_name ?? t("common.professional") }),
             {
               isClient: false,
               senderName: profile.full_name,
               senderAvatar: profile.avatar_url,
               haircodeId: result.haircodeId,
             },
-            "New visit added"
+            t("push.newVisitAddedTitle")
           );
         } catch (err) {
           console.error("Error sending notification:", err);
@@ -410,8 +412,8 @@ export const useSubmitHaircode = () => {
       }
 
       Alert.alert(
-        "Success",
-        isEditing ? "Visit updated successfully!" : "Visit created successfully!"
+        t("common.success"),
+        isEditing ? t("visits.visitUpdatedSuccess") : t("visits.visitCreatedSuccess")
       );
 
       setTimeout(() => {
@@ -444,8 +446,8 @@ export const useSubmitHaircode = () => {
           ? error
           : error instanceof Error
           ? error.message
-          : "Failed to save visit";
-      Alert.alert("Error", msg);
+          : t("visits.failedSaveVisit");
+      Alert.alert(t("common.error"), msg);
     },
   });
 };

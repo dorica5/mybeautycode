@@ -6,8 +6,10 @@ import {
   Pressable,
   Text,
 } from "react-native";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 export const CameraPreview = ({ photo, retakePicture, savePic }: any) => {
+  const { t } = useI18n();
   return (
     <View style={styles.container}>
       <ImageBackground
@@ -15,10 +17,10 @@ export const CameraPreview = ({ photo, retakePicture, savePic }: any) => {
         style={styles.imageBackground}
       >
         <Pressable style={styles.retake} onPress={retakePicture}>
-          <Text style={styles.retakeText}>Retake</Text>
+          <Text style={styles.retakeText}>{t("camera.retake")}</Text>
         </Pressable>
         <Pressable style={styles.done} onPress={savePic}>
-          <Text style={styles.doneText}>Done</Text>
+          <Text style={styles.doneText}>{t("camera.done")}</Text>
         </Pressable>
       </ImageBackground>
     </View>

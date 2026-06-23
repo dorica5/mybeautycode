@@ -60,6 +60,7 @@ import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { MintFullScreenSpinner } from "@/src/components/MintSpinningWheel";
 import { NavBackRow, navBackChromeBarCombined } from "@/src/components/NavBackRow";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { reportReasonLabel } from "@/src/i18n/moderationLabels";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -271,7 +272,7 @@ const VisitList = () => {
           t("moderation.reportAutoBlocked")
         );
       } else {
-        Alert.alert(t("moderation.reportReceived"), result.message);
+        Alert.alert(t("moderation.reportReceived"), t("moderation.reportSuccess"));
       }
 
       setActiveAction(null);
@@ -588,7 +589,7 @@ const VisitList = () => {
                     REPORT_REASONS.map((reason) => (
                       <ModerationReasonRow
                         key={reason.value}
-                        label={reason.label}
+                        label={reportReasonLabel(t, reason.value)}
                         style={
                           reason.value === "other"
                             ? reportOtherReasonRowStyle

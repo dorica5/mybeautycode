@@ -44,7 +44,7 @@ export const reportUserEnhanced = async (
     userStatus: string;
   }>("/api/moderation/report", {
     reported_id,
-    reason: REPORT_REASONS.find((r) => r.value === reason)?.label ?? reason,
+    reason,
     additional_details: additionalDetails,
   });
   if (queryClient) {
@@ -54,7 +54,7 @@ export const reportUserEnhanced = async (
   return {
     ...result,
     reportCount: result.totalReports,
-    message: "User reported successfully",
+    message: "report_success",
   };
 };
 

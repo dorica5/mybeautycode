@@ -30,6 +30,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const PANEL_RADIUS = responsiveScale(12);
 const ANCHOR_GAP = responsiveMargin(4);
@@ -65,10 +66,12 @@ export function BrandCountryDropdown({
   label,
   value,
   onChange,
-  placeholder = "Select a country",
+  placeholder,
   error,
   containerStyle,
 }: BrandCountryDropdownProps) {
+  const { t } = useI18n();
+  const resolvedPlaceholder = placeholder ?? t("setup.selectCountryDropdown");
   const insets = useSafeAreaInsets();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const triggerRef = useRef<View>(null);
@@ -214,7 +217,7 @@ export function BrandCountryDropdown({
             style={[Typography.bodySmall, styles.triggerLabel]}
             numberOfLines={1}
           >
-            {selectedLabel ?? placeholder}
+            {selectedLabel ?? resolvedPlaceholder}
           </Text>
           <CaretDown size={responsiveScale(20)} color={primaryBlack} />
         </Pressable>
@@ -234,7 +237,7 @@ export function BrandCountryDropdown({
           <Pressable
             style={styles.backdrop}
             onPress={close}
-            accessibilityLabel="Close country list"
+            accessibilityLabel={t("setup.closeCountryListA11y")}
             accessibilityRole="button"
           />
           {panelLayout && (
@@ -255,7 +258,7 @@ export function BrandCountryDropdown({
                   <TextInput
                     value={query}
                     onChangeText={setQuery}
-                    placeholder="Search…"
+                    placeholder={t("common.searchPlaceholder")}
                     placeholderTextColor={`${primaryBlack}88`}
                     style={styles.searchInput}
                     autoCapitalize="none"
@@ -304,7 +307,7 @@ export function BrandCountryDropdown({
                     );
                   }}
                   ListEmptyComponent={
-                    <Text style={styles.emptyText}>No matches</Text>
+                    <Text style={styles.emptyText}>{t("common.noMatches")}</Text>
                   }
                 />
               </View>

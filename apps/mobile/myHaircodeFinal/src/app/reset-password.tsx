@@ -13,7 +13,7 @@ import {
 import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Keyboard,
@@ -27,6 +27,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import LoadingScreen from "./(setup)/LoadingScreen";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 /**
  * In development, you can open `/reset-password` with no query params to preview the layout.
@@ -39,7 +40,10 @@ type AuthTokens = {
   refresh_token: string | null;
 };
 
+type PasswordStrengthLevel = "weak" | "medium" | "strong";
+
 const PasswordReset = () => {
+  const { t } = useI18n();
   const urlParams = useLocalSearchParams();
   const [tokensExtracted, setTokensExtracted] = useState(false);
   const [authTokens, setAuthTokens] = useState<AuthTokens>({
@@ -56,43 +60,49 @@ const PasswordReset = () => {
   const [alertVisible, setAlertVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [passwordStrength, setPasswordStrength] = useState({
-    strength: "Weak",
+  const [passwordStrength, setPasswordStrength] = useState<{
+    level: PasswordStrengthLevel;
+    color: string;
+    feedback: string;
+  }>({
+    level: "weak",
     color: "red",
-    feedback: "Password must be at least 8 characters.",
+    feedback: "",
   });
 
-  const checkPasswordStrength = (password: string) => {
-    let strength = "Weak";
-    let color = "red";
-    let feedback = "Password must be at least 8 characters.";
+  const checkPasswordStrength = useCallback(
+    (password: string) => {
+      let level: PasswordStrengthLevel = "weak";
+      let color = "red";
+      let feedback = t("authPassword.passwordMinLength");
 
-    const hasUppercase = /[A-ZÆØÅ]/.test(password);
-    const hasLowercase = /[a-zæøå]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+      const hasUppercase = /[A-ZÆØÅ]/.test(password);
+      const hasLowercase = /[a-zæøå]/.test(password);
+      const hasNumber = /[0-9]/.test(password);
+      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
 
-    if (password.length >= 8) {
-      feedback =
-        "Add an uppercase letter, a number, and a special character for a stronger password.";
-      strength = "Medium";
-      color = "orange";
-    }
+      if (password.length >= 8) {
+        feedback = t("authPassword.passwordStrengthHint");
+        level = "medium";
+        color = "orange";
+      }
 
-    if (
-      hasUppercase &&
-      hasLowercase &&
-      hasNumber &&
-      hasSpecialChar &&
-      password.length >= 8
-    ) {
-      feedback = "Strong password!";
-      strength = "Strong";
-      color = "green";
-    }
+      if (
+        hasUppercase &&
+        hasLowercase &&
+        hasNumber &&
+        hasSpecialChar &&
+        password.length >= 8
+      ) {
+        feedback = t("authPassword.passwordStrongReady");
+        level = "strong";
+        color = "green";
+      }
 
-    return { strength, color, feedback };
-  };
+      return { level, color, feedback };
+    },
+    [t]
+  );
 
   useEffect(() => {
     const extractTokens = async () => {
@@ -120,9 +130,6 @@ const PasswordReset = () => {
 
       if (access_token && refresh_token) {
         setAuthTokens({ access_token, refresh_token });
-        console.log("Tokens extracted successfully");
-      } else {
-        console.error("No valid tokens found in URL");
       }
 
       setTokensExtracted(true);
@@ -136,9 +143,9 @@ const PasswordReset = () => {
       setPasswordStrength(checkPasswordStrength(newPassword));
     } else {
       setPasswordStrength({
-        strength: "Weak",
+        level: "weak",
         color: "red",
-        feedback: "Password must be at least 8 characters.",
+        feedback: t("authPassword.passwordMinLength"),
       });
     }
 
@@ -147,13 +154,15 @@ const PasswordReset = () => {
         !newPassword ||
         !confirmPassword ||
         newPassword !== confirmPassword ||
-        passwordStrength.strength === "Weak",
+        passwordStrength.level === "weak",
     );
   }, [
     newPassword,
     confirmPassword,
-    passwordStrength.strength,
+    passwordStrength.level,
     isLoading,
+    checkPasswordStrength,
+    t,
   ]);
 
   const hasValidTokens = Boolean(
@@ -166,8 +175,8 @@ const PasswordReset = () => {
 
     if (isDevPreview) {
       Alert.alert(
-        "Development preview",
-        "Open this screen from the link in your reset email to save a new password. Layout-only in dev without tokens.",
+        t("authPassword.devPreviewTitle"),
+        t("authPassword.devPreviewMessage")
       );
       return;
     }
@@ -177,10 +186,10 @@ const PasswordReset = () => {
 
     const errors: Record<string, string> = {};
     if (newPassword !== confirmPassword) {
-      errors.confirmPassword = "Passwords do not match.";
+      errors.confirmPassword = t("authPassword.passwordsNoMatch");
     }
-    if (passwordStrength.strength === "Weak") {
-      errors.newPassword = "Password must be at least 8 characters.";
+    if (passwordStrength.level === "weak") {
+      errors.newPassword = t("authPassword.passwordMinLength");
     }
     if (Object.keys(errors).length > 0) {
       setErrorMessages(errors);
@@ -209,7 +218,9 @@ const PasswordReset = () => {
     } catch (error: unknown) {
       console.error("Error updating password:", error);
       const message =
-        error instanceof Error ? error.message : "Failed to update password";
+        error instanceof Error
+          ? error.message
+          : t("authPassword.failedUpdatePassword");
       setErrorMessages({ newPassword: message });
       setIsLoading(false);
     }
@@ -225,14 +236,13 @@ const PasswordReset = () => {
         <StatusBar style="dark" />
         <View style={styles.invalidWrap}>
           <Text style={[Typography.h3, styles.invalidTitle]}>
-            Invalid reset link
+            {t("authPassword.invalidResetLink")}
           </Text>
           <Text style={[Typography.bodyMedium, styles.invalidBody]}>
-            This password reset link is invalid or has expired. Please request a
-            new password reset.
+            {t("authPassword.invalidResetLinkBody")}
           </Text>
           <PaddedLabelButton
-            title="Go to Sign in"
+            title={t("authPassword.goToSignIn")}
             horizontalPadding={32}
             verticalPadding={16}
             onPress={() => router.replace("/SignIn")}
@@ -262,7 +272,7 @@ const PasswordReset = () => {
           >
             {isDevPreview ? (
               <Text style={styles.devBanner}>
-                Dev preview — use the email link for a working reset.
+                {t("authPassword.devPreviewBanner")}
               </Text>
             ) : null}
 
@@ -271,15 +281,15 @@ const PasswordReset = () => {
                 accessibilityRole="header"
                 style={[Typography.h2, styles.headline]}
               >
-                New password
+                {t("authPassword.newPasswordHeadline")}
               </Text>
 
               <PrimaryOutlineTextField
-                label="Enter new password"
+                label={t("authPassword.enterNewPassword")}
                 value={newPassword}
                 onChangeText={setNewPassword}
                 password
-                placeholder="Enter new password"
+                placeholder={t("authPassword.enterNewPassword")}
                 autoCapitalize="none"
                 autoComplete="password"
                 containerStyle={styles.firstFieldSpacing}
@@ -291,11 +301,11 @@ const PasswordReset = () => {
               ) : null}
 
               <PrimaryOutlineTextField
-                label="Repeat password"
+                label={t("authPassword.repeatPassword")}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 password
-                placeholder="Repeat password"
+                placeholder={t("authPassword.repeatPassword")}
                 autoCapitalize="none"
                 autoComplete="password"
                 containerStyle={styles.secondFieldSpacing}
@@ -307,7 +317,7 @@ const PasswordReset = () => {
               ) : null}
 
               <PaddedLabelButton
-                title={isLoading ? "Saving…" : "Save"}
+                title={isLoading ? t("common.saving") : t("common.save")}
                 horizontalPadding={32}
                 verticalPadding={16}
                 disabled={buttonDisabled}
@@ -319,8 +329,8 @@ const PasswordReset = () => {
 
             <CustomAlert
               visible={alertVisible}
-              title="Success"
-              message="Your password has been updated successfully."
+              title={t("common.success")}
+              message={t("authPassword.passwordUpdated")}
               onClose={() => {
                 setAlertVisible(false);
                 router.replace("/SignIn");
@@ -363,7 +373,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: responsiveMargin(32),
   },
-  /** Tighter gap between the two password fields */
   firstFieldSpacing: {
     marginBottom: responsiveMargin(16),
     width: "100%",

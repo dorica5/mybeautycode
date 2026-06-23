@@ -19,8 +19,10 @@ import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const FullName = () => {
+  const { t } = useI18n();
   const { profile, setProfile } = useAuth();
   const originalName = profile.full_name ?? "";
   const id = profile.id;
@@ -38,15 +40,13 @@ const FullName = () => {
     const trimmed = name.trim();
 
     if (!trimmed) {
-      setErrorMessage("Please enter your full name.");
+      setErrorMessage(t("setup.fullNameRequired"));
       return false;
     }
 
     const nameRegex = /^[a-zA-ZÀ-ÿæøåÆØÅ.\s'’-]{2,50}$/;
     if (!nameRegex.test(trimmed)) {
-      setErrorMessage(
-        "Remove any numbers or unusual symbols. Only letters, spaces, hyphens (–), apostrophes (‘), and dots (.) are allowed."
-      );
+      setErrorMessage(t("setup.fullNameInvalid"));
       return false;
     }
 
@@ -72,7 +72,7 @@ const FullName = () => {
     }
 
     if (!id) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
 
@@ -95,7 +95,7 @@ const FullName = () => {
         },
         onError: (err) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", err.message);
+          Alert.alert(t("profile.updateFailed"), err.message);
         },
       }
     );
@@ -108,7 +108,7 @@ const FullName = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Full name"
+        title={t("profile.fullNameTitle")}
         showSaveButton
         saveChanged={changed}
         saveAction={updateUserProfile}
@@ -127,8 +127,8 @@ const FullName = () => {
           showsVerticalScrollIndicator={false}
         >
           <BrandOutlineField
-            accessibilityLabel="Full name"
-            placeholder="Name"
+            accessibilityLabel={t("profile.fullNameTitle")}
+            placeholder={t("profile.fullNamePlaceholder")}
             value={full_name}
             onChangeText={handleNameChange}
             autoCapitalize="words"

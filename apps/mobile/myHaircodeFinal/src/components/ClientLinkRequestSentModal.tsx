@@ -5,6 +5,7 @@ import {
   MintBrandModal,
   MintBrandModalPrimaryButton,
 } from "@/src/components/MintBrandModal";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type Props = {
   visible: boolean;
@@ -20,6 +21,7 @@ export function ClientLinkRequestSentModal({
   onClose,
   clientName,
 }: Props) {
+  const { t } = useI18n();
   const trimmedName =
     typeof clientName === "string" && clientName.trim()
       ? clientName.trim()
@@ -27,17 +29,9 @@ export function ClientLinkRequestSentModal({
 
   const message = (
     <Text style={[Typography.bodyMedium, styles.messageText]}>
-      {trimmedName ? (
-        <>
-          You{"'"}ve added{" "}
-          <Text style={styles.nameEmphasis}>{trimmedName}</Text> as a client.
-          They need to approve your request.
-        </>
-      ) : (
-        <>
-          You{"'"}ve added them as a client. They need to approve your request.
-        </>
-      )}
+      {trimmedName
+        ? t("home.clientLinkSentMessage", { name: trimmedName })
+        : t("home.clientLinkSentMessageNoName")}
     </Text>
   );
 
@@ -45,10 +39,10 @@ export function ClientLinkRequestSentModal({
     <MintBrandModal
       visible={visible}
       onClose={onClose}
-      title="Client added"
+      title={t("home.clientLinkSentTitle")}
       message={message}
       footer={
-        <MintBrandModalPrimaryButton label="Got it" onPress={onClose} />
+        <MintBrandModalPrimaryButton label={t("common.gotIt")} onPress={onClose} />
       }
     />
   );

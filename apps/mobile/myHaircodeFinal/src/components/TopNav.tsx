@@ -9,6 +9,7 @@ import {
 import { Typography } from "../constants/Typography";
 import { primaryBlack } from "../constants/Colors";
 import { NavBackRow } from "./NavBackRow";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type TopNavProps = {
   title: string;
@@ -45,6 +46,7 @@ const TopNav = ({
   showTitle = true,
   onBackPress,
 }: TopNavProps) => {
+  const { t } = useI18n();
   const titleBottomGap =
     titleMarginBottom !== undefined
       ? { marginBottom: responsiveScale(titleMarginBottom) }
@@ -62,7 +64,7 @@ const TopNav = ({
         ) : (
           <NavBackRow
             layout="inlineBar"
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("common.goBack")}
             onPress={() => (onBackPress ? onBackPress() : router.back())}
             style={[styles.navHalf, styles.navHalfStart]}
             hitSlop={12}
@@ -72,7 +74,7 @@ const TopNav = ({
         {showSaveButton ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={loading ? "Saving" : "Save"}
+            accessibilityLabel={loading ? t("common.saving") : t("common.save")}
             onPress={saveAction}
             disabled={loading}
             style={[styles.navHalf, styles.navHalfEnd, styles.savePressable]}
@@ -87,7 +89,7 @@ const TopNav = ({
                 },
               ]}
             >
-              {loading ? "Saving" : "Save"}
+              {loading ? t("common.saving") : t("common.save")}
             </Text>
           </Pressable>
         ) : (

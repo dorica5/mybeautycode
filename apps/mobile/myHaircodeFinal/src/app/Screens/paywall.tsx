@@ -41,16 +41,12 @@ import { runProfessionalSetupCompletionSideEffects } from "@/src/lib/professiona
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { usePostHog } from "posthog-react-native";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type Plan = "monthly" | "annual" | "lifetime";
 
-const PRICES_NOK: Record<Plan, string> = {
-  monthly: "NOK 199 / month",
-  annual: "NOK 1,999 / year",
-  lifetime: "NOK 4,999 one-time",
-};
-
 const Paywall = () => {
+  const { t } = useI18n();
   const logoSize = useBeautyCodeLogoSize();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const { profile, setLoadingSetup } = useAuth();
@@ -59,24 +55,40 @@ const Paywall = () => {
   const [selectedPlan, setSelectedPlan] = useState<Plan>("annual");
   const [busy, setBusy] = useState(false);
 
+  const pricesNok: Record<Plan, string> = {
+    monthly: t("paywall.priceMonthly"),
+    annual: t("paywall.priceAnnual"),
+    lifetime: t("paywall.priceLifetime"),
+  };
+
   const primaryCta = useMemo(() => {
-    if (selectedPlan === "lifetime") return "Unlock lifetime access";
-    return "Start 7-day free trial";
-  }, [selectedPlan]);
+    if (selectedPlan === "lifetime") return t("paywall.unlockLifetime");
+    return t("paywall.startFreeTrial");
+  }, [selectedPlan, t]);
 
   const afterTrialLine = useMemo(() => {
-    if (selectedPlan === "lifetime") return "One-time payment. No subscription.";
-    if (selectedPlan === "annual") return "After trial: NOK 1,999/year until canceled.";
-    return "After trial: NOK 199/month until canceled.";
-  }, [selectedPlan]);
+    if (selectedPlan === "lifetime") return t("paywall.afterTrialLifetime");
+    if (selectedPlan === "annual") return t("paywall.afterTrialAnnual");
+    return t("paywall.afterTrialMonthly");
+  }, [selectedPlan, t]);
+
+  const includedFeatures = useMemo(
+    () => [
+      t("paywall.featureManageClients"),
+      t("paywall.featureGallery"),
+      t("paywall.featureHistory"),
+      t("paywall.featureDiscovery"),
+    ],
+    [t]
+  );
 
   const openLink = async (url: string) => {
     try {
       const ok = await Linking.canOpenURL(url);
       if (ok) await Linking.openURL(url);
-      else Alert.alert("Cannot open link");
+      else Alert.alert(t("common.cannotOpenLink"));
     } catch {
-      Alert.alert("Cannot open link");
+      Alert.alert(t("common.cannotOpenLink"));
     }
   };
 
@@ -87,8 +99,8 @@ const Paywall = () => {
         const pending = getPendingProfessionalSetup();
         if (!pending) {
           Alert.alert(
-            "Could not continue",
-            "Your setup data was lost. Go back and tap Save again."
+            t("paywall.couldNotContinue"),
+            t("paywall.setupDataLost")
           );
           return;
         }
@@ -105,8 +117,8 @@ const Paywall = () => {
         } catch (e) {
           console.error("Professional setup save after paywall:", e);
           const msg =
-            e instanceof Error ? e.message : "Please try again.";
-          Alert.alert("Could not save your profile", msg);
+            e instanceof Error ? e.message : t("setup.pleaseTryAgain");
+          Alert.alert(t("paywall.couldNotSaveProfile"), msg);
           return;
         } finally {
           setLoadingSetup(false);
@@ -115,8 +127,8 @@ const Paywall = () => {
 
       // UI-only paywall for now (backend / billing integration later).
       Alert.alert(
-        "Coming soon",
-        "Billing will be added later. This screen is the final design + flow."
+        t("common.comingSoon"),
+        t("profile.billingSubtitle")
       );
       if (from === "professional-setup") {
         router.replace("/(professional)/(tabs)/home");
@@ -175,12 +187,12 @@ const Paywall = () => {
               <Text style={styles.planSubtitle}>{subtitle}</Text>
             </View>
           </View>
-          <Text style={styles.planPrice}>{PRICES_NOK[plan]}</Text>
+          <Text style={styles.planPrice}>{pricesNok[plan]}</Text>
         </View>
 
         {plan !== "lifetime" ? (
           <View style={styles.trialChip}>
-            <Text style={styles.trialChipLabel}>7-day free trial</Text>
+            <Text style={styles.trialChipLabel}>{t("paywall.freeTrialChip")}</Text>
           </View>
         ) : (
           <View style={styles.trialChip} />
@@ -198,7 +210,7 @@ const Paywall = () => {
           onPress={handleBack}
           style={styles.backRow}
           hitSlop={12}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("common.goBack")}
         />
       </View>
 
@@ -210,42 +222,37 @@ const Paywall = () => {
           <Logo width={logoSize.width * 0.72} height={logoSize.height * 0.72} />
 
           <Text style={[Typography.h3, styles.h1]}>
-            Try myne Pro free for 7 days
+            {t("paywall.tryProTitle")}
           </Text>
           <Text style={[Typography.bodyMedium, styles.subhead]}>
-            No charge today. Cancel anytime before the trial ends.
+            {t("paywall.tryProSubtitle")}
           </Text>
         </View>
 
         <View style={styles.section}>
           <PlanCard
             plan="annual"
-            title="Yearly"
-            subtitle="Best value for professionals"
-            badge="Save"
+            title={t("paywall.yearly")}
+            subtitle={t("paywall.yearlySubtitle")}
+            badge={t("paywall.saveBadge")}
           />
           <PlanCard
             plan="monthly"
-            title="Monthly"
-            subtitle="Flexible. Cancel anytime"
+            title={t("paywall.monthly")}
+            subtitle={t("paywall.monthlySubtitle")}
           />
           <PlanCard
             plan="lifetime"
-            title="Lifetime"
-            subtitle="One-time payment"
+            title={t("paywall.lifetime")}
+            subtitle={t("paywall.lifetimeSubtitle")}
           />
         </View>
 
         <View style={styles.section}>
           <Text style={[Typography.label, styles.sectionTitle]}>
-            Included with Pro
+            {t("paywall.includedTitle")}
           </Text>
-          {[
-            "Manage clients and visits",
-            "Gallery for each client",
-            "View client history regardless of previous salon",
-            "Professional profile so new clients can discover you on the map and you can market yourself",
-          ].map((line) => (
+          {includedFeatures.map((line) => (
             <View key={line} style={styles.bulletRow}>
               <View style={styles.bulletDot} />
               <Text style={[Typography.bodyMedium, styles.bulletText]}>
@@ -258,16 +265,16 @@ const Paywall = () => {
         <View style={styles.ctaBlock}>
           <MintBrandModalFooterRow>
             <MintBrandModalPrimaryButton
-              label={busy ? "Please wait..." : primaryCta}
+              label={busy ? t("inspiration.pleaseWait") : primaryCta}
               onPress={busy ? () => {} : handlePrimary}
               accessibilityLabel={primaryCta}
             />
             <MintBrandModalSecondaryButton
-              label="Restore purchases"
+              label={t("profile.restorePurchases")}
               onPress={() =>
                 Alert.alert(
-                  "Restore purchases",
-                  "Restore will be enabled when billing is integrated."
+                  t("profile.restorePurchases"),
+                  t("profile.restorePurchasesSoon")
                 )
               }
             />
@@ -282,14 +289,14 @@ const Paywall = () => {
               onPress={() => openLink("https://example.com/terms")}
               accessibilityRole="link"
             >
-              <Text style={styles.link}>Terms</Text>
+              <Text style={styles.link}>{t("paywall.termsLink")}</Text>
             </Pressable>
             <Text style={styles.linkSep}>·</Text>
             <Pressable
               onPress={() => openLink("https://example.com/privacy")}
               accessibilityRole="link"
             >
-              <Text style={styles.link}>Privacy</Text>
+              <Text style={styles.link}>{t("paywall.privacyLink")}</Text>
             </Pressable>
           </View>
         </View>

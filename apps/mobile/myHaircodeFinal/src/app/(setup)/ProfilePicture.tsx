@@ -19,8 +19,10 @@ import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import { useAuth } from "@/src/providers/AuthProvider";
 import RemoteImage from "@/src/components/RemoteImage";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const ProfilePicture = () => {
+  const { t } = useI18n();
   const {
     phoneNumber: phone_number,
     salonPhoneNumber: salon_phone_number,
@@ -40,7 +42,7 @@ const ProfilePicture = () => {
       const { data, error } = await supabase.auth.getUser();
       if (error) {
         console.error("Error fetching user:", error.message);
-        Alert.alert("Error fetching user.");
+        Alert.alert(t("common.errorFetchingUser"));
       } else {
         setUserId(data?.user?.id || null);
       }
@@ -78,7 +80,7 @@ const ProfilePicture = () => {
         router.replace("../home");
       }, 2000);
     } catch (error) {
-      Alert.alert("Failed to complete setup", "Please try again.");
+      Alert.alert(t("setup.failedCompleteSetup"), t("setup.pleaseTryAgain"));
 
       router.replace("../home");
     }
@@ -87,7 +89,7 @@ const ProfilePicture = () => {
   const uploadImage = async () => {
     if (!profilePicture?.startsWith("file://")) return profilePicture;
     const path = await uploadAvatarToStorage(profilePicture);
-    if (!path) Alert.alert("Error", "Failed to upload image");
+    if (!path) Alert.alert(t("common.error"), t("setup.errorUploadingImage"));
     return path;
   };
 
@@ -109,14 +111,14 @@ const ProfilePicture = () => {
   if (!userId) {
     return (
       <SafeAreaView style={styles.container}>
-        <Text>Loading user data...</Text>
+        <Text>{t("setup.loadingUserData")}</Text>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <SetUpNav title="Profile Picture" />
+      <SetUpNav title={t("setup.uploadProfilePicture")} />
 
       <Pressable style={styles.pickerContainer} onPress={pickImage}>
         {profilePicture ? (
@@ -138,12 +140,12 @@ const ProfilePicture = () => {
             <UploadSimple size={32} color={Colors.dark.dark} />
           </View>
         )}
-        <Text style={styles.pickerText}>Upload</Text>
+        <Text style={styles.pickerText}>{t("common.upload")}</Text>
       </Pressable>
 
       <View style={styles.btnContainer}>
         <MyButton
-          text="Finish"
+          text={t("common.finish")}
           onPress={setUpDone}
           disabled={!profilePicture}
         />

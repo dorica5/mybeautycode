@@ -446,7 +446,7 @@ export default function GeneralSetup() {
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Add profile image"
+            accessibilityLabel={t("setup.addProfileImageA11y")}
             onPress={pickImage}
             style={[
               styles.avatarRing,

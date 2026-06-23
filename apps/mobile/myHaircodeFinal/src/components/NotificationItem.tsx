@@ -12,8 +12,8 @@ import { AvatarWithSpinner } from "./avatarSpinner";
 import {
   formatVisitListDateForLocale,
   useI18n,
-  useProfessionRoleLabel,
 } from "@/src/providers/LanguageProvider";
+import { localizedNotificationMessage } from "@/src/i18n/notificationCopy";
 
 const CLIENT_CARD_DARK = "#262626";
 
@@ -49,8 +49,7 @@ export const NotificationItem = ({
     (typeof notification.data?.senderName === "string" &&
     notification.data.senderName.trim()
       ? notification.data.senderName.trim()
-      : null) ??
-    null;
+      : null);
 
   const isHandled =
     notification.status === "accepted" ||
@@ -66,25 +65,8 @@ export const NotificationItem = ({
     typeof professionCodeRaw === "string" && professionCodeRaw.trim()
       ? professionCodeRaw.trim()
       : null;
-  const roleLabel = useProfessionRoleLabel(professionCode);
 
-  const isClientInitiatedLink =
-    notification.data?.isClient === true ||
-    notification.data?.isClient === "true";
-
-  const displayMessage = (() => {
-    const name = senderName ?? t("common.someone");
-    if (notification.type === "FRIEND_REQUEST" || notification.type === "link_request") {
-      if (isClientInitiatedLink) {
-        return t("notifications.connectedWithYou", { name });
-      }
-      if (isHandled && (notification.status === "accepted" || notification.data?.status === "accepted")) {
-        return t("notifications.isNowYour", { name, role: roleLabel });
-      }
-      return t("notifications.wantsConnect", { name });
-    }
-    return notification.message;
-  })();
+  const displayMessage = localizedNotificationMessage(notification, t);
 
   const markAsRead = async () => {
     if (!isRead) {
@@ -173,8 +155,8 @@ export const NotificationItem = ({
             : null;
         if (!clientId) {
           Alert.alert(
-            "Cannot open",
-            "This notification is missing client information."
+            t("notifications.cannotOpen"),
+            t("notifications.cannotOpenMissingClient")
           );
           break;
         }
@@ -224,8 +206,8 @@ export const NotificationItem = ({
             notification.data
           );
           Alert.alert(
-            "Cannot Open",
-            "This notification is missing data. This can happen with older notifications. New visit notifications will open correctly."
+            t("notifications.cannotOpen"),
+            t("notifications.cannotOpenMissingVisit")
           );
           return;
         }

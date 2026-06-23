@@ -29,6 +29,9 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
+import { coerceProfessionCode } from "@/src/constants/professionCodes";
+import { clientAddedPushBody } from "@/src/i18n/pushCopy";
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   if (typeof value === "string") return value;
@@ -55,6 +58,20 @@ export const FriendRequest = () => {
   const [isBlockedUser, setIsBlockedUser] = useState(false);
 
   const isClientRequest = isClient === "true";
+  const displayName = firstParam(senderName)?.trim() || t("common.someone");
+  const requestLane = coerceProfessionCode(
+    firstParam(professionCode) ?? firstParam(profession_code) ?? undefined
+  );
+
+  const clientRequestMessage = clientAddedPushBody(
+    t,
+    displayName,
+    requestLane
+  );
+  const proRequestMessage = t("notifications.wantsConnectOnBrand", {
+    name: displayName,
+    brand: BRAND_DISPLAY_NAME,
+  });
 
   const openClientHub = () => {
     const clientId = firstParam(senderId);
@@ -136,13 +153,13 @@ export const FriendRequest = () => {
           senderId,
           profile.id,
           "FRIEND_REQUEST",
-          `${profile.full_name} has accepted your connection request`,
+          t("push.connectionAcceptedBody", { name: profile.full_name ?? t("common.someone") }),
           {
             isClient: true,
             senderName: profile.full_name,
             senderAvatar: profile.avatar_url,
           },
-          "Request Accepted"
+          t("push.requestAcceptedTitle")
         );
       }
 
@@ -193,7 +210,7 @@ export const FriendRequest = () => {
                 </Text>
               </Pressable>
             <Text style={[Typography.bodyMedium, styles.message]}>
-              {t("notifications.connectedSuffix")}
+              {clientRequestMessage}
             </Text>
             <View style={styles.viewProfileAction}>
               <MintBrandModalPrimaryButton
@@ -215,7 +232,7 @@ export const FriendRequest = () => {
         <NavBackRow
           onPress={() => router.back()}
           style={styles.backRow}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("common.goBack")}
           hitSlop={12}
         />
 
@@ -244,7 +261,7 @@ export const FriendRequest = () => {
             </Pressable>
 
           <Text style={[Typography.bodyMedium, styles.message]}>
-            {t("notifications.wantsAccessSuffix")}
+            {proRequestMessage}
           </Text>
 
           {!isHandled && (

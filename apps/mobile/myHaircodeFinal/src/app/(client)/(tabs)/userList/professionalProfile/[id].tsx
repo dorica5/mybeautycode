@@ -7,7 +7,7 @@ import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
-import { coerceProfessionCode, clientAddedProfessionalMessage, type ProfessionChoiceCode } from "@/src/constants/professionCodes";
+import { coerceProfessionCode, type ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import { Colors, primaryBlack } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
@@ -36,6 +36,8 @@ import { responsiveScale } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
 import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
+import { clientAddedPushBody } from "@/src/i18n/pushCopy";
+import { reportReasonLabel } from "@/src/i18n/moderationLabels";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 
 function normalizeRouteParam(
@@ -175,7 +177,8 @@ const ProfessionalProfileScreen = () => {
     try {
       await addHairdresserDB();
 
-      const message = clientAddedProfessionalMessage(
+      const message = clientAddedPushBody(
+        t,
         profile?.full_name,
         scopedLane
       );
@@ -192,7 +195,7 @@ const ProfessionalProfileScreen = () => {
           senderAvatar: profile?.avatar_url,
           ...(scopedLane ? { profession_code: scopedLane } : {}),
         },
-        "New Client Added",
+        t("push.newClientAddedTitle"),
         scopedLane ?? undefined
       );
 
@@ -205,7 +208,7 @@ const ProfessionalProfileScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient, scopedLane]);
+  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient, scopedLane, t]);
 
   const handleModalOption = (action: string) => {
     setPendingAction(action);
@@ -270,7 +273,7 @@ const ProfessionalProfileScreen = () => {
           t("moderation.reportAutoBlocked")
         );
       } else {
-        Alert.alert(t("moderation.reportReceived"), result.message);
+        Alert.alert(t("moderation.reportReceived"), t("moderation.reportSuccess"));
       }
 
       setActiveAction(null);
@@ -370,7 +373,7 @@ const ProfessionalProfileScreen = () => {
           REPORT_REASONS.map((reason) => (
             <ModerationReasonRow
               key={reason.value}
-              label={reason.label}
+              label={reportReasonLabel(t, reason.value)}
               style={
                 reason.value === "other" ? reportOtherReasonRowStyle : undefined
               }

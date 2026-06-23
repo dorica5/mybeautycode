@@ -41,10 +41,12 @@ import { isBlocked } from "@/src/api/moderation";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type SharedInspirationRow = { path: string; displayUri: string };
 
 const InspirationNotification = () => {
+  const { t } = useI18n();
   const { senderName, batch_id, profile_pic, senderId } =
     useLocalSearchParams();
   const { profile } = useAuth();
@@ -80,7 +82,7 @@ const InspirationNotification = () => {
       if (!batch_id) {
         console.warn("⚠ No batch_id provided, skipping fetch.");
         setHasPendingImages(false);
-        setStatusMessage("No shared inspiration available.");
+        setStatusMessage(t("notifications.noSharedInspiration"));
         return;
       }
 
@@ -103,18 +105,18 @@ const InspirationNotification = () => {
         setFlatListKey(`flatlist-${Date.now()}`);
 
         if (imageList.length === 0) {
-          setStatusMessage("These shared images have already been handled.");
+          setStatusMessage(t("notifications.inspirationAlreadyHandled"));
         } else {
           setStatusMessage("");
         }
       } catch (error) {
         console.error("Error fetching shared inspirations:", error);
-        setStatusMessage("Something went wrong while loading the images.");
+        setStatusMessage(t("notifications.inspirationLoadError"));
       }
     };
 
     fetchSharedInspirations();
-  }, [batch_id]);
+  }, [batch_id, t]);
 
   const addToInspirationContext = async (newImages) => {
     // Since we can't directly modify the context, we'll use a workaround
@@ -139,7 +141,7 @@ const InspirationNotification = () => {
       setModalVisible(false);
     } catch (error) {
       console.error("Error accepting image:", error);
-      Alert.alert("Error", "Failed to save inspiration.");
+      Alert.alert(t("common.error"), t("notifications.saveInspirationFailed"));
     } finally {
       setIsProcessing(false);
     }
@@ -161,18 +163,21 @@ const InspirationNotification = () => {
       setFlatListKey(`flatlist-${Date.now()}`);
 
       if (accepted === 0) {
-        Alert.alert("Error", "Failed to save any inspirations.");
+        Alert.alert(t("common.error"), t("notifications.saveAnyInspirationFailed"));
       } else if (accepted < images.length && images.length > 0) {
         Alert.alert(
-          "Partial Success",
-          `Saved ${accepted} of ${images.length} images.`
+          t("notifications.partialSuccess"),
+          t("notifications.savedPartialInspirations", {
+            accepted,
+            total: images.length,
+          })
         );
       } else {
-        Alert.alert("Success", "All images saved successfully!");
+        Alert.alert(t("common.success"), t("notifications.allInspirationsSaved"));
       }
     } catch (error) {
       console.error("Error in accept all process:", error);
-      Alert.alert("Error", "Failed to complete the operation.");
+      Alert.alert(t("common.error"), t("notifications.inspirationOperationFailed"));
     } finally {
       setIsProcessing(false);
     }
@@ -192,7 +197,7 @@ const InspirationNotification = () => {
       setModalVisible(false);
     } catch (error) {
       console.error("Error rejecting image:", error);
-      Alert.alert("Error", "Failed to remove inspiration.");
+      Alert.alert(t("common.error"), t("notifications.removeInspirationFailed"));
     } finally {
       setIsProcessing(false);
     }
@@ -209,7 +214,7 @@ const InspirationNotification = () => {
       setFlatListKey(`flatlist-${Date.now()}`);
     } catch (error) {
       console.error("Error rejecting images:", error);
-      Alert.alert("Error", "Failed to remove inspirations.");
+      Alert.alert(t("common.error"), t("notifications.removeInspirationsFailed"));
     } finally {
       setIsProcessing(false);
     }
@@ -235,10 +240,10 @@ const InspirationNotification = () => {
       <StatusBar style="dark" backgroundColor="#fff" />
       <View style={{ flex: 1, backgroundColor: "#fff" }}>
         <SafeAreaView style={styles.container}>
-          <TopNav title="Inspiration Shared" />
+          <TopNav title={t("notifications.inspirationShared")} />
           <View style={styles.subContainer}>
             <ResponsiveText size={16} tabletSize={14} style={styles.message}>
-              From
+              {t("notifications.inspirationFrom")}
             </ResponsiveText>
 
             <Pressable
@@ -322,7 +327,9 @@ const InspirationNotification = () => {
           {hasPendingImages && images.length > 0 && (
             <View style={styles.buttonContainer}>
               <MyButton
-                text={isProcessing ? "Processing..." : "Accept All"}
+                text={
+                  isProcessing ? t("notifications.processing") : t("notifications.acceptAll")
+                }
                 textSize={18}
                 textTabletSize={14}
                 onPress={handleAcceptAll}
@@ -332,7 +339,9 @@ const InspirationNotification = () => {
                 disabled={isProcessing}
               />
               <MyButton
-                text={isProcessing ? "Processing..." : "Reject All"}
+                text={
+                  isProcessing ? t("notifications.processing") : t("notifications.rejectAll")
+                }
                 textSize={18}
                 textTabletSize={14}
                 onPress={handleRejectAll}
@@ -376,7 +385,9 @@ const InspirationNotification = () => {
 
                   <View style={styles.modalButtons}>
                     <MyButton
-                      text={isProcessing ? "Processing" : "Accept"}
+                      text={
+                        isProcessing ? t("notifications.processing") : t("common.accept")
+                      }
                       textSize={18}
                       textTabletSize={14}
                       onPress={() => handleAccept(selectedImage)}
@@ -387,7 +398,9 @@ const InspirationNotification = () => {
                       disabled={isProcessing}
                     />
                     <MyButton
-                      text={isProcessing ? "Processing" : "Reject"}
+                      text={
+                        isProcessing ? t("notifications.processing") : t("common.decline")
+                      }
                       textSize={18}
                       textTabletSize={14}
                       onPress={() => handleReject(selectedImage)}

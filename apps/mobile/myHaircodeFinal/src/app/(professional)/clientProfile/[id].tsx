@@ -64,6 +64,7 @@ import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { coerceRouteParam, isUuid } from "@/src/utils/isUuid";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { reportReasonLabel } from "@/src/i18n/moderationLabels";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -210,7 +211,7 @@ const UserProfile = () => {
           t("moderation.reportAutoBlocked")
         );
       } else {
-        Alert.alert(t("moderation.reportReceived"), result.message);
+        Alert.alert(t("moderation.reportReceived"), t("moderation.reportSuccess"));
       }
       setActiveAction(null);
     } catch (error: unknown) {
@@ -321,7 +322,7 @@ const UserProfile = () => {
           REPORT_REASONS.map((reason) => (
             <ModerationReasonRow
               key={reason.value}
-              label={reason.label}
+              label={reportReasonLabel(t, reason.value)}
               style={
                 reason.value === "other" ? reportOtherReasonRowStyle : undefined
               }
@@ -345,7 +346,7 @@ const UserProfile = () => {
       <SafeAreaView style={[styles.mintRoot, styles.mintCenter]} edges={["top"]}>
         <StatusBar style="dark" />
         <Text style={[Typography.bodySmall, { color: primaryBlack, textAlign: "center", padding: 24 }]}>
-          This profile link is invalid. Go back and open the client again.
+          {t("profile.invalidClientProfileLink")}
         </Text>
         <NavBackRow
           onPress={() => router.back()}

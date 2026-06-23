@@ -20,6 +20,7 @@ import {
   primaryGreen,
 } from "@/src/constants/Colors";
 import { responsiveMargin, responsivePadding } from "@/src/utils/responsive";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -119,6 +120,7 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
   done: _done = true,
   sheetVariant = "default",
 }) => {
+  const { t } = useI18n();
   const pan = useRef(new Animated.Value(screenHeight)).current;
   const [visible, setVisible] = useState(isVisible);
   const lastGestureValue = useRef(screenHeight * 0.1);
@@ -176,7 +178,7 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
           style={StyleSheet.absoluteFill}
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel="Close dialog"
+          accessibilityLabel={t("common.closeDialogA11y")}
         />
         <Animated.View
           style={[
@@ -213,7 +215,7 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
                 onPress={onClose}
                 hitSlop={12}
                 accessibilityRole="button"
-                accessibilityLabel="Close"
+                accessibilityLabel={t("common.close")}
               >
                 <X size={28} color={closeIconColor} weight="bold" />
               </Pressable>

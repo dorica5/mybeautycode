@@ -7,7 +7,8 @@ export type FeedbackItemStatus =
   | "reviewing"
   | "planned"
   | "in_development"
-  | "shipped";
+  | "shipped"
+  | "declined";
 
 export type FeedbackItem = {
   id: string;
@@ -101,12 +102,9 @@ export function useToggleFeedbackVote() {
   });
 }
 
-export const FEEDBACK_TYPE_OPTIONS: {
-  code: FeedbackItemType;
-  label: string;
-}[] = [
-  { code: "feature", label: "New feature" },
-  { code: "improvement", label: "Improvement" },
-  { code: "bug", label: "Bug fix" },
-  { code: "other", label: "Other" },
+export const FEEDBACK_TYPE_OPTIONS: readonly FeedbackItemType[] = [
+  "feature",
+  "improvement",
+  "bug",
+  "other",
 ];

@@ -7,6 +7,7 @@ import {
   responsivePadding,
   responsiveFontSize,
 } from "@/src/utils/responsive";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type TopNavGalleryProps = {
   title: string;
@@ -19,11 +20,12 @@ const TopNavGallery = ({
   secondTitle,
   titleStyle,
 }: TopNavGalleryProps) => {
+  const { t } = useI18n();
   return (
     <View style={styles.topNav}>
       <NavBackRow
         layout="inlineBar"
-        accessibilityLabel="Go back"
+        accessibilityLabel={t("common.goBack")}
         hitSlop={12}
       />
       <View style={styles.titleAbsolute} pointerEvents="none">

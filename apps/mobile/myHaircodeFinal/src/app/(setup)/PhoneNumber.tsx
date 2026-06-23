@@ -13,8 +13,10 @@ import { Colors } from "@/src/constants/Colors";
 import MyButton from "@/src/components/MyButton";
 import { router } from "expo-router";
 import { useSetup } from "@/src/providers/SetUpProvider";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const PhoneNumber = () => {
+  const { t } = useI18n();
   const { phoneNumber, setPhoneNumber } = useSetup();
   const [isValid, setIsValid] = useState(false);
 
@@ -30,23 +32,23 @@ const PhoneNumber = () => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView style={styles.container}>
-        <SetUpNav title="Phone Number" />
+        <SetUpNav title={t("setup.phoneNumberLabel")} />
         <SetUpTextInput
           title={"phoneNumber"}
           value={phoneNumber}
-          placeholder="Enter your phone number"
+          placeholder={t("setup.enterPhoneNumber")}
           handleChangeText={(e) => setPhoneNumber(e)}
         />
         <View style={styles.btnContainer}>
           <MyButton
-            text="Next"
+            text={t("common.next")}
             onPress={() => router.push("./FullName")}
             disabled={!isValid}
           />
         </View>
         {!isValid && phoneNumber.length > 0 && (
           <Text style={styles.errorText}>
-            Please enter a valid Norwegian phone number.
+            {t("setup.validPhoneRequired")}
           </Text>
         )}
       </SafeAreaView>

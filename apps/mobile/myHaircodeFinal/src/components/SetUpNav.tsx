@@ -3,16 +3,18 @@ import React from "react";
 import { router } from "expo-router";
 import { Colors } from "../constants/Colors";
 import { NavBackRow } from "./NavBackRow";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type SetUpNavProps = {
   title: string;
 };
 
 const SetUpNav = ({ title }: SetUpNavProps) => {
+  const { t } = useI18n();
   return (
     <View style={styles.topNav}>
       <View style={styles.backAbsolute}>
-        <NavBackRow onPress={() => router.back()} accessibilityLabel="Go back" />
+        <NavBackRow onPress={() => router.back()} accessibilityLabel={t("common.goBack")} />
       </View>
       <Text style={styles.title}>{title}</Text>
     </View>

@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { Typography } from "@/src/constants/Typography";
 import { responsiveScale } from "@/src/utils/responsive";
 import { NavBackRow } from "@/src/components/NavBackRow";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type TopNavProps = {
   title: string;
@@ -18,10 +19,11 @@ type TopNavProps = {
 };
 
 const InspirationTopNav = ({ title, goHome, onBack }: TopNavProps) => {
+  const { t } = useI18n();
   return (
     <View style={styles.wrapper}>
       <NavBackRow
-        accessibilityLabel="Go back"
+        accessibilityLabel={t("common.goBack")}
         onPress={() => {
           if (onBack) {
             onBack();

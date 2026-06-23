@@ -4,8 +4,10 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const QRScanner = () => {
+  const { t } = useI18n();
   const [permission, requestPermission] = useCameraPermissions();
   const { mode } = useLocalSearchParams();
   const [previewVisible, setPreviewVisible] = useState(false);
@@ -23,10 +25,11 @@ const QRScanner = () => {
   if (!permission.granted) {
     return (
       <View style={styles.container}>
-        <Text style={styles.message}>
-          We need your permission to show the camera
-        </Text>
-        <Button onPress={requestPermission} title="grant permission" />
+        <Text style={styles.message}>{t("camera.permissionMessage")}</Text>
+        <Button
+          onPress={requestPermission}
+          title={t("camera.grantPermission")}
+        />
       </View>
     );
   }

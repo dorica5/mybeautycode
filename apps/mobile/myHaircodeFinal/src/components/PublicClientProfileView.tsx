@@ -23,29 +23,31 @@ import {
   isTablet,
   contentCardMaxWidth,
 } from "@/src/utils/responsive";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 function displayFirstName(
   first: string | null | undefined,
-  full: string | null | undefined
+  full: string | null | undefined,
+  yourFallback: string
 ): string {
   const t = first?.trim();
   if (t) return t;
   const f = full?.trim();
-  if (!f) return "Your";
+  if (!f) return yourFallback;
   const sp = f.indexOf(" ");
   return sp === -1 ? f : f.slice(0, sp);
 }
 
-async function openPhone(raw: string) {
+async function openPhone(raw: string, cannotOpenMessage: string) {
   const p = raw.trim();
   if (!p) return;
   const url = p.startsWith("tel:") ? p : `tel:${p}`;
   try {
     const ok = await Linking.canOpenURL(url);
     if (ok) await Linking.openURL(url);
-    else Alert.alert("Cannot open phone");
+    else Alert.alert(cannotOpenMessage);
   } catch {
-    Alert.alert("Cannot open phone");
+    Alert.alert(cannotOpenMessage);
   }
 }
 
@@ -72,9 +74,10 @@ export function PublicClientProfileView({
   onBack,
   headerRight,
 }: PublicClientProfileViewProps) {
+  const { t } = useI18n();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const showEmpty = mode === "self";
-  const first = displayFirstName(firstName, fullName);
+  const first = displayFirstName(firstName, fullName, t("publicProfile.yourFallback"));
 
   const layout = useMemo(() => {
     const tablet = isTablet();
@@ -155,7 +158,7 @@ export function PublicClientProfileView({
                 </Text>
                 {phone ? (
                   <Pressable
-                    onPress={() => void openPhone(phone)}
+                    onPress={() => void openPhone(phone, t("common.cannotOpenPhone"))}
                     style={styles.pill}
                     accessibilityRole="button"
                   >

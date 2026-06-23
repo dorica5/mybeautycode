@@ -27,8 +27,10 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 import { primaryBlack } from "@/src/constants/Colors";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const SearchHairdresserPage = () => {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
   const { profile } = useAuth();
@@ -83,14 +85,11 @@ const SearchHairdresserPage = () => {
     }
     if (isError) {
       const msg =
-        error instanceof Error ? error.message : "Could not reach the server.";
+        error instanceof Error ? error.message : t("discover.couldNotReachServer");
       return (
         <View style={styles.emptyContainer}>
           <Text style={styles.errorText}>{msg}</Text>
-          <Text style={styles.errorHint}>
-            If the API runs on your machine, set EXPO_PUBLIC_API_URL to your
-            computer LAN IP (not localhost) and restart Expo with -c.
-          </Text>
+          <Text style={styles.errorHint}>{t("discover.apiHint")}</Text>
           <Pressable
             onPress={() => void refetch()}
             style={({ pressed }) => [
@@ -98,9 +97,9 @@ const SearchHairdresserPage = () => {
               pressed && styles.retryBtnPressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Retry search"
+            accessibilityLabel={t("search.retryA11y")}
           >
-            <Text style={styles.retryBtnLabel}>Try again</Text>
+            <Text style={styles.retryBtnLabel}>{t("common.tryAgain")}</Text>
           </Pressable>
         </View>
       );
@@ -108,7 +107,7 @@ const SearchHairdresserPage = () => {
     return (
       <View style={styles.emptyContainer}>
         <Text style={styles.noResultsText}>
-          No results found for &quot;{debouncedQuery}&quot;
+          {t("discover.noResultsFor", { query: debouncedQuery })}
         </Text>
 
         {[
@@ -119,12 +118,11 @@ const SearchHairdresserPage = () => {
           "dada hårstudio",
         ].some((chain) => debouncedQuery.toLowerCase().includes(chain)) ? (
           <Text style={styles.helperText}>
-            This app is for individual hairdressers, not salon chains like{" "}
-            {debouncedQuery}.
+            {t("discover.chainTip", { query: debouncedQuery })}
           </Text>
         ) : (
           <Text style={styles.helperText}>
-            {`Seems like your hairdresser hasn't started using ${BRAND_DISPLAY_NAME} yet. Tip them about it so they're here next time you search!`}
+            {t("home.proInviteHelper", { brand: BRAND_DISPLAY_NAME })}
           </Text>
         )}
       </View>
@@ -147,14 +145,14 @@ const SearchHairdresserPage = () => {
                 weight="SemiBold"
                 style={styles.title}
               >
-                Find my hairdresser
+                {t("search.findMyHairdresser")}
               </ResponsiveText>
 
               <SearchInput
                 value={searchQuery}
                 onSearch={handleSearch}
                 initialQuery={searchQuery}
-                placeholder="Search for hairdressers"
+                placeholder={t("search.searchHairdressersPlaceholder")}
                 clearSearch={clearSearch}
               />
 

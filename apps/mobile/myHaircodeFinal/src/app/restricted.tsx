@@ -1,29 +1,35 @@
-// app/restricted.tsx
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useAuth } from '../providers/AuthProvider';
-import { router } from 'expo-router';
+import React, { useMemo } from "react";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { router } from "expo-router";
+import { useAuth } from "../providers/AuthProvider";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 export default function RestrictedPage() {
-  const { userStatus, profile, signOut } = useAuth();
+  const { t } = useI18n();
+  const { userStatus, signOut } = useAuth();
 
-  const getTimeRemaining = () => {
-    if (!userStatus?.restriction_end) return 'unknown time';
-    
+  const timeRemaining = useMemo(() => {
+    if (!userStatus?.restriction_end) return t("restricted.timeUnknown");
+
     const endDate = new Date(userStatus.restriction_end);
     const now = new Date();
     const timeDiff = endDate.getTime() - now.getTime();
-    
-    if (timeDiff <= 0) return 'restriction should be lifted (please restart app)';
-    
+
+    if (timeDiff <= 0) return t("restricted.timeShouldLift");
+
     const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
+    const hours = Math.floor(
+      (timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+    );
+
     if (days > 0) {
-      return `${days} day${days !== 1 ? 's' : ''} and ${hours} hour${hours !== 1 ? 's' : ''}`;
+      return t("restricted.timeDaysHours", {
+        days: String(days),
+        hours: String(hours),
+      });
     }
-    return `${hours} hour${hours !== 1 ? 's' : ''}`;
-  };
+    return t("restricted.timeHours", { hours: String(hours) });
+  }, [t, userStatus?.restriction_end]);
 
   return (
     <View style={styles.container}>
@@ -31,49 +37,42 @@ export default function RestrictedPage() {
         <Text style={styles.icon}>⏳</Text>
       </View>
 
-      <Text style={styles.title}>Account Temporarily Restricted</Text>
-      
+      <Text style={styles.title}>{t("restricted.title")}</Text>
+
       <View style={styles.messageContainer}>
-        <Text style={styles.message}>
-          Your account access has been temporarily limited due to policy violations.
-        </Text>
-        
+        <Text style={styles.message}>{t("restricted.message")}</Text>
+
         <Text style={styles.timeInfo}>
-          Time remaining: {getTimeRemaining()}
+          {t("restricted.timeRemaining", { time: timeRemaining })}
         </Text>
-        
-        <Text style={styles.details}>
-          During this time, you have limited access to app features. Your full access will be restored automatically when the restriction period ends.
-        </Text>
+
+        <Text style={styles.details}>{t("restricted.details")}</Text>
       </View>
 
       <View style={styles.actionsContainer}>
-        <TouchableOpacity 
-          style={styles.supportButton} 
-          onPress={() => router.push('/support')}
+        <TouchableOpacity
+          style={styles.supportButton}
+          onPress={() => router.push("/support")}
         >
-          <Text style={styles.supportButtonText}>Contact Support</Text>
+          <Text style={styles.supportButtonText}>
+            {t("restricted.contactSupport")}
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.signOutButton} 
-          onPress={signOut}
-        >
-          <Text style={styles.signOutButtonText}>Sign Out</Text>
+        <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
+          <Text style={styles.signOutButtonText}>{t("restricted.signOut")}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.infoContainer}>
-        <Text style={styles.infoTitle}>What this means:</Text>
-        <Text style={styles.infoText}>• Limited access to core app features</Text>
-        <Text style={styles.infoText}>• Cannot create new bookings or appointments</Text>
-        <Text style={styles.infoText}>• Cannot send messages to other users</Text>
-        <Text style={styles.infoText}>• Restriction will lift automatically</Text>
+        <Text style={styles.infoTitle}>{t("restricted.whatThisMeans")}</Text>
+        <Text style={styles.infoText}>{t("restricted.limitFeatures")}</Text>
+        <Text style={styles.infoText}>{t("restricted.limitBookings")}</Text>
+        <Text style={styles.infoText}>{t("restricted.limitMessages")}</Text>
+        <Text style={styles.infoText}>{t("restricted.limitAutoLift")}</Text>
       </View>
 
-      <Text style={styles.appealText}>
-        Believe this is an error? Contact our support team for review.
-      </Text>
+      <Text style={styles.appealText}>{t("restricted.appealHint")}</Text>
     </View>
   );
 }
@@ -82,9 +81,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconContainer: {
     marginBottom: 20,
@@ -95,88 +94,88 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontFamily: "Inter-Bold",
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 20,
-    color: '#ef6c00',
+    color: "#ef6c00",
   },
   messageContainer: {
-    backgroundColor: '#fff8e1',
+    backgroundColor: "#fff8e1",
     padding: 20,
     borderRadius: 12,
     marginBottom: 30,
     borderLeftWidth: 4,
-    borderLeftColor: '#ff8f00',
+    borderLeftColor: "#ff8f00",
   },
   message: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 15,
-    color: '#333',
+    color: "#333",
     lineHeight: 22,
   },
   timeInfo: {
     fontSize: 18,
     fontFamily: "Inter-Bold",
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 15,
-    color: '#ef6c00',
+    color: "#ef6c00",
   },
   details: {
     fontSize: 14,
-    textAlign: 'center',
-    color: '#666',
+    textAlign: "center",
+    color: "#666",
     lineHeight: 20,
   },
   actionsContainer: {
-    width: '100%',
+    width: "100%",
     marginBottom: 30,
   },
   supportButton: {
-    backgroundColor: '#22c55e',
+    backgroundColor: "#22c55e",
     padding: 15,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 10,
   },
   supportButtonText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
     fontFamily: "Inter-Bold",
   },
   signOutButton: {
     padding: 15,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#dc2626',
+    borderColor: "#dc2626",
   },
   signOutButtonText: {
-    color: '#dc2626',
+    color: "#dc2626",
     fontSize: 16,
     fontFamily: "Inter-Bold",
   },
   infoContainer: {
-    backgroundColor: '#f0f9ff',
+    backgroundColor: "#f0f9ff",
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-    width: '100%',
+    width: "100%",
   },
   infoTitle: {
     fontSize: 16,
     fontFamily: "Inter-Bold",
     marginBottom: 10,
-    color: '#0369a1',
+    color: "#0369a1",
   },
   infoText: {
-    color: '#0369a1',
+    color: "#0369a1",
     marginBottom: 5,
     lineHeight: 20,
   },
   appealText: {
     fontSize: 12,
-    textAlign: 'center',
-    color: '#666',
-    fontStyle: 'italic',
+    textAlign: "center",
+    color: "#666",
+    fontStyle: "italic",
   },
 });

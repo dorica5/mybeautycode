@@ -1,3 +1,4 @@
+import { useI18n } from "@/src/providers/LanguageProvider";
 import { primaryBlack, primaryWhite, secondaryGreen } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -68,10 +69,12 @@ export function BrandAnchoredMultiSelect({
   items,
   value,
   onChange,
-  placeholder = "Tap to add",
+  placeholder,
   hideLabel = false,
   containerStyle,
 }: BrandAnchoredMultiSelectProps) {
+  const { t } = useI18n();
+  const resolvedPlaceholder = placeholder ?? t("common.tapToAdd");
   const rows = useMemo(
     () => resolveSelectRows(options, items),
     [options, items]
@@ -115,8 +118,10 @@ export function BrandAnchoredMultiSelect({
     if (labels.length === 2) {
       return `${labels[0]}, ${labels[1]}`;
     }
-    return `${labels.length} selected`;
-  }, [value, labelByValue]);
+    return t("common.multiSelectSelectedCount", {
+      count: String(labels.length),
+    });
+  }, [value, labelByValue, t]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -227,13 +232,13 @@ export function BrandAnchoredMultiSelect({
           ]}
           accessibilityRole="button"
           accessibilityLabel={label}
-          accessibilityHint="Opens list to add or remove selections"
+          accessibilityHint={t("common.multiSelectOpenHint")}
         >
           <Text
             style={[Typography.bodySmall, styles.triggerLabel]}
             numberOfLines={2}
           >
-            {triggerSummary ?? placeholder}
+            {triggerSummary ?? resolvedPlaceholder}
           </Text>
           <CaretDown size={responsiveScale(20)} color={primaryBlack} />
         </Pressable>
@@ -250,7 +255,7 @@ export function BrandAnchoredMultiSelect({
           <Pressable
             style={styles.backdrop}
             onPress={close}
-            accessibilityLabel="Close list"
+            accessibilityLabel={t("common.closeListA11y")}
             accessibilityRole="button"
           />
           {panelLayout && (

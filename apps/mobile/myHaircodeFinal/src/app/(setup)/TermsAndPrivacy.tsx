@@ -17,13 +17,15 @@ import {
   verticalScale,
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const TermsAndConditionsScreen = () => {
+  const { t } = useI18n();
   return (
     <>
       <StatusBar style="dark" backgroundColor={primaryGreen} />
       <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <TopNav title="Terms and Privacy" showTitle={false} />
+        <TopNav title={t("setup.termsAndPrivacy")} showTitle={false} />
 
         <ScrollView
           style={styles.scrollFlex}
@@ -34,7 +36,7 @@ const TermsAndConditionsScreen = () => {
             style={[Typography.h3, styles.screenTitle]}
             accessibilityRole="header"
           >
-            Terms and Privacy
+            {t("setup.termsAndPrivacy")}
           </Text>
 
           <KrusedullLogo
@@ -45,66 +47,59 @@ const TermsAndConditionsScreen = () => {
 
           <View style={styles.scrollBody}>
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            {/* Your Terms and Conditions or Privacy Policy text goes here */}
-            Welcome to {BRAND_DISPLAY_NAME}! By accessing or using our app, you agree to
-            comply with these Terms and Conditions. Please read them carefully
-            before using the app
-            {/* Add more content as needed */}
+            {t("termsLegal.welcome", { brand: BRAND_DISPLAY_NAME })}
           </Text>
 
-          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>General Information</Text>
-
-          <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            {BRAND_DISPLAY_NAME} is a journal system for beauty services that connects
-            clients and beauty practitioners, allowing clients to share their complete
-            treatment history with professionals, and let clients find the exact professional they are looking for. Available on both iOS and
-            Android.
+          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>
+            {t("termsLegal.generalInfo")}
           </Text>
 
-          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>Eligibility & Account Creation</Text>
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            Create a client account first, then add another account for professional use.
+            {t("termsLegal.generalInfoBody", { brand: BRAND_DISPLAY_NAME })}
           </Text>
 
-          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>User Responsibilities & Content</Text>
+          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>
+            {t("termsLegal.eligibility")}
+          </Text>
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            Professionals can upload images, text, and videos only if the client
-            has agreed to share their journal. Both clients and professionals can
-            delete single visit cards. Professionals can edit visits only
-            within 7 days of creation. Clients can revoke a professional's access
-            to their data at any time. Users may not upload inappropriate
-            images or offensive text. Violation of this rule will result in a
-            permanent ban without a refund.
+            {t("termsLegal.eligibilityBody")}
           </Text>
 
-          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>Privacy & Data Collection</Text>
+          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>
+            {t("termsLegal.responsibilities")}
+          </Text>
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            For Professionals:{"\n"}Collected Data: First name, last name, username, profile picture,
-            email, about me, salon phone number, salon name, and salon location.
-            We also track client relationships (i.e., which clients have shared
-            access with them). Treatment prices are stored but are only visible
-            to that specific professional who wrote it.{"\n"}For Clients:{"\n"}Collected Data: First name, last name,
-            phone number, profile picture, about me.
-            
+            {t("termsLegal.responsibilitiesBody")}
           </Text>
 
-          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}> Liability Disclaimer</Text>
+          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>
+            {t("termsLegal.privacy")}
+          </Text>
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            {BRAND_DISPLAY_NAME} provides a platform for journaling treatments and finding professionals, but we
-            do not guarantee specific results or outcomes.
+            {t("termsLegal.privacyBodyPro")}
+            {"\n"}
+            {t("termsLegal.privacyBodyClient")}
           </Text>
 
-          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>Account Termination & Enforcement</Text>
+          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>
+            {t("termsLegal.liability")}
+          </Text>
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            Users who violate these Terms may have their accounts permanently
-            banned. No refunds will be issued to banned users.
+            {t("termsLegal.liabilityBody", { brand: BRAND_DISPLAY_NAME })}
           </Text>
 
-          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>Changes to Terms</Text>
+          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>
+            {t("termsLegal.termination")}
+          </Text>
           <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
-            We reserve the right to modify these terms at any time. Continued use
-            of the app after changes constitutes acceptance of the new terms. For
-            questions or support, contact us at hello@myne.com.
+            {t("termsLegal.terminationBody")}
+          </Text>
+
+          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>
+            {t("termsLegal.changes")}
+          </Text>
+          <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
+            {t("termsLegal.changesBody")}
           </Text>
           </View>
         </ScrollView>

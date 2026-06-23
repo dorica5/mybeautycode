@@ -19,6 +19,7 @@ import {
   responsiveFontSize,
   responsivePadding,
 } from "@/src/utils/responsive";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -103,6 +104,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
   onCancel,
   onCropComplete,
 }) => {
+  const { t } = useI18n();
   const cropRef = useRef<CropZoomType>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -196,7 +198,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
             <Pressable onPress={handleCancel} style={styles.headerButton}>
               <X size={responsiveScale(28)} color="#fff" weight="bold" />
             </Pressable>
-            <Text style={styles.headerTitle}>Adjust Image</Text>
+            <Text style={styles.headerTitle}>{t("imageCrop.adjustTitle")}</Text>
             <Pressable
               onPress={handleCrop}
               style={styles.headerButton}
@@ -213,7 +215,7 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
           {/* Instructions at bottom - always visible */}
           <View style={styles.instructions}>
             <Text style={styles.instructionsText}>
-              Pinch to zoom • Drag to reposition
+              {t("imageCrop.instructions")}
             </Text>
           </View>
         </View>

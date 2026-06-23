@@ -95,7 +95,9 @@ function FeedbackBoardRow({
             { backgroundColor: chip.bg, borderColor: chip.border },
           ]}
         >
-          <Text style={styles.statusChipText}>{item.status_label}</Text>
+          <Text style={styles.statusChipText}>
+            {t(`feedback.statuses.${item.status}`)}
+          </Text>
         </View>
         <Text style={[Typography.body, styles.boardTitle]}>{item.title}</Text>
         {expanded && item.description ? (
@@ -327,12 +329,12 @@ export default function FeedbackScreen() {
         </Text>
 
         <View style={styles.typeRow}>
-          {FEEDBACK_TYPE_OPTIONS.map((opt) => {
-            const active = type === opt.code;
+          {FEEDBACK_TYPE_OPTIONS.map((code) => {
+            const active = type === code;
             return (
               <Pressable
-                key={opt.code}
-                onPress={() => setType(opt.code)}
+                key={code}
+                onPress={() => setType(code)}
                 style={({ pressed }) => [
                   styles.typeChip,
                   active && styles.typeChipActive,
@@ -346,7 +348,7 @@ export default function FeedbackScreen() {
                     active && styles.typeChipLabelActive,
                   ]}
                 >
-                  {opt.label}
+                  {t(`feedback.types.${code}`)}
                 </Text>
               </Pressable>
             );

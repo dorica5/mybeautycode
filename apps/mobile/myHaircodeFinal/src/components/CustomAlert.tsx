@@ -1,5 +1,11 @@
 import React from "react";
-import { MintBrandModal, MintBrandModalFooterRow, MintBrandModalPrimaryButton, MintBrandModalSecondaryButton } from "@/src/components/MintBrandModal";
+import {
+  MintBrandModal,
+  MintBrandModalFooterRow,
+  MintBrandModalPrimaryButton,
+  MintBrandModalSecondaryButton,
+} from "@/src/components/MintBrandModal";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 interface CustomAlertProps {
   visible: boolean;
@@ -21,6 +27,8 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
   onDelete,
   compact,
 }) => {
+  const { t } = useI18n();
+
   return (
     <MintBrandModal
       visible={visible}
@@ -31,14 +39,20 @@ const CustomAlert: React.FC<CustomAlertProps> = ({
       footer={
         fromDelete ? (
           <MintBrandModalFooterRow>
-            <MintBrandModalSecondaryButton label="Cancel" onPress={onClose} />
+            <MintBrandModalSecondaryButton
+              label={t("common.cancel")}
+              onPress={onClose}
+            />
             <MintBrandModalPrimaryButton
-              label="Delete"
+              label={t("common.delete")}
               onPress={() => onDelete?.()}
             />
           </MintBrandModalFooterRow>
         ) : (
-          <MintBrandModalPrimaryButton label="Got it" onPress={onClose} />
+          <MintBrandModalPrimaryButton
+            label={t("common.gotIt")}
+            onPress={onClose}
+          />
         )
       }
     />

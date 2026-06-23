@@ -14,6 +14,7 @@ import { randomUUID } from "expo-crypto";
 import * as FileSystem from "expo-file-system/legacy";
 import { sendPushNotification } from "./useNotifcations";
 import { uploadToStorage } from "../lib/uploadHelpers";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import {
   fetchSignedStorageUrl,
   normalizeStorageObjectPath,
@@ -56,9 +57,11 @@ const MarkContext = createContext<MarkData>({
 });
 
 export default function MarkProvider({ children }: PropsWithChildren) {
+  const { t } = useI18n();
+  const markImagesLabel = t("inspiration.markImages");
   const [marked, setMarked] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
-  const [buttonText, setButtonText] = useState("Mark images");
+  const [buttonText, setButtonText] = useState(markImagesLabel);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageGallery, setImageGallery] = useState([]);
   const [selectedRecipient, setSelectedRecipient] = useState(null);
@@ -72,7 +75,7 @@ export default function MarkProvider({ children }: PropsWithChildren) {
       );
       
       setImageGallery(updatedGallery);
-      setButtonText("Mark images");
+      setButtonText(markImagesLabel);
       setMarked(false);
       setSelectedImages([]);
       
@@ -84,7 +87,7 @@ export default function MarkProvider({ children }: PropsWithChildren) {
 
   const handleShare = async (recipientId) => {
     if (!recipientId || selectedImages.length === 0) {
-      Alert.alert("Error", "Please select a recipient and images to share.");
+      Alert.alert(t("common.error"), t("inspiration.selectShareTarget"));
       return;
     }
   
@@ -130,39 +133,41 @@ export default function MarkProvider({ children }: PropsWithChildren) {
         recipientId,
         profile.id,
         "INSPIRATION_SHARED",
-        `${profile.full_name} shared inspiration with you.`,
+        t("push.inspirationSharedBody", {
+          name: profile.full_name ?? t("common.someone"),
+        }),
         {
           senderName: profile.full_name,
           senderAvatar: profile.avatar_url,
           batchId,
         },
-        "New Inspiration Shared"
+        t("push.inspirationSharedTitle")
       );
-  
+
       setSelectedImages([]);
       setMarked(false);
       setSelectedRecipient(null);
-      Alert.alert("Success", "Inspiration shared!");
+      Alert.alert(t("common.success"), t("inspiration.sharedSuccess"));
     } catch (error) {
       console.error("Sharing error:", error);
-      Alert.alert("Error", "Failed to share inspiration.");
+      Alert.alert(t("common.error"), t("inspiration.shareFailed"));
     }
   };
 
   useEffect(() => {
-    if (buttonText === "Mark images") {
+    if (buttonText === markImagesLabel) {
       setSelectedImages([]);
       setMarked(false);
     }
-  }, [buttonText]);
+  }, [buttonText, markImagesLabel]);
 
   const resetState = useCallback(() => {
     setMarked(false);
     setSelectedImages([]);
-    setButtonText("Mark images");
+    setButtonText(markImagesLabel);
     setSelectedImage(null);
     setSelectedRecipient(null);
-  }, []);
+  }, [markImagesLabel]);
 
   return (
     <MarkContext.Provider

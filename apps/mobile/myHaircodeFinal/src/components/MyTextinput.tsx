@@ -14,6 +14,7 @@ import {
   scalePercent,
   verticalScale,
 } from "../utils/responsive";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type MyTextInputProps = TextInputProps & {
   title: string;
@@ -33,6 +34,7 @@ const MyTextinput = ({
   containerStyle,
   ...rest
 }: MyTextInputProps) => {
+  const { t } = useI18n();
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -57,7 +59,7 @@ const MyTextinput = ({
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
             accessible
-            accessibilityLabel="Toggle password visibility"
+            accessibilityLabel={t("common.togglePasswordVisibilityA11y")}
             style={styles.eyeIcon}
           >
             {!showPassword ? (

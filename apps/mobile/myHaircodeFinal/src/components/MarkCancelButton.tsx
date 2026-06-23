@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Colors } from "@constants/Colors";
 import { forwardRef } from "react";
 import { useMark } from "@/src/providers/MarkProvider";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type ButtonProps = {
   margin?: boolean;
@@ -9,12 +10,15 @@ type ButtonProps = {
 
 const MarkCancelButton = forwardRef<View | null, ButtonProps>(
   ({ margin = true, ...pressableProps }, ref) => {
+    const { t } = useI18n();
     const { buttonText, setButtonText, setMarked } = useMark();
+    const markLabel = t("inspiration.markImages");
+    const cancelLabel = t("common.cancel");
 
     const handlePress = () => {
-      const newButtonText = buttonText === "Mark images" ? "Cancel" : "Mark images";
+      const newButtonText = buttonText === markLabel ? cancelLabel : markLabel;
       setButtonText(newButtonText);
-      setMarked(newButtonText === "Cancel"); 
+      setMarked(newButtonText === cancelLabel);
     };
 
     return (

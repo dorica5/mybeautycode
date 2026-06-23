@@ -39,12 +39,16 @@ import {
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
+import { useI18n } from "@/src/providers/LanguageProvider";
+import { clientAddedPushBody } from "@/src/i18n/pushCopy";
+import { reportReasonLabel } from "@/src/i18n/moderationLabels";
 
 /**
  * Same public profile UI as `(client)/(tabs)/userList/professionalProfile/[id]` and
  * `(professional)/(tabs)/profile/professional_profile`, opened from visits.
  */
 const OtherProfessionalProfileScreen = () => {
+  const { t } = useI18n();
   const moderationDetailCopy = useModerationDetailCopy();
   const raw = useLocalSearchParams<{
     hairdresser_id?: string | string[];
@@ -160,8 +164,8 @@ const OtherProfessionalProfileScreen = () => {
     if (!client_id || !hairdresser_id) return;
     if (!professionCodeFromVisit) {
       Alert.alert(
-        "Couldn't remove link",
-        "We couldn't tell which role this is for. Open this professional from Discover or My professionals, then try again."
+        t("moderation.removeLinkFailed"),
+        t("moderation.removeLinkFailedMessage")
       );
       return;
     }
@@ -177,7 +181,7 @@ const OtherProfessionalProfileScreen = () => {
       router.replace("/(client)/(tabs)/home" as Href);
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to remove this professional.");
+      Alert.alert(t("common.error"), t("moderation.removeProfessionalFailed"));
       throw error;
     }
   }, [
@@ -193,7 +197,11 @@ const OtherProfessionalProfileScreen = () => {
     try {
       await addHairdresserDB();
 
-      const message = `${profile?.full_name} has added you as their hairdresser.`;
+      const message = clientAddedPushBody(
+        t,
+        profile?.full_name,
+        professionCodeFromVisit
+      );
       // Deliver to the pro's specific profession-account inbox so it doesn't
       // leak across their other profession accounts.
       await sendPushNotification(
@@ -209,7 +217,7 @@ const OtherProfessionalProfileScreen = () => {
             ? { profession_code: professionCodeFromVisit }
             : {}),
         },
-        "New Client Added",
+        t("push.newClientAddedTitle"),
         professionCodeFromVisit ?? undefined
       );
 
@@ -218,11 +226,11 @@ const OtherProfessionalProfileScreen = () => {
       });
     } catch (error) {
       console.error("Error adding hairdresser:", error);
-      Alert.alert("Error", "Failed to add hairdresser.");
+      Alert.alert(t("common.error"), t("moderation.addProfessionalFailed"));
     } finally {
       setLoading(false);
     }
-  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient]);
+  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient, professionCodeFromVisit, t]);
 
   const handleModalOption = (action: string) => {
     setPendingAction(action);
@@ -240,7 +248,7 @@ const OtherProfessionalProfileScreen = () => {
       );
     } catch (error) {
       console.error("Error unblocking user:", error);
-      Alert.alert("Error", "Failed to unblock user");
+      Alert.alert(t("common.error"), t("moderation.unblockUserFailed"));
     }
   };
 
@@ -256,14 +264,14 @@ const OtherProfessionalProfileScreen = () => {
         }
       );
       Alert.alert(
-        "Account blocked",
-        `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
+        t("moderation.accountBlocked"),
+        t("moderation.accountBlockedMessage", { brand: BRAND_DISPLAY_NAME })
       );
       setActiveAction(null);
       setIsBlockedUser(true);
     } catch (error) {
       console.error("Error blocking user:", error);
-      Alert.alert("Error", "Failed to block user");
+      Alert.alert(t("common.error"), t("moderation.blockUserFailed"));
     }
   };
 
@@ -285,11 +293,11 @@ const OtherProfessionalProfileScreen = () => {
         Boolean((result as { autoBlocked?: boolean }).autoBlocked);
       if (autoBlocked) {
         Alert.alert(
-          "Report received",
-          "Thanks for letting us know. This account was restricted after repeated reports."
+          t("moderation.reportReceived"),
+          t("moderation.reportAutoBlocked")
         );
       } else {
-        Alert.alert("Report received", result.message);
+        Alert.alert(t("moderation.reportReceived"), t("moderation.reportSuccess"));
       }
 
       setActiveAction(null);
@@ -299,12 +307,12 @@ const OtherProfessionalProfileScreen = () => {
         error.message === "You have already reported this user"
       ) {
         Alert.alert(
-          "Already reported",
-          "You have already submitted a report for this account."
+          t("moderation.alreadyReported"),
+          t("moderation.alreadyReportedMessage")
         );
       } else {
         console.error("Error reporting user:", error);
-        Alert.alert("Error", "Failed to report user");
+        Alert.alert(t("common.error"), t("moderation.reportUserFailed"));
       }
       setActiveAction(null);
     }
@@ -313,25 +321,25 @@ const OtherProfessionalProfileScreen = () => {
   const moderationPrimaryContent = (
     <View>
       <ModerationSheetHeading
-        title="Safety & privacy"
-        subtitle={`Manage how you interact with this professional on ${BRAND_DISPLAY_NAME}.`}
+        title={t("moderation.safetyTitle")}
+        subtitle={t("moderation.safetySubtitleClient", { brand: BRAND_DISPLAY_NAME })}
       />
       {isRelated && (
         <RapportUserModal
-          title="Delete"
+          title={t("moderation.deleteLabel")}
           onPress={() => handleModalOption("Delete")}
         />
       )}
       <RapportUserModal
-        title="Block"
+        title={t("common.block")}
         onPress={() => handleModalOption("Block")}
       />
       <RapportUserModal
-        title="Report"
+        title={t("common.report")}
         onPress={() => handleModalOption("Report")}
       />
       <RapportUserModal
-        title="Cancel"
+        title={t("common.cancel")}
         onPress={() => setIsModalVisible(false)}
       />
     </View>
@@ -356,13 +364,13 @@ const OtherProfessionalProfileScreen = () => {
         {activeAction === "Delete" && (
           <>
             <ModerationReasonRow
-              label="Remove professional"
+              label={t("moderation.removeProfessional")}
               danger
               disabled={removeRelationships.isPending}
               onPress={() => void deleteHairdresser().catch(() => {})}
             />
             <ModerationReasonRow
-              label="Not now"
+              label={t("common.notNow")}
               disabled={removeRelationships.isPending}
               onPress={() => setActiveAction(null)}
             />
@@ -373,7 +381,13 @@ const OtherProfessionalProfileScreen = () => {
             (reason, idx) => (
               <ModerationReasonRow
                 key={`${reason}-${idx}`}
-                label={reason}
+                label={
+                  reason === "No reason"
+                    ? t("moderation.noReason")
+                    : reason === "Spam, fake profile"
+                      ? t("moderation.spamFakeProfile")
+                      : t("moderation.inappropriateContent")
+                }
                 onPress={() => handleBlock(reason)}
               />
             )
@@ -383,7 +397,7 @@ const OtherProfessionalProfileScreen = () => {
           REPORT_REASONS.map((reason) => (
             <ModerationReasonRow
               key={reason.value}
-              label={reason.label}
+              label={reportReasonLabel(t, reason.value)}
               style={
                 reason.value === "other" ? reportOtherReasonRowStyle : undefined
               }
@@ -400,7 +414,7 @@ const OtherProfessionalProfileScreen = () => {
         <StatusBar style="dark" backgroundColor={primaryGreen} />
         <View style={styles.routeUnavailable}>
           <Text style={styles.routeUnavailableText}>
-            This profile link isn&apos;t valid.
+            {t("profile.invalidProfileLink")}
           </Text>
         </View>
       </>
@@ -408,7 +422,7 @@ const OtherProfessionalProfileScreen = () => {
   }
 
   if (!blockCheckComplete || relLoading || profileLoading) {
-    return <ThemedRouteLoading accessibilityLabel="Loading profile" />;
+    return <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />;
   }
 
   if (isBlockedUser) {
@@ -418,7 +432,7 @@ const OtherProfessionalProfileScreen = () => {
         <View style={styles.blockedWrap}>
           <MyButton
             style={[styles.unblockBtn, { borderColor: "red" }]}
-            text="Unblock"
+            text={t("profile.unblock")}
             onPress={handleUnblock}
           />
         </View>
@@ -432,7 +446,7 @@ const OtherProfessionalProfileScreen = () => {
         <StatusBar style="dark" backgroundColor={primaryGreen} />
         <View style={styles.routeUnavailable}>
           <Text style={styles.routeUnavailableText}>
-            We couldn&apos;t load this profile.
+            {t("profile.couldNotLoadProfile")}
           </Text>
         </View>
       </>
@@ -506,7 +520,7 @@ const OtherProfessionalProfileScreen = () => {
         <View
           style={styles.removingOverlay}
           pointerEvents="auto"
-          accessibilityLabel="Removing professional"
+          accessibilityLabel={t("profile.removingProfessional")}
         >
           <ActivityIndicator size="large" color={primaryBlack} />
         </View>
