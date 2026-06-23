@@ -30,6 +30,15 @@ export type SalonBounds = {
   swLng: number;
 };
 
+/** Map specialty filter: match any selected tag (OR) or all selected tags (AND). */
+export type DiscoveryMatchMode = "any" | "all";
+
+/** Discovery chips on the map — categories + how to combine them when 2+ are selected. */
+export type SalonDiscoveryFilter = {
+  categories: readonly string[];
+  match: DiscoveryMatchMode;
+};
+
 /**
  * Filter tile code (from filter-before-map.tsx) → backend profession code.
  * The "brows" tile maps to the merged `brows_lashes` profession lane.
@@ -56,6 +65,28 @@ export function discoveryCategoriesQueryKeyPart(
     .join(",");
 }
 
+/** Query/cache key for categories + match mode (bundled so AND/OR never drifts apart). */
+export function salonDiscoveryFilterQueryKeyPart(
+  filter: SalonDiscoveryFilter | null | undefined
+): string {
+  if (!filter?.categories?.length) return "all";
+  const cats = discoveryCategoriesQueryKeyPart(filter.categories);
+  return `${cats}:${filter.match === "all" ? "all" : "any"}`;
+}
+
+function appendDiscoveryParams(
+  params: URLSearchParams,
+  filter: SalonDiscoveryFilter | null | undefined
+) {
+  if (!filter?.categories?.length) return;
+  const discStr = discoveryCategoriesQueryKeyPart(filter.categories);
+  params.set("discovery_categories", discStr);
+  params.set(
+    "discovery_match",
+    filter.match === "all" ? "all" : "any"
+  );
+}
+
 /** Round bounds to avoid spamming the cache/network with tiny pan deltas. */
 function roundBounds(b: SalonBounds): SalonBounds {
   const r = (n: number) => Math.round(n * 1e4) / 1e4;
@@ -70,25 +101,28 @@ function roundBounds(b: SalonBounds): SalonBounds {
 export function salonProfessionalsQueryKey(
   salonId: string,
   professionCode: string | null | undefined,
-  discoveryCategories: readonly string[] | null | undefined
+  discoveryFilter: SalonDiscoveryFilter | null | undefined
 ) {
   const code = professionCode?.trim() || null;
-  const discKey = discoveryCategoriesQueryKeyPart(discoveryCategories ?? null);
-  return ["salons", "professionals", salonId, code ?? "any", discKey] as const;
+  const filterKey = salonDiscoveryFilterQueryKeyPart(discoveryFilter);
+  return [
+    "salons",
+    "professionals",
+    salonId,
+    code ?? "any",
+    filterKey,
+  ] as const;
 }
 
 export async function fetchSalonProfessionals(
   salonId: string,
   professionCode: string | null | undefined,
-  discoveryCategories?: readonly string[] | null
+  discoveryFilter?: SalonDiscoveryFilter | null
 ): Promise<SalonProfessional[]> {
   const code = professionCode?.trim() || null;
-  const discStr = discoveryCategoriesQueryKeyPart(discoveryCategories ?? null);
   const params = new URLSearchParams();
   if (code) params.set("profession_code", code);
-  if (discStr !== "all") {
-    params.set("discovery_categories", discStr);
-  }
+  appendDiscoveryParams(params, discoveryFilter ?? null);
   const qs = params.toString();
   return api.get<SalonProfessional[]>(
     `/api/salons/${salonId}/professionals${qs ? `?${qs}` : ""}`
@@ -98,11 +132,11 @@ export async function fetchSalonProfessionals(
 export const useSalonsInBounds = (
   bounds: SalonBounds | null,
   professionCode: string | null | undefined,
-  discoveryCategories?: readonly string[] | null
+  discoveryFilter?: SalonDiscoveryFilter | null
 ) => {
   const rounded = bounds ? roundBounds(bounds) : null;
   const code = professionCode?.trim() || null;
-  const discKey = discoveryCategoriesQueryKeyPart(discoveryCategories ?? null);
+  const filterKey = salonDiscoveryFilterQueryKeyPart(discoveryFilter ?? null);
   const profKey = code ?? "any";
   return useQuery<SalonPin[]>({
     queryKey: [
@@ -113,7 +147,7 @@ export const useSalonsInBounds = (
       rounded?.swLat,
       rounded?.swLng,
       profKey,
-      discKey,
+      filterKey,
     ],
     queryFn: () => {
       const params = new URLSearchParams({
@@ -123,9 +157,7 @@ export const useSalonsInBounds = (
         swLng: String(rounded!.swLng),
       });
       if (code) params.set("profession_code", code);
-      if (discKey !== "all") {
-        params.set("discovery_categories", discKey);
-      }
+      appendDiscoveryParams(params, discoveryFilter ?? null);
       return api.get<SalonPin[]>(`/api/salons/nearby?${params.toString()}`);
     },
     enabled: !!rounded,
@@ -135,8 +167,10 @@ export const useSalonsInBounds = (
       if (!previousQuery?.queryKey) return undefined;
       const pk = previousQuery.queryKey;
       const prevProf = pk[6];
-      const prevDisc = pk[7];
-      if (prevProf !== profKey || prevDisc !== discKey) return undefined;
+      const prevFilter = pk[7];
+      if (prevProf !== profKey || prevFilter !== filterKey) {
+        return undefined;
+      }
       return previousData;
     },
     refetchOnWindowFocus: false,
@@ -147,14 +181,14 @@ export const useSalonsInBounds = (
 export const useSalonProfessionals = (
   salonId: string | null,
   professionCode: string | null | undefined,
-  discoveryCategories?: readonly string[] | null
+  discoveryFilter?: SalonDiscoveryFilter | null
 ) => {
   return useQuery<SalonProfessional[]>({
     queryKey: salonId
-      ? salonProfessionalsQueryKey(salonId, professionCode, discoveryCategories)
+      ? salonProfessionalsQueryKey(salonId, professionCode, discoveryFilter)
       : ["salons", "professionals", null, "any", "all"],
     queryFn: () =>
-      fetchSalonProfessionals(salonId!, professionCode, discoveryCategories),
+      fetchSalonProfessionals(salonId!, professionCode, discoveryFilter),
     enabled: !!salonId,
     staleTime: 60_000,
     gcTime: 5 * 60_000,

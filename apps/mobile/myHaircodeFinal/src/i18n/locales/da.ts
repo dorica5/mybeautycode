@@ -220,6 +220,9 @@ export const da: AppLocaleMessages = {
     checkLocation: "Tjek min placering",
     searchLocation: "Eller søg efter sted",
     allSpecialties: "Alle specialer",
+    matchAllSelected: "Skal tilby alle valgte",
+    matchAllSelectedA11y:
+      "Vis kun professionelle, der tilbyder alle valgte specialer, ikke kun ét",
     couldNotLoadPros:
       "Kunne ikke indlæse professionelle. Tjek forbindelsen, og prøv igen.",
     couldNotLoadProsPin:
@@ -299,6 +302,17 @@ export const da: AppLocaleMessages = {
     describeService: "Beskriv behandlingen",
     other: "Andet",
     personalNote: "Personlig note",
+    personalNoteAdd: "Tilføj personlig note",
+    personalNoteAddHint: "Kun du kan se dette · tryk for at tilføje",
+    personalNotePlaceholder: "Hårmål, produkter at prøve, hvordan det føltes…",
+    personalNoteSave: "Gem",
+    personalNoteSaved: "Gemt",
+    personalNoteSaving: "Gemmer…",
+    personalNoteUnsaved: "Ikke gemt",
+    personalNoteSaveError: "Kunne ikke gemme noten. Prøv igen.",
+    personalNoteInfoA11y: "Hvem kan se denne note",
+    personalNoteInfoMessage:
+      "Kun du kan læse det, du skriver her. Den professionelle, der loggede besøget, kan ikke se det.",
     loadingProfile: "Indlæser profil",
     editVisit: "Redigér besøg",
     previewVisit: "Forhåndsvis besøg",

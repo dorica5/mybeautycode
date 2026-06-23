@@ -58,6 +58,8 @@ import {
   useSalonsInBounds,
   useSalonProfessionals,
   toBackendProfessionCode,
+  type DiscoveryMatchMode,
+  type SalonDiscoveryFilter,
   type SalonPin,
   type SalonProfessional,
 } from "@/src/api/salons";
@@ -446,9 +448,22 @@ const MapLocationScreen = () => {
     normalizeProfessionParam(profession)
   );
 
+  /** Get-discovered specialty filters — multi-select; default match is any (OR). */
+  const [selectedDiscoveryCategories, setSelectedDiscoveryCategories] =
+    useState<string[]>([]);
+  const [discoveryMatchMode, setDiscoveryMatchMode] =
+    useState<DiscoveryMatchMode>("any");
+
   useEffect(() => {
     setSelectedDiscoveryCategories([]);
+    setDiscoveryMatchMode("any");
   }, [professionKey]);
+
+  useEffect(() => {
+    if (selectedDiscoveryCategories.length < 2) {
+      setDiscoveryMatchMode("any");
+    }
+  }, [selectedDiscoveryCategories.length]);
 
   useEffect(() => {
     if (!professionKey) {
@@ -488,9 +503,6 @@ const MapLocationScreen = () => {
   const [selectedSalon, setSelectedSalon] = useState<SalonPin | null>(null);
   /** Last committed region, used as the query key for /api/salons/nearby. */
   const [boundsRegion, setBoundsRegion] = useState<Region | null>(null);
-  /** Get-discovered specialty filters — multi-select (AND). Empty = All. */
-  const [selectedDiscoveryCategories, setSelectedDiscoveryCategories] =
-    useState<string[]>([]);
 
   const toggleDiscoveryCategory = useCallback((code: string) => {
     setSelectedDiscoveryCategories((prev) =>
@@ -746,17 +758,19 @@ const MapLocationScreen = () => {
     [boundsRegion]
   );
 
+  const salonDiscoveryFilter = useMemo((): SalonDiscoveryFilter | null => {
+    if (selectedDiscoveryCategories.length === 0) return null;
+    return {
+      categories: selectedDiscoveryCategories,
+      match: discoveryMatchMode,
+    };
+  }, [selectedDiscoveryCategories, discoveryMatchMode]);
+
   const {
     data: nearbySalons,
     isFetching: salonsFetching,
     isPending: salonsPending,
-  } = useSalonsInBounds(
-    bounds,
-    backendProfessionCode,
-    selectedDiscoveryCategories.length > 0
-      ? selectedDiscoveryCategories
-      : null
-  );
+  } = useSalonsInBounds(bounds, backendProfessionCode, salonDiscoveryFilter);
 
   /** Drop pins while a new discovery filter fetch is in flight (avoid stale pins). */
   const salons = salonsPending ? [] : (nearbySalons ?? []);
@@ -814,14 +828,12 @@ const MapLocationScreen = () => {
   } = useSalonProfessionals(
     selectedSalon?.id ?? null,
     backendProfessionCode,
-    selectedDiscoveryCategories.length > 0
-      ? selectedDiscoveryCategories
-      : null
+    salonDiscoveryFilter
   );
 
   useEffect(() => {
     setSelectedSalon(null);
-  }, [selectedDiscoveryCategories]);
+  }, [salonDiscoveryFilter]);
 
   const sheetBottomReserve = useMemo(() => {
     if (!selectedSalon) return 0;
@@ -1171,6 +1183,41 @@ const MapLocationScreen = () => {
                       {t("common.all")}
                     </Text>
                   </Pressable>
+                  {selectedDiscoveryCategories.length >= 2 ? (
+                    <Pressable
+                      onPress={() => {
+                        setDiscoveryMatchMode((mode) =>
+                          mode === "all" ? "any" : "all"
+                        );
+                        void queryClient.invalidateQueries({
+                          queryKey: ["salons"],
+                        });
+                      }}
+                      style={({ pressed }) => [
+                        styles.mapDiscoveryChip,
+                        styles.mapDiscoveryMatchChip,
+                        discoveryMatchMode === "all" &&
+                          styles.mapDiscoveryChipSelected,
+                        pressed && styles.mapDiscoveryChipPressed,
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{
+                        selected: discoveryMatchMode === "all",
+                      }}
+                      accessibilityLabel={t("discover.matchAllSelectedA11y")}
+                    >
+                      <Text
+                        style={[
+                          styles.mapDiscoveryChipLabel,
+                          discoveryMatchMode === "all" &&
+                            styles.mapDiscoveryChipLabelSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {t("discover.matchAllSelected")}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                   {discoveryChipOptions.map((opt) => {
                     const active = selectedDiscoveryCategories.includes(opt.code);
                     return (
@@ -1581,6 +1628,11 @@ const styles = StyleSheet.create({
   mapDiscoveryChipSelected: {
     backgroundColor: primaryBlack,
     borderColor: primaryBlack,
+  },
+  /** Mode toggle — visually distinct from specialty chips when inactive. */
+  mapDiscoveryMatchChip: {
+    borderColor: primaryGreen,
+    backgroundColor: `${primaryGreen}14`,
   },
   mapDiscoveryChipPressed: {
     opacity: 0.88,

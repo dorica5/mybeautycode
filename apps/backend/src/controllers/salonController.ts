@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
-import { salonService } from "../services/salonService";
+import {
+  salonService,
+  type DiscoveryMatchMode,
+} from "../services/salonService";
 import { parseDiscoveryCategoryForProfession } from "../lib/profDiscoveryCategories";
 
 /** Raw query tokens for discovery filter (comma list + legacy single/multi param). */
@@ -50,6 +53,16 @@ function readNumberQuery(value: unknown): number | null {
   return null;
 }
 
+function readDiscoveryMatch(q: Request["query"]): DiscoveryMatchMode {
+  const raw =
+    typeof q.discovery_match === "string"
+      ? q.discovery_match
+      : typeof q.discoveryMatch === "string"
+        ? q.discoveryMatch
+        : undefined;
+  return raw?.trim().toLowerCase() === "all" ? "all" : "any";
+}
+
 function readProfessionCode(q: Request["query"]): string | undefined {
   const raw =
     typeof q.profession_code === "string"
@@ -97,11 +110,13 @@ export const salonController = {
         }
         throw e;
       }
+      const discoveryMatch = readDiscoveryMatch(req.query);
       const results = await salonService.findInBounds(
         { neLat, neLng, swLat, swLng },
         profession,
         viewerId,
-        discoveryNormalized
+        discoveryNormalized,
+        discoveryMatch
       );
       res.json(results);
     } catch (err: unknown) {
@@ -147,11 +162,13 @@ export const salonController = {
         }
         throw e;
       }
+      const discoveryMatch = readDiscoveryMatch(req.query);
       const results = await salonService.listProfessionals(
         salonId,
         viewerId,
         profession,
-        discoveryNormalized
+        discoveryNormalized,
+        discoveryMatch
       );
       res.json(results);
     } catch (err: unknown) {

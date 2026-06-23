@@ -223,6 +223,9 @@ export const nb: AppLocaleMessages = {
     checkLocation: "Sjekk min posisjon",
     searchLocation: "Eller søk etter sted",
     allSpecialties: "Alle spesialiteter",
+    matchAllSelected: "Må tilby alle valgte",
+    matchAllSelectedA11y:
+      "Vis bare profesjonelle som tilbyr alle valgte spesialiteter, ikke bare én",
     couldNotLoadPros: "Kunne ikke laste profesjonelle. Sjekk tilkoblingen og prøv igjen.",
     couldNotLoadProsPin:
       "Kunne ikke laste profesjonelle. Sjekk tilkoblingen og prøv pinnen igjen.",
@@ -301,6 +304,17 @@ export const nb: AppLocaleMessages = {
     describeService: "Beskriv behandlingen",
     other: "Annet",
     personalNote: "Personlig notat",
+    personalNoteAdd: "Legg til personlig notat",
+    personalNoteAddHint: "Bare du kan se dette · trykk for å legge til",
+    personalNotePlaceholder: "Hårmål, produkter å prøve, hvordan det føltes…",
+    personalNoteSave: "Lagre",
+    personalNoteSaved: "Lagret",
+    personalNoteSaving: "Lagrer…",
+    personalNoteUnsaved: "Ikke lagret",
+    personalNoteSaveError: "Kunne ikke lagre notatet. Prøv igjen.",
+    personalNoteInfoA11y: "Hvem kan se dette notatet",
+    personalNoteInfoMessage:
+      "Bare du kan lese det du skriver her. Profesjonellen som logget besøket kan ikke se det.",
     loadingProfile: "Laster profil",
     editVisit: "Rediger besøk",
     previewVisit: "Forhåndsvis besøk",

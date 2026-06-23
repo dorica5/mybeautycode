@@ -221,6 +221,9 @@ export const en = {
     checkLocation: "Check my location",
     searchLocation: "Or search for location",
     allSpecialties: "All specialties",
+    matchAllSelected: "Must offer all selected",
+    matchAllSelectedA11y:
+      "Only show professionals who offer every selected specialty, not just one",
     couldNotLoadPros: "Couldn't load professionals. Check your connection and try again.",
     couldNotLoadProsPin:
       "Couldn't load professionals. Check your connection and try the pin again.",
@@ -299,6 +302,17 @@ export const en = {
     describeService: "Describe the service",
     other: "Other",
     personalNote: "Personal note",
+    personalNoteAdd: "Add a personal note",
+    personalNoteAddHint: "Only you can see this · tap to add",
+    personalNotePlaceholder: "Hair goals, products to try, how it felt…",
+    personalNoteSave: "Save",
+    personalNoteSaved: "Saved",
+    personalNoteSaving: "Saving…",
+    personalNoteUnsaved: "Unsaved",
+    personalNoteSaveError: "Could not save your note. Try again.",
+    personalNoteInfoA11y: "Who can see this note",
+    personalNoteInfoMessage:
+      "Only you can read what you write here. The professional who logged this visit cannot see it.",
     loadingProfile: "Loading profile",
     editVisit: "Edit visit",
     previewVisit: "Preview visit",

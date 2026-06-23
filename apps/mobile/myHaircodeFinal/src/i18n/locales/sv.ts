@@ -221,6 +221,9 @@ export const sv: AppLocaleMessages = {
     checkLocation: "Kontrollera min plats",
     searchLocation: "Eller sök efter plats",
     allSpecialties: "Alla specialiteter",
+    matchAllSelected: "Må erbjuda alla valda",
+    matchAllSelectedA11y:
+      "Visa bara professionella som erbjuder alla valda specialiteter, inte bara en",
     couldNotLoadPros:
       "Kunde inte läsa in professionella. Kontrollera anslutningen och försök igen.",
     couldNotLoadProsPin:
@@ -300,6 +303,17 @@ export const sv: AppLocaleMessages = {
     describeService: "Beskriv behandlingen",
     other: "Annat",
     personalNote: "Personlig anteckning",
+    personalNoteAdd: "Lägg till personlig anteckning",
+    personalNoteAddHint: "Bara du kan se detta · tryck för att lägga till",
+    personalNotePlaceholder: "Hårmål, produkter att testa, hur det kändes…",
+    personalNoteSave: "Spara",
+    personalNoteSaved: "Sparad",
+    personalNoteSaving: "Sparar…",
+    personalNoteUnsaved: "Ej sparad",
+    personalNoteSaveError: "Kunde inte spara anteckningen. Försök igen.",
+    personalNoteInfoA11y: "Vem kan se denna anteckning",
+    personalNoteInfoMessage:
+      "Bara du kan läsa det du skriver här. Proffset som loggade besöket kan inte se det.",
     loadingProfile: "Läser in profil",
     editVisit: "Redigera besök",
     previewVisit: "Förhandsvisa besök",

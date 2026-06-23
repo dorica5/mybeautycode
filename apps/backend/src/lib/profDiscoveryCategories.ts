@@ -188,6 +188,17 @@ export function storedCategoriesIncludeAllCodes(
   );
 }
 
+/** Whether a lane row includes at least one selected discovery tag (map filter OR). */
+export function storedCategoriesIncludeAnyCode(
+  discoveryCategories: unknown,
+  normalizedCodes: readonly string[]
+): boolean {
+  if (!normalizedCodes.length) return true;
+  return normalizedCodes.some((code) =>
+    storedCategoriesIncludeCode(discoveryCategories, code)
+  );
+}
+
 /** Lane row has at least one get-discovered tag (map “All” still requires opt-in). */
 export function storedDiscoveryCategoriesNonEmpty(raw: unknown): boolean {
   return expandStoredDiscoveryCategoryCodes(raw).length > 0;
