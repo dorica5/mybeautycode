@@ -99,6 +99,7 @@ import {
 import { discoveryOptionsForProfession } from "@/src/constants/profDiscoveryCategories";
 import type { ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import { HorizontalScrollHintRow } from "@/src/components/HorizontalScrollHintRow";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const ROW_HEIGHT = 52;
 /** Match `SearchInput` default white pill width (design dp) — same as Find professionals. */
@@ -132,18 +133,21 @@ function iosGoogleMapsConfigured(): boolean {
  */
 
 /** Heading from filter step (`profession` query param). */
-function mapScreenTitle(profession?: string): string {
+function mapScreenTitle(
+  profession: string | undefined,
+  t: (key: string) => string
+): string {
   switch (profession) {
     case "hair":
-      return "Discover hairdressers";
+      return t("discover.discoverHairdressers");
     case "nails":
-      return "Discover nail technicians";
+      return t("discover.discoverNails");
     case "brows":
-      return "Discover brow stylists";
+      return t("discover.discoverBrows");
     case "barber":
-      return "Discover barbers";
+      return t("discover.discoverBarbers");
     default:
-      return "Discover salons";
+      return t("discover.discoverSalons");
   }
 }
 
@@ -182,22 +186,39 @@ function mapProfessionKeyToChoiceCode(key: MapProfession): ProfessionChoiceCode 
   }
 }
 
-function professionPlural(profession: MapProfession, count: number): string {
+function professionPlural(
+  profession: MapProfession,
+  count: number,
+  t: (key: string) => string
+): string {
   const plural = count !== 1;
   switch (profession) {
     case "hair":
-      return plural ? "hairdressers" : "hairdresser";
+      return plural
+        ? t("discover.roleHairdressers")
+        : t("discover.roleHairdresser");
     case "nails":
-      return plural ? "nail technicians" : "nail technician";
+      return plural
+        ? t("discover.roleNailTechnicians")
+        : t("discover.roleNailTechnician");
     case "brows":
-      return plural ? "brow stylists" : "brow stylist";
+      return plural
+        ? t("discover.roleBrowStylists")
+        : t("discover.roleBrowStylist");
     case "barber":
-      return plural ? "barbers" : "barber";
+      return plural ? t("discover.roleBarbers") : t("discover.roleBarber");
   }
 }
 
-function salonSummaryLine(profession: MapProfession, count: number): string {
-  return `${count} ${professionPlural(profession, count)} at this location`;
+function salonSummaryLine(
+  profession: MapProfession,
+  count: number,
+  t: (key: string, params?: Record<string, string>) => string
+): string {
+  return t("discover.prosAtLocation", {
+    count: String(count),
+    role: professionPlural(profession, count, t),
+  });
 }
 
 /** Region (center + deltas) → backend bounds (NE + SW corners). */
@@ -391,6 +412,7 @@ const SalonClusterMapMarker = React.memo(function SalonClusterMapMarker({
 });
 
 const MapLocationScreen = () => {
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { width: windowWidth } = useWindowDimensions();
@@ -448,8 +470,8 @@ const MapLocationScreen = () => {
   }, [pathname]);
 
   const screenTitle = useMemo(
-    () => mapScreenTitle(professionKey),
-    [professionKey]
+    () => mapScreenTitle(professionKey, t),
+    [professionKey, t]
   );
 
   const [locationQuery, setLocationQuery] = useState("");
@@ -466,13 +488,17 @@ const MapLocationScreen = () => {
   const [selectedSalon, setSelectedSalon] = useState<SalonPin | null>(null);
   /** Last committed region, used as the query key for /api/salons/nearby. */
   const [boundsRegion, setBoundsRegion] = useState<Region | null>(null);
-  /** Get-discovered specialty filters — single-select (or All). */
+  /** Get-discovered specialty filters — multi-select (AND). Empty = All. */
   const [selectedDiscoveryCategories, setSelectedDiscoveryCategories] =
     useState<string[]>([]);
-  const activeDiscoveryCategory =
-    selectedDiscoveryCategories.length === 1
-      ? selectedDiscoveryCategories[0]
-      : null;
+
+  const toggleDiscoveryCategory = useCallback((code: string) => {
+    setSelectedDiscoveryCategories((prev) =>
+      prev.includes(code)
+        ? prev.filter((c) => c !== code)
+        : [...prev, code]
+    );
+  }, []);
   const mapViewRef = useRef<MapView | null>(null);
   /** Debounce timer so pan/zoom settles before we re-query. */
   const regionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -538,11 +564,11 @@ const MapLocationScreen = () => {
       }
     } catch {
       Alert.alert(
-        "Location",
-        "Could not read your position. Showing the map around Bergen."
+        t("discover.locationErrorTitle"),
+        t("discover.locationErrorMessage")
       );
     }
-  }, []);
+  }, [t]);
 
   /**
    * Recenter the map on a resolved place (from either a picked Places
@@ -617,12 +643,17 @@ const MapLocationScreen = () => {
       );
       setMapLoading(false);
       if (!details) {
-        Alert.alert("Search", `Could not open "${prediction.description}".`);
+        Alert.alert(
+          t("common.search"),
+          t("discover.couldNotOpenPlace", {
+            place: prediction.description,
+          })
+        );
         return;
       }
       flyToPlace(details);
     },
-    [placesOptions, flyToPlace]
+    [placesOptions, flyToPlace, t]
   );
 
   /**
@@ -634,14 +665,14 @@ const MapLocationScreen = () => {
   const onSearchLocation = useCallback(async () => {
     const q = locationQuery.trim();
     if (!q) {
-      Alert.alert("Search", "Enter a place or address to search.");
+      Alert.alert(t("common.search"), t("discover.enterPlaceToSearch"));
       return;
     }
     const apiKey = getGooglePlacesKey();
     if (!apiKey) {
       Alert.alert(
-        "Search",
-        "Address search is not configured yet. Please try again later."
+        t("common.search"),
+        t("discover.addressSearchNotConfigured")
       );
       return;
     }
@@ -652,11 +683,14 @@ const MapLocationScreen = () => {
     const result = await geocodeAddress(q, apiKey, placesOptions);
     setMapLoading(false);
     if (!result) {
-      Alert.alert("Search", `Could not find "${q}".`);
+      Alert.alert(
+        t("common.search"),
+        t("discover.couldNotFindPlace", { query: q })
+      );
       return;
     }
     flyToPlace(result);
-  }, [locationQuery, placesOptions, flyToPlace]);
+  }, [locationQuery, placesOptions, flyToPlace, t]);
 
   /**
    * Debounced Places Autocomplete. We fire once the user pauses typing for
@@ -1125,7 +1159,7 @@ const MapLocationScreen = () => {
                     accessibilityState={{
                       selected: selectedDiscoveryCategories.length === 0,
                     }}
-                    accessibilityLabel="All specialties"
+                    accessibilityLabel={t("discover.allSpecialties")}
                   >
                     <Text
                       style={[
@@ -1134,19 +1168,15 @@ const MapLocationScreen = () => {
                           styles.mapDiscoveryChipLabelSelected,
                       ]}
                     >
-                      All
+                      {t("common.all")}
                     </Text>
                   </Pressable>
                   {discoveryChipOptions.map((opt) => {
-                    const active = activeDiscoveryCategory === opt.code;
+                    const active = selectedDiscoveryCategories.includes(opt.code);
                     return (
                       <Pressable
                         key={opt.code}
-                        onPress={() =>
-                          setSelectedDiscoveryCategories(
-                            active ? [] : [opt.code]
-                          )
-                        }
+                        onPress={() => toggleDiscoveryCategory(opt.code)}
                         style={({ pressed }) => [
                           styles.mapDiscoveryChip,
                           active && styles.mapDiscoveryChipSelected,
@@ -1249,7 +1279,7 @@ const MapLocationScreen = () => {
                           {...pinSheetHandlePan.panHandlers}
                           collapsable={false}
                           accessible
-                          accessibilityLabel="Drag down to close"
+                          accessibilityLabel={t("discover.dragDownToClose")}
                         >
                           <View style={styles.pinDetailHandle} />
                         </View>
@@ -1257,7 +1287,7 @@ const MapLocationScreen = () => {
                           onPress={clearPinSelection}
                           style={styles.pinDetailClose}
                           accessibilityRole="button"
-                          accessibilityLabel="Lukk"
+                          accessibilityLabel={t("common.close")}
                           hitSlop={12}
                         >
                           <X
@@ -1271,21 +1301,21 @@ const MapLocationScreen = () => {
                         </Text>
                         {salonProsError ? (
                           <Text style={styles.clusterRowAddress}>
-                            Couldn&apos;t load professionals. Check your connection
-                            and try the pin again.
+                            {t("discover.couldNotLoadProsPin")}
                           </Text>
                         ) : salonProsLoading && salonProfessionals.length === 0 ? (
                           <ActivityIndicator color={primaryBlack} />
                         ) : salonProfessionals.length === 0 ? (
                           <Text style={styles.clusterRowAddress}>
-                            No professionals at this location yet.
+                            {t("discover.noProsAtLocation")}
                           </Text>
                         ) : (
                           <>
                             <Text style={styles.clusterRowAddress}>
                               {salonSummaryLine(
                                 professionKey,
-                                salonProfessionals.length
+                                salonProfessionals.length,
+                                t
                               )}
                             </Text>
                             <ScrollView
@@ -1303,11 +1333,11 @@ const MapLocationScreen = () => {
                                   style={styles.clusterRow}
                                   onPress={() => openProfessionalProfile(pro)}
                                   accessibilityRole="button"
-                                  accessibilityLabel={pro.full_name ?? "Professional"}
+                                  accessibilityLabel={pro.full_name ?? t("common.professional")}
                                 >
                                   <View style={styles.clusterRowTextWrap}>
                                     <Text style={styles.clusterRowName}>
-                                      {pro.full_name ?? "Professional"}
+                                      {pro.full_name ?? t("common.professional")}
                                     </Text>
                                     {pro.business_name ? (
                                       <Text style={styles.clusterRowAddress}>
@@ -1340,7 +1370,7 @@ const MapLocationScreen = () => {
             ) : (
               <View style={styles.mapLoadingWrap}>
                 <Text style={styles.mapWebFallback}>
-                  Kartet er tilgjengelig i appen på iOS og Android.
+                  {t("discover.mapWebFallback")}
                 </Text>
               </View>
             )}
@@ -1391,17 +1421,21 @@ const MapLocationScreen = () => {
                 <Text style={[Typography.h3, styles.title]}>{screenTitle}</Text>
 
                 <Text style={styles.locationSectionLabel}>
-                  Use my current location
+                  {t("discover.useMyCurrentLocation")}
                 </Text>
                 <Pressable
                   onPress={onCheckLocation}
                   style={styles.outlineBtn}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.outlineBtnLabel}>Check my location</Text>
+                  <Text style={styles.outlineBtnLabel}>
+                    {t("discover.checkLocation")}
+                  </Text>
                 </Pressable>
 
-                <Text style={styles.fieldLabel}>Or search for location</Text>
+                <Text style={styles.fieldLabel}>
+                  {t("discover.searchLocation")}
+                </Text>
                 <View style={styles.locationSearchSection}>
                   <View style={styles.locationSearchFieldWrap}>
                     <SearchInput
@@ -1409,7 +1443,7 @@ const MapLocationScreen = () => {
                       value={locationQuery}
                       onSearch={handleLocationQueryChange}
                       initialQuery={locationQuery}
-                      placeholder="Search…"
+                      placeholder={t("common.searchPlaceholder")}
                       clearSearch={() => {
                         setLocationQuery("");
                         setPredictions([]);
@@ -1461,7 +1495,9 @@ const MapLocationScreen = () => {
                     style={styles.searchSubmitBtn}
                     accessibilityRole="button"
                   >
-                    <Text style={styles.searchSubmitLabel}>Search</Text>
+                    <Text style={styles.searchSubmitLabel}>
+                      {t("common.search")}
+                    </Text>
                   </Pressable>
                 </View>
               </View>

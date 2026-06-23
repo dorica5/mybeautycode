@@ -43,11 +43,14 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { BrandAccountSurfacePill } from "@/src/components/BrandAccountSurfacePill";
 import { usePostHog } from "posthog-react-native";
+import { useI18n } from "@/src/providers/LanguageProvider";
+import { AppLanguageButton } from "@/src/components/AppLanguageButton";
 
 const ProfileScreen = () => {
   const { profile, loading, signOut } = useAuth();
   const { avatarImage } = useImageContext();
   const posthog = usePostHog();
+  const { t } = useI18n();
 
   if (loading) {
     return <ActivityIndicator />;
@@ -72,6 +75,7 @@ const ProfileScreen = () => {
             showsHorizontalScrollIndicator={false}
           >
             <View style={styles.mainView}>
+              <AppLanguageButton />
               {avatarImage ? (
                 <AvatarWithSpinner
                   uri={avatarImage}
@@ -95,16 +99,16 @@ const ProfileScreen = () => {
                 }
                 style={styles.editImagePressable}
               >
-                <Text style={styles.editImageText}>Edit image</Text>
+                <Text style={styles.editImageText}>{t("profile.editImage")}</Text>
               </Pressable>
 
-              <Text style={styles.myProfileTitle}>My profile</Text>
+              <Text style={styles.myProfileTitle}>{t("profile.myProfile")}</Text>
 
               <BrandAccountSurfacePill
                 label={
                   hasProfessionalAccount
-                    ? "Switch account"
-                    : "Become a professional"
+                    ? t("profile.switchAccount")
+                    : t("profile.becomeProfessional")
                 }
                 onPress={() =>
                   hasProfessionalAccount
@@ -127,11 +131,11 @@ const ProfileScreen = () => {
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterBecomePro]}
               >
-                Public profile
+                {t("profile.publicProfile")}
               </Text>
 
               <Profile
-                title="First name"
+                title={t("profile.firstName")}
                 Icon={ProfileMenuNameIcon}
                 tileStyle="light"
                 top
@@ -140,7 +144,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Last name"
+                title={t("profile.lastName")}
                 Icon={ProfileMenuNameIcon}
                 tileStyle="light"
                 onPress={() =>
@@ -148,7 +152,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Username"
+                title={t("profile.username")}
                 Icon={At}
                 tileStyle="light"
                 onPress={() =>
@@ -156,7 +160,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Phone number"
+                title={t("profile.phoneNumber")}
                 Icon={ProfileMenuPhoneIcon}
                 tileStyle="light"
                 onPress={() =>
@@ -164,7 +168,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="About me"
+                title={t("profile.aboutMe")}
                 Icon={ProfileMenuAboutIcon}
                 tileStyle="light"
                 onPress={() =>
@@ -172,7 +176,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Profile picture"
+                title={t("profile.profilePicture")}
                 Icon={ProfileMenuPictureIcon}
                 tileStyle="light"
                 bottom
@@ -185,11 +189,11 @@ const ProfileScreen = () => {
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
               >
-                Privacy settings
+                {t("profile.privacySettings")}
               </Text>
 
               <Profile
-                title="Manage professionals"
+                title={t("profile.manageProfessionals")}
                 Icon={ProfileMenuManageProfessionalsIcon}
                 tileStyle="light"
                 top
@@ -198,13 +202,13 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Change password"
+                title={t("profile.changePassword")}
                 Icon={ProfileMenuChangePasswordIcon}
                 tileStyle="light"
                 onPress={() => router.push("/(auth)/ChangePassword")}
               />
               <Profile
-                title="Delete account"
+                title={t("profile.deleteAccount")}
                 Icon={ProfileMenuDeleteAccountIcon}
                 tileStyle="light"
                 bottom
@@ -220,17 +224,17 @@ const ProfileScreen = () => {
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
               >
-                Terms and privacy
+                {t("profile.termsAndPrivacy")}
               </Text>
               <Profile
-                title="Terms and Privacy"
+                title={t("profile.termsAndPrivacyLink")}
                 Icon={ProfileMenuTermsIcon}
                 tileStyle="light"
                 top
                 onPress={() => router.push("/(setup)/TermsAndPrivacy")}
               />
               <Profile
-                title="Give us feedback"
+                title={t("profile.giveFeedback")}
                 Icon={ProfileMenuFeedbackIcon}
                 tileStyle="light"
                 bottom
@@ -242,7 +246,7 @@ const ProfileScreen = () => {
 
               <View style={styles.ViewPublicProfileButton}>
                 <PaddedLabelButton
-                  title="View public profile"
+                  title={t("profile.viewPublicProfile")}
                   horizontalPadding={32}
                   verticalPadding={16}
                   onPress={() =>
@@ -254,7 +258,7 @@ const ProfileScreen = () => {
               </View>
 
               <SignOutButton
-                text="Sign out"
+                text={t("profile.signOut")}
                 onPress={signOut}
                 disabled={loading}
               />
@@ -277,6 +281,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mainView: {
+    position: "relative",
     paddingBottom: scalePercent(8),
   },
   viewPublicProfileButton: {

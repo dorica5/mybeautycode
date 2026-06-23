@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { CaretRight } from "phosphor-react-native";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import {
   primaryBlack,
   primaryWhite,
@@ -16,27 +17,37 @@ import {
 /** Muted destructive accent — readable on mint/white, not harsh red. */
 export const moderationDestructive = "#6B4346";
 
-export const moderationDetailCopy = {
-  removeClient: {
-    title: "Remove this client?",
-    subtitle:
-      "They will no longer appear in your list. You can send a new link request later if you change your mind.",
-  },
-  removeProfessional: {
-    title: "Remove this professional?",
-    subtitle:
-      "They will be removed from your professionals. You can add them again later if you change your mind.",
-  },
-  block: {
-    title: "Block this account",
-    subtitle: `They won't be able to reach you through ${BRAND_DISPLAY_NAME}. Blocking ends your active client link. If you unblock later, you will need to add or request a connection again to work together.`,
-  },
-  report: {
-    title: `Report to ${BRAND_DISPLAY_NAME}`,
-    subtitle:
-      "Our team reviews every report. Details you provide stay private to you and moderators.",
-  },
-} as const;
+export type ModerationDetailCopy = {
+  title: string;
+  subtitle: string;
+};
+
+export function useModerationDetailCopy(): {
+  removeClient: ModerationDetailCopy;
+  removeProfessional: ModerationDetailCopy;
+  block: ModerationDetailCopy;
+  report: ModerationDetailCopy;
+} {
+  const { t } = useI18n();
+  return {
+    removeClient: {
+      title: t("moderation.removeClientTitle"),
+      subtitle: t("moderation.removeClientSubtitle"),
+    },
+    removeProfessional: {
+      title: t("moderation.removeProfessionalTitle"),
+      subtitle: t("moderation.removeProfessionalSubtitle"),
+    },
+    block: {
+      title: t("moderation.blockTitle"),
+      subtitle: t("moderation.blockSubtitle", { brand: BRAND_DISPLAY_NAME }),
+    },
+    report: {
+      title: t("moderation.reportTitle", { brand: BRAND_DISPLAY_NAME }),
+      subtitle: t("moderation.reportSubtitle"),
+    },
+  };
+}
 
 /**
  * Extra space under the last report reason ("Other").

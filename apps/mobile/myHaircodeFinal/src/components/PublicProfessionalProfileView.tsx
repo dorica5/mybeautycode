@@ -26,9 +26,11 @@ import { parseColorBrands } from "@/src/lib/colorBrandStorage";
 import {
   profileHasHairProfession,
   coerceProfessionCode,
-  establishmentNoun,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import {
+  useI18n,
+} from "@/src/providers/LanguageProvider";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -43,12 +45,13 @@ import {
 
 function displayFirstName(
   first: string | null | undefined,
-  full: string | null | undefined
+  full: string | null | undefined,
+  yourFallback: string
 ): string {
   const t = first?.trim();
   if (t) return t;
   const f = full?.trim();
-  if (!f) return "Your";
+  if (!f) return yourFallback;
   const sp = f.indexOf(" ");
   return sp === -1 ? f : f.slice(0, sp);
 }
@@ -59,52 +62,59 @@ function normalizeWebUrl(raw: string): string {
   return /^https?:\/\//i.test(t) ? t : `https://${t}`;
 }
 
-async function openExternalUrl(url: string) {
+async function openExternalUrl(url: string, cannotOpenMessage: string) {
   const u = url.trim();
   if (!u) return;
   try {
     const ok = await Linking.canOpenURL(u);
     if (ok) await Linking.openURL(u);
-    else Alert.alert("Cannot open link");
+    else Alert.alert(cannotOpenMessage);
   } catch {
-    Alert.alert("Cannot open link");
+    Alert.alert(cannotOpenMessage);
   }
 }
 
 /** Local copy — avoids Metro occasionally resolving a stale `professionCodes` bundle without this export. */
 function relationshipCtaLabelsForLane(
-  code: ProfessionChoiceCode | null | undefined
+  code: ProfessionChoiceCode | null | undefined,
+  t: (key: string) => string
 ): { addTitle: string; addedTitle: string } {
   if (!code) {
     return {
-      addTitle: "Add professional",
-      addedTitle: "Professional added",
+      addTitle: t("publicProfile.addProfessional"),
+      addedTitle: t("publicProfile.addedProfessional"),
     };
   }
   switch (code) {
     case "hair":
-      return { addTitle: "Add hairdresser", addedTitle: "Hairdresser added" };
+      return {
+        addTitle: t("publicProfile.addHairdresser"),
+        addedTitle: t("publicProfile.addedHairdresser"),
+      };
     case "nails":
       return {
-        addTitle: "Add nail technician",
-        addedTitle: "Nail technician added",
+        addTitle: t("publicProfile.addNailTech"),
+        addedTitle: t("publicProfile.addedNailTech"),
       };
     case "brows_lashes":
       return {
-        addTitle: "Add brow stylist",
-        addedTitle: "Brow stylist added",
+        addTitle: t("publicProfile.addBrowStylist"),
+        addedTitle: t("publicProfile.addedBrowStylist"),
       };
     case "esthetician":
       return {
-        addTitle: "Add esthetician",
-        addedTitle: "Esthetician added",
+        addTitle: t("publicProfile.addEsthetician"),
+        addedTitle: t("publicProfile.addedEsthetician"),
       };
     case "barber":
-      return { addTitle: "Add barber", addedTitle: "Barber added" };
+      return {
+        addTitle: t("publicProfile.addBarber"),
+        addedTitle: t("publicProfile.addedBarber"),
+      };
     default:
       return {
-        addTitle: "Add professional",
-        addedTitle: "Professional added",
+        addTitle: t("publicProfile.addProfessional"),
+        addedTitle: t("publicProfile.addedProfessional"),
       };
   }
 }
@@ -123,6 +133,8 @@ export type PublicProfessionalProfileViewProps = {
   bookingSite?: string | null;
   socialMediaRaw?: string | null;
   colorBrandRaw?: string | null;
+  /** Client discover / add-pro flows — hide salon color brand from customers. */
+  hideColorBrand?: boolean;
   professionCodes?: string[] | null;
   /** When set (e.g. self-view with a chosen role), scopes color-brand + work grid to that profession. */
   activeProfessionCode?: ProfessionChoiceCode | null;
@@ -156,6 +168,7 @@ export function PublicProfessionalProfileView({
   bookingSite,
   socialMediaRaw,
   colorBrandRaw,
+  hideColorBrand,
   professionCodes,
   activeProfessionCode,
   onBack,
@@ -167,6 +180,7 @@ export function PublicProfessionalProfileView({
   analyticsProfessionCode,
   viewerProfessionCodes,
 }: PublicProfessionalProfileViewProps) {
+  const { t } = useI18n();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const layout = useMemo(() => {
@@ -200,13 +214,13 @@ export function PublicProfessionalProfileView({
     activeProfessionCode ??
     coerceProfessionCode(lane ?? undefined);
   const relationshipCta = relationshipCtaLabelsForLane(
-    relationshipLaneForCta
-  );
-  /** "Call salon" / "Call barbershop" depending on the lane being viewed. */
-  const callSectionTitle = `Call ${establishmentNoun(
     relationshipLaneForCta,
-    "lower"
-  )}`;
+    t
+  );
+  const callSectionTitle =
+    relationshipLaneForCta === "barber"
+      ? t("publicProfile.callBarbershop")
+      : t("publicProfile.callSalon");
 
   useFocusEffect(
     useCallback(() => {
@@ -219,7 +233,11 @@ export function PublicProfessionalProfileView({
     }, [mode, lane, profileUserId])
   );
 
-  const first = displayFirstName(firstName, fullName);
+  const first = displayFirstName(
+    firstName,
+    fullName,
+    t("publicProfile.yourFallback")
+  );
   const businessName = salonName?.trim() ?? "";
   const socialUrls = parseSocialLinks(socialMediaRaw ?? "");
   const colorBrands = parseColorBrands(colorBrandRaw ?? "");
@@ -232,18 +250,21 @@ export function PublicProfessionalProfileView({
   });
   /** Color brand is hairdresser-to-hairdresser only (Get discovered + public profile). */
   const showColorBrands =
+    !hideColorBrand &&
     colorBrands.length > 0 &&
     targetHairLane &&
     (mode === "self"
       ? activeProfessionCode === "hair"
       : viewerIsHairdresser);
-  const showInsights = mode === "self";
 
   const handleCall = useCallback(() => {
     const p = salonPhone?.trim();
     if (!p) return;
-    void openExternalUrl(p.startsWith("tel:") ? p : `tel:${p}`);
-  }, [salonPhone]);
+    void openExternalUrl(
+      p.startsWith("tel:") ? p : `tel:${p}`,
+      t("common.cannotOpenLink")
+    );
+  }, [salonPhone, t]);
 
   const handleBooking = useCallback(() => {
     const u = bookingSite?.trim();
@@ -255,19 +276,8 @@ export function PublicProfessionalProfileView({
         event: "booking_click",
       });
     }
-    void openExternalUrl(normalizeWebUrl(u));
-  }, [bookingSite, mode, lane, profileUserId]);
-
-  // UI-only: placeholder numbers (backend not wired yet).
-  const mockInsights = {
-    profileViews: 0,
-    bookingClicks: 0,
-    socialClicks: socialUrls.map((url, index) => ({
-      url,
-      label: socialLinkRowLabel(url),
-      clicks: 0 + index * 0,
-    })),
-  };
+    void openExternalUrl(normalizeWebUrl(u), t("common.cannotOpenLink"));
+  }, [bookingSite, mode, lane, profileUserId, t]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -368,7 +378,7 @@ export function PublicProfessionalProfileView({
           {showColorBrands ? (
             <View style={styles.sectionBlock}>
               <Text style={[Typography.label, styles.sectionTitle]}>
-                Color brand in salon
+                {t("publicProfile.colorBrandInSalon")}
               </Text>
               <View style={styles.pillRow}>
                 {colorBrands.map((b, i) => (
@@ -402,7 +412,7 @@ export function PublicProfessionalProfileView({
           {bookingSite?.trim() ? (
             <View style={styles.sectionBlock}>
               <Text style={[Typography.label, styles.sectionTitle]}>
-                Link to booking site
+                {t("publicProfile.linkToBookingSite")}
               </Text>
               <Pressable
                 onPress={handleBooking}
@@ -419,7 +429,7 @@ export function PublicProfessionalProfileView({
           {socialUrls.length > 0 ? (
             <View style={styles.sectionBlock}>
               <Text style={[Typography.label, styles.sectionTitle]}>
-                Link to social media
+                {t("publicProfile.linkToSocialMedia")}
               </Text>
               <View style={styles.pillRow}>
                 {socialUrls.map((url, index) => {
@@ -438,7 +448,10 @@ export function PublicProfessionalProfileView({
                             socialPlatform: kind,
                           });
                         }
-                        void openExternalUrl(normalizeWebUrl(url));
+                        void openExternalUrl(
+                          normalizeWebUrl(url),
+                          t("common.cannotOpenLink")
+                        );
                       }}
                       accessibilityRole="link"
                       accessibilityLabel={label}
@@ -456,62 +469,10 @@ export function PublicProfessionalProfileView({
             </View>
           ) : null}
 
-          {showInsights ? (
-            <View style={styles.sectionBlock}>
-              <Text style={[Typography.label, styles.sectionTitle]}>
-                Profile insights
-              </Text>
-              <View style={styles.insightsCard}>
-                <View style={styles.insightRow}>
-                  <Text style={[Typography.outfitRegular16, styles.insightLabel]}>
-                    Profile views
-                  </Text>
-                  <Text style={[Typography.anton20, styles.insightValue]}>
-                    {mockInsights.profileViews}
-                  </Text>
-                </View>
-                <View style={styles.insightDivider} />
-                <View style={styles.insightRow}>
-                  <Text style={[Typography.outfitRegular16, styles.insightLabel]}>
-                    Booking link clicks
-                  </Text>
-                  <Text style={[Typography.anton20, styles.insightValue]}>
-                    {mockInsights.bookingClicks}
-                  </Text>
-                </View>
-
-                {mockInsights.socialClicks.length > 0 ? (
-                  <>
-                    <View style={styles.insightDivider} />
-                    <Text style={[Typography.label, styles.insightSubTitle]}>
-                      Social link clicks
-                    </Text>
-                    {mockInsights.socialClicks.map((row, idx) => (
-                      <View key={`${row.url}-${idx}`} style={styles.insightRow}>
-                        <Text
-                          style={[
-                            Typography.outfitRegular16,
-                            styles.insightLabel,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {row.label}
-                        </Text>
-                        <Text style={[Typography.anton20, styles.insightValue]}>
-                          {row.clicks}
-                        </Text>
-                      </View>
-                    ))}
-                  </>
-                ) : null}
-              </View>
-            </View>
-          ) : null}
-
           {mode === "self" || aboutMe?.trim() ? (
             <View style={styles.sectionBlock}>
               <Text style={[Typography.label, styles.sectionTitle]}>
-                {first}&apos;s superpower
+                {t("publicProfile.superpowerTitle", { name: first })}
               </Text>
               <View
                 style={[
@@ -529,7 +490,7 @@ export function PublicProfessionalProfileView({
                 >
                   {aboutMe?.trim()
                     ? aboutMe.trim()
-                    : "Tell your clients about your skills"}
+                    : t("publicProfile.superpowerPlaceholder")}
                 </Text>
               </View>
             </View>
@@ -538,7 +499,7 @@ export function PublicProfessionalProfileView({
           <PublicProfileWorkGrid
             profileUserId={profileUserId}
             showTitle={false}
-            sectionHeading={`${first}'s work`}
+            sectionHeading={t("publicProfile.workSectionTitle", { name: first })}
             professionCode={activeProfessionCode ?? undefined}
             contentMaxWidth={layout.workGridMaxWidth}
           />
@@ -699,38 +660,5 @@ const styles = StyleSheet.create({
   },
   superpowerPlaceholder: {
     color: "rgba(33, 36, 39, 0.55)",
-  },
-  insightsCard: {
-    backgroundColor: primaryWhite,
-    borderRadius: responsiveBorderRadius(20),
-    borderWidth: 1,
-    borderColor: primaryBlack,
-    paddingVertical: responsivePadding(10),
-  },
-  insightRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: responsivePadding(16),
-    paddingVertical: responsivePadding(10),
-    gap: responsiveMargin(10),
-  },
-  insightLabel: {
-    color: primaryBlack,
-    flexShrink: 1,
-  },
-  insightValue: {
-    color: primaryBlack,
-    textAlign: "right",
-  },
-  insightDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(33, 36, 39, 0.12)",
-  },
-  insightSubTitle: {
-    color: "rgba(33, 36, 39, 0.7)",
-    paddingHorizontal: responsivePadding(16),
-    paddingTop: responsivePadding(12),
-    paddingBottom: responsivePadding(4),
   },
 });

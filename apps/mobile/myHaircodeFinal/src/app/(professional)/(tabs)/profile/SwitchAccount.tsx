@@ -31,6 +31,7 @@ import { getLastProfessionCode, setLastProfessionCode } from "@/src/lib/lastVisi
 import { pickActiveProfessionCode } from "@/src/constants/professionCodes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useImageContext } from "@/src/providers/ImageProvider";
+import { useI18n, accountSurfaceRoleLabel } from "@/src/providers/LanguageProvider";
 
 function rawParamFirst(
   v: string | string[] | undefined
@@ -75,6 +76,7 @@ function resolveActiveSurface(
 }
 
 const SwitchAccountScreen = () => {
+  const { t } = useI18n();
   const { profile, session, loading } = useAuth();
   const queryClient = useQueryClient();
   const { refreshInspirationImages } = useImageContext();
@@ -210,7 +212,7 @@ const SwitchAccountScreen = () => {
             contentContainerStyle={styles.scrollContent}
           >
             <TopNav
-              title="My accounts"
+              title={t("profile.myAccounts")}
               titleMarginBottom={46}
               onBackPress={handleBack}
             />
@@ -219,6 +221,7 @@ const SwitchAccountScreen = () => {
               <View style={styles.cardList}>
                 {displayRows.map((row) => {
                   const isCurrent = rowIsCurrent(row);
+                  const roleLabel = accountSurfaceRoleLabel(t, row);
                   return (
                     <Pressable
                       key={row.rowKey}
@@ -229,16 +232,16 @@ const SwitchAccountScreen = () => {
                         selected: isCurrent,
                         disabled: isCurrent,
                       }}
-                      accessibilityLabel={`${row.roleLabel} ${row.entry.meta.name}${
+                      accessibilityLabel={`${roleLabel} ${row.entry.meta.name}${
                         row.detailLine ? ` ${row.detailLine}` : ""
-                      }${isCurrent ? " current" : ""}`}
+                      }${isCurrent ? ` ${t("profile.currentAccountA11y")}` : ""}`}
                       style={({ pressed }) => [
                         styles.accountCard,
                         !isCurrent && pressed && styles.accountCardPressed,
                       ]}
                     >
                       <View style={styles.accountCardTextCol}>
-                        <Text style={styles.roleLabel}>{row.roleLabel}</Text>
+                        <Text style={styles.roleLabel}>{roleLabel}</Text>
                         <Text style={styles.nameLine}>{row.entry.meta.name}</Text>
                         {row.detailLine ? (
                           <Text style={styles.detailLine} numberOfLines={2}>
@@ -277,7 +280,7 @@ const SwitchAccountScreen = () => {
                       weight="bold"
                     />
                   </View>
-                  <Text style={styles.addAccountText}>Add account</Text>
+                  <Text style={styles.addAccountText}>{t("profile.addAccount")}</Text>
                   <CaretRight size={responsiveScale(24)} color={primaryBlack} />
                 </Pressable>
               </View>

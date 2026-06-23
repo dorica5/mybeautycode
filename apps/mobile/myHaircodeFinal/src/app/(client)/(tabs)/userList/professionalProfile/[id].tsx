@@ -14,9 +14,10 @@ import RapportUserModal from "@/src/components/RapportUserModal";
 import {
   ModerationSheetHeading,
   ModerationReasonRow,
-  moderationDetailCopy,
+  useModerationDetailCopy,
   reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import {
   blockUser,
@@ -37,15 +38,26 @@ import { PublicProfessionalProfileView } from "@/src/components/PublicProfession
 import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 
+function normalizeRouteParam(
+  value: string | string[] | undefined
+): string | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value) && value.length > 0) return value[0];
+  return undefined;
+}
+
 const ProfessionalProfileScreen = () => {
-  const { id: hairdresser_id, profession } = useLocalSearchParams<{
-    id: string;
-    profession?: string;
+  const { t } = useI18n();
+  const moderationDetailCopy = useModerationDetailCopy();
+  const { id, profession } = useLocalSearchParams<{
+    id: string | string[];
+    profession?: string | string[];
   }>();
-  const routeProfessionRaw =
-    typeof profession === "string" && profession.trim()
-      ? profession.trim()
-      : null;
+  const hairdresser_id = normalizeRouteParam(id);
+  const routeProfessionRaw = (() => {
+    const raw = normalizeRouteParam(profession);
+    return raw?.trim() ? raw.trim() : null;
+  })();
   const { session, profile } = useAuth();
   const client_id = session?.user.id;
 
@@ -130,8 +142,8 @@ const ProfessionalProfileScreen = () => {
     if (!client_id || !hairdresser_id) return;
     if (!scopedLane) {
       Alert.alert(
-        "Couldn't remove link",
-        "We couldn't tell which role this is for. Open them from Discover or My professionals, then try again."
+        t("moderation.removeLinkFailed"),
+        t("moderation.removeLinkFailedMessage")
       );
       return;
     }
@@ -147,7 +159,7 @@ const ProfessionalProfileScreen = () => {
       router.replace("/(client)/(tabs)/home" as Href);
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to remove this professional.");
+      Alert.alert(t("common.error"), t("moderation.removeProfessionalFailed"));
       throw error;
     }
   }, [
@@ -189,7 +201,7 @@ const ProfessionalProfileScreen = () => {
       });
     } catch (error) {
       console.error("Error adding hairdresser:", error);
-      Alert.alert("Error", "Failed to add professional.");
+      Alert.alert(t("common.error"), t("moderation.addProfessionalFailed"));
     } finally {
       setLoading(false);
     }
@@ -210,7 +222,7 @@ const ProfessionalProfileScreen = () => {
       );
     } catch (error) {
       console.error("Error unblocking user:", error);
-      Alert.alert("Error", "Failed to unblock user");
+      Alert.alert(t("common.error"), t("moderation.unblockUserFailed"));
     }
   };
 
@@ -226,13 +238,13 @@ const ProfessionalProfileScreen = () => {
         }
       );
       Alert.alert(
-        "Account blocked",
-        `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
+        t("moderation.accountBlocked"),
+        t("moderation.accountBlockedMessage", { brand: BRAND_DISPLAY_NAME })
       );
       setActiveAction(null);
     } catch (error) {
       console.error("Error blocking user:", error);
-      Alert.alert("Error", "Failed to block user");
+      Alert.alert(t("common.error"), t("moderation.blockUserFailed"));
     }
   };
 
@@ -254,11 +266,11 @@ const ProfessionalProfileScreen = () => {
         Boolean((result as { autoBlocked?: boolean }).autoBlocked);
       if (autoBlocked) {
         Alert.alert(
-          "Report received",
-          "Thanks for letting us know. This account was restricted after repeated reports."
+          t("moderation.reportReceived"),
+          t("moderation.reportAutoBlocked")
         );
       } else {
-        Alert.alert("Report received", result.message);
+        Alert.alert(t("moderation.reportReceived"), result.message);
       }
 
       setActiveAction(null);
@@ -268,12 +280,12 @@ const ProfessionalProfileScreen = () => {
         error.message === "You have already reported this user"
       ) {
         Alert.alert(
-          "Already reported",
-          "You have already submitted a report for this account."
+          t("moderation.alreadyReported"),
+          t("moderation.alreadyReportedMessage")
         );
       } else {
         console.error("Error reporting user:", error);
-        Alert.alert("Error", "Failed to report user");
+        Alert.alert(t("common.error"), t("moderation.reportUserFailed"));
       }
       setActiveAction(null);
     }
@@ -282,25 +294,25 @@ const ProfessionalProfileScreen = () => {
   const moderationPrimaryContent = (
     <View>
       <ModerationSheetHeading
-        title="Safety & privacy"
-        subtitle={`Manage how you interact with this professional on ${BRAND_DISPLAY_NAME}.`}
+        title={t("moderation.safetyTitle")}
+        subtitle={t("moderation.safetySubtitleClient", { brand: BRAND_DISPLAY_NAME })}
       />
       {isRelated && (
         <RapportUserModal
-          title="Delete"
+          title={t("moderation.deleteLabel")}
           onPress={() => handleModalOption("Delete")}
         />
       )}
       <RapportUserModal
-        title="Block"
+        title={t("common.block")}
         onPress={() => handleModalOption("Block")}
       />
       <RapportUserModal
-        title="Report"
+        title={t("common.report")}
         onPress={() => handleModalOption("Report")}
       />
       <RapportUserModal
-        title="Cancel"
+        title={t("common.cancel")}
         onPress={() => setIsModalVisible(false)}
       />
     </View>
@@ -325,30 +337,34 @@ const ProfessionalProfileScreen = () => {
         {activeAction === "Delete" && (
           <>
             <ModerationReasonRow
-              label="Remove professional"
+              label={t("moderation.removeProfessional")}
               danger
               disabled={removeRelationships.isPending}
               onPress={() => void deleteHairdresser().catch(() => {})}
             />
             <ModerationReasonRow
-              label="Not now"
+              label={t("common.notNow")}
               disabled={removeRelationships.isPending}
               onPress={() => setActiveAction(null)}
             />
           </>
         )}
         {activeAction === "Block" &&
-          [
-            "No reason",
-            "Spam, fake profile",
-            "Inappropriate content",
-          ].map((reason, idx) => (
-            <ModerationReasonRow
-              key={`${reason}-${idx}`}
-              label={reason}
-              onPress={() => handleBlock(reason)}
-            />
-          ))}
+          ["No reason", "Spam, fake profile", "Inappropriate content"].map(
+            (reason, idx) => (
+              <ModerationReasonRow
+                key={`${reason}-${idx}`}
+                label={
+                  reason === "No reason"
+                    ? t("moderation.noReason")
+                    : reason === "Spam, fake profile"
+                      ? t("moderation.spamFakeProfile")
+                      : t("moderation.inappropriateContent")
+                }
+                onPress={() => handleBlock(reason)}
+              />
+            )
+          )}
 
         {activeAction === "Report" &&
           REPORT_REASONS.map((reason) => (
@@ -368,7 +384,7 @@ const ProfessionalProfileScreen = () => {
   /** Block only on profile `/me` fetch — blocked list can resolve in parallel (was slowing first paint). */
   const showRouteLoading = profilePending && p === undefined;
   if (showRouteLoading) {
-    return <ThemedRouteLoading accessibilityLabel="Loading profile" />;
+    return <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />;
   }
 
   if (isBlockedUser) {
@@ -378,7 +394,7 @@ const ProfessionalProfileScreen = () => {
         <View style={styles.blockedWrap}>
           <MyButton
             style={[styles.unblockBtn, { borderColor: "red" }]}
-            text="Unblock"
+            text={t("profile.unblock")}
             onPress={handleUnblock}
           />
         </View>
@@ -405,6 +421,7 @@ const ProfessionalProfileScreen = () => {
         bookingSite={data.booking_site ?? null}
         socialMediaRaw={data.social_media ?? null}
         colorBrandRaw={data.color_brand ?? null}
+        hideColorBrand
         professionCodes={
           Array.isArray(data.profession_codes) ? data.profession_codes : null
         }
@@ -416,9 +433,11 @@ const ProfessionalProfileScreen = () => {
         addLoading={loading || relPending}
         onAddHairdresser={addHairdresser}
         headerRight={
-          <Pressable onPress={() => setIsModalVisible(true)} hitSlop={12}>
-            <DotsThree size={32} color={primaryBlack} weight="bold" />
-          </Pressable>
+          isOwnProfile ? undefined : (
+            <Pressable onPress={() => setIsModalVisible(true)} hitSlop={12}>
+              <DotsThree size={32} color={primaryBlack} weight="bold" />
+            </Pressable>
+          )
         }
         analyticsProfessionCode={scopedLane}
       />
@@ -431,7 +450,7 @@ const ProfessionalProfileScreen = () => {
             setPendingAction(null);
           }
         }}
-        modalHeight="58%"
+        modalHeight="68%"
         sheetVariant="brand"
         renderContent={moderationPrimaryContent}
       />
@@ -448,7 +467,7 @@ const ProfessionalProfileScreen = () => {
         <View
           style={styles.removingOverlay}
           pointerEvents="auto"
-          accessibilityLabel="Removing professional"
+          accessibilityLabel={t("profile.removingProfessional")}
         >
           <ActivityIndicator size="large" color={primaryBlack} />
         </View>

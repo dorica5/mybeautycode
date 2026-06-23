@@ -16,7 +16,6 @@ import { ResizeMode, Video } from "expo-av";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
-  PROFESSION_HEADLINE_ROLE,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
@@ -26,6 +25,10 @@ import {
   responsivePadding,
   responsiveScale,
 } from "@/src/utils/responsive";
+import {
+  professionLabelFromT,
+  useI18n,
+} from "@/src/providers/LanguageProvider";
 
 export type VisitPreviewMediaItem = {
   uri?: string;
@@ -272,6 +275,7 @@ export function VisitPreviewModalContent({
   capturedMedia,
   carouselHeight,
 }: VisitPreviewModalContentProps) {
+  const { t } = useI18n();
   const { width: windowWidth } = useWindowDimensions();
   /** Match `root` horizontal padding so slides are not wider than the visible frame (avoids side clipping). */
   const carouselTrackWidth = Math.max(
@@ -289,7 +293,7 @@ export function VisitPreviewModalContent({
     previewScrollRef.current?.scrollTo({ x: 0, animated: false });
   }, [hasMedia, slideCount, capturedMedia.length]);
 
-  const professionalLabel = `${PROFESSION_HEADLINE_ROLE[professionCode]}:`;
+  const professionalLabel = `${professionLabelFromT(t, professionCode)}:`;
   const displayDate = dateText?.trim() ? dateText : "";
   const displayService = serviceText?.trim() ? serviceText : "";
   const displayComment = commentText?.trim() ? commentText : "";
@@ -341,9 +345,9 @@ export function VisitPreviewModalContent({
         style={styles.closeHeader}
         hitSlop={12}
         accessibilityRole="button"
-        accessibilityLabel="Close preview"
+        accessibilityLabel={t("visits.closePreview")}
       >
-        <Text style={[Typography.label, styles.closeLabel]}>Close</Text>
+        <Text style={[Typography.label, styles.closeLabel]}>{t("common.close")}</Text>
         <PreviewModalCloseX />
       </Pressable>
 
@@ -352,14 +356,14 @@ export function VisitPreviewModalContent({
       </Text>
 
       <View style={styles.block}>
-        <Text style={[Typography.label, styles.fieldLabel]}>Date:</Text>
+        <Text style={[Typography.label, styles.fieldLabel]}>{t("visits.dateLabel")}</Text>
         <Text style={[Typography.bodyMedium, styles.fieldValue]}>
           {displayDate}
         </Text>
       </View>
 
       <View style={styles.block}>
-        <Text style={[Typography.label, styles.fieldLabel]}>Service:</Text>
+        <Text style={[Typography.label, styles.fieldLabel]}>{t("visits.serviceLabel")}</Text>
         <Text style={[Typography.bodyMedium, styles.fieldValue]}>
           {displayService}
         </Text>
@@ -367,7 +371,7 @@ export function VisitPreviewModalContent({
 
       <View style={styles.block}>
         <Text style={[Typography.label, styles.fieldLabel]}>
-          Service description:
+          {t("visits.serviceDescriptionLabel")}
         </Text>
         <Text style={[Typography.bodyMedium, styles.fieldValue]}>
           {displayComment}
@@ -375,14 +379,14 @@ export function VisitPreviewModalContent({
       </View>
 
       <View style={styles.block}>
-        <Text style={[Typography.label, styles.fieldLabel]}>Duration:</Text>
+        <Text style={[Typography.label, styles.fieldLabel]}>{t("visits.durationLabel")}</Text>
         <Text style={[Typography.bodyMedium, styles.fieldValue]}>
           {displayDuration}
         </Text>
       </View>
 
       <View style={styles.block}>
-        <Text style={[Typography.label, styles.fieldLabel]}>Price:</Text>
+        <Text style={[Typography.label, styles.fieldLabel]}>{t("visits.priceLabel")}</Text>
         <Text style={[Typography.bodyMedium, styles.fieldValue]}>
           {displayPrice}
         </Text>
@@ -483,7 +487,7 @@ export function VisitPreviewModalContent({
                 activeSlide <= 0 && styles.navCircleDisabled,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Previous image"
+              accessibilityLabel={t("visits.previousImage")}
             >
               <PreviewArrowLeftIcon />
             </Pressable>
@@ -500,7 +504,7 @@ export function VisitPreviewModalContent({
                 activeSlide >= slideCount - 1 && styles.navCircleDisabled,
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Next image"
+              accessibilityLabel={t("visits.nextImage")}
             >
               <PreviewArrowRightIcon />
             </Pressable>
@@ -509,7 +513,7 @@ export function VisitPreviewModalContent({
       ) : null}
 
       <PaddedLabelButton
-        title="Close preview"
+        title={t("visits.closePreview")}
         horizontalPadding={32}
         verticalPadding={16}
         onPress={onClose}

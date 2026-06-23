@@ -34,6 +34,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type OnboardingPage = {
   title: string;
@@ -43,35 +44,24 @@ type OnboardingPage = {
 
 const ONBOARDING_HERO_IMAGE = require("@/assets/images/onboarding_image.png");
 
-const PAGES: OnboardingPage[] = [
-  {
-    title: "Your beauty history, always with you",
-    subtitle: "Every visit, saved in one place.",
-    image: ONBOARDING_HERO_IMAGE,
-  },
-  {
-    title: "Share it. Control it. Take it anywhere.",
-    subtitle: "Give access to the professionals you trust.",
-    image: ONBOARDING_HERO_IMAGE,
-  },
-  {
-    title: "Get discovered. Know your clients.",
-    subtitle:
-      "Be found by new clients and see their full history before they sit down.",
-    image: ONBOARDING_HERO_IMAGE,
-  },
-];
-
 function OnboardingPagerControls({
   index,
+  pageCount,
   go,
   done,
   style,
+  previousLabel,
+  nextLabel,
+  doneLabel,
 }: {
   index: number;
+  pageCount: number;
   go: (dir: -1 | 1) => void;
   done: () => void | Promise<void>;
   style?: StyleProp<ViewStyle>;
+  previousLabel: string;
+  nextLabel: string;
+  doneLabel: string;
 }) {
   const navSize = responsiveScale(48);
   return (
@@ -80,7 +70,7 @@ function OnboardingPagerControls({
         {index > 0 && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Previous"
+            accessibilityLabel={previousLabel}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={() => go(-1)}
           >
@@ -90,7 +80,7 @@ function OnboardingPagerControls({
       </View>
 
       <View pointerEvents="none" style={styles.dots}>
-        {PAGES.map((_, i) => (
+        {Array.from({ length: pageCount }).map((_, i) => (
           <View
             key={i}
             style={[styles.dot, i === index && styles.dotActive]}
@@ -99,10 +89,10 @@ function OnboardingPagerControls({
       </View>
 
       <View style={[styles.side, { alignItems: "flex-end" }]}>
-        {index < PAGES.length - 1 ? (
+        {index < pageCount - 1 ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Next"
+            accessibilityLabel={nextLabel}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={() => go(1)}
           >
@@ -111,7 +101,7 @@ function OnboardingPagerControls({
         ) : (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Done"
+            accessibilityLabel={doneLabel}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={done}
           >
@@ -124,7 +114,28 @@ function OnboardingPagerControls({
 }
 
 export default function Onboarding() {
+  const { t } = useI18n();
   const { markSeen } = useFirstLaunch();
+  const pages = useMemo<OnboardingPage[]>(
+    () => [
+      {
+        title: t("onboarding.page1Title"),
+        subtitle: t("onboarding.page1Subtitle"),
+        image: ONBOARDING_HERO_IMAGE,
+      },
+      {
+        title: t("onboarding.page2Title"),
+        subtitle: t("onboarding.page2Subtitle"),
+        image: ONBOARDING_HERO_IMAGE,
+      },
+      {
+        title: t("onboarding.page3Title"),
+        subtitle: t("onboarding.page3Subtitle"),
+        image: ONBOARDING_HERO_IMAGE,
+      },
+    ],
+    [t]
+  );
   const [index, setIndex] = useState(0);
   const ref = useRef<FlatList>(null);
   /** Only drive index from onScroll while the user is dragging — avoids fighting scrollToIndex. */
@@ -169,15 +180,15 @@ export default function Onboarding() {
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const x = e.nativeEvent.contentOffset.x;
       const next = Math.round(x / width);
-      const clamped = Math.max(0, Math.min(PAGES.length - 1, next));
+      const clamped = Math.max(0, Math.min(pages.length - 1, next));
       setIndex((prev) => (prev !== clamped ? clamped : prev));
     },
-    [width]
+    [width, pages.length]
   );
 
   const go = (dir: -1 | 1) => {
     const next = index + dir;
-    if (next >= 0 && next < PAGES.length) {
+    if (next >= 0 && next < pages.length) {
       setIndex(next);
       ref.current?.scrollToIndex({ index: next, animated: true });
     }
@@ -218,7 +229,7 @@ export default function Onboarding() {
       <StatusBar style="dark" />
       <FlatList
         ref={ref}
-        data={PAGES}
+        data={pages}
         keyExtractor={(_, i) => String(i)}
         horizontal
         pagingEnabled
@@ -279,8 +290,12 @@ export default function Onboarding() {
 
               <OnboardingPagerControls
                 index={index}
+                pageCount={pages.length}
                 go={go}
                 done={done}
+                previousLabel={t("onboarding.previousA11y")}
+                nextLabel={t("onboarding.nextA11y")}
+                doneLabel={t("onboarding.doneA11y")}
                 style={[
                   styles.controls,
                   styles.controlsLower,

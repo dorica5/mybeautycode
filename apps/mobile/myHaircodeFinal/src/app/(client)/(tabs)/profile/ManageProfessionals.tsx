@@ -34,6 +34,7 @@ import {
   MintBrandModalPrimaryButton,
   MintBrandModalSecondaryButton,
 } from "@/src/components/MintBrandModal";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type ProRow = {
   link_id: string;
@@ -51,15 +52,33 @@ type ManageFilterTab =
   | "brows_lashes"
   | "barber";
 
-const MANAGE_PRO_FILTERS: { key: ManageFilterTab; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "hair", label: "Hairdresser" },
-  { key: "nails", label: "Nail technician" },
-  { key: "brows_lashes", label: "Brow stylist" },
-  { key: "barber", label: "Barber" },
+const MANAGE_PRO_FILTER_KEYS: ManageFilterTab[] = [
+  "all",
+  "hair",
+  "nails",
+  "brows_lashes",
+  "barber",
 ];
 
 const ManageProfessionals = () => {
+  const { t } = useI18n();
+  const manageProFilters = useMemo(
+    () =>
+      MANAGE_PRO_FILTER_KEYS.map((key) => ({
+        key,
+        label:
+          key === "all"
+            ? t("common.all")
+            : key === "hair"
+              ? t("profession.hair")
+              : key === "nails"
+                ? t("profession.nails")
+                : key === "brows_lashes"
+                  ? t("profession.brows")
+                  : t("profession.barber"),
+      })),
+    [t]
+  );
   const { profile } = useAuth();
   const { data } = useManageHairdresser(profile?.id ?? "");
   const removeRelationships = useRemoveRelationships(profile?.id ?? "");
@@ -102,7 +121,7 @@ const ManageProfessionals = () => {
     const selected = getCheckedInView();
 
     if (selected.length === 0) {
-      Alert.alert("Error", "No items selected for deletion.");
+      Alert.alert(t("common.error"), t("profile.noItemsSelected"));
       return;
     }
 
@@ -140,11 +159,11 @@ const ManageProfessionals = () => {
 
   return (
     <MintProfileScreenShell>
-      <TopNav title="Manage professionals" />
+      <TopNav title={t("profile.manageProfessionals")} />
 
       {hasRows ? (
         <View style={styles.filtersRow}>
-          {MANAGE_PRO_FILTERS.map((tab) => {
+          {manageProFilters.map((tab) => {
             const active = filterTab === tab.key;
             return (
               <Pressable
@@ -190,10 +209,10 @@ const ManageProfessionals = () => {
               {!hasRows ? (
                 <>
                   <Text style={styles.noHairdresserText}>
-                    No professional added yet
+                    {t("profile.noProfessionalYet")}
                   </Text>
                   <PaddedLabelButton
-                    title="Add professional"
+                    title={t("profile.addProfessional")}
                     horizontalPadding={32}
                     verticalPadding={16}
                     onPress={() => {
@@ -207,7 +226,7 @@ const ManageProfessionals = () => {
                 </>
               ) : (
                 <Text style={styles.noHairdresserText}>
-                  No professionals in this category
+                  {t("profile.noProfessionalsInCategory")}
                 </Text>
               )}
             </View>
@@ -219,7 +238,7 @@ const ManageProfessionals = () => {
       {hasVisibleRows ? (
         <View style={styles.buttonWrapper}>
           <PaddedLabelButton
-            title="Delete professional(s)"
+            title={t("profile.deleteProfessionals")}
             horizontalPadding={32}
             verticalPadding={16}
             disabled={checkedCount === 0}
@@ -237,24 +256,24 @@ const ManageProfessionals = () => {
 
       <CustomAlert
         visible={alertVisible}
-        title="Error"
-        message="Failed to delete professional(s)."
+        title={t("common.error")}
+        message={t("profile.deleteProfessionalsFailed")}
         onClose={() => setAlertVisible(false)}
       />
 
       <MintBrandModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
-        title="Delete professional"
-        message="Are you sure you want to remove this professional?"
+        title={t("profile.confirmDeleteProfessionalTitle")}
+        message={t("profile.confirmDeleteProfessionalMessage")}
         footer={
           <MintBrandModalFooterRow>
             <MintBrandModalSecondaryButton
-              label="Cancel"
+              label={t("common.cancel")}
               onPress={() => setModalVisible(false)}
             />
             <MintBrandModalPrimaryButton
-              label="Delete"
+              label={t("common.delete")}
               onPress={() => {
                 setModalVisible(false);
                 void confirmDelete();

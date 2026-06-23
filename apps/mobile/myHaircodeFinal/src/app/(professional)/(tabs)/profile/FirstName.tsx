@@ -20,8 +20,10 @@ import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
 import { validatePersonName } from "@/src/lib/profileFieldValidation";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const FirstName = () => {
+  const { t } = useI18n();
   const { profile, setProfile } = useAuth();
   const original = profile.first_name ?? "";
   const id = profile.id;
@@ -62,7 +64,7 @@ const FirstName = () => {
       return;
     }
     if (!id) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
     setLoading(true);
@@ -81,7 +83,7 @@ const FirstName = () => {
         },
         onError: (err) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", err.message);
+          Alert.alert(t("profile.updateFailed"), err.message);
         },
       }
     );
@@ -94,7 +96,7 @@ const FirstName = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="First name"
+        title={t("profile.firstName")}
         showSaveButton
         saveChanged={changed}
         saveAction={save}
@@ -113,8 +115,8 @@ const FirstName = () => {
           showsVerticalScrollIndicator={false}
         >
           <BrandOutlineField
-            accessibilityLabel="First name"
-            placeholder="First name"
+            accessibilityLabel={t("profile.firstName")}
+            placeholder={t("profile.firstName")}
             value={firstName}
             onChangeText={handleChange}
             autoCapitalize="words"

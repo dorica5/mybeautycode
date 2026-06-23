@@ -2,6 +2,7 @@ import { Alert, StyleSheet, TextInput, View, Pressable } from "react-native";
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { MagnifyingGlass, XCircle } from "phosphor-react-native";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import { Colors, primaryBlack } from "../constants/Colors";
 import Delete2Streamline from "../../assets/icons/delete_2_streamline.svg";
 
@@ -24,7 +25,7 @@ import {
 type SearchInputProps = {
   initialQuery: string;
   onSearch: (query: string) => void;
-  placeholder: string;
+  placeholder?: string;
   style?: any;
   clearSearch?: () => void;
   /**
@@ -61,6 +62,8 @@ const SearchInput = ({
   whitePillFill,
   whitePillStretch,
 }: SearchInputProps) => {
+  const { t } = useI18n();
+  const resolvedPlaceholder = placeholder ?? t("common.searchPlaceholder");
   const [internalQuery, setInternalQuery] = useState(initialQuery ?? "");
   const isControlled = valueProp !== undefined;
   const query = isControlled ? valueProp : internalQuery;
@@ -98,8 +101,8 @@ const SearchInput = ({
   const handleSearch = () => {
     if (!query) {
       return Alert.alert(
-        "Missing query",
-        "Please input something to search results across database"
+        t("search.missingQueryTitle"),
+        t("search.missingQueryMessage")
       );
     }
     onSearchRef.current(query);
@@ -152,7 +155,7 @@ const SearchInput = ({
             },
           ],
         ]}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         placeholderTextColor={variant === "whitePill" ? `${SEARCH_BAR_STROKE}99` : "#687076"}
         onChangeText={(e) => {
           /**
@@ -180,7 +183,7 @@ const SearchInput = ({
           style={variant === "whitePill" ? styles.clearIconWhitePill : styles.clearIcon}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Clear search"
+          accessibilityLabel={t("search.clearSearch")}
         >
           {variant === "whitePill" ? (
             <Delete2Streamline

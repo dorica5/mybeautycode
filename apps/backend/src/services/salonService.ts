@@ -2,9 +2,8 @@ import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 import { professionService } from "./professionService";
 import { profileDisplayName } from "../lib/profileDisplay";
-import { resolveLaneAvatarUrl } from "../lib/professionBusinessHelpers";
 import {
-  storedCategoriesIncludeCode,
+  storedCategoriesIncludeAllCodes,
   storedDiscoveryCategoriesNonEmpty,
 } from "../lib/profDiscoveryCategories";
 
@@ -53,7 +52,7 @@ function discoveryOptInSqlFragment(): Prisma.Sql {
   return Prisma.sql`AND ${discoveryJsonIsNonEmptyArray()}`;
 }
 
-/** Include lane if discovery JSON lists any tag in `normalizedCodes` (OR). */
+/** Include lane if discovery JSON lists every tag in `normalizedCodes` (AND). */
 function discoveryCategoriesSqlFragment(
   normalizedCodes: string[] | undefined
 ): Prisma.Sql {
@@ -62,20 +61,10 @@ function discoveryCategoriesSqlFragment(
 
   let combined = sqlLaneDiscoveryNeedle(normalizedCodes[0]);
   for (let i = 1; i < normalizedCodes.length; i++) {
-    combined = Prisma.sql`(${combined} OR ${sqlLaneDiscoveryNeedle(normalizedCodes[i])})`;
+    combined = Prisma.sql`(${combined} AND ${sqlLaneDiscoveryNeedle(normalizedCodes[i])})`;
   }
   return Prisma.sql`AND ${usable}
     AND (${combined})`;
-}
-
-function laneMatchesAnyDiscoveryCategories(
-  discoveryCategoriesJson: unknown,
-  normalizedCodes: string[] | undefined
-): boolean {
-  if (!normalizedCodes?.length) return true;
-  return normalizedCodes.some((tag) =>
-    storedCategoriesIncludeCode(discoveryCategoriesJson, tag)
-  );
 }
 
 async function countActiveProsAtSalonForLane(
@@ -97,7 +86,10 @@ async function countActiveProsAtSalonForLane(
     ).length;
   }
   return rows.filter((r) =>
-    laneMatchesAnyDiscoveryCategories(r.discoveryCategories, discoveryNormalizedCodes)
+    storedCategoriesIncludeAllCodes(
+      r.discoveryCategories,
+      discoveryNormalizedCodes
+    )
   ).length;
 }
 
@@ -112,7 +104,7 @@ export const salonService = {
     professionCode?: string | null,
     /** Logged-in client: ensures salons for pros they’re linked with still appear (e.g. lane inactive, edge cases). */
     viewerProfileId?: string | null,
-    /** When non-empty: ≥1 lane row includes any listed get-discovered tag (OR). */
+    /** When non-empty: lane row must include every listed get-discovered tag (AND). */
     discoveryCategories?: string[] | null
   ): Promise<
     Array<{
@@ -230,7 +222,7 @@ export const salonService = {
         });
         const filteredLinks = discoveryCodes?.length
           ? ppWithSalon.filter((row) =>
-              laneMatchesAnyDiscoveryCategories(
+              storedCategoriesIncludeAllCodes(
                 row.discoveryCategories,
                 discoveryCodes
               )
@@ -333,7 +325,6 @@ export const salonService = {
     const rowSelect = {
       professionId: true,
       businessName: true,
-      avatarUrl: true,
       discoveryCategories: true,
       professionalProfile: {
         select: {
@@ -404,7 +395,7 @@ export const salonService = {
 
     if (discoveryCodes?.length) {
       merged = merged.filter((r) =>
-        laneMatchesAnyDiscoveryCategories(r.discoveryCategories, discoveryCodes)
+        storedCategoriesIncludeAllCodes(r.discoveryCategories, discoveryCodes)
       );
     } else {
       merged = merged.filter((r) =>
@@ -440,10 +431,7 @@ export const salonService = {
         profile_id: pp.profile.id,
         hairdresser_id: pp.profile.id,
         full_name: pp.displayName ?? profileDisplayName(pp.profile),
-        avatar_url: resolveLaneAvatarUrl(
-          r.avatarUrl,
-          pp.profile.avatarUrl
-        ),
+        avatar_url: pp.profile.avatarUrl,
         has_relationship: activeSet.has(pp.id),
         link_pending: pendingSet.has(pp.id),
         business_name: r.businessName,

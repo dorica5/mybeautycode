@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, Pressable } from "react-native";
 import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
@@ -17,8 +17,16 @@ import {
 } from "@/src/utils/responsive";
 import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
 import { StatusBar } from "expo-status-bar";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
-const LoadingScreen = () => {
+const LoadingScreen = ({
+  connectionError = false,
+  onRetry,
+}: {
+  connectionError?: boolean;
+  onRetry?: () => void;
+}) => {
+  const { t } = useI18n();
   const [isSetUp, setIsSetUp] = useState(false);
   const { from } = useLocalSearchParams();
   const { profile, setLoadingSetup } = useAuth();
@@ -65,20 +73,37 @@ const LoadingScreen = () => {
 
             <View style={styles.copy}>
               <Text style={[Typography.ag20, styles.headline]}>
-                {isSetUp ? "Setting up your profile..." : "Welcome"}
+                {connectionError
+                  ? t("setup.cantReachServer")
+                  : isSetUp
+                    ? t("setup.settingUp")
+                    : t("setup.welcome")}
               </Text>
 
-              {!isSetUp && profile?.full_name && (
-                <Text
-                  style={[Typography.bodyLarge, styles.name]}
-                  numberOfLines={2}
-                >
-                  {profile.full_name}
+              {connectionError ? (
+                <Text style={[Typography.bodyLarge, styles.name]}>
+                  {t("setup.connectionErrorHint")}
                 </Text>
+              ) : (
+                !isSetUp &&
+                profile?.full_name && (
+                  <Text
+                    style={[Typography.bodyLarge, styles.name]}
+                    numberOfLines={2}
+                  >
+                    {profile.full_name}
+                  </Text>
+                )
               )}
             </View>
 
-            <MintSpinningWheel />
+            {connectionError && onRetry ? (
+              <Pressable onPress={onRetry} style={styles.retryButton}>
+                <Text style={styles.retryLabel}>{t("common.tryAgain")}</Text>
+              </Pressable>
+            ) : (
+              <MintSpinningWheel />
+            )}
           </View>
         </View>
       </View>
@@ -128,5 +153,17 @@ const styles = StyleSheet.create({
     color: primaryBlack,
     marginTop: responsiveMargin(10),
     fontFamily: "Outfit_700Bold",
+  },
+  retryButton: {
+    marginTop: responsiveMargin(8),
+    borderRadius: 999,
+    backgroundColor: primaryBlack,
+    paddingHorizontal: responsivePadding(28),
+    paddingVertical: responsivePadding(14),
+  },
+  retryLabel: {
+    color: primaryGreen,
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 16,
   },
 });

@@ -9,6 +9,11 @@ import { UserCircle, Users } from "phosphor-react-native";
 import { responsiveScale, responsiveFontSize, scalePercent, responsiveBorderRadius } from "../utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "./avatarSpinner";
+import {
+  formatVisitListDateForLocale,
+  useI18n,
+  useProfessionRoleLabel,
+} from "@/src/providers/LanguageProvider";
 
 const CLIENT_CARD_DARK = "#262626";
 
@@ -33,6 +38,7 @@ export const NotificationItem = ({
   notification,
   cardTone,
 }: NotificationItemProps) => {
+  const { t, locale } = useI18n();
   const [isRead, setIsRead] = useState(notification.read);
   const senderAvatar = notification.sender?.avatar_url;
   const senderName =
@@ -60,32 +66,22 @@ export const NotificationItem = ({
     typeof professionCodeRaw === "string" && professionCodeRaw.trim()
       ? professionCodeRaw.trim()
       : null;
-  // Profession-account aware copy: a request from a pro's hair account makes
-  // them "your hairdresser", nails -> "nail technician", brows -> "brow stylist".
-  // If the lane is unknown (pre-profession-code notifications), we fall back
-  // to the generic "professional" so we don't mislabel nails / brows as hair.
-  const roleLabel = (() => {
-    switch (professionCode) {
-      case "hair":
-        return "hairdresser";
-      case "nails":
-        return "nail technician";
-      case "brows":
-      case "brows_lashes":
-        return "brow stylist";
-      case "barber":
-        return "barber";
-      default:
-        return "professional";
-    }
-  })();
+  const roleLabel = useProfessionRoleLabel(professionCode);
+
+  const isClientInitiatedLink =
+    notification.data?.isClient === true ||
+    notification.data?.isClient === "true";
 
   const displayMessage = (() => {
+    const name = senderName ?? t("common.someone");
     if (notification.type === "FRIEND_REQUEST" || notification.type === "link_request") {
-      if (isHandled && (notification.status === "accepted" || notification.data?.status === "accepted")) {
-        return `${senderName ?? "Someone"} is now your ${roleLabel}`;
+      if (isClientInitiatedLink) {
+        return t("notifications.connectedWithYou", { name });
       }
-      return `${senderName ?? "Someone"} wants to connect with you`;
+      if (isHandled && (notification.status === "accepted" || notification.data?.status === "accepted")) {
+        return t("notifications.isNowYour", { name, role: roleLabel });
+      }
+      return t("notifications.wantsConnect", { name });
     }
     return notification.message;
   })();
@@ -142,14 +138,8 @@ export const NotificationItem = ({
     }
   };
 
-  const formatDate = (createdAt) => {
-    const date = new Date(createdAt);
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  };
+  const formatDate = (createdAt: string) =>
+    formatVisitListDateForLocale(locale, createdAt);
 
   const handlePress = async () => {
     if (isHandled) return;
@@ -168,6 +158,7 @@ export const NotificationItem = ({
             isClient: notification.data?.isClient,
             title: notification.title,
             profile_pic: notification.sender?.avatar_url,
+            ...(professionCode ? { professionCode } : {}),
           },
         });
         break;

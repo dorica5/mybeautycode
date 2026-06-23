@@ -16,7 +16,7 @@ import RapportUserModal from "@/src/components/RapportUserModal";
 import {
   ModerationSheetHeading,
   ModerationReasonRow,
-  moderationDetailCopy,
+  useModerationDetailCopy,
   reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
 import { router, useLocalSearchParams } from "expo-router";
@@ -59,6 +59,7 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { MintFullScreenSpinner } from "@/src/components/MintSpinningWheel";
 import { NavBackRow, navBackChromeBarCombined } from "@/src/components/NavBackRow";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -70,6 +71,8 @@ function firstRouteParam(
 }
 
 const VisitList = () => {
+  const { t } = useI18n();
+  const moderationDetailCopy = useModerationDetailCopy();
   const {
     id: client_id,
     phone_number,
@@ -175,7 +178,7 @@ const VisitList = () => {
     navFullName?.trim() ||
     data?.phone_number?.trim() ||
     normalizedPhoneNumber?.trim() ||
-    "Client";
+    t("common.client");
   const relParam = navRelationship ?? "true";
 
   const connectedAvatarSize = responsiveScale(120, 144);
@@ -194,6 +197,13 @@ const VisitList = () => {
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
   const [isBlockedUser, setIsBlockedUser] = useState(false);
+
+  /** Pro must not open Safety & privacy against their own client profile. */
+  const isSelfClientProfile = Boolean(
+    hairdresser_id &&
+      client_id &&
+      String(hairdresser_id) === String(client_id)
+  );
 
   const displayPhonePill = isBlockedUser
     ? null
@@ -227,7 +237,7 @@ const VisitList = () => {
       });
       router.replace({ pathname: `/(professional)/clientProfile/${clientId}` });
     } catch (error) {
-      Alert.alert("Error", "Failed to delete user.");
+      Alert.alert(t("common.error"), t("profile.failedDeleteUser"));
     }
   };
 
@@ -257,23 +267,23 @@ const VisitList = () => {
 
       if (result.autoBlocked) {
         Alert.alert(
-          "Report received",
-          "Thanks for letting us know. This account was restricted after repeated reports."
+          t("moderation.reportReceived"),
+          t("moderation.reportAutoBlocked")
         );
       } else {
-        Alert.alert("Report received", result.message);
+        Alert.alert(t("moderation.reportReceived"), result.message);
       }
 
       setActiveAction(null);
     } catch (error) {
       if (error.message === "You have already reported this user") {
         Alert.alert(
-          "Already reported",
-          "You have already submitted a report for this account."
+          t("moderation.alreadyReported"),
+          t("moderation.alreadyReportedMessage")
         );
       } else {
         console.error("Error reporting user:", error);
-        Alert.alert("Error", "Failed to report user");
+        Alert.alert(t("common.error"), t("moderation.reportUserFailed"));
       }
       setActiveAction(null);
     }
@@ -282,25 +292,25 @@ const VisitList = () => {
   const modalContent = (
     <View>
       <ModerationSheetHeading
-        title="Safety & privacy"
-        subtitle={`Manage how you interact with this client on ${BRAND_DISPLAY_NAME}.`}
+        title={t("moderation.safetyTitle")}
+        subtitle={t("moderation.safetySubtitlePro", { brand: BRAND_DISPLAY_NAME })}
       />
       {isRelated && (
         <RapportUserModal
-          title="Delete"
+          title={t("moderation.deleteLabel")}
           onPress={() => handleModalOption("Delete")}
         />
       )}
       <RapportUserModal
-        title="Block"
+        title={t("common.block")}
         onPress={() => handleModalOption("Block")}
       />
       <RapportUserModal
-        title="Report"
+        title={t("common.report")}
         onPress={() => handleModalOption("Report")}
       />
       <RapportUserModal
-        title="Cancel"
+        title={t("common.cancel")}
         onPress={() => setIsModalVisible(false)}
       />
     </View>
@@ -329,12 +339,12 @@ const VisitList = () => {
             onPress={() => router.back()}
             hitSlop={12}
           />
-          {!isBlockedUser ? (
+          {!isBlockedUser && !isSelfClientProfile ? (
             <Pressable
               onPress={toggleModal}
               style={styles.connectedMore}
               hitSlop={12}
-              accessibilityLabel="More options"
+              accessibilityLabel={t("profile.moreOptions")}
             >
               <DotsThree
                 size={responsiveScale(28)}
@@ -401,7 +411,7 @@ const VisitList = () => {
             <View style={[styles.mintButtonWrap, { maxWidth: mintContentMaxW }]}>
               <MyButton
                 style={[styles.unblockMint, { borderColor: "red" }]}
-                text="Unblock User"
+                text={t("profile.unblockUser")}
                 textSize={18}
                 textTabletSize={14}
                 onPress={async () => {
@@ -438,7 +448,7 @@ const VisitList = () => {
                 >
                   <View style={styles.actionRowLeft}>
                     <Plus size={responsiveScale(28)} color={primaryBlack} />
-                    <Text style={styles.actionRowTitle}>New visit</Text>
+                    <Text style={styles.actionRowTitle}>{t("visits.newVisit")}</Text>
                   </View>
                   <CaretRight size={responsiveScale(24)} color={primaryBlack} />
                 </Pressable>
@@ -468,7 +478,7 @@ const VisitList = () => {
                 >
                   <View style={styles.actionRowLeft}>
                     <Eye size={responsiveScale(28)} color={primaryBlack} />
-                    <Text style={styles.actionRowTitle}>View all visits</Text>
+                    <Text style={styles.actionRowTitle}>{t("visits.viewAll")}</Text>
                   </View>
                   <CaretRight size={responsiveScale(24)} color={primaryBlack} />
                 </Pressable>
@@ -497,7 +507,7 @@ const VisitList = () => {
                       size={responsiveScale(28)}
                       color={primaryBlack}
                     />
-                    <Text style={styles.actionRowTitle}>View gallery</Text>
+                    <Text style={styles.actionRowTitle}>{t("visits.viewGallery")}</Text>
                   </View>
                   <CaretRight size={responsiveScale(24)} color={primaryBlack} />
                 </Pressable>
@@ -515,7 +525,7 @@ const VisitList = () => {
               setPendingAction(null);
             }
           }}
-          modalHeight={screenHeight * 0.58}
+          modalHeight={screenHeight * 0.68}
           sheetVariant="brand"
           renderContent={modalContent}
         />
@@ -534,27 +544,27 @@ const VisitList = () => {
                 </Text>
                 <View style={styles.mintModerationRows}>
                   {activeAction === "Delete" && (
-                    <>
-                      <ModerationReasonRow
-                        label="Remove client"
-                        danger
-                        onPress={async () => {
-                          await deleteClient(client_id);
-                          setActiveAction(null);
-                        }}
-                      />
-                      <ModerationReasonRow
-                        label="Not now"
-                        onPress={() => setActiveAction(null)}
-                      />
-                    </>
+                    <ModerationReasonRow
+                      label={t("moderation.removeClientLabel")}
+                      danger
+                      onPress={async () => {
+                        await deleteClient(client_id);
+                        setActiveAction(null);
+                      }}
+                    />
                   )}
                   {activeAction === "Block" &&
                     ["No reason", "Spam, fake profile", "Inappropriate content"].map(
                       (reason, idx) => (
                         <ModerationReasonRow
                           key={`${reason}-${idx}`}
-                          label={reason}
+                          label={
+                            reason === "No reason"
+                              ? t("moderation.noReason")
+                              : reason === "Spam, fake profile"
+                                ? t("moderation.spamFakeProfile")
+                                : t("moderation.inappropriateContent")
+                          }
                           onPress={async () => {
                             await blockUser(
                               hairdresser_id,
@@ -563,8 +573,10 @@ const VisitList = () => {
                               queryClient
                             );
                             Alert.alert(
-                              "Account blocked",
-                              `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
+                              t("moderation.accountBlocked"),
+                              t("moderation.accountBlockedMessage", {
+                                brand: BRAND_DISPLAY_NAME,
+                              })
                             );
                             setActiveAction(null);
                             setIsBlockedUser(true);
@@ -593,7 +605,7 @@ const VisitList = () => {
             moderationStepCopy ? (
               <MintBrandModalFooterRow>
                 <MintBrandModalSecondaryButton
-                  label="Cancel"
+                  label={t("common.cancel")}
                   onPress={() => setActiveAction(null)}
                 />
               </MintBrandModalFooterRow>

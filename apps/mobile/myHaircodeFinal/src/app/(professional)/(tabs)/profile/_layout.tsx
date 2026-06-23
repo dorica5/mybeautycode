@@ -1,4 +1,3 @@
-import { StyleSheet } from "react-native";
 import React from "react";
 import { Stack } from "expo-router";
 import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
@@ -29,5 +28,3 @@ const _layout = () => {
 };
 
 export default _layout;
-
-const styles = StyleSheet.create({});

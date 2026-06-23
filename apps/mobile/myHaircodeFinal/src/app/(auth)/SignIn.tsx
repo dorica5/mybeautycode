@@ -30,8 +30,10 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const SignIn = () => {
+  const { t } = useI18n();
   const passwordRef = useRef<TextInput>(null);
   const { height: windowHeight } = useWindowDimensions();
   const logoSize = useBeautyCodeLogoSize();
@@ -156,7 +158,7 @@ const SignIn = () => {
         >
           <View style={styles.topSection}>
             <NavBackRow
-              accessibilityLabel="Go back"
+              accessibilityLabel={t("common.back")}
               onPress={() => router.back()}
               style={styles.backRow}
               hitSlop={12}
@@ -171,17 +173,17 @@ const SignIn = () => {
                 accessibilityRole="header"
                 style={[Typography.h4, styles.textOnGreen, styles.title]}
               >
-                Sign in
+                {t("auth.signIn")}
               </Text>
 
               <PrimaryOutlineTextField
-              label="Email"
+              label={t("auth.email")}
               value={email}
               onChangeText={(t) => {
                 setErrorMessage("");
                 setEmail(t);
               }}
-              placeholder="Email"
+              placeholder={t("auth.email")}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -194,14 +196,14 @@ const SignIn = () => {
 
               <PrimaryOutlineTextField
                 inputRef={passwordRef}
-                label="Your password"
+                label={t("auth.password")}
                 value={password}
                 onChangeText={(t) => {
                   setErrorMessage("");
                   setPassword(t);
                 }}
                 password
-                placeholder="Your password"
+                placeholder={t("auth.password")}
                 autoCapitalize="none"
                 autoComplete="password"
                 returnKeyType="done"
@@ -213,7 +215,7 @@ const SignIn = () => {
               ) : null}
 
               <PaddedLabelButton
-                title={loading ? "Signing in…" : "Sign in"}
+                title={loading ? t("auth.signingIn") : t("auth.signIn")}
                 horizontalPadding={32}
                 verticalPadding={16}
                 disabled={loading}
@@ -226,7 +228,7 @@ const SignIn = () => {
 
           <View style={styles.footerCol}>
             <Text style={[Typography.label, styles.textOnGreen]}>
-              Don&apos;t remember your password?
+              {t("auth.forgotPassword")}
             </Text>
             <Pressable onPress={resetPassword} hitSlop={8}>
               <Text
@@ -236,7 +238,7 @@ const SignIn = () => {
                   styles.resetLink,
                 ]}
               >
-                Reset password
+                {t("auth.resetPassword")}
               </Text>
             </Pressable>
           </View>

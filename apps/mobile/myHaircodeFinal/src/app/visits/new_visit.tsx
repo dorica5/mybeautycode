@@ -19,16 +19,17 @@ import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import {
   NailVisitForm,
   VISIT_DESCRIPTION_MAX_CHARS,
+  VISIT_MAX_PHOTOS,
 } from "@/src/components/visits/NailVisitForm";
 import { useLocalSearchParams } from "expo-router";
 import DraggableModal from "@/src/components/DraggableModal";
 import { VisitPreviewModalContent } from "@/src/components/visits/VisitPreviewModalContent";
 import * as ImagePicker from "expo-image-picker";
-import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
+import { signVisitMedia, type VisitMediaRow } from "@/src/lib/storageSignedUrl";
 import { randomUUID } from "expo-crypto";
 import { api } from "@/src/lib/apiClient";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { useSubmitHaircode } from "@/src/api/visits";
+import { fetchHaircodeWithMedia, useSubmitHaircode } from "@/src/api/visits";
 import {
   responsiveScale,
   scalePercent,
@@ -39,6 +40,7 @@ import {
 import { formatVisitDateForCountry } from "@/src/utils/formatVisitDateForCountry";
 import { StatusBar } from "expo-status-bar";
 import { usePostHog } from "posthog-react-native";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import ImageCropModal, {
   IMAGE_CROP_VIEWPORT_HEIGHT_RATIO,
 } from "@/src/components/ImageCropModal";
@@ -65,9 +67,75 @@ function firstRouteParam(
   return Array.isArray(v) ? v[0] : v;
 }
 
+type StoredVisitMedia = {
+  id: string;
+  media_url: string;
+  media_type: string;
+};
+
+function normalizeVisitMediaRows(raw: unknown): StoredVisitMedia[] {
+  if (!Array.isArray(raw)) return [];
+  const out: StoredVisitMedia[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const item = row as VisitMediaRow & { id?: string };
+    const media_url = String(item.media_url ?? item.mediaUrl ?? "").trim();
+    if (!media_url) continue;
+    const media_type = String(
+      item.media_type ?? item.mediaType ?? "image"
+    ).toLowerCase();
+    out.push({
+      id: String(item.id ?? media_url),
+      media_url,
+      media_type,
+    });
+  }
+  return out;
+}
+
+async function resolveVisitMediaForEdit(
+  raw: unknown
+): Promise<
+  {
+    uri: string;
+    type: string;
+    media_url: string;
+    id: string;
+    isFromDB: true;
+  }[]
+> {
+  const normalized = normalizeVisitMediaRows(raw);
+  if (normalized.length === 0) return [];
+
+  const signed = await signVisitMedia(
+    normalized.map((item) => ({
+      media_url: item.media_url,
+      media_type: item.media_type,
+    }))
+  );
+
+  return normalized
+    .map((item, index) => {
+      const slot = signed[index];
+      if (!slot?.uri) return null;
+      return {
+        uri: slot.uri,
+        type: slot.type,
+        media_url: item.media_url,
+        id: item.id,
+        isFromDB: true as const,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item != null);
+}
+
 const NewVisit = () => {
+  const { t } = useI18n();
   const params = useLocalSearchParams();
   const isEditing = Boolean(params.haircodeId);
+  const editHaircodeId = firstRouteParam(
+    params.haircodeId as string | string[] | undefined
+  );
   const { profile } = useAuth();
   const { clientId } = useLocalSearchParams();
 
@@ -83,7 +151,7 @@ const NewVisit = () => {
   const [mediaToDelete, setMediaToDelete] = useState([]);
   const [capturedMedia, setCapturedMedia] = useState<any[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [originalMedia, setOriginalMedia] = useState([]);
+  const [originalMedia, setOriginalMedia] = useState<StoredVisitMedia[]>([]);
   const [selectedOptionsString, setSelectedOptionsString] = useState<
     string | null
   >();
@@ -223,47 +291,43 @@ const NewVisit = () => {
   };
 
   useEffect(() => {
-    if (!params.media) return;
+    if (!isEditing && !params.media) return;
+
     let cancelled = false;
     (async () => {
       try {
-        const mediaData = JSON.parse(params.media.toString());
+        let rawMedia: unknown[] = [];
+        if (params.media) {
+          try {
+            const parsed = JSON.parse(params.media.toString());
+            if (Array.isArray(parsed)) rawMedia = parsed;
+          } catch (error) {
+            console.warn("Could not parse visit media from route params:", error);
+          }
+        }
+
+        if (rawMedia.length === 0 && editHaircodeId) {
+          const visit = await fetchHaircodeWithMedia(editHaircodeId);
+          const fromApi = (visit as { media?: unknown[] } | null)?.media;
+          if (Array.isArray(fromApi)) rawMedia = fromApi;
+        }
+
+        const normalized = normalizeVisitMediaRows(rawMedia);
+        if (cancelled || normalized.length === 0) return;
+
+        setOriginalMedia(normalized);
+        const formattedMedia = await resolveVisitMediaForEdit(rawMedia);
         if (cancelled) return;
-        setOriginalMedia(mediaData);
-        const uris = await fetchSignedStorageUrls(
-          mediaData.map((item: { media_url: string }) => ({
-            bucket: "haircode_images",
-            path: item.media_url,
-          }))
-        );
-        if (cancelled) return;
-        const formattedMedia = mediaData
-          .map(
-            (
-              item: {
-                media_url: string;
-                media_type: string;
-                id: string;
-              },
-              i: number
-            ) => ({
-              uri: uris[i] ?? "",
-              type: item.media_type,
-              media_url: item.media_url,
-              id: item.id,
-              isFromDB: true,
-            })
-          )
-          .filter((m: { uri: string }) => !!m.uri);
         setCapturedMedia(formattedMedia);
       } catch (error) {
-        console.error("Error parsing media data:", error);
+        console.error("Error loading visit media:", error);
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [params.media]);
+  }, [params.media, isEditing, editHaircodeId]);
 
   const hasMediaChanged = () => {
     console.log("Checking if media changed...");
@@ -359,17 +423,28 @@ const NewVisit = () => {
       return result?.path ?? null;
     } catch (error) {
       console.error("Error processing media:", error);
-      Alert.alert("Error", "Failed to process media file");
+      Alert.alert(t("common.error"), t("visits.failedProcessMedia"));
       return null;
     }
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Camera roll access is required");
+    const queued = pendingImages.length + (imageToCrop ? 1 : 0);
+    if (capturedMedia.length + queued >= VISIT_MAX_PHOTOS) {
+      Alert.alert(
+        t("visits.photoLimitTitle"),
+        t("visits.photoLimitMessage", { count: String(VISIT_MAX_PHOTOS) })
+      );
       return;
     }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(t("common.permissionNeeded"), t("visits.cameraRollRequired"));
+      return;
+    }
+
+    const remaining = VISIT_MAX_PHOTOS - capturedMedia.length - queued;
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -378,30 +453,55 @@ const NewVisit = () => {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      // Store all selected images and show crop modal for the first one
-      const imageUris = result.assets.map((asset) => asset.uri);
-      setPendingImages(imageUris.slice(1)); // Store remaining images
-      setImageToCrop(imageUris[0]); // Show crop modal for first image
+      const imageUris = result.assets.map((asset) => asset.uri).slice(0, remaining);
+      if (result.assets.length > remaining) {
+        Alert.alert(
+          "Photo limit",
+          `You can add up to ${VISIT_MAX_PHOTOS} photos per visit.`
+        );
+      }
+      if (imageUris.length === 0) {
+        return;
+      }
+      setPendingImages(imageUris.slice(1));
+      setImageToCrop(imageUris[0]);
     }
   };
 
   const handleCropComplete = (croppedUri: string) => {
-    // Add the cropped image to captured media
-    setCapturedMedia((prevMedia) => [
-      ...prevMedia,
-      {
-        uri: croppedUri,
-        type: "image",
-      },
-    ]);
+    setCapturedMedia((prevMedia) => {
+      if (prevMedia.length >= VISIT_MAX_PHOTOS) {
+        setImageToCrop(null);
+        setPendingImages([]);
+        return prevMedia;
+      }
 
-    // Check if there are more images to crop
-    if (pendingImages.length > 0) {
-      setImageToCrop(pendingImages[0]);
-      setPendingImages(pendingImages.slice(1));
-    } else {
-      setImageToCrop(null);
-    }
+      const nextMedia = [
+        ...prevMedia,
+        {
+          uri: croppedUri,
+          type: "image",
+        },
+      ];
+
+      setPendingImages((pending) => {
+        const room = VISIT_MAX_PHOTOS - nextMedia.length;
+        if (room <= 0 || pending.length === 0) {
+          if (pending.length > 0 && room <= 0) {
+            Alert.alert(
+              t("visits.photoLimitTitle"),
+              t("visits.photoLimitMessage", { count: String(VISIT_MAX_PHOTOS) })
+            );
+          }
+          setImageToCrop(null);
+          return room <= 0 ? [] : pending;
+        }
+        setImageToCrop(pending[0]);
+        return pending.slice(1);
+      });
+
+      return nextMedia;
+    });
   };
 
   const handleCropCancel = () => {
@@ -413,8 +513,8 @@ const NewVisit = () => {
   const handleSubmit = async () => {
     if (!activeProfessionCode) {
       Alert.alert(
-        "Error",
-        "Could not determine which profession account this visit is for. Try again."
+        t("common.error"),
+        t("visits.couldNotDetermineProfession")
       );
       return;
     }
@@ -441,7 +541,7 @@ const NewVisit = () => {
       });
     } catch (err) {
       console.error("Unexpected error:", err);
-      Alert.alert("Error", "Something went wrong.");
+      Alert.alert(t("common.error"), t("visits.somethingWentWrong"));
     }
   };
 
@@ -457,7 +557,7 @@ const NewVisit = () => {
   );
   const visitPreviewBaseProps = {
     onClose: toggleModal,
-    visitTitle: `Visit ${visitDateLabel}`,
+    visitTitle: t("visits.visitTitle", { date: visitDateLabel }),
     dateText: visitDateLabel,
     serviceText: selectedOptionsString ?? "",
     commentText: newHaircode,
@@ -525,6 +625,7 @@ const NewVisit = () => {
           onChangePrice={setPrice}
           capturedMedia={capturedMedia}
           pickImage={pickImage}
+          pickImageDisabled={imageToCrop !== null || isUploadingMedia}
           removeMedia={removeMedia}
           isPending={isPending}
           isUploadingMedia={isUploadingMedia}

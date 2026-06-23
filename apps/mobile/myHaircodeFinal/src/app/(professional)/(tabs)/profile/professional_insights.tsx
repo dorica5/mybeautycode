@@ -33,6 +33,7 @@ import {
 } from "@/src/utils/responsive";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import { NavBackRow } from "@/src/components/NavBackRow";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import { SocialStrokeIcon20 } from "@/src/components/icons/GetDiscoveredStrokeIcons";
 import type { SocialKind } from "@/src/lib/inferSocialFromUrl";
 
@@ -78,6 +79,7 @@ function SocialTapBreakdown({ rows }: { rows: SocialBreakdownRow[] }) {
 }
 
 const ProfessionalInsightsScreen = () => {
+  const { t } = useI18n();
   const { profile } = useAuth();
   const { activeProfessionCode, professionLine, storedProfessionReady } =
     useActiveProfessionState(profile);
@@ -155,7 +157,7 @@ const ProfessionalInsightsScreen = () => {
                 onPress={() => router.back()}
                 style={styles.backRow}
                 hitSlop={12}
-                accessibilityLabel="Go back"
+                accessibilityLabel={t("common.goBack")}
               />
             </View>
 
@@ -183,10 +185,11 @@ const ProfessionalInsightsScreen = () => {
             </View>
 
             <View style={styles.paddedHorizontal}>
-              <Text style={[Typography.h3, styles.title]}>Your reach</Text>
+              <Text style={[Typography.h3, styles.title]}>{t("profile.yourReach")}</Text>
               <Text style={[Typography.outfitRegular16, styles.subtitle]}>
-                How clients engage with your public profile
-                {professionLine ? ` · ${professionLine}` : ""}.
+                {professionLine
+                  ? t("profile.reachSubtitleWithProfession", { profession: professionLine })
+                  : t("profile.reachSubtitle")}
               </Text>
 
               {!storedProfessionReady || !professionParam ? (
@@ -200,14 +203,14 @@ const ProfessionalInsightsScreen = () => {
               ) : isError ? (
                 <View style={styles.errorCard}>
                   <Text style={[Typography.outfitRegular16, styles.errorText]}>
-                    Could not load stats. Pull to retry or check your connection.
+                    {t("profile.couldNotLoadStats")}
                   </Text>
                   <Pressable
                     onPress={() => refetch()}
                     style={styles.retryBtn}
                     accessibilityRole="button"
                   >
-                    <Text style={[Typography.label, styles.retryLabel]}>Try again</Text>
+                    <Text style={[Typography.label, styles.retryLabel]}>{t("common.tryAgain")}</Text>
                   </Pressable>
                 </View>
               ) : data ? (
@@ -215,22 +218,22 @@ const ProfessionalInsightsScreen = () => {
                   <View style={styles.statCard}>
                     <View style={styles.statIconRow}>
                       <Eye size={responsiveScale(26)} color={primaryBlack} weight="duotone" />
-                      <Text style={[Typography.label, styles.statLabel]}>Profile views</Text>
+                      <Text style={[Typography.label, styles.statLabel]}>{t("profile.profileViews")}</Text>
                     </View>
                     <Text style={styles.statNumber}>{formatInt(data.profileViewCount)}</Text>
                     <Text style={[Typography.outfitRegular16, styles.statHint]}>
-                      Times someone opened your public profile
+                      {t("profile.profileViewsHint")}
                     </Text>
                   </View>
 
                   <View style={styles.statCard}>
                     <View style={styles.statIconRow}>
                       <Globe size={responsiveScale(26)} color={primaryBlack} weight="duotone" />
-                      <Text style={[Typography.label, styles.statLabel]}>Booking taps</Text>
+                      <Text style={[Typography.label, styles.statLabel]}>{t("profile.bookingTaps")}</Text>
                     </View>
                     <Text style={styles.statNumber}>{formatInt(data.bookingClickCount)}</Text>
                     <Text style={[Typography.outfitRegular16, styles.statHint]}>
-                      Taps on your booking link
+                      {t("profile.bookingTapsHint")}
                     </Text>
                   </View>
 
@@ -241,7 +244,7 @@ const ProfessionalInsightsScreen = () => {
                         color={primaryBlack}
                         weight="duotone"
                       />
-                      <Text style={[Typography.label, styles.statLabel]}>Social taps</Text>
+                      <Text style={[Typography.label, styles.statLabel]}>{t("profile.socialTaps")}</Text>
                     </View>
                     <Text style={styles.statNumber}>{formatInt(data.socialClickCount)}</Text>
                     <SocialTapBreakdown rows={socialBreakdownRows} />
@@ -250,8 +253,7 @@ const ProfessionalInsightsScreen = () => {
               ) : null}
 
               <Text style={[Typography.bodySmall, styles.footerNote]}>
-                Totals for the profession you have selected with Switch account. Change
-                account there to view another lane.
+                {t("profile.reachFooterNote")}
               </Text>
             </View>
           </ScrollView>

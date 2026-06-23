@@ -2,7 +2,7 @@ import { StyleSheet, FlatList, Text, View } from "react-native";
 import React, { useState, useCallback, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import TopNavGallery from "@/src/components/TopNavGallery";
+import { VisitRecordScreenHeader } from "@/src/components/visits/VisitRecordScreenHeader";
 import {
   prefetchHaircodeWithMedia,
   useListClientHaircodes,
@@ -19,6 +19,7 @@ import {
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import { VisitTimelineCard } from "@/src/components/visits/VisitTimelineCard";
 import { useResolvedListProfessionCode } from "@/src/hooks/useResolvedListProfessionCode";
+import { useI18n, formatVisitListDateForLocale } from "@/src/providers/LanguageProvider";
 
 type ClientHaircodeRow = {
   id: string;
@@ -42,6 +43,7 @@ type ClientHaircodeRow = {
 };
 
 const SeeVisits = () => {
+  const { t, locale } = useI18n();
   const { profile } = useAuth();
   const {
     id,
@@ -76,16 +78,12 @@ const SeeVisits = () => {
 
   const displayClientName =
     (Array.isArray(full_name) ? full_name.join(" ") : full_name)?.trim() ||
-    "Client";
+    t("common.client");
 
-  const formatVisitDate = (createdAt: string) => {
-    const date = new Date(createdAt);
-    return date.toLocaleDateString("nb-NO", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  };
+  const formatVisitDate = useCallback(
+    (createdAt: string) => formatVisitListDateForLocale(locale, createdAt),
+    [locale]
+  );
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: { item: { id: string } }[] }) => {
@@ -112,12 +110,15 @@ const SeeVisits = () => {
       <StatusBar style="dark" />
       <View style={styles.root}>
         <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-          <TopNavGallery
-            title={displayClientName}
-            secondTitle={displayPhone}
-          />
+          <View style={styles.headerBlock}>
+            <VisitRecordScreenHeader
+              title={displayClientName}
+              subtitle={displayPhone || undefined}
+            />
+          </View>
 
           <FlatList
+            style={styles.list}
             data={listData}
             keyExtractor={(item) => item.id}
             onViewableItemsChanged={onViewableItemsChanged}
@@ -126,8 +127,8 @@ const SeeVisits = () => {
             ListEmptyComponent={() => (
               <Text style={styles.emptyText}>
                 {isLoading || !listProfessionReady
-                  ? "Loading visits…"
-                  : "No visits yet"}
+                  ? t("visits.loading")
+                  : t("visits.empty")}
               </Text>
             )}
             renderItem={({ item }) => {
@@ -189,6 +190,12 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: primaryGreen,
+  },
+  headerBlock: {
+    paddingBottom: responsivePadding(8),
+  },
+  list: {
+    flex: 1,
   },
   listContent: {
     paddingHorizontal: responsivePadding(20),

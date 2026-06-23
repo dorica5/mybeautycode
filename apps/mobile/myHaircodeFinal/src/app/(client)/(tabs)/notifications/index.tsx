@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { format, isToday, isYesterday, parseISO } from "date-fns";
+import { isToday, isYesterday, parseISO } from "date-fns";
 import {
   NotificationItem,
   type NotificationCardTone,
@@ -24,6 +24,11 @@ import {
   responsivePadding,
   responsiveScale,
 } from "@/src/utils/responsive";
+import {
+  formatVisitListDateForLocale,
+  useI18n,
+} from "@/src/providers/LanguageProvider";
+import type { AppLocale } from "@/src/i18n";
 
 type NotifRow = {
   created_at?: string;
@@ -34,55 +39,82 @@ type NotifRow = {
   data?: Record<string, unknown> | null;
 };
 
-type Grouped = { date: string; items: NotifRow[] };
+type DateBucket = "today" | "yesterday" | "other" | string;
 
-function formatDate(dateString: string | undefined): string {
-  if (!dateString) return "Other";
+type Grouped = { bucket: DateBucket; items: NotifRow[] };
+
+function dateBucket(
+  dateString: string | undefined,
+  locale: AppLocale
+): DateBucket {
+  if (!dateString) return "other";
   try {
     const date = parseISO(dateString);
-    if (isToday(date)) return "Today";
-    if (isYesterday(date)) return "Yesterday";
-    return format(date, "MMMM d, yyyy");
+    if (isToday(date)) return "today";
+    if (isYesterday(date)) return "yesterday";
+    return formatVisitListDateForLocale(locale, dateString);
   } catch {
-    return "Other";
+    return "other";
   }
 }
 
-function groupByDate(notifications: NotifRow[]): Grouped[] {
+function bucketLabel(
+  bucket: DateBucket,
+  t: (key: string) => string
+): string {
+  if (bucket === "today") return t("common.today");
+  if (bucket === "yesterday") return t("common.yesterday");
+  if (bucket === "other") return t("common.other");
+  return bucket;
+}
+
+function groupByDate(
+  notifications: NotifRow[],
+  locale: AppLocale
+): Grouped[] {
   const grouped = notifications.reduce<Record<string, NotifRow[]>>(
     (acc, notification) => {
-      const dateKey = formatDate(
-        notification.created_at ?? notification.createdAt
+      const key = dateBucket(
+        notification.created_at ?? notification.createdAt,
+        locale
       );
-      if (!acc[dateKey]) acc[dateKey] = [];
-      acc[dateKey].push(notification);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(notification);
       return acc;
     },
     {}
   );
 
-  return Object.entries(grouped).map(([date, items]) => ({ date, items }));
+  return Object.entries(grouped).map(([bucket, items]) => ({
+    bucket: bucket as DateBucket,
+    items,
+  }));
 }
 
 function sortGroups(groups: Grouped[]): Grouped[] {
-  const rank = (d: string) => {
-    if (d === "Today") return 0;
-    if (d === "Yesterday") return 1;
-    return 2;
+  const rank = (b: DateBucket) => {
+    if (b === "today") return 0;
+    if (b === "yesterday") return 1;
+    if (b === "other") return 2;
+    return 3;
   };
   return [...groups].sort((a, b) => {
-    const ra = rank(a.date);
-    const rb = rank(b.date);
+    const ra = rank(a.bucket);
+    const rb = rank(b.bucket);
     if (ra !== rb) return ra - rb;
-    return a.date.localeCompare(b.date);
+    if (typeof a.bucket === "string" && typeof b.bucket === "string") {
+      return a.bucket.localeCompare(b.bucket);
+    }
+    return 0;
   });
 }
 
-function toneForSection(date: string): NotificationCardTone {
-  return date === "Today" ? "light" : "dark";
+function toneForSection(bucket: DateBucket): NotificationCardTone {
+  return bucket === "today" ? "light" : "dark";
 }
 
 const Notifications = () => {
+  const { t, locale } = useI18n();
   const { profile } = useAuth();
   const [groupedNotifications, setGroupedNotifications] = useState<Grouped[]>(
     []
@@ -100,19 +132,19 @@ const Notifications = () => {
           null
         )) as NotifRow[];
         const visible = notifications.filter((n) => {
-          const t = String(n.type ?? "");
+          const type = String(n.type ?? "");
           const s = String(n.status ?? (n.data as any)?.status ?? "");
-          const isLinkRequest = t === "FRIEND_REQUEST" || t === "link_request";
+          const isLinkRequest = type === "FRIEND_REQUEST" || type === "link_request";
           return !(isLinkRequest && s === "rejected");
         });
-        setGroupedNotifications(sortGroups(groupByDate(visible)));
+        setGroupedNotifications(sortGroups(groupByDate(visible, locale)));
       } catch (error) {
         console.error("Error loading notifications:", error);
       } finally {
         if (fromUserPull) setRefreshing(false);
       }
     },
-    [profile?.id]
+    [profile?.id, locale]
   );
 
   useEffect(() => {
@@ -124,14 +156,14 @@ const Notifications = () => {
 
   const renderGroup = ({ item }: { item: Grouped }) => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{item.date}</Text>
+      <Text style={styles.sectionTitle}>{bucketLabel(item.bucket, t)}</Text>
       {item.items.map((notification) => (
         <NotificationItem
           key={notification.id}
           notification={
             notification as NotificationItemProps["notification"]
           }
-          cardTone={toneForSection(item.date)}
+          cardTone={toneForSection(item.bucket)}
         />
       ))}
     </View>
@@ -143,16 +175,16 @@ const Notifications = () => {
       <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         <View style={styles.topSpacer} />
         <Text style={[Typography.h3, styles.title]} accessibilityRole="header">
-          Notifications
+          {t("notifications.title")}
         </Text>
         <FlatList
           data={groupedNotifications}
           renderItem={renderGroup}
-          keyExtractor={(g) => g.date}
+          keyExtractor={(g) => String(g.bucket)}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>No notifications yet</Text>
+            <Text style={styles.emptyText}>{t("notifications.empty")}</Text>
           }
           refreshControl={
             <RefreshControl

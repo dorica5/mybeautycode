@@ -17,8 +17,10 @@ import {
 } from "@/src/components/MintProfileScreenShell";
 import { responsiveScale } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const AboutMe = () => {
+  const { t } = useI18n();
   const { profile, setProfile } = useAuth();
   const original = profile.about_me ?? "";
   const id = profile.id;
@@ -32,7 +34,7 @@ const AboutMe = () => {
 
   const save = () => {
     if (!id) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
     const trimmed = aboutMe.trim();
@@ -52,7 +54,7 @@ const AboutMe = () => {
         },
         onError: (err) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", err.message);
+          Alert.alert(t("profile.updateFailed"), err.message);
         },
       }
     );
@@ -65,7 +67,7 @@ const AboutMe = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="About me"
+        title={t("profile.aboutMe")}
         showSaveButton
         saveChanged={changed}
         saveAction={save}
@@ -85,8 +87,8 @@ const AboutMe = () => {
           keyboardDismissMode="interactive"
         >
           <BrandOutlineField
-            accessibilityLabel="About me"
-            placeholder="Tell professionals a little about you"
+            accessibilityLabel={t("profile.aboutMe")}
+            placeholder={t("profile.aboutMeClientHint")}
             value={aboutMe}
             onChangeText={setAboutMe}
             multiline

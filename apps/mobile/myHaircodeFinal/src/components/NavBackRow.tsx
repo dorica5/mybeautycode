@@ -11,6 +11,7 @@ import { router } from "expo-router";
 import { responsivePadding, responsiveScale } from "@/src/utils/responsive";
 import { Typography } from "@/src/constants/Typography";
 import { primaryBlack } from "@/src/constants/Colors";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 /**
  * Shared back control aligned with Find professionals (`client` userList index):
@@ -33,22 +34,25 @@ export type NavBackRowProps = {
 
 export function NavBackRow({
   onPress,
-  accessibilityLabel = "Back",
+  accessibilityLabel,
   hitSlop = 12,
   layout = "default",
   style,
   showLabel = true,
 }: NavBackRowProps) {
+  const { t } = useI18n();
+  const backLabel = accessibilityLabel ?? t("common.back");
+
   return (
     <Pressable
       onPress={onPress ?? (() => router.back())}
       style={[styles.row, layout === "default" && styles.rowDefaultAlign, style]}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={backLabel}
       hitSlop={hitSlop}
     >
       <CaretLeft size={responsiveScale(24)} color={primaryBlack} />
-      {showLabel ? <Text style={styles.label}>Back</Text> : null}
+      {showLabel ? <Text style={styles.label}>{t("common.back")}</Text> : null}
     </Pressable>
   );
 }

@@ -12,7 +12,7 @@ import RapportUserModal from "@/src/components/RapportUserModal";
 import {
   ModerationSheetHeading,
   ModerationReasonRow,
-  moderationDetailCopy,
+  useModerationDetailCopy,
   reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
@@ -45,6 +45,7 @@ import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
  * `(professional)/(tabs)/profile/professional_profile`, opened from visits.
  */
 const OtherProfessionalProfileScreen = () => {
+  const moderationDetailCopy = useModerationDetailCopy();
   const raw = useLocalSearchParams<{
     hairdresser_id?: string | string[];
     profession_code?: string | string[];
@@ -127,6 +128,10 @@ const OtherProfessionalProfileScreen = () => {
       hairdresser_id &&
       profile.id !== hairdresser_id &&
       !isRelated
+  );
+
+  const isViewingOwnProfile = Boolean(
+    profile?.id && hairdresser_id && profile.id === hairdresser_id
   );
 
   useEffect(() => {
@@ -462,9 +467,11 @@ const OtherProfessionalProfileScreen = () => {
         addLoading={loading}
         onAddHairdresser={addHairdresser}
         headerRight={
-          <Pressable onPress={() => setIsModalVisible(true)} hitSlop={12}>
-            <DotsThree size={32} color={primaryBlack} weight="bold" />
-          </Pressable>
+          isViewingOwnProfile ? undefined : (
+            <Pressable onPress={() => setIsModalVisible(true)} hitSlop={12}>
+              <DotsThree size={32} color={primaryBlack} weight="bold" />
+            </Pressable>
+          )
         }
         analyticsProfessionCode={
           professionCodeFromVisit ??
@@ -482,7 +489,7 @@ const OtherProfessionalProfileScreen = () => {
             setPendingAction(null);
           }
         }}
-        modalHeight="58%"
+        modalHeight="68%"
         sheetVariant="brand"
         renderContent={moderationPrimaryContent}
       />

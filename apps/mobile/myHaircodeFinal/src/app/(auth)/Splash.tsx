@@ -14,6 +14,8 @@ import { StatusBar } from "expo-status-bar";
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useI18n } from "@/src/providers/LanguageProvider";
+import { AppLanguageButton } from "@/src/components/AppLanguageButton";
 
 /** Top inset under safe area matching Sign in / Sign up: scroll `topPad` margin after inset + back row. */
 const splashLogoTopPadding =
@@ -24,6 +26,7 @@ const splashLogoTopPadding =
   responsiveMargin(8);
 
 const Splash = () => {
+  const { t } = useI18n();
   const logoSize = useBeautyCodeLogoSize();
   const signUp = () => router.push("./SignUp" as Href);
   const goToSignIn = () => router.push("./SignIn");
@@ -32,6 +35,7 @@ const Splash = () => {
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
       <View style={styles.container}>
+        <AppLanguageButton />
         {/* Upper half: logo aligned with Sign in / Sign up */}
         <View style={styles.upperHalf}>
           <Logo width={logoSize.width} height={logoSize.height} />
@@ -42,7 +46,7 @@ const Splash = () => {
           <View style={styles.mainTextBlock}>
             <View style={styles.headlineWrap}>
               <Text style={[Typography.h3, styles.textOnGreen, styles.headlineLine]}>
-                Welcome to
+                {t("auth.welcomeTo")}
               </Text>
               <Text style={[Typography.h1, styles.textOnGreen, styles.headlineLine]}>
                 myne!
@@ -50,11 +54,11 @@ const Splash = () => {
             </View>
 
             <Text style={[Typography.bodyLarge, styles.textOnGreen, styles.body]}>
-              my care, my way
+              {t("auth.tagline")}
             </Text>
 
             <PaddedLabelButton
-              title="Sign in"
+              title={t("auth.signIn")}
               horizontalPadding={32}
               verticalPadding={16}
               onPress={goToSignIn}
@@ -67,7 +71,7 @@ const Splash = () => {
 
           <View style={styles.footerRow}>
             <Text style={[Typography.label, styles.textOnGreen]}>
-              {"Don't have an account yet? "}
+              {`${t("auth.noAccountYet")} `}
             </Text>
             <Pressable onPress={signUp} hitSlop={8}>
               <Text
@@ -77,7 +81,7 @@ const Splash = () => {
                   styles.signUpBold,
                 ]}
               >
-                Sign up
+                {t("auth.signUp")}
               </Text>
             </Pressable>
           </View>
@@ -96,6 +100,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    position: "relative",
     backgroundColor: primaryGreen,
     paddingHorizontal: responsivePadding(24),
   },

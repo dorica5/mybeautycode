@@ -20,13 +20,15 @@ import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import { validateSalonBusinessName } from "@/src/lib/profileFieldValidation";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import { establishmentNoun } from "@/src/constants/professionCodes";
 
 const SalonName = () => {
+  const { t } = useI18n();
   const { profile, setProfile } = useAuth();
   const { activeProfessionCode } = useActiveProfessionState(profile);
   const placeNoun = establishmentNoun(activeProfessionCode);
-  const fieldLabel = `${placeNoun} name`;
+  const fieldLabel = t("profile.placeName", { place: placeNoun });
   const originalName =
     profile.business_name ?? profile.salon_name ?? "";
   const id = profile.id;
@@ -71,7 +73,7 @@ const SalonName = () => {
     }
 
     if (!id) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
 
@@ -100,7 +102,7 @@ const SalonName = () => {
         },
         onError: (error) => {
           setLoading(false);
-          Alert.alert("Failed to update profile", error.message);
+          Alert.alert(t("profile.updateFailed"), error.message);
         },
       }
     );

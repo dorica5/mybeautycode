@@ -21,8 +21,10 @@ import {
   responsivePadding,
   responsiveScale,
 } from "@/src/utils/responsive";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const HomeScreen = () => {
+  const { t } = useI18n();
   const { profile } = useAuth();
   const { avatarImage } = useImageContext();
   const { width, height } = useWindowDimensions();
@@ -88,10 +90,10 @@ const HomeScreen = () => {
             style={[Typography.bodyLarge, styles.searchCardCopy]}
             accessibilityRole="text"
           >
-            Search for a specific professional to get started
+            {t("home.clientSearchPrompt")}
           </Text>
           <PaddedLabelButton
-            title="Search for professional"
+            title={t("home.clientSearchCta")}
             horizontalPadding={32}
             verticalPadding={16}
             onPress={() =>
@@ -103,12 +105,12 @@ const HomeScreen = () => {
         </View>
 
         <BrandHomeNavLink
-          title="My visits"
+          title={t("home.myVisits")}
           onPress={() => router.push("/visits/see_visits_client")}
           style={styles.navLink}
         />
         <BrandHomeNavLink
-          title="My inspiration"
+          title={t("home.myInspiration")}
           onPress={() => router.push({ pathname: "/inspiration" })}
         />
       </ScrollView>

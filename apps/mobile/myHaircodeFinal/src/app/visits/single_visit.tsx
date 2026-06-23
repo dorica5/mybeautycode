@@ -50,6 +50,7 @@ import {
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { IMAGE_CROP_VIEWPORT_HEIGHT_RATIO } from "@/src/components/ImageCropModal";
 import { ModerationSheetHeading } from "@/src/components/moderation/ModerationSheetParts";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type ApiRecord = Record<string, unknown> & {
   media?: unknown[];
@@ -146,6 +147,7 @@ function recordCreatedBy(r: ApiRecord | undefined): string | undefined {
 }
 
 const SingleVisit = () => {
+  const { t } = useI18n();
   const {
     haircodeId,
     hairdresserName,
@@ -220,7 +222,7 @@ const SingleVisit = () => {
 
   const displayClientName =
     (Array.isArray(full_name) ? full_name.join(" ") : full_name)?.trim() ||
-    "Client";
+    t("common.client");
   const rawNumber = Array.isArray(number) ? number[0] : number;
   const phoneLine =
     rawNumber && String(rawNumber).trim().length > 0
@@ -262,7 +264,14 @@ const SingleVisit = () => {
 
   const hairdresserPublicProfileId = recordHairdresserProfileId(record);
 
+  const isOwnProfessionalOnVisit = Boolean(
+    profile?.id &&
+      hairdresserPublicProfileId &&
+      profile.id === hairdresserPublicProfileId
+  );
+
   const openProfessionalPublicProfile = useCallback(() => {
+    if (isOwnProfessionalOnVisit) return;
     const pid =
       hairdresserPublicProfileId ??
       (typeof createdByUserId === "string" && createdByUserId
@@ -276,7 +285,7 @@ const SingleVisit = () => {
         profession_code: professionCode,
       },
     });
-  }, [hairdresserPublicProfileId, createdByUserId, professionCode]);
+  }, [hairdresserPublicProfileId, createdByUserId, professionCode, isOwnProfessionalOnVisit]);
 
   useEffect(() => {
     let cancelled = false;
@@ -308,7 +317,7 @@ const SingleVisit = () => {
     try {
       const haircode = haircodeWithMedia as ApiRecord | undefined;
       if (!haircode?.createdAt && !haircode?.created_at) {
-        Alert.alert("Error", "Visit not found.");
+        Alert.alert(t("common.error"), t("visits.visitNotFound"));
         return;
       }
       const createdAtDate = new Date(
@@ -341,7 +350,7 @@ const SingleVisit = () => {
       });
     } catch (error) {
       console.error("Error editing haircode:", error);
-      Alert.alert("Error", (error as Error).message);
+      Alert.alert(t("common.error"), (error as Error).message);
     }
   };
 
@@ -349,7 +358,7 @@ const SingleVisit = () => {
     try {
       const haircode = haircodeWithMedia as ApiRecord | undefined;
       if (!haircode?.createdAt && !haircode?.created_at) {
-        Alert.alert("Error", "Visit not found.");
+        Alert.alert(t("common.error"), t("visits.visitNotFound"));
         return;
       }
       const createdAtDate = new Date(
@@ -366,7 +375,7 @@ const SingleVisit = () => {
       setIsDeleteConfirmVisible(true);
     } catch (error) {
       console.error("Error checking haircode age:", error);
-      Alert.alert("Error", "Could not verify deletion eligibility.");
+      Alert.alert(t("common.error"), t("visits.couldNotVerifyDeletion"));
     }
   };
 
@@ -377,28 +386,28 @@ const SingleVisit = () => {
   const modalContent = isDeleteConfirmVisible ? (
     <View style={styles.confirmationContainer}>
       <ModerationSheetHeading
-        title="Delete this visit?"
-        subtitle="This cannot be undone."
+        title={t("visits.deleteConfirmTitle")}
+        subtitle={t("visits.cannotUndo")}
       />
       <Pressable
         onPress={() => handleDelete(idStr, profile?.id ?? "")}
         style={styles.deleteButton}
       >
-        <Text style={[Typography.outfitRegular16, styles.deleteButtonText]}>Delete</Text>
+        <Text style={[Typography.outfitRegular16, styles.deleteButtonText]}>{t("common.delete")}</Text>
       </Pressable>
       <Pressable onPress={toggleModal} style={styles.cancelButton}>
-        <Text style={[Typography.outfitRegular16, styles.cancelButtonText]}>Cancel</Text>
+        <Text style={[Typography.outfitRegular16, styles.cancelButtonText]}>{t("common.cancel")}</Text>
       </Pressable>
     </View>
   ) : showEditOptions ? (
     <View style={styles.sheetActionsWrap}>
       <ModerationSheetHeading
-        title="Visit actions"
-        subtitle="Edit or delete this visit record."
+        title={t("visits.visitActions")}
+        subtitle={t("visits.editDeleteSubtitle")}
       />
-      <ProfileModal title="Edit" Icon={PencilSimple} onPress={editHaircode} />
+      <ProfileModal title={t("visits.edit")} Icon={PencilSimple} onPress={editHaircode} />
       <ProfileModal
-        title="Delete"
+        title={t("common.delete")}
         Icon={Trash}
         destructive
         onPress={handleDeleteConfirm}
@@ -407,11 +416,11 @@ const SingleVisit = () => {
   ) : (
     <View style={styles.sorryContainer}>
       <ModerationSheetHeading
-        title="Sorry!"
-        subtitle="You can only edit or delete visits within 7 days of creation."
+        title={t("visits.sorryTitle")}
+        subtitle={t("visits.editWindowMessage")}
       />
       <Pressable onPress={toggleModal} style={styles.closeButton}>
-        <Text style={[Typography.outfitRegular16, styles.closeButtonText]}>Close</Text>
+        <Text style={[Typography.outfitRegular16, styles.closeButtonText]}>{t("common.close")}</Text>
       </Pressable>
     </View>
   );
@@ -422,7 +431,7 @@ const SingleVisit = () => {
       style={styles.headerMenuButton}
       hitSlop={12}
       accessibilityRole="button"
-      accessibilityLabel="Visit actions"
+      accessibilityLabel={t("visits.visitActions")}
     >
       <DotsThree size={responsiveScale(32)} color={primaryBlack} />
     </Pressable>
@@ -439,7 +448,7 @@ const SingleVisit = () => {
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={primaryBlack} />
-          <Text style={styles.loadingText}>Loading visit…</Text>
+          <Text style={styles.loadingText}>{t("visits.loadingVisit")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -456,8 +465,8 @@ const SingleVisit = () => {
       <StatusBar style="dark" />
       <CustomAlert
         visible={alertVisible}
-        title="Sorry!"
-        message="This visit can only be edited within 7 days of creation."
+        title={t("visits.sorryTitle")}
+        message={t("visits.editWindowClientMessage")}
         onClose={() => setAlertVisible(false)}
       />
       <View style={styles.body}>
@@ -488,7 +497,12 @@ const SingleVisit = () => {
           }}
           mediaSlides={signedMedia}
           carouselHeight={carouselHeight}
-          onPressProfessional={openProfessionalPublicProfile}
+          onPressProfessional={
+            isOwnProfessionalOnVisit
+              ? undefined
+              : openProfessionalPublicProfile
+          }
+          professionalDisabled={isOwnProfessionalOnVisit}
           />
         </ScrollView>
       </View>
@@ -496,7 +510,7 @@ const SingleVisit = () => {
       <SmallDraggableModal
         isVisible={isModalVisible}
         onClose={toggleModal}
-        modalHeight={"56%"}
+        modalHeight={"68%"}
         sheetVariant="brand"
         renderContent={modalContent}
       />

@@ -49,15 +49,16 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { usePostHog } from "posthog-react-native";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
-import { establishmentNoun } from "@/src/constants/professionCodes";
+import { useEstablishmentNoun, useI18n } from "@/src/providers/LanguageProvider";
+import { AppLanguageButton } from "@/src/components/AppLanguageButton";
 
 const ProfileScreen = () => {
   const { profile, loading, signOut } = useAuth();
   const { avatarImage } = useImageContext();
   const posthog = usePostHog();
   const { activeProfessionCode } = useActiveProfessionState(profile);
-  /** "Salon" / "Barbershop" for the menu rows that edit per-lane business fields. */
-  const placeNoun = establishmentNoun(activeProfessionCode);
+  const { t } = useI18n();
+  const placeNoun = useEstablishmentNoun(activeProfessionCode);
 
   if (loading) {
     return <ActivityIndicator />;
@@ -79,6 +80,7 @@ const ProfileScreen = () => {
             showsHorizontalScrollIndicator={false}
           >
             <View style={styles.mainView}>
+              <AppLanguageButton />
               {avatarImage ? (
                 <AvatarWithSpinner
                   uri={avatarImage}
@@ -102,13 +104,13 @@ const ProfileScreen = () => {
                 }
                 style={styles.editImagePressable}
               >
-                <Text style={styles.editImageText}>Edit image</Text>
+                <Text style={styles.editImageText}>{t("profile.editImage")}</Text>
               </Pressable>
 
-              <Text style={styles.myProfileTitle}>My profile</Text>
+              <Text style={styles.myProfileTitle}>{t("profile.myProfile")}</Text>
 
               <BrandAccountSurfacePill
-                label="Switch account"
+                label={t("profile.switchAccount")}
                 onPress={() =>
                   router.push({
                     pathname:
@@ -128,11 +130,11 @@ const ProfileScreen = () => {
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterPill]}
               >
-                Public profile
+                {t("profile.publicProfile")}
               </Text>
 
               <Profile
-                title="First name"
+                title={t("profile.firstName")}
                 Icon={ProfileMenuNameIcon}
                 tileStyle="light"
                 top
@@ -141,7 +143,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Last name"
+                title={t("profile.lastName")}
                 Icon={ProfileMenuNameIcon}
                 tileStyle="light"
                 onPress={() =>
@@ -149,7 +151,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Username"
+                title={t("profile.username")}
                 Icon={At}
                 tileStyle="light"
                 onPress={() =>
@@ -157,7 +159,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title={`${placeNoun} phone number`}
+                title={t("profile.placePhoneNumber", { place: placeNoun })}
                 Icon={Phone}
                 tileStyle="light"
                 onPress={() =>
@@ -165,7 +167,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title={`${placeNoun} name`}
+                title={t("profile.placeName", { place: placeNoun })}
                 Icon={HouseLine}
                 tileStyle="light"
                 onPress={() =>
@@ -173,7 +175,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title={`${placeNoun} address`}
+                title={t("profile.placeAddress", { place: placeNoun })}
                 Icon={MapPin}
                 tileStyle="light"
                 onPress={() =>
@@ -181,7 +183,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="About me / Get discovered"
+                title={t("profile.aboutMeGetDiscovered")}
                 Icon={PencilSimple}
                 tileStyle="light"
                 onPress={() =>
@@ -189,7 +191,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Profile picture"
+                title={t("profile.profilePicture")}
                 Icon={UserCircle}
                 tileStyle="light"
                 bottom
@@ -202,11 +204,11 @@ const ProfileScreen = () => {
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
               >
-                Reach & stats
+                {t("profile.reachAndStats")}
               </Text>
 
               <Profile
-                title="Your reach & stats"
+                title={t("profile.yourReachAndStats")}
                 Icon={ChartLineUp}
                 tileStyle="light"
                 top
@@ -220,18 +222,18 @@ const ProfileScreen = () => {
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
               >
-                Privacy settings
+                {t("profile.privacySettings")}
               </Text>
 
               <Profile
-                title="Change password"
+                title={t("profile.changePassword")}
                 Icon={LockKey}
                 tileStyle="light"
                 top
                 onPress={() => router.push("/(auth)/ChangePassword")}
               />
               <Profile
-                title="Add account"
+                title={t("profile.addAccount")}
                 Icon={PlusCircle}
                 tileStyle="light"
                 onPress={() =>
@@ -239,7 +241,7 @@ const ProfileScreen = () => {
                 }
               />
               <Profile
-                title="Delete account"
+                title={t("profile.deleteAccount")}
                 Icon={MinusCircle}
                 tileStyle="light"
                 bottom
@@ -262,11 +264,11 @@ const ProfileScreen = () => {
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
               >
-                Billing
+                {t("profile.billing")}
               </Text>
 
               <Profile
-                title="Subscription"
+                title={t("profile.subscription")}
                 Icon={CreditCard}
                 tileStyle="light"
                 top
@@ -280,18 +282,18 @@ const ProfileScreen = () => {
               <Text
                 style={[styles.sectionHeading, styles.sectionHeadingAfterCard]}
               >
-                Terms and privacy
+                {t("profile.termsAndPrivacy")}
               </Text>
 
               <Profile
-                title="Terms and Privacy"
+                title={t("profile.termsAndPrivacyLink")}
                 Icon={FileText}
                 tileStyle="light"
                 top
                 onPress={() => router.push("/(setup)/TermsAndPrivacy")}
               />
               <Profile
-                title="Give us feedback"
+                title={t("profile.giveFeedback")}
                 Icon={ChatCircleText}
                 tileStyle="light"
                 bottom
@@ -305,7 +307,7 @@ const ProfileScreen = () => {
 
               <View style={styles.ViewPublicProfileButton}>
                 <PaddedLabelButton
-                  title="View public profile"
+                  title={t("profile.viewPublicProfile")}
                   horizontalPadding={32}
                   verticalPadding={16}
                   onPress={() =>
@@ -319,7 +321,7 @@ const ProfileScreen = () => {
               </View>
 
               <SignOutButton
-                text="Sign out"
+                text={t("profile.signOut")}
                 onPress={signOut}
                 disabled={loading}
                 style={styles.signOutPill}
@@ -343,6 +345,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mainView: {
+    position: "relative",
     paddingBottom: scalePercent(8),
   },
   viewPublicProfileButton: {

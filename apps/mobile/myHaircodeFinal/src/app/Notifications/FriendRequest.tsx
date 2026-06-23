@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Alert, Pressable } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, type Href } from "expo-router";
 import { api } from "@/src/lib/apiClient";
 import {
   getNotification,
@@ -27,17 +27,53 @@ import {
 } from "@/src/components/MintBrandModal";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { useI18n } from "@/src/providers/LanguageProvider";
+
+function firstParam(value: string | string[] | undefined): string | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value[0];
+  return undefined;
+}
 
 export const FriendRequest = () => {
-  const { notificationId, senderId, senderName, isClient, profile_pic } =
-    useLocalSearchParams();
+  const { t } = useI18n();
+  const {
+    notificationId,
+    senderId,
+    senderName,
+    isClient,
+    profile_pic,
+    professionCode,
+    profession_code,
+  } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
   const { profile } = useAuth();
+  const { activeProfessionCode } = useActiveProfessionState(profile);
   const [isHandled, setIsHandled] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [isBlockedUser, setIsBlockedUser] = useState(false);
 
   const isClientRequest = isClient === "true";
+
+  const openClientHub = () => {
+    const clientId = firstParam(senderId);
+    if (isBlockedUser || !clientId) return;
+    const lane =
+      firstParam(professionCode)?.trim() ||
+      firstParam(profession_code)?.trim() ||
+      activeProfessionCode ||
+      undefined;
+    router.push({
+      pathname: "/visits/[id]" as Href,
+      params: {
+        id: clientId,
+        full_name: firstParam(senderName) ?? "",
+        relationship: "true",
+        ...(lane ? { professionCode: lane } : {}),
+      },
+    });
+  };
 
   useEffect(() => {
     const checkBlocked = async () => {
@@ -118,7 +154,7 @@ export const FriendRequest = () => {
       }
     } catch (error) {
       console.error("Error handling friend request:", error);
-      Alert.alert("Error", "Failed to process request");
+      Alert.alert(t("common.error"), t("notifications.processRequestFailed"));
     } finally {
       setLoading(false);
     }
@@ -138,33 +174,34 @@ export const FriendRequest = () => {
           <NavBackRow
             onPress={() => router.back()}
             style={styles.backRow}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("notifications.goBack")}
             hitSlop={12}
           />
 
           <View style={styles.content}>
               <Pressable
                 style={styles.profileColumn}
-                onPress={
-                  !isBlockedUser
-                    ? () =>
-                        router.push({
-                          pathname: `../(professional)/clientProfile/${senderId}`,
-                          params: { id: senderId, relationship: "true" },
-                        })
-                    : null
-                }
+                onPress={!isBlockedUser ? openClientHub : undefined}
               >
                 <AvatarWithSpinner
                   uri={profile_pic}
                   size={responsiveScale(86)}
                   style={styles.avatar}
                 />
-                <Text style={[Typography.h3, styles.name]}>{senderName}</Text>
+                <Text style={[Typography.h3, styles.name, styles.nameClient]}>
+                  {senderName}
+                </Text>
               </Pressable>
             <Text style={[Typography.bodyMedium, styles.message]}>
-              wants to connect with you.
+              {t("notifications.connectedSuffix")}
             </Text>
+            <View style={styles.viewProfileAction}>
+              <MintBrandModalPrimaryButton
+                label={t("common.viewProfile")}
+                onPress={openClientHub}
+                accessibilityLabel={t("common.viewProfile")}
+              />
+            </View>
           </View>
         </SafeAreaView>
       </>
@@ -207,7 +244,7 @@ export const FriendRequest = () => {
             </Pressable>
 
           <Text style={[Typography.bodyMedium, styles.message]}>
-            wants access to your visits.
+            {t("notifications.wantsAccessSuffix")}
           </Text>
 
           {!isHandled && (
@@ -219,14 +256,14 @@ export const FriendRequest = () => {
             >
               <MintBrandModalFooterRow>
                 <MintBrandModalSecondaryButton
-                  label="Decline"
+                  label={t("common.decline")}
                   onPress={() => handleResponse(false)}
-                  accessibilityLabel="Decline request"
+                  accessibilityLabel={t("notifications.declineRequestA11y")}
                 />
                 <MintBrandModalPrimaryButton
-                  label={loading ? "Please wait" : "Accept"}
+                  label={loading ? t("inspiration.pleaseWait") : t("common.accept")}
                   onPress={() => handleResponse(true)}
-                  accessibilityLabel="Accept request"
+                  accessibilityLabel={t("notifications.acceptRequestA11y")}
                 />
               </MintBrandModalFooterRow>
             </View>
@@ -268,12 +305,22 @@ const styles = StyleSheet.create({
   name: {
     textAlign: "center",
   },
+  nameClient: {
+    marginTop: responsiveMargin(18),
+  },
   message: {
     textAlign: "center",
     marginTop: responsiveMargin(16),
     maxWidth: 360,
     color: primaryBlack,
     opacity: 0.92,
+  },
+  viewProfileAction: {
+    marginTop: responsiveMargin(26),
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: 440,
+    alignItems: "center",
   },
   actions: {
     marginTop: responsiveMargin(26),

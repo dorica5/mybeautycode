@@ -20,8 +20,10 @@ import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
 import { parseProfilePhone } from "@/src/lib/profileFieldValidation";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const PhoneNumber = () => {
+  const { t } = useI18n();
   const { profile, setProfile } = useAuth();
   const originalPhoneNumber = profile.phone_number;
   const userId = profile.id;
@@ -49,7 +51,7 @@ const PhoneNumber = () => {
   const updateUserProfile = () => {
     setAttemptedSubmit(true);
     if (!userId) {
-      Alert.alert("User not found");
+      Alert.alert(t("profile.userNotFound"));
       return;
     }
 
@@ -97,11 +99,11 @@ const PhoneNumber = () => {
               msg.includes("use"))
           ) {
             Alert.alert(
-              "Phone number in use",
-              "This number is already linked to another account."
+              t("profile.phoneInUse"),
+              t("profile.phoneInUseMessage")
             );
           } else {
-            Alert.alert("Failed to update profile", err.message);
+            Alert.alert(t("profile.updateFailed"), err.message);
           }
         },
       }
@@ -115,7 +117,7 @@ const PhoneNumber = () => {
   return (
     <MintProfileScreenShell>
       <TopNav
-        title="Phone number"
+        title={t("profile.phoneNumber")}
         showSaveButton
         saveChanged={changed}
         saveAction={updateUserProfile}
@@ -134,7 +136,7 @@ const PhoneNumber = () => {
           showsVerticalScrollIndicator={false}
         >
           <BrandOutlineField
-            accessibilityLabel="Phone number"
+            accessibilityLabel={t("profile.phoneNumber")}
             placeholder={
               countryHint
                 ? "e.g. +47… or national number"

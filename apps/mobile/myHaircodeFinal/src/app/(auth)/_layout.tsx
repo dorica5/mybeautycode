@@ -1,10 +1,10 @@
 import React from "react";
-import { Href, Redirect, Stack, useSegments } from "expo-router";
+import { Redirect, Stack, useSegments } from "expo-router";
 import {
   profileSetupIsComplete,
   useAuth,
 } from "../../providers/AuthProvider";
-import { profileHasProfessionalCapability } from "@/src/constants/professionCodes";
+import { resolveAppHome } from "@/src/lib/resolveAppHome";
 import LoadingScreen from "../(setup)/LoadingScreen";
 import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenOptions";
 
@@ -33,11 +33,7 @@ const AuthLayout = () => {
     segments[1] !== "Delete" &&
     segments[1] !== "ChangePassword"
   ) {
-    const canPro = profileHasProfessionalCapability(profile);
-    const home: Href =
-      canPro && lastAppSurfacePref === "professional"
-        ? "/(professional)/(tabs)/home"
-        : "/(client)/(tabs)/home";
+    const home = resolveAppHome(profile, lastAppSurfacePref);
     console.log("🔄 AuthLayout redirecting to main app", home);
     return <Redirect href={home} />;
   }

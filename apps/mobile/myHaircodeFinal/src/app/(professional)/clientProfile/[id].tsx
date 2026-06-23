@@ -43,7 +43,7 @@ import RapportUserModal from "@/src/components/RapportUserModal";
 import {
   ModerationSheetHeading,
   ModerationReasonRow,
-  moderationDetailCopy,
+  useModerationDetailCopy,
   reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
@@ -63,10 +63,13 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { coerceRouteParam, isUuid } from "@/src/utils/isUuid";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 const screenHeight = Dimensions.get("window").height;
 
 const UserProfile = () => {
+  const { t } = useI18n();
+  const moderationDetailCopy = useModerationDetailCopy();
   const params = useLocalSearchParams<{
     id?: string | string[];
     client_id?: string | string[];
@@ -106,6 +109,10 @@ const UserProfile = () => {
   const queryClient = useQueryClient();
 
   const hairdresser_id = session?.user.id;
+
+  const isSelfClientProfile = Boolean(
+    hairdresser_id && client_id && String(hairdresser_id) === String(client_id)
+  );
 
   const paramStr = (v: string | string[] | undefined) =>
     Array.isArray(v) ? v[0] : v;
@@ -158,8 +165,8 @@ const UserProfile = () => {
     } catch (err) {
       console.error("Error sending client link request:", err);
       Alert.alert(
-        "Request failed",
-        err instanceof Error ? err.message : "Could not send the request."
+        t("search.requestFailed"),
+        err instanceof Error ? err.message : t("search.couldNotSendRequest")
       );
     } finally {
       setLoading(false);
@@ -179,7 +186,7 @@ const UserProfile = () => {
       setLinkState("none");
       setActiveAction(null);
     } catch {
-      Alert.alert("Error", "Failed to remove relationship.");
+      Alert.alert(t("common.error"), t("moderation.removeRelationshipFailed"));
     }
   };
 
@@ -199,23 +206,23 @@ const UserProfile = () => {
       );
       if (result.autoBlocked) {
         Alert.alert(
-          "Report received",
-          "Thanks for letting us know. This account was restricted after repeated reports."
+          t("moderation.reportReceived"),
+          t("moderation.reportAutoBlocked")
         );
       } else {
-        Alert.alert("Report received", result.message);
+        Alert.alert(t("moderation.reportReceived"), result.message);
       }
       setActiveAction(null);
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : "";
       if (msg === "You have already reported this user") {
         Alert.alert(
-          "Already reported",
-          "You have already submitted a report for this account."
+          t("moderation.alreadyReported"),
+          t("moderation.alreadyReportedMessage")
         );
       } else {
         console.error("Error reporting user:", error);
-        Alert.alert("Error", "Failed to report user");
+        Alert.alert(t("common.error"), t("moderation.reportUserFailed"));
       }
       setActiveAction(null);
     }
@@ -224,23 +231,23 @@ const UserProfile = () => {
   const modalContent = (
     <View>
       <ModerationSheetHeading
-        title="Safety & privacy"
-        subtitle={`Manage how you interact with this client on ${BRAND_DISPLAY_NAME}.`}
+        title={t("moderation.safetyTitle")}
+        subtitle={t("moderation.safetySubtitlePro", { brand: BRAND_DISPLAY_NAME })}
       />
       <RapportUserModal
-        title="Delete"
+        title={t("moderation.deleteLabel")}
         onPress={() => handleModalOption("Delete")}
       />
       <RapportUserModal
-        title="Block"
+        title={t("common.block")}
         onPress={() => handleModalOption("Block")}
       />
       <RapportUserModal
-        title="Report"
+        title={t("common.report")}
         onPress={() => handleModalOption("Report")}
       />
       <RapportUserModal
-        title="Cancel"
+        title={t("common.cancel")}
         onPress={() => setIsModalVisible(false)}
       />
     </View>
@@ -265,14 +272,14 @@ const UserProfile = () => {
         {activeAction === "Delete" && (
           <>
             <ModerationReasonRow
-              label="Remove client"
+              label={t("moderation.removeClientLabel")}
               danger
               onPress={async () => {
                 if (client_id) await deleteClient(client_id);
               }}
             />
-            <ModerationReasonRow
-              label="Not now"
+            <RapportUserModal
+              title={t("common.cancel")}
               onPress={() => setActiveAction(null)}
             />
           </>
@@ -282,7 +289,13 @@ const UserProfile = () => {
             (reason, idx) => (
               <ModerationReasonRow
                 key={`${reason}-${idx}`}
-                label={reason}
+                label={
+                  reason === "No reason"
+                    ? t("moderation.noReason")
+                    : reason === "Spam, fake profile"
+                      ? t("moderation.spamFakeProfile")
+                      : t("moderation.inappropriateContent")
+                }
                 onPress={async () => {
                   if (!client_id || !hairdresser_id) return;
                   await blockUser(
@@ -292,8 +305,10 @@ const UserProfile = () => {
                     queryClient
                   );
                   Alert.alert(
-                    "Account blocked",
-                    `They can no longer reach you through ${BRAND_DISPLAY_NAME}.`
+                    t("moderation.accountBlocked"),
+                    t("moderation.accountBlockedMessage", {
+                      brand: BRAND_DISPLAY_NAME,
+                    })
                   );
                   setActiveAction(null);
                   setIsBlockedUser(true);
@@ -335,7 +350,7 @@ const UserProfile = () => {
         <NavBackRow
           onPress={() => router.back()}
           style={styles.backRow}
-          accessibilityLabel="Go back"
+          accessibilityLabel={t("common.goBack")}
           hitSlop={12}
         />
       </SafeAreaView>
@@ -360,7 +375,7 @@ const UserProfile = () => {
           <NavBackRow
             onPress={() => router.back()}
             style={styles.backRow}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t("common.goBack")}
             hitSlop={12}
           />
 
@@ -394,7 +409,7 @@ const UserProfile = () => {
               style={[Typography.h3, styles.nameMint]}
               accessibilityRole="header"
             >
-              {data?.full_name?.trim() || data?.phone_number || "Client"}
+              {data?.full_name?.trim() || data?.phone_number || t("common.client")}
             </Text>
             {displayUsername ? (
               <Text style={[Typography.anton26, styles.usernameMint]}>
@@ -406,7 +421,7 @@ const UserProfile = () => {
               <View style={styles.mintButtonWrap}>
                 <MyButton
                   style={[styles.unblockMint, { borderColor: "red" }]}
-                  text="Unblock"
+                  text={t("profile.unblock")}
                   textSize={18}
                   textTabletSize={14}
                   onPress={async () => {
@@ -442,7 +457,9 @@ const UserProfile = () => {
                   <ActivityIndicator color={primaryBlack} />
                 ) : (
                   <Text style={styles.addClientPillLabel}>
-                    {linkState === "pending" ? "Pending..." : "Add client"}
+                    {linkState === "pending"
+                      ? t("profile.requestPending")
+                      : t("profile.addClient")}
                   </Text>
                 )}
               </Pressable>
@@ -472,16 +489,16 @@ const UserProfile = () => {
             <View style={styles.whiteBackIcon}>
               <NavBackRow
                 onPress={() => router.back()}
-                accessibilityLabel="Go back"
+                accessibilityLabel={t("common.goBack")}
                 hitSlop={12}
               />
             </View>
-            {!isBlockedUser ? (
+            {!isBlockedUser && !isSelfClientProfile ? (
               <Pressable
                 onPress={toggleModal}
                 style={styles.whiteMoreIcon}
                 hitSlop={12}
-                accessibilityLabel="More options"
+                accessibilityLabel={t("profile.moreOptions")}
               >
                 <DotsThree
                   size={responsiveScale(32)}
@@ -507,7 +524,7 @@ const UserProfile = () => {
               {isBlockedUser ? (
                 <MyButton
                   style={[styles.whiteUnblockButton, { borderColor: "red" }]}
-                  text="Unblock User"
+                  text={t("profile.unblockUser")}
                   textSize={18}
                   textTabletSize={14}
                   onPress={async () => {
@@ -571,7 +588,7 @@ const UserProfile = () => {
               setPendingAction(null);
             }
           }}
-          modalHeight={screenHeight * 0.58}
+          modalHeight={screenHeight * 0.68}
           sheetVariant="brand"
           renderContent={modalContent}
         />

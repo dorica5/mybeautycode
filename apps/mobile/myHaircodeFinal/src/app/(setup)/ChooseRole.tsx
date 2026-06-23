@@ -5,6 +5,7 @@ import TopNav from "@/src/components/TopNav";
 import MyButton from "@/src/components/MyButton";
 import { Colors } from "@/src/constants/Colors";
 import { router } from "expo-router";
+import { useI18n } from "@/src/providers/LanguageProvider";
 import { ResponsiveText } from "@/src/components/ResponsiveText";
 import { Spacer } from "@/src/components/Spacer";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/src/utils/responsive";
 
 const ChooseRole = () => {
+  const { t } = useI18n();
   const [selectedRole, setSelectedRole] = useState<
     "hairdresser" | "client" | null
   >(null);
@@ -37,7 +39,7 @@ const ChooseRole = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <TopNav title="Choose Role" />
+      <TopNav title={t("setup.chooseRole")} />
       {/* Spacer is taller on phone, tighter on tablet */}
       <Spacer vertical={isTablet() ? 60 : 120} />
       <ScrollView contentContainerStyle={styles.mainContainer}>
@@ -57,7 +59,7 @@ const ChooseRole = () => {
               selectedRole === "hairdresser" && styles.selectedRoleText,
             ]}
           >
-            I'm a hairdresser
+            {t("profession.imHair")}
           </ResponsiveText>
         </Pressable>
 
@@ -77,12 +79,12 @@ const ChooseRole = () => {
               selectedRole === "client" && styles.selectedRoleText,
             ]}
           >
-            I'm a client
+            {t("profession.imClient")}
           </ResponsiveText>
         </Pressable>
 
         <MyButton
-          text="Next"
+          text={t("common.next")}
           textSize={18}
           textTabletSize={14}
           onPress={goToNext}

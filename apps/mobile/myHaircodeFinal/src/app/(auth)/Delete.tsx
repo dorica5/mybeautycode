@@ -27,6 +27,7 @@ import {
   setLastAppSurface,
   setLastProfessionCode,
 } from "@/src/lib/lastVisitPreference";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 /** Client surface = delete Supabase user & DB profile. Professional = delete current lane only (or whole pro profile if last lane). */
 type DeleteScope = "client" | "professional";
@@ -46,6 +47,7 @@ function routeProfessionParam(
 }
 
 const Delete = () => {
+  const { t } = useI18n();
   const params = useLocalSearchParams<{
     scope?: string;
     profession_code?: string;
@@ -68,10 +70,10 @@ const Delete = () => {
 
   const laneTitle = useMemo(() => {
     if (!coercedLaneCode || !PROFESSION_HEADLINE_ROLE) {
-      return "this professional profile";
+      return t("authDelete.thisProfessionalProfile");
     }
-    return PROFESSION_HEADLINE_ROLE[coercedLaneCode] ?? "this role";
-  }, [coercedLaneCode]);
+    return PROFESSION_HEADLINE_ROLE[coercedLaneCode] ?? t("authDelete.thisRole");
+  }, [coercedLaneCode, t]);
 
   const laneAccountLabel = useMemo(() => {
     if (!coercedLaneCode || !PROFESSION_ACCOUNT_LABEL) return null;
@@ -82,14 +84,14 @@ const Delete = () => {
     if (scope === "professional") {
       const youRemove =
         laneAccountLabel ?? laneTitle;
-      return `This removes your ${youRemove} from Get discovered (including clients linked only to this role and portfolio images for this lane). If it was your only professional role, your professional account is removed — your login stays.`;
+      return t("authDelete.deleteProLaneBody", { role: youRemove });
     }
-    return `Are you sure you want to delete your account? This removes your profile and data from ${BRAND_DISPLAY_NAME} and cannot be undone.`;
-  }, [scope, laneAccountLabel, laneTitle]);
+    return t("authDelete.deleteClientBody", { brand: BRAND_DISPLAY_NAME });
+  }, [scope, laneAccountLabel, laneTitle, t]);
 
   const onDelete = async () => {
     if (!profile?.id) {
-      Alert.alert("Error", "User not found");
+      Alert.alert(t("common.error"), t("profile.userNotFound"));
       return;
     }
     setAlertVisible(false);
@@ -98,8 +100,8 @@ const Delete = () => {
       if (scope === "professional") {
         if (!professionCodeParam) {
           Alert.alert(
-            "Could not delete",
-            "Switch account to the professional profile you want to remove, then try again."
+            t("authDelete.couldNotDelete"),
+            t("authDelete.switchAccountToDelete")
           );
           return;
         }
@@ -134,8 +136,8 @@ const Delete = () => {
       }
     } catch (error) {
       Alert.alert(
-        "Error",
-        (error as Error).message || "An unexpected error occurred"
+        t("common.error"),
+        (error as Error).message || t("common.unexpectedError")
       );
       console.error("Error deleting:", error);
     } finally {
@@ -146,8 +148,8 @@ const Delete = () => {
   const confirmDelete = () => {
     if (scope === "professional" && !professionCodeParam) {
       Alert.alert(
-        "Could not delete",
-        "Switch account to the professional profile you want to remove, then try again."
+        t("authDelete.couldNotDelete"),
+        t("authDelete.switchAccountToDelete")
       );
       return;
     }
@@ -159,23 +161,27 @@ const Delete = () => {
       ? coercedLaneCode &&
           PROFESSION_HEADLINE_ROLE &&
           PROFESSION_HEADLINE_ROLE[coercedLaneCode]
-        ? `Remove ${PROFESSION_HEADLINE_ROLE[coercedLaneCode].toLowerCase()} account?`
-        : `Remove ${laneTitle}?`
-      : "Delete your account permanently?";
+        ? t("authDelete.removeRoleAccount", {
+            role: PROFESSION_HEADLINE_ROLE[coercedLaneCode].toLowerCase(),
+          })
+        : t("authDelete.removeRoleAccount", { role: laneTitle })
+      : t("authDelete.deleteAccountPermanently");
 
   const removeProfileButtonTitle =
     scope === "professional" &&
     coercedLaneCode &&
     PROFESSION_HEADLINE_ROLE &&
     PROFESSION_HEADLINE_ROLE[coercedLaneCode]
-      ? `Remove ${PROFESSION_HEADLINE_ROLE[coercedLaneCode].toLowerCase()} profile`
+      ? t("authDelete.removeRoleProfile", {
+          role: PROFESSION_HEADLINE_ROLE[coercedLaneCode].toLowerCase(),
+        })
       : scope === "professional"
-        ? "Remove professional profile"
-        : "Delete account";
+        ? t("authDelete.removeProfessionalProfile")
+        : t("authDelete.deleteAccountButton");
 
   return (
     <MintProfileScreenShell>
-      <TopNav title="Delete account" />
+      <TopNav title={t("authDelete.deleteAccountTitle")} />
       <View style={styles.body}>
         <Text
           style={[
@@ -197,7 +203,7 @@ const Delete = () => {
         />
         <CustomAlert
           visible={alertVisible}
-          title={scope === "professional" ? "Remove this profile?" : "Delete account"}
+          title={scope === "professional" ? t("authDelete.removeProfileConfirm") : t("authDelete.deleteAccountTitle")}
           message={alertBody}
           onClose={() => setAlertVisible(false)}
           fromDelete={true}

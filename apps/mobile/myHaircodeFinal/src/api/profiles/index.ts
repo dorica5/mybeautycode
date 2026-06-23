@@ -1,4 +1,5 @@
 import { api } from "@/src/lib/apiClient";
+import { toBackendProfessionCode } from "@/src/api/salons";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert } from "react-native";
@@ -139,7 +140,11 @@ export const useListAllHairdresserSearch = (
   clientId: string | undefined,
   professionCode?: string | null
 ) => {
-  const code = professionCode?.trim() || undefined;
+  const code = professionCode?.trim()
+    ? toBackendProfessionCode(
+        professionCode.trim() as "hair" | "nails" | "brows" | "barber"
+      ) ?? professionCode.trim()
+    : undefined;
   const q = searchQuery.trim();
   return useQuery({
     queryKey: ["hairdresserSearch", q, clientId ?? "", code ?? "any"],

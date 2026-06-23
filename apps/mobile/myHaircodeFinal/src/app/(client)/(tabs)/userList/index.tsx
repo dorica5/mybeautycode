@@ -36,8 +36,17 @@ import {
   responsivePadding,
   responsiveMargin,
 } from "@/src/utils/responsive";
+import { useI18n } from "@/src/providers/LanguageProvider";
 
 type Profession = "hair" | "nails" | "brows" | "barber";
+
+function normalizeProfessionParam(
+  p: string | string[] | undefined
+): string | undefined {
+  if (typeof p === "string") return p;
+  if (Array.isArray(p) && p.length > 0) return p[0];
+  return undefined;
+}
 
 function parseProfession(p: string | undefined): Profession | undefined {
   if (p === "hair" || p === "nails" || p === "brows" || p === "barber") return p;
@@ -45,10 +54,11 @@ function parseProfession(p: string | undefined): Profession | undefined {
 }
 
 const FindProfessionalsScreen = () => {
+  const { t } = useI18n();
   const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const { profession } = useLocalSearchParams<{ profession?: string }>();
-  const professionKey = parseProfession(profession);
+  const { profession } = useLocalSearchParams<{ profession?: string | string[] }>();
+  const professionKey = parseProfession(normalizeProfessionParam(profession));
 
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
@@ -57,7 +67,8 @@ const FindProfessionalsScreen = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
 
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
+  const clientId = profile?.id ?? session?.user?.id;
   const isFocused = useIsFocused();
   const navigation = useNavigation();
 
@@ -69,7 +80,7 @@ const FindProfessionalsScreen = () => {
     refetch,
   } = useListAllHairdresserSearch(
     debouncedQuery,
-    profile?.id,
+    clientId,
     professionKey
   );
 
@@ -131,7 +142,7 @@ const FindProfessionalsScreen = () => {
             <FlatList
               data={debouncedQuery ? searchResults : []}
               keyExtractor={(item, index) =>
-                `${item.hairdresser_id}_${index}`
+                `${item.hairdresser_id ?? (item as { profile_id?: string }).profile_id ?? index}_${index}`
               }
               keyboardShouldPersistTaps="handled"
               removeClippedSubviews={false}
@@ -166,13 +177,13 @@ const FindProfessionalsScreen = () => {
                   <View style={styles.headerBlock}>
                     <View style={styles.topCenter}>
                       <Text style={[Typography.h3, styles.title]}>
-                        Find professionals
+                        {t("discover.findProfessionals")}
                       </Text>
                     </View>
 
                     <View style={styles.searchSection}>
                       <Text style={styles.fieldLabel}>
-                        Search for specific professional
+                        {t("discover.searchSpecific")}
                       </Text>
                       <SearchInput
                         variant="whitePill"
@@ -186,24 +197,27 @@ const FindProfessionalsScreen = () => {
                         value={searchQuery}
                         onSearch={handleSearch}
                         initialQuery={searchQuery}
-                        placeholder="Search…"
+                        placeholder={t("common.searchPlaceholder")}
                         clearSearch={clearSearch}
-                      />
-                    </View>
-
-                    <View style={styles.mapSection}>
-                      <Text style={styles.mapOrLabel}>or</Text>
-                      <PaddedLabelButton
-                        title="Go to map"
-                        horizontalPadding={0}
-                        verticalPadding={0}
-                        onPress={goToMap}
-                        style={styles.mapCta}
-                        textStyle={styles.mapCtaLabel}
                       />
                     </View>
                   </View>
                 </>
+              }
+              ListFooterComponent={
+                <View style={[styles.headerBlock, styles.mapFooter]}>
+                  <View style={styles.mapSection}>
+                    <Text style={styles.mapOrLabel}>{t("common.or")}</Text>
+                    <PaddedLabelButton
+                      title={t("discover.goToMap")}
+                      horizontalPadding={0}
+                      verticalPadding={0}
+                      onPress={goToMap}
+                      style={styles.mapCta}
+                      textStyle={styles.mapCtaLabel}
+                    />
+                  </View>
+                </View>
               }
               renderItem={({ item }) => (
                 <SearchResults
@@ -219,7 +233,7 @@ const FindProfessionalsScreen = () => {
                     <View style={styles.emptyContainer}>
                       <ActivityIndicator
                         color={primaryBlack}
-                        style={{ marginTop: 24 }}
+                        style={{ marginTop: 8 }}
                       />
                     </View>
                   ) : isError ? (
@@ -227,11 +241,10 @@ const FindProfessionalsScreen = () => {
                       <Text style={styles.searchErrorText}>
                         {error instanceof Error
                           ? error.message
-                          : "Could not reach the server."}
+                          : t("discover.couldNotReachServer")}
                       </Text>
                       <Text style={styles.searchErrorHint}>
-                        If the API runs on your machine, set EXPO_PUBLIC_API_URL
-                        to your LAN IP (not localhost) and restart Expo with -c.
+                        {t("discover.apiHint")}
                       </Text>
                       <Pressable
                         onPress={() => void refetch()}
@@ -240,15 +253,17 @@ const FindProfessionalsScreen = () => {
                           pressed && styles.searchRetryBtnPressed,
                         ]}
                         accessibilityRole="button"
-                        accessibilityLabel="Retry search"
+                        accessibilityLabel={t("common.tryAgain")}
                       >
-                        <Text style={styles.searchRetryLabel}>Try again</Text>
+                        <Text style={styles.searchRetryLabel}>
+                          {t("common.tryAgain")}
+                        </Text>
                       </Pressable>
                     </View>
                   ) : (
                     <View style={styles.emptyContainer}>
                       <Text style={styles.noResultsText}>
-                        No results found for &quot;{debouncedQuery}&quot;
+                        {t("discover.noResultsFor", { query: debouncedQuery })}
                       </Text>
                       {[
                         "cutters",
@@ -260,12 +275,13 @@ const FindProfessionalsScreen = () => {
                         debouncedQuery.toLowerCase().includes(chain)
                       ) ? (
                         <Text style={styles.helperText}>
-                          This app is for individual hairdressers, not salon
-                          chains like {debouncedQuery}.
+                          {t("discover.chainTip", { query: debouncedQuery })}
                         </Text>
                       ) : (
                         <Text style={styles.helperText}>
-                          {`Seems like your hairdresser hasn't started using ${BRAND_DISPLAY_NAME} yet. Tip them about it so they're here next time you search!`}
+                          {t("home.proInviteHelper", {
+                            brand: BRAND_DISPLAY_NAME,
+                          })}
                         </Text>
                       )}
                     </View>
@@ -316,7 +332,10 @@ const styles = StyleSheet.create({
   searchSection: {
     width: "100%",
     alignSelf: "stretch",
-    marginBottom: responsiveScale(46),
+    marginBottom: responsiveScale(8),
+  },
+  mapFooter: {
+    paddingTop: responsivePadding(24),
   },
   mapSection: {
     width: "100%",
@@ -338,16 +357,16 @@ const styles = StyleSheet.create({
     marginBottom: responsiveMargin(10),
   },
   resultsContainer: {
-    paddingTop: responsivePadding(10),
     paddingBottom: responsivePadding(24),
   },
   emptyContainer: {
     alignItems: "center",
     paddingHorizontal: responsivePadding(20),
+    paddingTop: responsivePadding(4),
   },
   noResultsText: {
     textAlign: "center",
-    marginTop: responsiveMargin(20),
+    marginTop: responsiveMargin(8),
     fontSize: responsiveFontSize(16, 12),
     fontFamily: "Inter-Regular",
     color: "grey",
