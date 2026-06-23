@@ -17,6 +17,7 @@ import { nativeStackHorizontalIOSLike } from "@/src/constants/nativeStackScreenO
 import useLoadFonts from "@/hooks/useLoadFonts";
 import { PostHogProvider } from "posthog-react-native";
 import LanguageProvider from "../providers/LanguageProvider";
+import { BillingProvider } from "../providers/BillingProvider";
 
 export const unstable_settings = {
   initialRouteName: "(auth)",
@@ -149,6 +150,7 @@ const RootLayout = () => {
       <AuthProvider>
         <RealTimeProvider>
           <QueryProvider>
+            <BillingProvider>
             <ImageProvider>
               <MarkProvider>
                 <CameraProvider>
@@ -209,6 +211,7 @@ const RootLayout = () => {
                 </CameraProvider>
               </MarkProvider>
             </ImageProvider>
+            </BillingProvider>
           </QueryProvider>
         </RealTimeProvider>
       </AuthProvider>

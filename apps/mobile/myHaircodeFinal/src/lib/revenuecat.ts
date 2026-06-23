@@ -1,16 +1,25 @@
 import Purchases, { CustomerInfo, Offerings, PACKAGE_TYPE, PurchasesPackage } from "react-native-purchases";
+import { Platform } from "react-native";
 
-export const ENTITLEMENT_ID = "premium"; 
+export const ENTITLEMENT_ID = "premium";
+
+export function getRevenueCatApiKey(): string | null {
+  const ios = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim();
+  const android = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY?.trim();
+  if (Platform.OS === "ios") return ios || null;
+  if (Platform.OS === "android") return android || null;
+  return ios || android || null;
+}
 
 export function configureRevenueCat(apiKey: string, appUserID: string) {
-  Purchases.setLogLevel("WARN");
+  Purchases.setLogLevel(__DEV__ ? "WARN" : "ERROR");
   Purchases.configure({ apiKey, appUserID });
 }
 
 export async function getCustomerInfoSafe(force = false): Promise<CustomerInfo | null> {
   try {
     if (force) {
-      await Purchases.syncPurchases(); 
+      await Purchases.syncPurchases();
     }
     return await Purchases.getCustomerInfo();
   } catch (e) {
@@ -45,8 +54,39 @@ export function findPackage(
   return lifetime;
 }
 
-
-
 export function hasActiveEntitlement(info: CustomerInfo | null) {
   return !!info?.entitlements?.active?.[ENTITLEMENT_ID];
+}
+
+export function entitlementExpiresAtIso(info: CustomerInfo | null): string | null {
+  const ent = info?.entitlements?.active?.[ENTITLEMENT_ID];
+  if (!ent?.expirationDate) return null;
+  return ent.expirationDate;
+}
+
+export async function purchasePackageSafe(
+  pkg: PurchasesPackage
+): Promise<CustomerInfo | null> {
+  try {
+    const { customerInfo } = await Purchases.purchasePackage(pkg);
+    return customerInfo;
+  } catch (e: unknown) {
+    const userCancelled =
+      typeof e === "object" &&
+      e !== null &&
+      "userCancelled" in e &&
+      (e as { userCancelled?: boolean }).userCancelled === true;
+    if (userCancelled) return null;
+    console.error("purchasePackageSafe error", e);
+    throw e;
+  }
+}
+
+export async function restorePurchasesSafe(): Promise<CustomerInfo | null> {
+  try {
+    return await Purchases.restorePurchases();
+  } catch (e) {
+    console.error("restorePurchasesSafe error", e);
+    throw e;
+  }
 }

@@ -41,8 +41,6 @@ import {
   establishmentNoun,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
-import { BYPASS_PRO_PAYWALL_FOR_DEV } from "@/src/lib/subscriptionFlags";
-import { setPendingProfessionalSetup } from "@/src/lib/pendingProfessionalSetup";
 import { buildProfessionalSetupProfilePutBody } from "@/src/lib/professionalSetupSave";
 import { runProfessionalSetupCompletionSideEffects } from "@/src/lib/professionalSetupCompletion";
 import { useI18n } from "@/src/providers/LanguageProvider";
@@ -270,28 +268,7 @@ const ProfessionalSetup = () => {
     }
     try {
       setLoading(true);
-
-      if (BYPASS_PRO_PAYWALL_FOR_DEV) {
-        setLoadingSetup(true);
-        const updateBody = buildProfessionalSetupProfilePutBody({
-          userId,
-          professionCode,
-          profileCountry,
-          fields,
-          placeDetails,
-        });
-        await updateProfile(updateBody);
-        await runProfessionalSetupCompletionSideEffects({
-          userId,
-          professionCode,
-          profile,
-          posthog,
-        });
-        setLoadingSetup(false);
-        router.replace("/(professional)/(tabs)/home");
-        return;
-      }
-
+      setLoadingSetup(true);
       const updateBody = buildProfessionalSetupProfilePutBody({
         userId,
         professionCode,
@@ -299,17 +276,15 @@ const ProfessionalSetup = () => {
         fields,
         placeDetails,
       });
-
-      setPendingProfessionalSetup({
+      await updateProfile(updateBody);
+      await runProfessionalSetupCompletionSideEffects({
         userId,
         professionCode,
-        updateBody,
+        profile,
+        posthog,
       });
-
-      router.replace({
-        pathname: "/Screens/paywall",
-        params: { from: "professional-setup" },
-      });
+      setLoadingSetup(false);
+      router.replace("/(professional)/(tabs)/home");
     } catch (error) {
       console.error("Error during setup:", error);
       setLoadingSetup(false);

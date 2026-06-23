@@ -36,6 +36,7 @@ import {
 } from "@/src/constants/Colors";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { useI18n, formatVisitListDateForLocale } from "@/src/providers/LanguageProvider";
+import { useVisitLimitGate } from "@/src/hooks/useVisitLimitGate";
 
 type VisitListItem = {
   id: string;
@@ -105,6 +106,7 @@ function visitClientPhone(item: VisitListItem): string {
 
 const HomeScreen = () => {
   const { t, locale } = useI18n();
+  const { guard: guardViewVisits } = useVisitLimitGate("view");
   const { profile } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -197,6 +199,7 @@ const HomeScreen = () => {
 
   const openHaircode = useCallback(
     (item: VisitListItem) => {
+      if (!guardViewVisits()) return;
       void prefetchHaircodeWithMedia(queryClient, item.id);
       const ts = visitCreatedAtIso(item);
       router.push({
@@ -219,7 +222,7 @@ const HomeScreen = () => {
         },
       });
     },
-    [router, formatVisitListDate, queryClient, t]
+    [router, formatVisitListDate, queryClient, t, guardViewVisits]
   );
 
   const visitCards = useMemo(

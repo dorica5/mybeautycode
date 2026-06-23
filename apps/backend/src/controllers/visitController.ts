@@ -1,8 +1,26 @@
 import { Request, Response } from "express";
 import { visitService } from "../services/visitService";
 import { serviceRecordAccessService } from "../services/serviceRecordAccessService";
+import { billingService, VISIT_LIMIT_ERROR_CODE } from "../services/billingService";
 import { readProfessionCodeQuery } from "../lib/readProfessionCodeQuery";
 import { viewerMaySeeServiceRecordPrice } from "../lib/visitPriceVisibility";
+
+function sendVisitLimitResponse(res: Response, err: unknown) {
+  const e = err as {
+    statusCode?: number;
+    code?: string;
+    message?: string;
+    billing?: Record<string, unknown>;
+  };
+  if (e.statusCode === 402 && e.code === VISIT_LIMIT_ERROR_CODE) {
+    return res.status(402).json({
+      error: e.message ?? "Visit limit reached",
+      code: VISIT_LIMIT_ERROR_CODE,
+      billing: e.billing,
+    });
+  }
+  return null;
+}
 
 export const visitController = {
   async listClientGallery(req: Request, res: Response) {
@@ -12,18 +30,24 @@ export const visitController = {
     }
     try {
       const professionCode = readProfessionCodeQuery(req.query);
+      const clientIdStr = String(clientId);
+      if (req.userId !== clientIdStr) {
+        await billingService.assertProCanViewVisits(req.userId!);
+      }
       await serviceRecordAccessService.assertCanAccessClientTimeline(
         req.userId!,
-        String(clientId),
+        clientIdStr,
         { professionCode }
       );
       const data = await visitService.listClientGallery(
         req.userId!,
-        String(clientId),
+        clientIdStr,
         professionCode
       );
       res.json(data);
     } catch (err: unknown) {
+      const limited = sendVisitLimitResponse(res, err);
+      if (limited !== null) return limited;
       const e = err as { statusCode?: number; message?: string };
       if (e.statusCode === 403) {
         return res.status(403).json({ error: e.message ?? "Forbidden" });
@@ -40,18 +64,24 @@ export const visitController = {
     }
     try {
       const professionCode = readProfessionCodeQuery(req.query);
+      const clientIdStr = String(clientId);
+      if (req.userId !== clientIdStr) {
+        await billingService.assertProCanViewVisits(req.userId!);
+      }
       await serviceRecordAccessService.assertCanAccessClientTimeline(
         req.userId!,
-        String(clientId),
+        clientIdStr,
         { professionCode }
       );
       const data = await visitService.listClientHaircodes(
         req.userId!,
-        String(clientId),
+        clientIdStr,
         professionCode
       );
       res.json(data);
     } catch (err: unknown) {
+      const limited = sendVisitLimitResponse(res, err);
+      if (limited !== null) return limited;
       const e = err as { statusCode?: number; message?: string };
       if (e.statusCode === 403) {
         return res.status(403).json({ error: e.message ?? "Forbidden" });
@@ -64,13 +94,16 @@ export const visitController = {
   async listLatestHaircodes(req: Request, res: Response) {
     const hairdresserId = req.userId!;
     try {
+      await billingService.assertProCanViewVisits(hairdresserId);
       const professionCode = readProfessionCodeQuery(req.query);
       const data = await visitService.listLatestHaircodes(
         hairdresserId,
         professionCode
       );
       res.json(data);
-    } catch (err) {
+    } catch (err: unknown) {
+      const limited = sendVisitLimitResponse(res, err);
+      if (limited !== null) return limited;
       console.error("haircode listLatestHaircodes error:", err);
       res.status(500).json({ error: "Failed to fetch visits" });
     }
@@ -79,10 +112,17 @@ export const visitController = {
   async getWithMedia(req: Request, res: Response) {
     const { id } = req.params;
     try {
+      const record = await visitService.getWithMedia(id);
+      if (!record) return res.status(404).json({ error: "Visit not found" });
+      const clientUserId =
+        typeof (record as { clientUserId?: string }).clientUserId === "string"
+          ? (record as { clientUserId: string }).clientUserId
+          : null;
+      if (clientUserId && clientUserId !== req.userId) {
+        await billingService.assertProCanViewVisits(req.userId!);
+      }
       await serviceRecordAccessService.assertCanAccessServiceRecord(req.userId!, id);
-      const data = await visitService.getWithMedia(id);
-      if (!data) return res.status(404).json({ error: "Visit not found" });
-      const { clientPrivateNote, ...rest } = data as Record<string, unknown> & {
+      const { clientPrivateNote, ...rest } = record as Record<string, unknown> & {
         clientPrivateNote?: string | null;
         clientUserId?: string;
         professionId?: string;
@@ -111,6 +151,8 @@ export const visitController = {
       }
       res.json(payload);
     } catch (err: unknown) {
+      const limited = sendVisitLimitResponse(res, err);
+      if (limited !== null) return limited;
       const e = err as { statusCode?: number; message?: string };
       if (e.statusCode === 403) {
         return res.status(403).json({ error: e.message ?? "Forbidden" });
@@ -126,10 +168,21 @@ export const visitController = {
   async getMedia(req: Request, res: Response) {
     const { id } = req.params;
     try {
+      const peek = await visitService.getWithMedia(id);
+      if (!peek) return res.status(404).json({ error: "Visit not found" });
+      const clientUserId =
+        typeof (peek as { clientUserId?: string }).clientUserId === "string"
+          ? (peek as { clientUserId: string }).clientUserId
+          : null;
+      if (clientUserId && clientUserId !== req.userId) {
+        await billingService.assertProCanViewVisits(req.userId!);
+      }
       await serviceRecordAccessService.assertCanAccessServiceRecord(req.userId!, id);
       const data = await visitService.getMedia(id);
       res.json(data);
     } catch (err: unknown) {
+      const limited = sendVisitLimitResponse(res, err);
+      if (limited !== null) return limited;
       const e = err as { statusCode?: number; message?: string };
       if (e.statusCode === 403) {
         return res.status(403).json({ error: e.message ?? "Forbidden" });
@@ -146,6 +199,7 @@ export const visitController = {
     const userId = req.userId!;
     const body = req.body;
     try {
+      await billingService.assertProCanCreateVisit(userId);
       const data = await visitService.create({
         client_id: body.client_id,
         hairdresser_id: userId,
@@ -163,6 +217,8 @@ export const visitController = {
       });
       res.json(data);
     } catch (err: unknown) {
+      const limited = sendVisitLimitResponse(res, err);
+      if (limited !== null) return limited;
       const e = err as { statusCode?: number; message?: string };
       if (e.statusCode === 400) {
         return res.status(400).json({ error: e.message ?? "Bad request" });
@@ -212,6 +268,7 @@ export const visitController = {
       }
 
       await serviceRecordAccessService.assertProfessionalOwnsVisit(req.userId!, id);
+      await billingService.assertProCanViewVisits(req.userId!);
       const data = await visitService.update(id, req.body);
       res.json(data);
     } catch (err: unknown) {
@@ -270,6 +327,7 @@ export const visitController = {
           sid
         );
       }
+      await billingService.assertProCanViewVisits(req.userId!);
       await visitService.insertMedia(records);
       res.json({ success: true });
     } catch (err: unknown) {

@@ -41,6 +41,7 @@ import {
 } from "@/src/utils/responsive";
 import { Images } from "phosphor-react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { useVisitScreenGate } from "@/src/hooks/useVisitScreenGate";
 
 const NUM_COLUMNS = 2;
 
@@ -75,6 +76,7 @@ function isImageMedia(row: GalleryRow): boolean {
 
 const ViewGallery = () => {
   const { t } = useI18n();
+  useVisitScreenGate("view");
   const { clientId, clientName, professionCode: professionCodeParam } =
     useLocalSearchParams();
   const safeInsets = useSafeAreaInsets();

@@ -54,8 +54,25 @@ model Profile {
   userRestrictionsApplied           UserRestriction[]         @relation("UserRestrictionApplier")
   userRestrictions                  UserRestriction[]
   userStrike                        UserStrike?
+  professionalSubscription          ProfessionalSubscription?
 
   @@map("profiles")
+}
+
+/// RevenueCat / subscription state for professional accounts (visit-based billing).
+model ProfessionalSubscription {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  profileId             String    @unique @map("profile_id") @db.Uuid
+  revenueCatAppUserId   String?   @map("revenuecat_app_user_id")
+  entitlementActive     Boolean   @default(false) @map("entitlement_active")
+  entitlementExpiresAt  DateTime? @map("entitlement_expires_at") @db.Timestamptz(6)
+  plan                  String?
+  lastSyncedAt          DateTime? @map("last_synced_at") @db.Timestamptz(6)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime? @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile               Profile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@map("professional_subscriptions")
 }
 
 /// Professional/business-facing info. 1:1 with profiles.

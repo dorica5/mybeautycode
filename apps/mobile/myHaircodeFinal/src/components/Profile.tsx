@@ -71,8 +71,8 @@ const Profile = ({
   return (
     <Pressable
       style={({ pressed }) => [
-        /** Light standalone mint cards carry their own width; base `container` margins would squeeze them. */
-        !(isLight && !inGroup) && styles.container,
+        /** Default (yellowish) tiles only — light tiles use containerLight* styles. */
+        !isLight && styles.container,
         isLight &&
           !inGroup && [
             styles.containerLight,
@@ -83,7 +83,7 @@ const Profile = ({
                 lightMarginBottom !== undefined ? lightMarginBottom : 8,
             },
           ],
-        inGroup && styles.containerLightGrouped,
+        inGroup && [styles.containerLightGrouped, styles.containerLightStandaloneBase],
         !inGroup && {
           borderTopLeftRadius: top ? cornerR : 0,
           borderTopRightRadius: top ? cornerR : 0,

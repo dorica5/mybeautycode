@@ -12,6 +12,8 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { Alert } from "react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { isVisitLimitError } from "@/src/constants/billingConfig";
+import { billingQueryKey } from "@/src/api/billing";
 
 export const useDeleteHaircodeHairdresser = () => {
   const queryClient = useQueryClient();
@@ -182,7 +184,12 @@ export const useLatestHaircodes = (
       const q = code
         ? `?professionCode=${encodeURIComponent(code)}`
         : "";
-      return api.get<unknown[]>(`/api/visits/latest${q}`);
+      try {
+        return await api.get<unknown[]>(`/api/visits/latest${q}`);
+      } catch (e) {
+        if (isVisitLimitError(e)) return [];
+        throw e;
+      }
     },
     staleTime: 0,
     gcTime: 30 * 60 * 1000,
@@ -389,6 +396,7 @@ export const useSubmitHaircode = () => {
       if (!profile || !params) return;
 
       queryClient.invalidateQueries({});
+      queryClient.invalidateQueries({ queryKey: billingQueryKey });
 
       if (!isEditing) {
         try {
@@ -441,6 +449,24 @@ export const useSubmitHaircode = () => {
       }, 500);
     },
     onError: (error: unknown) => {
+      if (isVisitLimitError(error)) {
+        Alert.alert(t("billing.limitReachedTitle"), t("billing.limitReachedCreate", {
+          limit:
+            (error.billing as { freeVisitLimit?: number } | undefined)
+              ?.freeVisitLimit ?? 10,
+        }), [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("billing.subscribeToContinue"),
+            onPress: () =>
+              router.push({
+                pathname: "/Screens/paywall",
+                params: { from: "visit-limit" },
+              }),
+          },
+        ]);
+        return;
+      }
       const msg =
         typeof error === "string"
           ? error

@@ -20,6 +20,7 @@ import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import { VisitTimelineCard } from "@/src/components/visits/VisitTimelineCard";
 import { useResolvedListProfessionCode } from "@/src/hooks/useResolvedListProfessionCode";
 import { useI18n, formatVisitListDateForLocale } from "@/src/providers/LanguageProvider";
+import { useVisitScreenGate } from "@/src/hooks/useVisitScreenGate";
 
 type ClientHaircodeRow = {
   id: string;
@@ -44,6 +45,7 @@ type ClientHaircodeRow = {
 
 const SeeVisits = () => {
   const { t, locale } = useI18n();
+  useVisitScreenGate("view");
   const { profile } = useAuth();
   const {
     id,

@@ -51,6 +51,7 @@ import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { IMAGE_CROP_VIEWPORT_HEIGHT_RATIO } from "@/src/components/ImageCropModal";
 import { ModerationSheetHeading } from "@/src/components/moderation/ModerationSheetParts";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { useVisitScreenGate } from "@/src/hooks/useVisitScreenGate";
 
 type ApiRecord = Record<string, unknown> & {
   media?: unknown[];
@@ -148,6 +149,7 @@ function recordCreatedBy(r: ApiRecord | undefined): string | undefined {
 
 const SingleVisit = () => {
   const { t } = useI18n();
+  useVisitScreenGate("view");
   const {
     haircodeId,
     hairdresserName,

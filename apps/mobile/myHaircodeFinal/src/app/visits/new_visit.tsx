@@ -41,6 +41,7 @@ import { formatVisitDateForCountry } from "@/src/utils/formatVisitDateForCountry
 import { StatusBar } from "expo-status-bar";
 import { usePostHog } from "posthog-react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { useVisitScreenGate } from "@/src/hooks/useVisitScreenGate";
 import ImageCropModal, {
   IMAGE_CROP_VIEWPORT_HEIGHT_RATIO,
 } from "@/src/components/ImageCropModal";
@@ -133,6 +134,7 @@ const NewVisit = () => {
   const { t } = useI18n();
   const params = useLocalSearchParams();
   const isEditing = Boolean(params.haircodeId);
+  useVisitScreenGate(isEditing ? "view" : "create");
   const editHaircodeId = firstRouteParam(
     params.haircodeId as string | string[] | undefined
   );

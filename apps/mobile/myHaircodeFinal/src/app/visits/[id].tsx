@@ -61,6 +61,7 @@ import { MintFullScreenSpinner } from "@/src/components/MintSpinningWheel";
 import { NavBackRow, navBackChromeBarCombined } from "@/src/components/NavBackRow";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { reportReasonLabel } from "@/src/i18n/moderationLabels";
+import { useVisitLimitGate } from "@/src/hooks/useVisitLimitGate";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -73,6 +74,8 @@ function firstRouteParam(
 
 const VisitList = () => {
   const { t } = useI18n();
+  const { guard: guardCreateVisit } = useVisitLimitGate("create");
+  const { guard: guardViewVisits } = useVisitLimitGate("view");
   const moderationDetailCopy = useModerationDetailCopy();
   const {
     id: client_id,
@@ -435,7 +438,8 @@ const VisitList = () => {
                     pressed && styles.actionRowPressed,
                     !navProfessionReady && { opacity: 0.45 },
                   ]}
-                  onPress={() =>
+                  onPress={() => {
+                    if (!guardCreateVisit()) return;
                     router.push({
                       pathname: "/visits/new_visit",
                       params: {
@@ -444,8 +448,8 @@ const VisitList = () => {
                           ? { professionCode: navProfessionCode }
                           : {}),
                       },
-                    })
-                  }
+                    });
+                  }}
                 >
                   <View style={styles.actionRowLeft}>
                     <Plus size={responsiveScale(28)} color={primaryBlack} />
@@ -462,7 +466,8 @@ const VisitList = () => {
                     pressed && styles.actionRowPressed,
                     !navProfessionReady && { opacity: 0.45 },
                   ]}
-                  onPress={() =>
+                  onPress={() => {
+                    if (!guardViewVisits()) return;
                     router.push({
                       pathname: "/visits/see_visits",
                       params: {
@@ -474,8 +479,8 @@ const VisitList = () => {
                         price: navPrice ?? "",
                         professionCode: navProfessionCode,
                       },
-                    })
-                  }
+                    });
+                  }}
                 >
                   <View style={styles.actionRowLeft}>
                     <Eye size={responsiveScale(28)} color={primaryBlack} />
@@ -492,7 +497,8 @@ const VisitList = () => {
                     pressed && styles.actionRowPressed,
                     !navProfessionReady && { opacity: 0.45 },
                   ]}
-                  onPress={() =>
+                  onPress={() => {
+                    if (!guardViewVisits()) return;
                     router.push({
                       pathname: "/visits/view_gallery",
                       params: {
@@ -500,8 +506,8 @@ const VisitList = () => {
                         clientName: displayFullName,
                         professionCode: navProfessionCode,
                       },
-                    })
-                  }
+                    });
+                  }}
                 >
                   <View style={styles.actionRowLeft}>
                     <ViewGalleryRowIcon

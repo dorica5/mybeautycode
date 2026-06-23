@@ -151,7 +151,17 @@ async function handleResponse(res: Response) {
             ? `Request failed (HTTP ${res.status})`
             : "Request failed";
     }
-    throw Object.assign(new Error(msg), { status: res.status });
+    throw Object.assign(new Error(msg), {
+      status: res.status,
+      code:
+        typeof (data as { code?: string })?.code === "string"
+          ? (data as { code: string }).code
+          : undefined,
+      billing:
+        typeof (data as { billing?: unknown })?.billing === "object"
+          ? (data as { billing: unknown }).billing
+          : undefined,
+    });
   }
   return data;
 }

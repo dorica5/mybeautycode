@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Linking,
@@ -33,14 +33,16 @@ import {
 } from "@/src/components/MintBrandModal";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
+import { useBilling } from "@/src/providers/BillingProvider";
+import { mobileBillingConfig } from "@/src/constants/billingConfig";
 import {
-  clearPendingProfessionalSetup,
-  getPendingProfessionalSetup,
-} from "@/src/lib/pendingProfessionalSetup";
-import { runProfessionalSetupCompletionSideEffects } from "@/src/lib/professionalSetupCompletion";
-import { useUpdateSupabaseProfile } from "@/src/api/profiles";
-import { useAuth } from "@/src/providers/AuthProvider";
-import { usePostHog } from "posthog-react-native";
+  findPackage,
+  getOfferingsSafe,
+  getRevenueCatApiKey,
+  hasActiveEntitlement,
+  purchasePackageSafe,
+  restorePurchasesSafe,
+} from "@/src/lib/revenuecat";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 type Plan = "monthly" | "annual" | "lifetime";
@@ -49,38 +51,51 @@ const Paywall = () => {
   const { t } = useI18n();
   const logoSize = useBeautyCodeLogoSize();
   const { from } = useLocalSearchParams<{ from?: string }>();
-  const { profile, setLoadingSetup } = useAuth();
-  const posthog = usePostHog();
-  const { mutateAsync: persistProfile } = useUpdateSupabaseProfile();
-  const [selectedPlan, setSelectedPlan] = useState<Plan>("annual");
+  const { billing, syncFromRevenueCat, refreshBilling } = useBilling();
+  const [selectedPlan, setSelectedPlan] = useState<Plan>("monthly");
   const [busy, setBusy] = useState(false);
 
+  const freeLimit =
+    billing?.freeVisitLimit ?? mobileBillingConfig.FREE_VISIT_LIMIT;
+  const monthlyPrice =
+    billing?.monthlyPriceNok ?? mobileBillingConfig.MONTHLY_PRICE_NOK;
+
   const pricesNok: Record<Plan, string> = {
-    monthly: t("paywall.priceMonthly"),
+    monthly: t("paywall.priceMonthly", { price: monthlyPrice }),
     annual: t("paywall.priceAnnual"),
     lifetime: t("paywall.priceLifetime"),
   };
 
-  const primaryCta = useMemo(() => {
-    if (selectedPlan === "lifetime") return t("paywall.unlockLifetime");
-    return t("paywall.startFreeTrial");
-  }, [selectedPlan, t]);
+  const primaryCta = useMemo(
+    () => t("paywall.startSubscription", { price: monthlyPrice }),
+    [monthlyPrice, t]
+  );
 
   const afterTrialLine = useMemo(() => {
     if (selectedPlan === "lifetime") return t("paywall.afterTrialLifetime");
     if (selectedPlan === "annual") return t("paywall.afterTrialAnnual");
-    return t("paywall.afterTrialMonthly");
-  }, [selectedPlan, t]);
+    return t("paywall.afterTrialMonthly", { price: monthlyPrice });
+  }, [monthlyPrice, selectedPlan, t]);
 
-  const includedFeatures = useMemo(
+  const freeFeatures = useMemo(
+    () => [t("paywall.featureDiscovery")],
+    [t]
+  );
+
+  const proFeatures = useMemo(
     () => [
       t("paywall.featureManageClients"),
       t("paywall.featureGallery"),
       t("paywall.featureHistory"),
-      t("paywall.featureDiscovery"),
     ],
     [t]
   );
+
+  useEffect(() => {
+    if (billing?.hasActiveSubscription && from === "visit-limit") {
+      router.back();
+    }
+  }, [billing?.hasActiveSubscription, from]);
 
   const openLink = async (url: string) => {
     try {
@@ -92,89 +107,96 @@ const Paywall = () => {
     }
   };
 
-  const handlePrimary = async () => {
+  const runPurchase = async () => {
+    const apiKey = getRevenueCatApiKey();
+    if (!apiKey) {
+      Alert.alert(t("common.comingSoon"), t("paywall.rcNotConfigured"));
+      return;
+    }
+
     setBusy(true);
     try {
-      if (from === "professional-setup") {
-        const pending = getPendingProfessionalSetup();
-        if (!pending) {
-          Alert.alert(
-            t("paywall.couldNotContinue"),
-            t("paywall.setupDataLost")
-          );
+      const offerings = await getOfferingsSafe();
+      const pkg = findPackage(offerings, selectedPlan);
+      if (!pkg) {
+        if (selectedPlan !== "monthly") {
+          Alert.alert(t("common.comingSoon"), t("paywall.priceAnnual"));
           return;
         }
-        setLoadingSetup(true);
-        try {
-          await persistProfile(pending.updateBody);
-          await runProfessionalSetupCompletionSideEffects({
-            userId: pending.userId,
-            professionCode: pending.professionCode,
-            profile,
-            posthog,
-          });
-          clearPendingProfessionalSetup();
-        } catch (e) {
-          console.error("Professional setup save after paywall:", e);
-          const msg =
-            e instanceof Error ? e.message : t("setup.pleaseTryAgain");
-          Alert.alert(t("paywall.couldNotSaveProfile"), msg);
-          return;
-        } finally {
-          setLoadingSetup(false);
-        }
+        Alert.alert(t("common.comingSoon"), t("paywall.rcNotConfigured"));
+        return;
       }
 
-      // UI-only paywall for now (backend / billing integration later).
-      Alert.alert(
-        t("common.comingSoon"),
-        t("profile.billingSubtitle")
-      );
-      if (from === "professional-setup") {
-        router.replace("/(professional)/(tabs)/home");
+      const info = await purchasePackageSafe(pkg);
+      if (!info) return;
+
+      if (!hasActiveEntitlement(info)) {
+        Alert.alert(t("common.error"), t("paywall.purchaseFailed"));
+        return;
       }
+
+      await syncFromRevenueCat(info);
+      await refreshBilling();
+      Alert.alert(t("common.success"), t("billing.subscribedVisitsUnlimited"));
+      if (router.canGoBack()) router.back();
+      else router.replace("/(professional)/(tabs)/home");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t("paywall.purchaseFailed");
+      Alert.alert(t("common.error"), msg);
     } finally {
       setBusy(false);
     }
   };
 
-  const handleBack = () => {
-    if (from === "professional-setup") {
-      clearPendingProfessionalSetup();
+  const handleRestore = async () => {
+    const apiKey = getRevenueCatApiKey();
+    if (!apiKey) {
+      Alert.alert(t("common.comingSoon"), t("paywall.rcNotConfigured"));
+      return;
     }
-    router.back();
+    setBusy(true);
+    try {
+      const info = await restorePurchasesSafe();
+      if (!hasActiveEntitlement(info)) {
+        Alert.alert(t("profile.restorePurchases"), t("paywall.restoreEmpty"));
+        return;
+      }
+      await syncFromRevenueCat(info);
+      await refreshBilling();
+      Alert.alert(t("profile.restorePurchases"), t("paywall.restoreSuccess"));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : t("paywall.purchaseFailed");
+      Alert.alert(t("common.error"), msg);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const PlanCard = ({
     plan,
     title,
     subtitle,
-    badge,
+    disabled,
   }: {
     plan: Plan;
     title: string;
     subtitle: string;
-    badge?: string;
+    disabled?: boolean;
   }) => {
     const selected = selectedPlan === plan;
     return (
       <Pressable
-        onPress={() => setSelectedPlan(plan)}
+        onPress={() => !disabled && setSelectedPlan(plan)}
         style={({ pressed }) => [
           styles.planCard,
           selected && styles.planCardSelected,
-          pressed && { opacity: 0.92 },
+          disabled && styles.planCardDisabled,
+          pressed && !disabled && { opacity: 0.92 },
         ]}
         accessibilityRole="button"
-        accessibilityState={{ selected }}
+        accessibilityState={{ selected, disabled: !!disabled }}
         accessibilityLabel={`${title}. ${subtitle}`}
       >
-        {badge ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeLabel}>{badge}</Text>
-          </View>
-        ) : null}
-
         <View style={styles.planRow}>
           <View style={styles.planLeft}>
             <CheckCircle
@@ -190,9 +212,11 @@ const Paywall = () => {
           <Text style={styles.planPrice}>{pricesNok[plan]}</Text>
         </View>
 
-        {plan !== "lifetime" ? (
+        {plan === "monthly" ? (
           <View style={styles.trialChip}>
-            <Text style={styles.trialChipLabel}>{t("paywall.freeTrialChip")}</Text>
+            <Text style={styles.trialChipLabel}>
+              {t("paywall.freeVisitsChip", { limit: freeLimit })}
+            </Text>
           </View>
         ) : (
           <View style={styles.trialChip} />
@@ -207,7 +231,7 @@ const Paywall = () => {
 
       <View style={styles.topBar}>
         <NavBackRow
-          onPress={handleBack}
+          onPress={() => router.back()}
           style={styles.backRow}
           hitSlop={12}
           accessibilityLabel={t("common.goBack")}
@@ -225,26 +249,35 @@ const Paywall = () => {
             {t("paywall.tryProTitle")}
           </Text>
           <Text style={[Typography.bodyMedium, styles.subhead]}>
-            {t("paywall.tryProSubtitle")}
+            {t("paywall.tryProSubtitle", { limit: freeLimit })}
           </Text>
+          {billing && !billing.hasActiveSubscription ? (
+            <Text style={[Typography.bodySmall, styles.usageLine]}>
+              {t("billing.visitUsage", {
+                used: billing.visitCount,
+                limit: billing.freeVisitLimit,
+              })}
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.section}>
-          <PlanCard
-            plan="annual"
-            title={t("paywall.yearly")}
-            subtitle={t("paywall.yearlySubtitle")}
-            badge={t("paywall.saveBadge")}
-          />
           <PlanCard
             plan="monthly"
             title={t("paywall.monthly")}
             subtitle={t("paywall.monthlySubtitle")}
           />
           <PlanCard
+            plan="annual"
+            title={t("paywall.yearly")}
+            subtitle={t("paywall.yearlySubtitle")}
+            disabled
+          />
+          <PlanCard
             plan="lifetime"
             title={t("paywall.lifetime")}
             subtitle={t("paywall.lifetimeSubtitle")}
+            disabled
           />
         </View>
 
@@ -252,9 +285,20 @@ const Paywall = () => {
           <Text style={[Typography.label, styles.sectionTitle]}>
             {t("paywall.includedTitle")}
           </Text>
-          {includedFeatures.map((line) => (
+          {freeFeatures.map((line) => (
             <View key={line} style={styles.bulletRow}>
               <View style={styles.bulletDot} />
+              <Text style={[Typography.bodyMedium, styles.bulletText]}>
+                {line}
+              </Text>
+            </View>
+          ))}
+          <Text style={[Typography.label, styles.sectionTitle, styles.sectionTitleSpaced]}>
+            {t("paywall.subscribeMonthly")}
+          </Text>
+          {proFeatures.map((line) => (
+            <View key={line} style={styles.bulletRow}>
+              <View style={[styles.bulletDot, styles.bulletDotPro]} />
               <Text style={[Typography.bodyMedium, styles.bulletText]}>
                 {line}
               </Text>
@@ -266,17 +310,12 @@ const Paywall = () => {
           <MintBrandModalFooterRow>
             <MintBrandModalPrimaryButton
               label={busy ? t("inspiration.pleaseWait") : primaryCta}
-              onPress={busy ? () => {} : handlePrimary}
+              onPress={busy ? () => {} : runPurchase}
               accessibilityLabel={primaryCta}
             />
             <MintBrandModalSecondaryButton
               label={t("profile.restorePurchases")}
-              onPress={() =>
-                Alert.alert(
-                  t("profile.restorePurchases"),
-                  t("profile.restorePurchasesSoon")
-                )
-              }
+              onPress={busy ? () => {} : handleRestore}
             />
           </MintBrandModalFooterRow>
 
@@ -340,6 +379,11 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     opacity: 0.82,
   },
+  usageLine: {
+    textAlign: "center",
+    marginTop: responsiveMargin(10),
+    opacity: 0.7,
+  },
   section: {
     width: "100%",
     maxWidth: 480,
@@ -349,6 +393,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: primaryBlack,
     marginBottom: responsiveMargin(12),
+  },
+  sectionTitleSpaced: {
+    marginTop: responsiveMargin(16),
   },
   planCard: {
     backgroundColor: primaryWhite,
@@ -363,19 +410,8 @@ const styles = StyleSheet.create({
     borderColor: primaryBlack,
     backgroundColor: `${secondaryGreen}66`,
   },
-  badge: {
-    position: "absolute",
-    top: responsiveMargin(10),
-    right: responsiveMargin(10),
-    backgroundColor: primaryBlack,
-    borderRadius: responsiveScale(999),
-    paddingHorizontal: responsivePadding(10),
-    paddingVertical: responsivePadding(6),
-  },
-  badgeLabel: {
-    ...Typography.bodySmall,
-    color: primaryWhite,
-    opacity: 0.95,
+  planCardDisabled: {
+    opacity: 0.55,
   },
   planRow: {
     flexDirection: "row",
@@ -434,6 +470,9 @@ const styles = StyleSheet.create({
     backgroundColor: primaryBlack,
     marginTop: responsiveMargin(8),
     opacity: 0.6,
+  },
+  bulletDotPro: {
+    opacity: 0.35,
   },
   bulletText: {
     flex: 1,

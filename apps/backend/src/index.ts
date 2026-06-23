@@ -20,6 +20,7 @@ import { supportRoutes } from "./routes/support";
 import { salonRoutes } from "./routes/salons";
 import { professionalAnalyticsRoutes } from "./routes/professionalAnalytics";
 import { feedbackRoutes } from "./routes/feedback";
+import { billingRoutes } from "./routes/billing";
 
 const app = express();
 const httpServer = createServer(app);
@@ -71,6 +72,7 @@ app.use("/api/support", supportRoutes);
 app.use("/api/salons", salonRoutes);
 app.use("/api/professional-analytics", professionalAnalyticsRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/billing", billingRoutes);
 
 app.set("io", io);
 
