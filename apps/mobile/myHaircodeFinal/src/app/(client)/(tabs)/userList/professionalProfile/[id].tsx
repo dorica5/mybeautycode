@@ -34,6 +34,7 @@ import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { responsiveScale } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
+import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 
 const ProfessionalProfileScreen = () => {
