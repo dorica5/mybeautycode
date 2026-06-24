@@ -27,8 +27,6 @@ type ProfileProps = {
   lightMarginBottom?: number;
 } & React.ComponentPropsWithoutRef<typeof Pressable>;
 
-const DIVIDER = "rgba(33, 36, 39, 0.12)";
-
 const Profile = ({
   bottom = false,
   top = false,
@@ -58,16 +56,6 @@ const Profile = ({
     isLight ? Colors.dark.secondaryGreen : Colors.dark.warmGreen;
   const cornerR = isLight ? responsiveScale(20) : scale(20);
 
-  const isFirstInGroup =
-    inGroup &&
-    (groupPosition === "first" || groupPosition === "single");
-  const isLastInGroup =
-    inGroup && (groupPosition === "last" || groupPosition === "single");
-  const showDividerBelow =
-    inGroup &&
-    groupPosition !== "last" &&
-    groupPosition !== "single";
-
   return (
     <Pressable
       style={({ pressed }) => [
@@ -92,14 +80,6 @@ const Profile = ({
           backgroundColor: pressed ? pressedBg : idleBg,
         },
         inGroup && {
-          borderTopLeftRadius: isFirstInGroup ? cornerR : 0,
-          borderTopRightRadius: isFirstInGroup ? cornerR : 0,
-          borderBottomLeftRadius: isLastInGroup ? cornerR : 0,
-          borderBottomRightRadius: isLastInGroup ? cornerR : 0,
-          borderBottomWidth: showDividerBelow
-            ? StyleSheet.hairlineWidth * 2
-            : 0,
-          borderBottomColor: DIVIDER,
           backgroundColor: pressed ? pressedBg : idleBg,
         },
       ]}
@@ -149,11 +129,14 @@ const styles = StyleSheet.create({
   containerLightGrouped: {
     width: "100%",
     height: responsiveScale(72),
+    marginTop: 0,
     marginBottom: 0,
     marginHorizontal: 0,
     padding: 0,
     paddingHorizontal: responsiveScale(16),
     alignItems: "center",
+    alignSelf: "stretch",
+    flexShrink: 0,
   },
   subContainer: {
     flexDirection: "row",

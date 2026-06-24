@@ -585,7 +585,7 @@ export const da: AppLocaleMessages = {
     reachFooterNote:
       "Totaler for det erhverv, du har valgt via Skift konto. Skift konto der for at se en anden profil.",
     billingSubtitle:
-      "Dine første {{limit}} besøg er gratis. Kortsøgning og opdagelse er gratis for alle.\n\nDerefter kan du abonnere for ubegrænsede besøg — pt. NOK {{price}}/måned.",
+      "Dine første {{limit}} besøg er gratis. Kortsøgning og opdagelse er gratis for alle.\n\nDerefter kan du abonnere for ubegrænsede besøg. Pt. NOK {{price}}/måned.",
     manageCancelSubscription: "Administrér / opsig abonnement",
     manageCancelSoon:
       "Administrér/opsig abonnement bliver tilgængeligt, når fakturering er integreret.",

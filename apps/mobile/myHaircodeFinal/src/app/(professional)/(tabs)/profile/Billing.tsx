@@ -118,6 +118,7 @@ export default function BillingScreen() {
                   Alert.alert(t("common.comingSoon"), t("profile.manageCancelSoon"))
                 }
               />
+              <View style={styles.cardDivider} />
               <Profile
                 title={t("profile.changePlan")}
                 Icon={ArrowsLeftRight}
@@ -130,6 +131,7 @@ export default function BillingScreen() {
                   })
                 }
               />
+              <View style={styles.cardDivider} />
               <Profile
                 title={t("profile.restorePurchases")}
                 Icon={ArrowCounterClockwise}
@@ -184,8 +186,14 @@ const styles = StyleSheet.create({
   },
   cardGroup: {
     alignSelf: "center",
+    flexDirection: "column",
     overflow: "hidden",
     backgroundColor: primaryWhite,
     marginBottom: responsiveScale(46, 36),
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth * 2,
+    backgroundColor: "rgba(33, 36, 39, 0.12)",
+    flexShrink: 0,
   },
 });

@@ -589,7 +589,7 @@ export const nb: AppLocaleMessages = {
     reachFooterNote:
       "Totaler for yrket du har valgt med Bytt konto. Bytt konto der for å se en annen profil.",
     billingSubtitle:
-      "Dine første {{limit}} besøk er gratis. Kartsøk og oppdagelse er gratis for alle.\n\nEtter det kan du abonnere for ubegrensede besøk — foreløpig NOK {{price}}/måned.",
+      "Dine første {{limit}} besøk er gratis. Kartsøk og oppdagelse er gratis for alle.\n\nEtter det kan du abonnere for ubegrensede besøk. Foreløpig NOK {{price}}/måned.",
     manageCancelSubscription: "Administrer / avslutt abonnement",
     manageCancelSoon:
       "Administrer/avslutt abonnement blir tilgjengelig når fakturering er integrert.",

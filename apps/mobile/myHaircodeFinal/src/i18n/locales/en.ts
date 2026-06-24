@@ -587,7 +587,7 @@ export const en = {
     reachFooterNote:
       "Totals for the profession you have selected with Switch account. Change account there to view another lane.",
     billingSubtitle:
-      "Your first {{limit}} visits are free. Map search and discovery stay free for everyone.\n\nAfter that, subscribe for unlimited visits — currently NOK {{price}}/month.",
+      "Your first {{limit}} visits are free. Map search and discovery stay free for everyone.\n\nAfter that, subscribe for unlimited visits. Currently NOK {{price}}/month.",
     manageCancelSubscription: "Manage / cancel subscription",
     manageCancelSoon:
       "Manage/cancel subscription will be available when billing is integrated.",
