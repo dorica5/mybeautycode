@@ -123,7 +123,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
         setRevenueCatReady(true);
         const info = await getCustomerInfoSafe(true);
         if (!alive) return;
-        if (info && hasActiveEntitlement(info)) {
+        if (info) {
           await pushEntitlementToBackend(info);
           await invalidateBilling();
         }

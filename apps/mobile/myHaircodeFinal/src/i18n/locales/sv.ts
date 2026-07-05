@@ -591,6 +591,8 @@ export const sv: AppLocaleMessages = {
     manageCancelSubscription: "Hantera / avsluta abonnemang",
     manageCancelSoon:
       "Hantera/avsluta abonnemang blir tillgängligt när fakturering är integrerad.",
+    manageCancelFailed:
+      "Kunde inte öppna abonnemangsinställningar. Försök igen via Inställningar i App Store.",
     changePlan: "Byt plan",
     changePlanSoon: "Planändringar blir tillgängliga när fakturering är integrerad.",
     restorePurchases: "Återställ köp",
@@ -770,7 +772,7 @@ export const sv: AppLocaleMessages = {
     tryProSubtitle:
       "Dina första {{limit}} besök är gratis. Karta och upptäckt förblir gratis.",
     yearly: "Årsvis",
-    yearlySubtitle: "Fler planer kommer snart",
+    yearlySubtitle: "Obegränsade besök. Faktureras en gång per år.",
     annualFreeMonthsBadge: "2 månader gratis",
     monthly: "Månadsvis",
     monthlySubtitle: "Obegränsade besök — avsluta när som helst",
@@ -792,10 +794,13 @@ export const sv: AppLocaleMessages = {
     featureHistory: "Full besökshistorik över salonger",
     unlockLifetime: "Lås upp livstidsåtkomst",
     startSubscription: "Prenumerera — NOK {{price}} / månad",
+    startSubscriptionMonthly: "Prenumerera, NOK {{price}} / månad",
     startSubscriptionAnnual: "Prenumerera — NOK {{price}} / år",
     subscribeMonthly: "Prenumerera månadsvis",
+    subscribePro: "Med abonnemang",
     afterTrialLifetime: "Engångsbetalning. Inget abonnemang.",
-    afterTrialAnnual: "Pris kan ändras. Avsluta när som helst i app-butiken.",
+    afterTrialAnnual:
+      "NOK {{price}}/år tills du avslutar. Pris kan ändras. Avsluta när som helst i App Store.",
     afterTrialMonthly: "NOK {{price}}/månad tills du avslutar. Pris kan ändras.",
     priceMonthly: "NOK {{price}} / månad",
     priceAnnual: "NOK {{price}} / år",
@@ -809,6 +814,8 @@ export const sv: AppLocaleMessages = {
     restoreSuccess: "Köp återställda",
     restoreEmpty: "Inget aktivt abonnemang hittades",
     rcNotConfigured: "Abonnemang är inte konfigurerat i den här versionen ännu.",
+    productsNotAvailable:
+      "Planerna är inte tillgängliga ännu. Slutför konfigurationen i App Store Connect och RevenueCat och försök igen.",
   },
   billing: {
     visitUsage: "{{used}} av {{limit}} gratis besök använda",

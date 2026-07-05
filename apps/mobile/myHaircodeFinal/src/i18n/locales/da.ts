@@ -591,6 +591,8 @@ export const da: AppLocaleMessages = {
     manageCancelSubscription: "Administrér / opsig abonnement",
     manageCancelSoon:
       "Administrér/opsig abonnement bliver tilgængeligt, når fakturering er integreret.",
+    manageCancelFailed:
+      "Kunne ikke åbne abonnementsindstillinger. Prøv igen via Indstillinger i App Store.",
     changePlan: "Skift plan",
     changePlanSoon: "Planændringer bliver tilgængelige, når fakturering er integreret.",
     restorePurchases: "Gendan køb",
@@ -772,7 +774,7 @@ export const da: AppLocaleMessages = {
     tryProSubtitle:
       "Dine første {{limit}} besøg er gratis. Kort og opdagelse forbliver gratis.",
     yearly: "Årligt",
-    yearlySubtitle: "Flere planer kommer snart",
+    yearlySubtitle: "Ubegrænsede besøg. Faktureres én gang om året.",
     annualFreeMonthsBadge: "2 måneder gratis",
     monthly: "Månedligt",
     monthlySubtitle: "Ubegrænsede besøg — opsig når som helst",
@@ -794,10 +796,13 @@ export const da: AppLocaleMessages = {
     featureHistory: "Fuld besøgshistorik på tværs af saloner",
     unlockLifetime: "Lås op for livstidsadgang",
     startSubscription: "Abonner — NOK {{price}} / måned",
+    startSubscriptionMonthly: "Abonner, NOK {{price}} / måned",
     startSubscriptionAnnual: "Abonner — NOK {{price}} / år",
     subscribeMonthly: "Abonner månedligt",
+    subscribePro: "Med abonnement",
     afterTrialLifetime: "Engangsbetaling. Intet abonnement.",
-    afterTrialAnnual: "Pris kan ændres. Opsig når som helst i app-butikken.",
+    afterTrialAnnual:
+      "NOK {{price}}/år indtil opsigelse. Pris kan ændres. Opsig når som helst i App Store.",
     afterTrialMonthly: "NOK {{price}}/måned indtil opsigelse. Pris kan ændres.",
     priceMonthly: "NOK {{price}} / måned",
     priceAnnual: "NOK {{price}} / år",
@@ -811,6 +816,8 @@ export const da: AppLocaleMessages = {
     restoreSuccess: "Køb gendannet",
     restoreEmpty: "Intet aktivt abonnement fundet",
     rcNotConfigured: "Abonnementer er endnu ikke konfigureret i denne build.",
+    productsNotAvailable:
+      "Planerne er ikke tilgængelige endnu. Fuldfør opsætning i App Store Connect og RevenueCat, og prøv igen.",
   },
   billing: {
     visitUsage: "{{used}} af {{limit}} gratis besøg brugt",

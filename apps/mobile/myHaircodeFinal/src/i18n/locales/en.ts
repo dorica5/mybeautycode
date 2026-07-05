@@ -593,6 +593,8 @@ export const en = {
     manageCancelSubscription: "Manage / cancel subscription",
     manageCancelSoon:
       "Manage/cancel subscription will be available when billing is integrated.",
+    manageCancelFailed:
+      "Could not open subscription management. Try again from Settings in the App Store.",
     changePlan: "Change plan",
     changePlanSoon: "Plan changes will be available when billing is integrated.",
     restorePurchases: "Restore purchases",
@@ -772,7 +774,7 @@ export const en = {
     tryProSubtitle:
       "Your first {{limit}} visits are free. Map search and discovery stay free.",
     yearly: "Yearly",
-    yearlySubtitle: "More plans coming soon",
+    yearlySubtitle: "Unlimited visits. Billed once per year.",
     annualFreeMonthsBadge: "2 months free",
     monthly: "Monthly",
     monthlySubtitle: "Unlimited visits — cancel anytime",
@@ -794,10 +796,13 @@ export const en = {
     featureHistory: "Full visit history across salons",
     unlockLifetime: "Unlock lifetime access",
     startSubscription: "Subscribe — NOK {{price}} / month",
+    startSubscriptionMonthly: "Subscribe, NOK {{price}} / month",
     startSubscriptionAnnual: "Subscribe — NOK {{price}} / year",
     subscribeMonthly: "Subscribe monthly",
+    subscribePro: "With subscription",
     afterTrialLifetime: "One-time payment. No subscription.",
-    afterTrialAnnual: "Pricing may change. Cancel anytime in the app store.",
+    afterTrialAnnual:
+      "NOK {{price}}/year until canceled. Pricing may change. Cancel anytime in the App Store.",
     afterTrialMonthly: "NOK {{price}}/month until canceled. Pricing may change.",
     priceMonthly: "NOK {{price}} / month",
     priceAnnual: "NOK {{price}} / year",
@@ -811,6 +816,8 @@ export const en = {
     restoreSuccess: "Purchases restored",
     restoreEmpty: "No active subscription found",
     rcNotConfigured: "Subscriptions are not configured yet on this build.",
+    productsNotAvailable:
+      "Plans are not available yet. Finish App Store Connect and RevenueCat setup, then try again.",
   },
   billing: {
     visitUsage: "{{used}} of {{limit}} free visits used",
