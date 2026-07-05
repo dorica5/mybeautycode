@@ -1,11 +1,20 @@
 import type { SiteLanguageCode } from "@/lib/languages";
 import { BRAND_NAME } from "@/lib/brand";
 
+export type PaymentPlanCopy = {
+  title: string;
+  badge?: string;
+  subtitle?: string;
+  priceLabel?: string;
+  features: string[];
+};
+
 export type SiteTranslations = {
   nav: {
     homeAriaLabel: string;
     howItWorks: string;
     forProfessionals: string;
+    payment: string;
     aboutUs: string;
   };
   heroSubtitle: string;
@@ -27,7 +36,14 @@ export type SiteTranslations = {
   proSteps: [string, string, string];
   aboutBody: string[];
   aboutSignOff: string;
-  paymentBody: string;
+  paymentIntro: string;
+  paymentFootnote: string;
+  paymentDownloadHint: string;
+  paymentPlans: {
+    freemium: PaymentPlanCopy;
+    monthly: PaymentPlanCopy;
+    annual: PaymentPlanCopy;
+  };
   comingSoon: string;
   language: {
     select: string;
@@ -46,6 +62,7 @@ const en: SiteTranslations = {
     homeAriaLabel: `${BRAND_NAME} home`,
     howItWorks: "How it works",
     forProfessionals: "For professionals",
+    payment: "Plans for professionals",
     aboutUs: "About us",
   },
   heroSubtitle:
@@ -62,7 +79,7 @@ const en: SiteTranslations = {
     howItWorks: "How it works",
     forProfessionals: "For professionals",
     aboutUs: "About us",
-    payment: "Payment",
+    payment: "Plans for professionals",
   },
   clientSteps: [
     "Download the app",
@@ -81,8 +98,40 @@ const en: SiteTranslations = {
     `We are a small team based in Bergen, Norway, with hairdressing background and coding skills, building something we believe the beauty industry has needed for a long time.`,
   ],
   aboutSignOff: "With love, Cecilie & Dorcas 🖤",
-  paymentBody:
-    "Simple plans for professionals. Always free for clients. Details coming soon.",
+  paymentIntro:
+    "For professionals ready to grow. Always free for clients.",
+  paymentFootnote:
+    "Subscriptions are purchased in the app. Cancel anytime in the App Store or Google Play.",
+  paymentDownloadHint: "Download the app to subscribe",
+  paymentPlans: {
+    freemium: {
+      title: "Freemium",
+      badge: "Free",
+      features: [
+        "{{limit}} visits included",
+        "Map search — get discovered by new clients",
+      ],
+    },
+    monthly: {
+      title: "Monthly",
+      priceLabel: "NOK {{monthlyPrice}} / month",
+      features: [
+        "Unlimited visits — cancel anytime",
+        "See what other professionals have done with your clients before",
+        "Map search — get discovered by new clients",
+      ],
+    },
+    annual: {
+      title: "Annual",
+      badge: "2 months free",
+      priceLabel: "NOK {{annualPrice}} / year",
+      features: [
+        "Unlimited visits — cancel anytime",
+        "See what other professionals have done with your clients before",
+        "Map search — get discovered by new clients",
+      ],
+    },
+  },
   comingSoon: "Coming soon",
   language: {
     select: "Select language",
@@ -102,6 +151,7 @@ const nb: SiteTranslations = {
     homeAriaLabel: `${BRAND_NAME} hjem`,
     howItWorks: "Slik fungerer det",
     forProfessionals: "For fagfolk",
+    payment: "Abonnement for fagpersoner",
     aboutUs: "Om oss",
   },
   heroSubtitle:
@@ -118,7 +168,7 @@ const nb: SiteTranslations = {
     howItWorks: "Slik fungerer det",
     forProfessionals: "For fagfolk",
     aboutUs: "Om oss",
-    payment: "Betaling",
+    payment: "Abonnement for fagpersoner",
   },
   clientSteps: [
     "Last ned appen",
@@ -137,8 +187,40 @@ const nb: SiteTranslations = {
     `Vi er et lite team basert i Bergen, Norge, med frisørbakgrunn og kodeferdigheter, som bygger noe vi tror skjønnhetsbransjen har trengt lenge.`,
   ],
   aboutSignOff: "Med kjærlighet, Cecilie & Dorcas 🖤",
-  paymentBody:
-    "Enkle planer for fagfolk. Alltid gratis for kunder. Detaljer kommer snart.",
+  paymentIntro:
+    "For fagfolk klare til å vokse. Alltid gratis for kunder.",
+  paymentFootnote:
+    "Abonnement kjøpes i appen. Avslutt når som helst i App Store eller Google Play.",
+  paymentDownloadHint: "Last ned appen for å abonnere",
+  paymentPlans: {
+    freemium: {
+      title: "Freemium",
+      badge: "Gratis",
+      features: [
+        "{{limit}} besøk inkludert",
+        "Kartsøk - bli oppdaget av nye kunder",
+      ],
+    },
+    monthly: {
+      title: "Månedlig",
+      priceLabel: "NOK {{monthlyPrice}} / måned",
+      features: [
+        "Ubegrensede besøk - avslutt når som helst",
+        "Se hva andre profesjonelle har gjort med kundene dine tidligere",
+        "Kartsøk - bli oppdaget av nye kunder",
+      ],
+    },
+    annual: {
+      title: "Årlig",
+      badge: "2 måneder gratis",
+      priceLabel: "NOK {{annualPrice}} / år",
+      features: [
+        "Ubegrensede besøk - avslutt når som helst",
+        "Se hva andre profesjonelle har gjort med kundene dine tidligere",
+        "Kartsøk - bli oppdaget av nye kunder",
+      ],
+    },
+  },
   comingSoon: "Snart",
   language: {
     select: "Velg språk",
@@ -158,6 +240,7 @@ const sv: SiteTranslations = {
     homeAriaLabel: `${BRAND_NAME} hem`,
     howItWorks: "Så fungerar det",
     forProfessionals: "För proffs",
+    payment: "Abonnemang för proffs",
     aboutUs: "Om oss",
   },
   heroSubtitle:
@@ -174,7 +257,7 @@ const sv: SiteTranslations = {
     howItWorks: "Så fungerar det",
     forProfessionals: "För proffs",
     aboutUs: "Om oss",
-    payment: "Betalning",
+    payment: "Abonnemang för proffs",
   },
   clientSteps: [
     "Ladda ner appen",
@@ -193,8 +276,40 @@ const sv: SiteTranslations = {
     `Vi är ett litet team baserat i Bergen, Norge, med frisörbakgrund och kodningskunskaper, som bygger något vi tror skönhetsbranschen har behövt länge.`,
   ],
   aboutSignOff: "Med kärlek, Cecilie & Dorcas 🖤",
-  paymentBody:
-    "Enkla planer för proffs. Alltid gratis för kunder. Detaljer kommer snart.",
+  paymentIntro:
+    "För proffs redo att växa. Alltid gratis för kunder.",
+  paymentFootnote:
+    "Prenumeration köps i appen. Avsluta när som helst i App Store eller Google Play.",
+  paymentDownloadHint: "Ladda ner appen för att prenumerera",
+  paymentPlans: {
+    freemium: {
+      title: "Freemium",
+      badge: "Gratis",
+      features: [
+        "{{limit}} besök ingår",
+        "Kartsökning — bli upptäckt av nya kunder",
+      ],
+    },
+    monthly: {
+      title: "Månadsvis",
+      priceLabel: "NOK {{monthlyPrice}} / månad",
+      features: [
+        "Obegränsade besök — avsluta när som helst",
+        "Se vad andra proffs har gjort med dina kunder tidigare",
+        "Kartsökning — bli upptäckt av nya kunder",
+      ],
+    },
+    annual: {
+      title: "Årsvis",
+      badge: "2 månader gratis",
+      priceLabel: "NOK {{annualPrice}} / år",
+      features: [
+        "Obegränsade besök — avsluta när som helst",
+        "Se vad andra proffs har gjort med dina kunder tidigare",
+        "Kartsökning — bli upptäckt av nya kunder",
+      ],
+    },
+  },
   comingSoon: "Snart",
   language: {
     select: "Välj språk",
@@ -214,6 +329,7 @@ const da: SiteTranslations = {
     homeAriaLabel: `${BRAND_NAME} hjem`,
     howItWorks: "Sådan virker det",
     forProfessionals: "For fagfolk",
+    payment: "Abonnement for fagfolk",
     aboutUs: "Om os",
   },
   heroSubtitle:
@@ -230,7 +346,7 @@ const da: SiteTranslations = {
     howItWorks: "Sådan virker det",
     forProfessionals: "For fagfolk",
     aboutUs: "Om os",
-    payment: "Betaling",
+    payment: "Abonnement for fagfolk",
   },
   clientSteps: [
     "Download appen",
@@ -249,8 +365,40 @@ const da: SiteTranslations = {
     `Vi er et lille team baseret i Bergen, Norge, med frisørbaggrund og kodningsfærdigheder, der bygger noget, vi tror skønhedsbranchen har haft brug for i lang tid.`,
   ],
   aboutSignOff: "Med kærlighed, Cecilie & Dorcas 🖤",
-  paymentBody:
-    "Enkle planer for fagfolk. Altid gratis for kunder. Detaljer kommer snart.",
+  paymentIntro:
+    "For fagfolk klar til at vokse. Altid gratis for kunder.",
+  paymentFootnote:
+    "Abonnement købes i appen. Opsig når som helst i App Store eller Google Play.",
+  paymentDownloadHint: "Download appen for at abonnere",
+  paymentPlans: {
+    freemium: {
+      title: "Freemium",
+      badge: "Gratis",
+      features: [
+        "{{limit}} besøg inkluderet",
+        "Kortsøgning — bliv opdaget af nye kunder",
+      ],
+    },
+    monthly: {
+      title: "Månedlig",
+      priceLabel: "NOK {{monthlyPrice}} / måned",
+      features: [
+        "Ubegrænsede besøg — opsig når som helst",
+        "Se hvad andre professionelle har gjort med dine kunder tidligere",
+        "Kortsøgning — bliv opdaget af nye kunder",
+      ],
+    },
+    annual: {
+      title: "Årligt",
+      badge: "2 måneder gratis",
+      priceLabel: "NOK {{annualPrice}} / år",
+      features: [
+        "Ubegrænsede besøg — opsig når som helst",
+        "Se hvad andre professionelle har gjort med dine kunder tidligere",
+        "Kortsøgning — bliv opdaget af nye kunder",
+      ],
+    },
+  },
   comingSoon: "Snart",
   language: {
     select: "Vælg sprog",

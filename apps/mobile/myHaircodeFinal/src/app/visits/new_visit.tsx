@@ -68,6 +68,24 @@ function firstRouteParam(
   return Array.isArray(v) ? v[0] : v;
 }
 
+function isVideoPickerAsset(asset: ImagePicker.ImagePickerAsset): boolean {
+  return (
+    asset.type === "video" ||
+    (asset.mimeType?.startsWith("video/") ?? false)
+  );
+}
+
+function videoUploadMeta(uri: string): { fileExtension: string; contentType: string } {
+  const lower = uri.toLowerCase();
+  if (lower.includes(".mov")) {
+    return { fileExtension: "mov", contentType: "video/quicktime" };
+  }
+  if (lower.includes(".webm")) {
+    return { fileExtension: "webm", contentType: "video/webm" };
+  }
+  return { fileExtension: "mp4", contentType: "video/mp4" };
+}
+
 type StoredVisitMedia = {
   id: string;
   media_url: string;
@@ -401,8 +419,9 @@ const NewVisit = () => {
     let contentType = "image/png";
 
     if (type === "video") {
-      fileExtension = "mp4";
-      contentType = "video/mp4";
+      const meta = videoUploadMeta(uri);
+      fileExtension = meta.fileExtension;
+      contentType = meta.contentType;
     }
 
     if (!uri.startsWith("file://") && !uri.startsWith("content://")) {
@@ -449,24 +468,47 @@ const NewVisit = () => {
     const remaining = VISIT_MAX_PHOTOS - capturedMedia.length - queued;
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images", "videos"],
       allowsMultipleSelection: true,
       quality: 1,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const imageUris = result.assets.map((asset) => asset.uri).slice(0, remaining);
+      const picked = result.assets.slice(0, remaining);
       if (result.assets.length > remaining) {
         Alert.alert(
-          "Photo limit",
-          `You can add up to ${VISIT_MAX_PHOTOS} photos per visit.`
+          t("visits.photoLimitTitle"),
+          t("visits.photoLimitMessage", { count: String(VISIT_MAX_PHOTOS) })
         );
       }
+      if (picked.length === 0) {
+        return;
+      }
+
+      const videoItems = picked
+        .filter(isVideoPickerAsset)
+        .map((asset) => ({ uri: asset.uri, type: "video" as const }));
+      const imageUris = picked
+        .filter((asset) => !isVideoPickerAsset(asset))
+        .map((asset) => asset.uri);
+
+      if (videoItems.length > 0) {
+        setCapturedMedia((prevMedia) => [...prevMedia, ...videoItems]);
+      }
+
       if (imageUris.length === 0) {
         return;
       }
-      setPendingImages(imageUris.slice(1));
+
+      if (imageToCrop) {
+        setPendingImages((prev) => [...prev, ...imageUris]);
+        return;
+      }
+
       setImageToCrop(imageUris[0]);
+      if (imageUris.length > 1) {
+        setPendingImages((prev) => [...prev, ...imageUris.slice(1)]);
+      }
     }
   };
 
@@ -625,6 +667,7 @@ const NewVisit = () => {
           createDateFromMinutes={createDateFromMinutes}
           price={price}
           onChangePrice={setPrice}
+          professionCode={activeProfessionCode}
           capturedMedia={capturedMedia}
           pickImage={pickImage}
           pickImageDisabled={imageToCrop !== null || isUploadingMedia}

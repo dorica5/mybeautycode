@@ -8,6 +8,7 @@ import { SiteLanguageDropdown } from "@/components/site/SiteLanguageDropdown";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SectionBand } from "@/components/site/SectionBand";
 import { SectionShell } from "@/components/site/SectionShell";
+import { PaymentPlans } from "@/components/site/PaymentPlans";
 import { StepCircle } from "@/components/site/StepCircle";
 import type { StepIllustrationId } from "@/components/site/StepIllustration";
 import { BRAND_NAME } from "@/lib/brand";
@@ -52,6 +53,9 @@ export function SiteHome() {
             </a>
             <a href="#for-professionals" className="hover:opacity-70">
               {t.nav.forProfessionals}
+            </a>
+            <a href="#payment" className="hover:opacity-70">
+              {t.nav.payment}
             </a>
             <a href="#about-us" className="hover:opacity-70">
               {t.nav.aboutUs}
@@ -114,17 +118,7 @@ export function SiteHome() {
         </SectionBand>
 
         <SectionBand id="payment" tone="secondary" title={t.sections.payment}>
-          <p className="mx-auto max-w-lg text-center text-base text-foreground/70 md:text-lg">
-            {t.paymentBody}
-          </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-3">
-            <span className="rounded-full bg-white/80 px-6 py-3 text-sm font-medium">
-              App Store ({t.comingSoon})
-            </span>
-            <span className="rounded-full bg-white/80 px-6 py-3 text-sm font-medium">
-              Google Play ({t.comingSoon})
-            </span>
-          </div>
+          <PaymentPlans />
         </SectionBand>
 
         <SectionBand id="about-us" tone="secondary" title={t.sections.aboutUs}>

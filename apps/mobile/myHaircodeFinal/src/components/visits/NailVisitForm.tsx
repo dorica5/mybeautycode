@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   Pressable,
@@ -35,7 +35,13 @@ import {
 } from "@/src/utils/responsive";
 import { router } from "expo-router";
 import { NavBackRow } from "@/src/components/NavBackRow";
-import { useI18n } from "@/src/providers/LanguageProvider";
+import CustomAlert from "@/src/components/CustomAlert";
+import { InfoStroke16 } from "@/src/components/icons/GetDiscoveredStrokeIcons";
+import {
+  useI18n,
+  useProfessionRoleLabel,
+} from "@/src/providers/LanguageProvider";
+import type { ProfessionChoiceCode } from "@/src/constants/professionCodes";
 /** Description field limit for new/edit visit (spaces count). */
 export const VISIT_DESCRIPTION_MAX_CHARS = 240;
 /** Max photos (images) per visit when creating or editing. */
@@ -71,6 +77,8 @@ export type NailVisitFormProps = {
   createDateFromMinutes: (totalMinutes: number) => Date;
   price: string;
   onChangePrice: (text: string) => void;
+  /** Active pro lane — drives price visibility info copy. */
+  professionCode?: ProfessionChoiceCode | null;
   capturedMedia: MediaItem[];
   pickImage: (index?: number) => void;
   removeMedia: (index: number) => void;
@@ -101,6 +109,7 @@ export function NailVisitForm({
   createDateFromMinutes,
   price,
   onChangePrice,
+  professionCode,
   capturedMedia,
   pickImage,
   removeMedia,
@@ -111,6 +120,8 @@ export function NailVisitForm({
   onPreviewPress,
 }: NailVisitFormProps) {
   const { t } = useI18n();
+  const [priceInfoVisible, setPriceInfoVisible] = useState(false);
+  const roleLabel = useProfessionRoleLabel(professionCode);
   const mediaAtLimit = capturedMedia.length >= VISIT_MAX_PHOTOS;
   const addMediaDisabled = pickImageDisabled || mediaAtLimit;
   const { width, height } = useWindowDimensions();
@@ -138,6 +149,7 @@ export function NailVisitForm({
   };
 
   return (
+    <>
     <View style={styles.nailRoot}>
       <View style={styles.nailTopBar}>
         <NavBackRow
@@ -288,14 +300,30 @@ export function NailVisitForm({
               ) : null}
             </View>
 
-            <BrandOutlineField
-              label={t("visits.price")}
-              value={price}
-              onChangeText={onChangePrice}
-              inputRestriction="decimal"
-              singleLineShape="rounded"
-              containerStyle={styles.nailFieldBlock}
-            />
+            <View style={styles.nailFieldBlock}>
+              <View style={styles.priceLabelRow}>
+                <Text style={[Typography.label, styles.priceLabel]}>
+                  {t("visits.price")}
+                </Text>
+                <Pressable
+                  onPress={() => setPriceInfoVisible(true)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("visits.priceInfoA11y")}
+                  style={styles.priceInfoBtn}
+                >
+                  <InfoStroke16 />
+                </Pressable>
+              </View>
+              <BrandOutlineField
+                value={price}
+                onChangeText={onChangePrice}
+                inputRestriction="decimal"
+                singleLineShape="rounded"
+                containerStyle={styles.priceFieldInner}
+                accessibilityLabel={t("visits.price")}
+              />
+            </View>
 
             <Text style={[Typography.label, styles.nailSectionLabel]}>
               {t("visits.uploadImagesVideo")}
@@ -388,6 +416,14 @@ export function NailVisitForm({
         </Pressable>
       </ScrollView>
     </View>
+    <CustomAlert
+      visible={priceInfoVisible}
+      title={t("visits.price")}
+      message={t("visits.priceInfoMessage", { role: roleLabel })}
+      onClose={() => setPriceInfoVisible(false)}
+      compact
+    />
+    </>
   );
 }
 
@@ -477,6 +513,21 @@ const styles = StyleSheet.create({
   },
   nailFieldBlock: {
     marginBottom: responsiveMargin(22),
+  },
+  priceLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveMargin(6),
+    marginBottom: responsiveMargin(8),
+  },
+  priceLabel: {
+    color: primaryBlack,
+  },
+  priceInfoBtn: {
+    padding: responsivePadding(2),
+  },
+  priceFieldInner: {
+    marginBottom: 0,
   },
   nailDescribeOutlineContainer: {
     marginBottom: responsiveMargin(6),

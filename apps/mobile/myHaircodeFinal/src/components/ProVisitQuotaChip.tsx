@@ -51,7 +51,11 @@ export function ProVisitQuotaChip({
       );
     }
     return (
-      <View style={[styles.banner, styles.pillSubscribed, style]} accessibilityRole="text">
+      <View
+        style={[styles.bannerCompact, styles.pillSubscribed, style]}
+        accessibilityRole="text"
+      >
+        <Ticket size={responsiveScale(18)} color={primaryBlack} weight="duotone" />
         <Text style={styles.bannerRemaining}>{t("billing.subscribedVisitsUnlimited")}</Text>
       </View>
     );
@@ -112,17 +116,9 @@ export function ProVisitQuotaChip({
   }
 
   return (
-    <View style={[styles.banner, style]} accessibilityRole="text">
-      <View style={styles.bannerRow}>
-        <Ticket size={responsiveScale(20)} color={primaryBlack} weight="duotone" />
-        <Text style={styles.bannerRemaining}>{remainingLabel}</Text>
-      </View>
-      <Text style={styles.bannerUsage}>
-        {t("billing.visitUsage", {
-          used: billing.visitCount,
-          limit: billing.freeVisitLimit,
-        })}
-      </Text>
+    <View style={[styles.bannerCompact, style]} accessibilityRole="text">
+      <Ticket size={responsiveScale(18)} color={primaryBlack} weight="duotone" />
+      <Text style={styles.bannerRemaining}>{remainingLabel}</Text>
     </View>
   );
 }
@@ -163,8 +159,8 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   banner: {
-    alignSelf: "stretch",
-    marginHorizontal: responsiveMargin(16),
+    alignSelf: "center",
+    maxWidth: "92%",
     marginBottom: responsiveMargin(12),
     padding: responsivePadding(14),
     borderRadius: responsiveBorderRadius(18),
@@ -172,27 +168,27 @@ const styles = StyleSheet.create({
     borderColor: primaryBlack,
     backgroundColor: primaryWhite,
   },
+  bannerCompact: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "center",
+    gap: responsiveMargin(8),
+    marginBottom: responsiveMargin(12),
+    paddingVertical: responsiveScale(10),
+    paddingHorizontal: responsiveScale(18),
+    borderRadius: responsiveScale(999),
+    borderWidth: 1,
+    borderColor: primaryBlack,
+    backgroundColor: primaryWhite,
+  },
   bannerLocked: {
     backgroundColor: `${secondaryGreen}55`,
     alignItems: "center",
-  },
-  bannerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: responsiveMargin(10),
   },
   bannerRemaining: {
     ...Typography.outfitRegular16,
     color: primaryBlack,
     textAlign: "center",
-  },
-  bannerUsage: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
-    opacity: 0.62,
-    textAlign: "center",
-    marginTop: responsiveMargin(6),
   },
   bannerTitle: {
     ...Typography.bodyLarge,
