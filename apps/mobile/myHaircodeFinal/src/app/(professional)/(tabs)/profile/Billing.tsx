@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { CreditCard, ArrowCounterClockwise, ArrowsLeftRight } from "phosphor-react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Typography } from "@/src/constants/Typography";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
@@ -29,6 +29,8 @@ import { ProVisitQuotaChip } from "@/src/components/ProVisitQuotaChip";
 import {
   getRevenueCatApiKey,
   hasActiveEntitlement,
+  openStoreSubscriptionManagement,
+  presentCustomerCenterSafe,
   restorePurchasesSafe,
 } from "@/src/lib/revenuecat";
 
@@ -41,8 +43,15 @@ function useBillingCardWidth(): number {
 
 export default function BillingScreen() {
   const { t } = useI18n();
-  const { billing, isProAccount, syncFromRevenueCat, refreshBilling } = useBilling();
+  const {
+    billing,
+    isProAccount,
+    revenueCatReady,
+    syncFromRevenueCat,
+    refreshBilling,
+  } = useBilling();
   const cardWidth = useBillingCardWidth();
+  const [busy, setBusy] = useState(false);
 
   const subtitle = useMemo(
     () =>
@@ -53,11 +62,53 @@ export default function BillingScreen() {
     [billing, t]
   );
 
-  const handleRestore = async () => {
-    if (!getRevenueCatApiKey()) {
-      Alert.alert(t("profile.restorePurchases"), t("profile.restorePurchasesSoon"));
-      return;
+  useFocusEffect(
+    useCallback(() => {
+      if (!getRevenueCatApiKey() || !revenueCatReady) return;
+      void syncFromRevenueCat();
+    }, [revenueCatReady, syncFromRevenueCat])
+  );
+
+  const ensureRevenueCat = () => {
+    if (getRevenueCatApiKey() && revenueCatReady) return true;
+    Alert.alert(t("profile.billing"), t("paywall.rcNotConfigured"));
+    return false;
+  };
+
+  const handleManageCancel = async () => {
+    if (!ensureRevenueCat()) return;
+
+    setBusy(true);
+    try {
+      await presentCustomerCenterSafe({
+        onRestoreCompleted: ({ customerInfo }) => {
+          void syncFromRevenueCat(customerInfo);
+        },
+      });
+      await syncFromRevenueCat();
+      await refreshBilling();
+    } catch {
+      const opened = await openStoreSubscriptionManagement();
+      if (!opened) {
+        Alert.alert(t("common.error"), t("profile.manageCancelFailed"));
+      }
+    } finally {
+      setBusy(false);
     }
+  };
+
+  const handleChangePlan = () => {
+    if (!ensureRevenueCat()) return;
+    router.push({
+      pathname: "/Screens/paywall",
+      params: { from: "billing" },
+    });
+  };
+
+  const handleRestore = async () => {
+    if (!ensureRevenueCat()) return;
+
+    setBusy(true);
     try {
       const info = await restorePurchasesSafe();
       if (!hasActiveEntitlement(info)) {
@@ -72,6 +123,8 @@ export default function BillingScreen() {
         t("common.error"),
         e instanceof Error ? e.message : t("paywall.purchaseFailed")
       );
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -114,9 +167,7 @@ export default function BillingScreen() {
                 Icon={CreditCard}
                 tileStyle="light"
                 groupPosition="first"
-                onPress={() =>
-                  Alert.alert(t("common.comingSoon"), t("profile.manageCancelSoon"))
-                }
+                onPress={busy ? undefined : handleManageCancel}
               />
               <View style={styles.cardDivider} />
               <Profile
@@ -124,12 +175,7 @@ export default function BillingScreen() {
                 Icon={ArrowsLeftRight}
                 tileStyle="light"
                 groupPosition="middle"
-                onPress={() =>
-                  router.push({
-                    pathname: "/Screens/paywall",
-                    params: { from: "billing" },
-                  })
-                }
+                onPress={busy ? undefined : handleChangePlan}
               />
               <View style={styles.cardDivider} />
               <Profile
@@ -137,7 +183,7 @@ export default function BillingScreen() {
                 Icon={ArrowCounterClockwise}
                 tileStyle="light"
                 groupPosition="last"
-                onPress={handleRestore}
+                onPress={busy ? undefined : handleRestore}
               />
             </View>
           </View>

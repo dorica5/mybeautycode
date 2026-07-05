@@ -40,42 +40,62 @@ import {
   getOfferingsSafe,
   getRevenueCatApiKey,
   hasActiveEntitlement,
+  packagePriceLabel,
   purchasePackageSafe,
   restorePurchasesSafe,
 } from "@/src/lib/revenuecat";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import type { Offerings } from "react-native-purchases";
 
-type Plan = "monthly" | "annual" | "lifetime";
+type Plan = "monthly" | "annual";
 
 const Paywall = () => {
   const { t } = useI18n();
   const logoSize = useBeautyCodeLogoSize();
   const { from } = useLocalSearchParams<{ from?: string }>();
-  const { billing, syncFromRevenueCat, refreshBilling } = useBilling();
+  const { billing, syncFromRevenueCat, refreshBilling, revenueCatReady } =
+    useBilling();
   const [selectedPlan, setSelectedPlan] = useState<Plan>("monthly");
   const [busy, setBusy] = useState(false);
+  const [offerings, setOfferings] = useState<Offerings | null>(null);
 
   const freeLimit =
     billing?.freeVisitLimit ?? mobileBillingConfig.FREE_VISIT_LIMIT;
   const monthlyPrice =
     billing?.monthlyPriceNok ?? mobileBillingConfig.MONTHLY_PRICE_NOK;
+  const annualPrice = mobileBillingConfig.ANNUAL_PRICE_NOK;
 
-  const pricesNok: Record<Plan, string> = {
-    monthly: t("paywall.priceMonthly", { price: monthlyPrice }),
-    annual: t("paywall.priceAnnual"),
-    lifetime: t("paywall.priceLifetime"),
-  };
+  const monthlyPkg = useMemo(
+    () => findPackage(offerings, "monthly"),
+    [offerings]
+  );
+  const annualPkg = useMemo(() => findPackage(offerings, "annual"), [offerings]);
 
-  const primaryCta = useMemo(
-    () => t("paywall.startSubscription", { price: monthlyPrice }),
-    [monthlyPrice, t]
+  const pricesNok: Record<Plan, string> = useMemo(
+    () => ({
+      monthly:
+        packagePriceLabel(monthlyPkg) ??
+        t("paywall.priceMonthly", { price: monthlyPrice }),
+      annual:
+        packagePriceLabel(annualPkg) ??
+        t("paywall.priceAnnual", { price: annualPrice }),
+    }),
+    [annualPkg, annualPrice, monthlyPkg, monthlyPrice, t]
   );
 
+  const primaryCta = useMemo(() => {
+    if (selectedPlan === "annual") {
+      return t("paywall.startSubscriptionAnnual", { price: annualPrice });
+    }
+    return t("paywall.startSubscriptionMonthly", { price: monthlyPrice });
+  }, [annualPrice, monthlyPrice, selectedPlan, t]);
+
   const afterTrialLine = useMemo(() => {
-    if (selectedPlan === "lifetime") return t("paywall.afterTrialLifetime");
-    if (selectedPlan === "annual") return t("paywall.afterTrialAnnual");
+    if (selectedPlan === "annual") {
+      return t("paywall.afterTrialAnnual", { price: annualPrice });
+    }
     return t("paywall.afterTrialMonthly", { price: monthlyPrice });
-  }, [monthlyPrice, selectedPlan, t]);
+  }, [annualPrice, monthlyPrice, selectedPlan, t]);
 
   const freeFeatures = useMemo(
     () => [t("paywall.featureDiscovery")],
@@ -97,6 +117,18 @@ const Paywall = () => {
     }
   }, [billing?.hasActiveSubscription, from]);
 
+  useEffect(() => {
+    if (!getRevenueCatApiKey() || !revenueCatReady) return;
+    let alive = true;
+    void (async () => {
+      const next = await getOfferingsSafe();
+      if (alive) setOfferings(next);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [revenueCatReady]);
+
   const openLink = async (url: string) => {
     try {
       const ok = await Linking.canOpenURL(url);
@@ -109,21 +141,19 @@ const Paywall = () => {
 
   const runPurchase = async () => {
     const apiKey = getRevenueCatApiKey();
-    if (!apiKey) {
+    if (!apiKey || !revenueCatReady) {
       Alert.alert(t("common.comingSoon"), t("paywall.rcNotConfigured"));
       return;
     }
 
     setBusy(true);
     try {
-      const offerings = await getOfferingsSafe();
-      const pkg = findPackage(offerings, selectedPlan);
+      const loadedOfferings = offerings ?? (await getOfferingsSafe());
+      if (!offerings && loadedOfferings) setOfferings(loadedOfferings);
+
+      const pkg = findPackage(loadedOfferings, selectedPlan);
       if (!pkg) {
-        if (selectedPlan !== "monthly") {
-          Alert.alert(t("common.comingSoon"), t("paywall.priceAnnual"));
-          return;
-        }
-        Alert.alert(t("common.comingSoon"), t("paywall.rcNotConfigured"));
+        Alert.alert(t("common.comingSoon"), t("paywall.productsNotAvailable"));
         return;
       }
 
@@ -150,7 +180,7 @@ const Paywall = () => {
 
   const handleRestore = async () => {
     const apiKey = getRevenueCatApiKey();
-    if (!apiKey) {
+    if (!apiKey || !revenueCatReady) {
       Alert.alert(t("common.comingSoon"), t("paywall.rcNotConfigured"));
       return;
     }
@@ -266,18 +296,13 @@ const Paywall = () => {
             plan="monthly"
             title={t("paywall.monthly")}
             subtitle={t("paywall.monthlySubtitle")}
+            disabled={revenueCatReady && !monthlyPkg}
           />
           <PlanCard
             plan="annual"
             title={t("paywall.yearly")}
             subtitle={t("paywall.yearlySubtitle")}
-            disabled
-          />
-          <PlanCard
-            plan="lifetime"
-            title={t("paywall.lifetime")}
-            subtitle={t("paywall.lifetimeSubtitle")}
-            disabled
+            disabled={revenueCatReady && !annualPkg}
           />
         </View>
 
@@ -294,7 +319,7 @@ const Paywall = () => {
             </View>
           ))}
           <Text style={[Typography.label, styles.sectionTitle, styles.sectionTitleSpaced]}>
-            {t("paywall.subscribeMonthly")}
+            {t("paywall.subscribePro")}
           </Text>
           {proFeatures.map((line) => (
             <View key={line} style={styles.bulletRow}>

@@ -15,6 +15,10 @@ export const mobileBillingConfig = {
     process.env.EXPO_PUBLIC_BILLING_MONTHLY_PRICE_NOK,
     199
   ),
+  ANNUAL_PRICE_NOK: readInt(
+    process.env.EXPO_PUBLIC_BILLING_ANNUAL_PRICE_NOK,
+    1990
+  ),
 } as const;
 
 export const VISIT_LIMIT_ERROR_CODE = "VISIT_LIMIT_EXCEEDED";

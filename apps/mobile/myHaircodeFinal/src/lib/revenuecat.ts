@@ -1,5 +1,13 @@
-import Purchases, { CustomerInfo, Offerings, PACKAGE_TYPE, PurchasesPackage } from "react-native-purchases";
-import { Platform } from "react-native";
+import Purchases, {
+  CustomerInfo,
+  Offerings,
+  PACKAGE_TYPE,
+  PurchasesPackage,
+} from "react-native-purchases";
+import RevenueCatUI, {
+  type CustomerCenterCallbacks,
+} from "react-native-purchases-ui";
+import { Linking, Platform } from "react-native";
 
 export const ENTITLEMENT_ID = "premium";
 
@@ -89,4 +97,43 @@ export async function restorePurchasesSafe(): Promise<CustomerInfo | null> {
     console.error("restorePurchasesSafe error", e);
     throw e;
   }
+}
+
+export async function presentCustomerCenterSafe(
+  callbacks?: CustomerCenterCallbacks
+): Promise<void> {
+  try {
+    await RevenueCatUI.presentCustomerCenter({ callbacks });
+  } catch (e) {
+    console.error("presentCustomerCenterSafe error", e);
+    throw e;
+  }
+}
+
+/** Opens the platform subscription management page (fallback if Customer Center fails). */
+export async function openStoreSubscriptionManagement(): Promise<boolean> {
+  const url =
+    Platform.OS === "android"
+      ? "https://play.google.com/store/account/subscriptions"
+      : "https://apps.apple.com/account/subscriptions";
+  try {
+    const ok = await Linking.canOpenURL(url);
+    if (!ok) return false;
+    await Linking.openURL(url);
+    return true;
+  } catch (e) {
+    console.error("openStoreSubscriptionManagement error", e);
+    return false;
+  }
+}
+
+export function activePremiumProductId(info: CustomerInfo | null): string | null {
+  const ent = info?.entitlements?.active?.[ENTITLEMENT_ID];
+  if (!ent) return null;
+  return ent.productIdentifier ?? null;
+}
+
+export function packagePriceLabel(pkg: PurchasesPackage | null): string | null {
+  const price = pkg?.product?.priceString?.trim();
+  return price || null;
 }
