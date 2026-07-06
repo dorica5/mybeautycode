@@ -15,6 +15,7 @@ import { Typography } from "@/src/constants/Typography";
 import {
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import { formatVisitServicesForDisplay } from "@/src/constants/profDiscoveryCategories";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import {
   PreviewArrowLeftIcon,
@@ -90,7 +91,11 @@ export function VisitRecordDetailView({
 
   const professionalLabel = `${professionLabelFromT(t, professionCode)}:`;
   const displayDate = dateText?.trim() ? dateText : "";
-  const displayService = serviceText?.trim() ? serviceText : "";
+  const displayService = formatVisitServicesForDisplay(
+    serviceText,
+    professionCode,
+    t
+  );
   const displayComment = commentText?.trim() ? commentText : "";
   const displayDuration = durationText?.trim() ? durationText : "";
   const displayPrice = priceText?.trim() ? priceText : "";
@@ -288,12 +293,13 @@ export function VisitRecordDetailView({
                       cornerRadius={previewMediaRadius}
                       priority={index === 0 ? "high" : "normal"}
                     />
-                  ) : item.uri ? (
+                  ) : item.type === "video" && item.uri ? (
                     <VisitPreviewSizedVideo
                       uri={item.uri}
                       maxWidth={carouselTrackWidth}
                       maxHeight={carouselHeight}
                       cornerRadius={previewMediaRadius}
+                      isActive={index === activeSlide}
                     />
                   ) : null}
                 </View>

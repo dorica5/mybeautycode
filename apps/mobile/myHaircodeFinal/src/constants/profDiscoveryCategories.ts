@@ -142,6 +142,33 @@ export function localizedDiscoveryOptionsForProfession(
   }));
 }
 
+/** New visit layout with localized labels; selection state uses stable `code` values. */
+export function localizedVisitServiceLayoutForProfession(
+  code: ProfessionChoiceCode | null,
+  t: (key: string, params?: Record<string, string>) => string
+): {
+  primary: readonly DiscoveryCategoryOption[];
+  dropdown: readonly DiscoveryCategoryOption[];
+} {
+  const layout = visitServiceLayoutForProfession(code);
+  const localize = (opts: readonly DiscoveryCategoryOption[]) =>
+    opts.map((opt) => ({
+      code: opt.code,
+      label: discoveryCategoryLabel(opt.code, t),
+    }));
+  return {
+    primary: localize(layout.primary),
+    dropdown: localize(layout.dropdown),
+  };
+}
+
+export function allVisitServiceCodesForProfession(
+  code: ProfessionChoiceCode | null
+): Set<string> {
+  const { primary, dropdown } = visitServiceLayoutForProfession(code);
+  return new Set([...primary, ...dropdown].map((o) => o.code.toLowerCase()));
+}
+
 /** New visit: full-width rows vs “Other” modal multi-select (labels match discovery). */
 export function visitServiceLayoutForProfession(
   code: ProfessionChoiceCode | null
@@ -194,34 +221,79 @@ const LEGACY_VISIT_SERVICE_LABEL_ALIASES: Record<string, string> = {
   "lash extensions": "Lash Extensions",
 };
 
-function resolveVisitServiceLabel(
+function resolveVisitServiceCode(
   trimmed: string,
-  valid: Set<string>
+  profession: ProfessionChoiceCode | null
 ): string | null {
   if (!trimmed) return null;
-  if (trimmed.toLowerCase() === "other") return null;
-  if (valid.has(trimmed)) return trimmed;
-  const mapped = LEGACY_VISIT_SERVICE_LABEL_ALIASES[trimmed.toLowerCase()];
-  if (mapped && valid.has(mapped)) return mapped;
+  const lower = trimmed.toLowerCase();
+  if (lower === "other") return null;
+
+  const validCodes = allVisitServiceCodesForProfession(profession);
+  if (validCodes.has(lower)) return lower;
+
+  const aliasTarget = LEGACY_VISIT_SERVICE_LABEL_ALIASES[lower];
+  const candidates = aliasTarget ? [aliasTarget, trimmed] : [trimmed];
+
+  for (const opt of discoveryOptionsForProfession(profession)) {
+    for (const candidate of candidates) {
+      if (opt.label.toLowerCase() === candidate.trim().toLowerCase()) {
+        return opt.code.toLowerCase();
+      }
+    }
+  }
+
   return null;
 }
 
-/** Normalizes stored visit service labels when opening New visit / Edit visit. */
-export function canonicalizeVisitServicesFromStrings(
+/** Normalizes stored visit service tokens (English labels or codes) to stable codes. */
+export function canonicalizeVisitServiceCodesFromStrings(
   rawLabels: readonly string[],
   profession: ProfessionChoiceCode | null
 ): string[] {
-  const valid = allVisitServiceLabelsForProfession(profession);
   const out: string[] = [];
   const seen = new Set<string>();
   for (const raw of rawLabels) {
-    const resolved = resolveVisitServiceLabel(raw.trim(), valid);
+    const resolved = resolveVisitServiceCode(raw.trim(), profession);
     if (resolved && !seen.has(resolved)) {
       seen.add(resolved);
       out.push(resolved);
     }
   }
   return out;
+}
+
+/** Comma-separated localized labels for display (handles legacy English + codes in storage). */
+export function formatVisitServicesForDisplay(
+  servicesString: string | null | undefined,
+  profession: ProfessionChoiceCode | null,
+  t: (key: string, params?: Record<string, string>) => string
+): string {
+  const raw = String(servicesString ?? "").trim();
+  if (!raw) return "";
+  const codes = canonicalizeVisitServiceCodesFromStrings(
+    raw.split(",").map((part) => part.trim()),
+    profession
+  );
+  if (codes.length === 0) return raw;
+  return codes.map((code) => discoveryCategoryLabel(code, t)).join(", ");
+}
+
+/** @deprecated Prefer `canonicalizeVisitServiceCodesFromStrings` — returns English labels. */
+export function canonicalizeVisitServicesFromStrings(
+  rawLabels: readonly string[],
+  profession: ProfessionChoiceCode | null
+): string[] {
+  const codes = canonicalizeVisitServiceCodesFromStrings(rawLabels, profession);
+  const valid = allVisitServiceLabelsForProfession(profession);
+  return codes
+    .map((code) => {
+      const opt = discoveryOptionsForProfession(profession).find(
+        (o) => o.code.toLowerCase() === code
+      );
+      return opt?.label ?? null;
+    })
+    .filter((label): label is string => Boolean(label && valid.has(label)));
 }
 
 /** Parse `/me` payload then normalize legacy discovery codes for this app version. */

@@ -6,7 +6,7 @@ import { serviceRecordAccessService } from "../services/serviceRecordAccessServi
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 100 * 1024 * 1024 },
 });
 
 export const storageController = {
@@ -16,6 +16,15 @@ export const storageController = {
     const file = req.file;
     if (!file) {
       return res.status(400).json({ error: "No file uploaded" });
+    }
+    const isVideo = file.mimetype.startsWith("video/");
+    const maxBytes = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      return res.status(413).json({
+        error: isVideo
+          ? "Video is too large. Maximum size is 100 MB."
+          : "Image is too large. Maximum size is 10 MB.",
+      });
     }
     const bucket = String(
       (req.body.bucket as string) ?? "inspirations"

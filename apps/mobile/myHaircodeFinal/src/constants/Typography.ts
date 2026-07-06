@@ -1,4 +1,4 @@
-import { TextStyle } from "react-native";
+import { Platform, TextStyle } from "react-native";
 
 import { primaryBlack } from "./Colors";
 import { responsiveFontSize } from "../utils/responsive";
@@ -11,18 +11,21 @@ export const FONT_FAMILY = {
   outfitMedium: "Outfit_500Medium",
 } as const;
 
-function antonHeading(
-  size: number,
-  lineHeightPercent: number
-): TextStyle {
+/**
+ * Anton’s å/ø/æ rings sit above the font’s ascender box — forced `lineHeight` clips them in RN.
+ * Use natural line metrics + top padding instead of tight % line heights.
+ */
+function antonHeading(size: number): TextStyle {
   const fs = responsiveFontSize(size);
+  const headroom = Math.max(8, Math.round(fs * 0.22));
   return {
     fontFamily: FONT_FAMILY.anton,
     fontSize: fs,
     fontWeight: "400",
-    lineHeight: Math.round((fs * lineHeightPercent) / 100),
     letterSpacing: 0,
     color: primaryBlack,
+    paddingTop: headroom,
+    ...(Platform.OS === "android" ? { includeFontPadding: true } : null),
   };
 }
 
@@ -67,25 +70,25 @@ function outfitRegularText(size: number, lineHeightPercent?: number): TextStyle 
  * or `style={[Typography.bodyMedium, { textAlign: 'center' }]}>`.
  */
 export const Typography = {
-  h1: antonHeading(48, 130),
-  h2: antonHeading(44, 120),
-  h3: antonHeading(36, 120),
+  h1: antonHeading(48),
+  h2: antonHeading(44),
+  h3: antonHeading(36),
   /** Anton 26 regular — e.g. username on professional “add client” profile preview. */
-  anton26: antonHeading(26, 120),
+  anton26: antonHeading(26),
   /** Anton 24 regular — e.g. public profile handle (no @). */
-  anton24: antonHeading(24, 120),
+  anton24: antonHeading(24),
   /** Anton 20 regular — e.g. business / salon name on public profile. */
-  anton20: antonHeading(20, 120),
+  anton20: antonHeading(20),
   /** Anton 16 regular — e.g. subtitle on pro home (My clients) or profession line under “My visits”. */
-  anton16: antonHeading(16, 120),
+  anton16: antonHeading(16),
   /** Anton 16 with medium weight where the platform honors it (e.g. visit list date on sage cards). */
-  anton16Medium: { ...antonHeading(16, 120), fontWeight: "500" },
+  anton16Medium: { ...antonHeading(16), fontWeight: "500" },
   h4: outfitText(24, "300", 120),
   bodyLarge: outfitText(20, "300", 130),
   bodyMedium: outfitText(18, "300", 140),
   bodySmall: outfitText(16, "300", 140),
   /** Line height: automatic (default line metrics). */
-  label: outfitText(16, "500"),
+  label: outfitText(16, "500", 140),
   /** AG label 16 — section / field captions (Outfit medium 16). */
   agLabel16: outfitText(16, "500", 140),
   /** AG body medium 18 / 148% — large option rows (Outfit medium 18). */

@@ -153,6 +153,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
           phone_number: item.phone_number,
           relationship: "false",
           client_id: clientId,
+          ...(linkPending ? { link_pending: "true" } : {}),
         },
       });
     };
@@ -167,6 +168,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
           phone_number: item.phone_number,
           relationship: "false",
           client_id: clientId,
+          link_pending: "true",
         },
       });
     };

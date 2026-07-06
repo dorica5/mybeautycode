@@ -108,6 +108,7 @@ const Setup = () => {
       fontSize: layout.titleFont,
       fontWeight: "400" as const,
       letterSpacing: 0,
+      paddingTop: Math.max(8, Math.round(layout.titleFont * 0.22)),
       color: primaryBlack,
       textAlign: "center" as const,
     }),

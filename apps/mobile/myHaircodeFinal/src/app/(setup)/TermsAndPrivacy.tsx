@@ -32,12 +32,14 @@ const TermsAndConditionsScreen = () => {
           contentContainerStyle={styles.scrollView}
           showsVerticalScrollIndicator
         >
-          <Text
-            style={[Typography.h3, styles.screenTitle]}
-            accessibilityRole="header"
-          >
-            {t("setup.termsAndPrivacy")}
-          </Text>
+          <View style={styles.screenTitleWrap}>
+            <Text
+              style={[Typography.h3, styles.screenTitle]}
+              accessibilityRole="header"
+            >
+              {t("setup.termsAndPrivacy")}
+            </Text>
+          </View>
 
           <KrusedullLogo
             width={responsiveScale(120)}
@@ -116,12 +118,16 @@ const styles = StyleSheet.create({
   scrollFlex: {
     flex: 1,
   },
+  screenTitleWrap: {
+    width: "100%",
+    overflow: "visible",
+    marginTop: responsiveMargin(isTablet() ? 20 : 48),
+    marginBottom: responsiveMargin(14),
+  },
   screenTitle: {
     color: primaryBlack,
     textAlign: "center",
     width: "100%",
-    marginTop: responsiveMargin(isTablet() ? 20 : 48),
-    marginBottom: responsiveMargin(14),
   },
   scrollView: {
     paddingBottom: verticalScale(24),

@@ -433,7 +433,8 @@ const ProfessionalProfileScreen = () => {
         onBack={() => router.back()}
         showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}
-        addLoading={loading || relPending}
+        relationshipStatusLoading={relPending}
+        addLoading={loading}
         onAddHairdresser={addHairdresser}
         headerRight={
           isOwnProfile ? undefined : (

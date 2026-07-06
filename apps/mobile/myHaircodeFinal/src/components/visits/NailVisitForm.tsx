@@ -36,10 +36,13 @@ import {
 import { router } from "expo-router";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import type { DiscoveryCategoryOption } from "@/src/constants/profDiscoveryCategories";
 /** Description field limit for new/edit visit (spaces count). */
 export const VISIT_DESCRIPTION_MAX_CHARS = 240;
 /** Max photos (images) per visit when creating or editing. */
 export const VISIT_MAX_PHOTOS = 10;
+/** Max videos per visit when creating or editing. */
+export const VISIT_MAX_VIDEOS = 1;
 
 type MediaItem = {
   uri?: string;
@@ -51,15 +54,16 @@ type MediaItem = {
 
 export type NailVisitFormProps = {
   scrollRef: React.RefObject<ScrollView>;
-  /** Primary full-width rows (same labels as discovery / profile categories). */
-  servicePrimaryOptions: readonly string[];
+  /** Primary full-width rows (localized labels; `code` is stored in selection state). */
+  servicePrimaryOptions: readonly DiscoveryCategoryOption[];
   /** Optional modal multi-select; empty for e.g. nails (all primary). */
-  serviceDropdownOptions: readonly string[];
-  /** Called with the full set of labels selected inside “Other”; replaces dropdown slice only. */
-  onChangeDropdownServices?: (nextDropdownLabels: string[]) => void;
+  serviceDropdownOptions: readonly DiscoveryCategoryOption[];
+  /** Called with the full set of codes selected inside “Other”; replaces dropdown slice only. */
+  onChangeDropdownServices?: (nextDropdownCodes: string[]) => void;
   isEditing: boolean;
+  /** Selected discovery service codes. */
   selectedOptions: string[];
-  onToggleService: (option: string) => void;
+  onToggleService: (code: string) => void;
   newHaircode: string;
   onChangeDescription: (text: string) => void;
   durationMinutes: number;
@@ -73,9 +77,11 @@ export type NailVisitFormProps = {
   onChangePrice: (text: string) => void;
   capturedMedia: MediaItem[];
   pickImage: (index?: number) => void;
+  pickVideo: () => void;
   removeMedia: (index: number) => void;
   /** Disable add while cropping or uploading. */
   pickImageDisabled?: boolean;
+  pickVideoDisabled?: boolean;
   isPending: boolean;
   isUploadingMedia: boolean;
   onSave: () => void;
@@ -103,24 +109,35 @@ export function NailVisitForm({
   onChangePrice,
   capturedMedia,
   pickImage,
+  pickVideo,
   removeMedia,
   pickImageDisabled = false,
+  pickVideoDisabled = false,
   isPending,
   isUploadingMedia,
   onSave,
   onPreviewPress,
 }: NailVisitFormProps) {
   const { t } = useI18n();
-  const mediaAtLimit = capturedMedia.length >= VISIT_MAX_PHOTOS;
-  const addMediaDisabled = pickImageDisabled || mediaAtLimit;
+  const imageCount = capturedMedia.filter((m) => m.type !== "video").length;
+  const videoCount = capturedMedia.filter((m) => m.type === "video").length;
+  const imagesAtLimit = imageCount >= VISIT_MAX_PHOTOS;
+  const videoAtLimit = videoCount >= VISIT_MAX_VIDEOS;
+  const addImageDisabled = pickImageDisabled || imagesAtLimit;
+  const addVideoDisabled = pickVideoDisabled || videoAtLimit;
   const { width, height } = useWindowDimensions();
-  const dropdownLabelSet = useMemo(
-    () => new Set(serviceDropdownOptions),
+  const dropdownCodeSet = useMemo(
+    () => new Set(serviceDropdownOptions.map((o) => o.code)),
+    [serviceDropdownOptions]
+  );
+  const dropdownItems = useMemo(
+    () =>
+      serviceDropdownOptions.map((o) => ({ value: o.code, label: o.label })),
     [serviceDropdownOptions]
   );
   const dropdownValue = useMemo(
-    () => selectedOptions.filter((s) => dropdownLabelSet.has(s)),
-    [selectedOptions, dropdownLabelSet]
+    () => selectedOptions.filter((s) => dropdownCodeSet.has(s)),
+    [selectedOptions, dropdownCodeSet]
   );
 
   const columnMax = useMemo(() => {
@@ -180,24 +197,24 @@ export function NailVisitForm({
             <View style={styles.nailServiceBlock}>
               {servicePrimaryOptions.map((opt) => (
                 <Pressable
-                  key={opt}
+                  key={opt.code}
                   style={({ pressed }) => [
                     styles.nailServiceRow,
-                    selectedOptions.includes(opt) &&
+                    selectedOptions.includes(opt.code) &&
                       styles.nailServiceRowSelected,
                     pressed && styles.nailServiceRowPressed,
                   ]}
-                  onPress={() => onToggleService(opt)}
+                  onPress={() => onToggleService(opt.code)}
                 >
                   <Text
                     style={[
                       Typography.bodyMedium,
                       styles.nailServiceRowText,
-                      selectedOptions.includes(opt) &&
+                      selectedOptions.includes(opt.code) &&
                         styles.nailServiceRowTextSelected,
                     ]}
                   >
-                    {opt}
+                    {opt.label}
                   </Text>
                 </Pressable>
               ))}
@@ -207,7 +224,7 @@ export function NailVisitForm({
             onChangeDropdownServices ? (
               <BrandAnchoredMultiSelect
                 label={t("visits.other")}
-                options={serviceDropdownOptions}
+                items={dropdownItems}
                 value={dropdownValue}
                 onChange={onChangeDropdownServices}
                 placeholder={t("visits.tapToAddServices")}
@@ -345,16 +362,16 @@ export function NailVisitForm({
 
               <Pressable
                 onPress={() => pickImage()}
-                disabled={addMediaDisabled}
+                disabled={addImageDisabled}
                 style={({ pressed }) => [
                   styles.nailUploadAddRow,
                   capturedMedia.length > 0 && styles.nailUploadAddRowBelowGrid,
-                  pressed && !addMediaDisabled && styles.nailUploadAddRowPressed,
-                  addMediaDisabled && styles.nailUploadAddRowDisabled,
+                  pressed && !addImageDisabled && styles.nailUploadAddRowPressed,
+                  addImageDisabled && styles.nailUploadAddRowDisabled,
                 ]}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  mediaAtLimit ? t("visits.maxPhotosReached") : t("visits.addImage")
+                  imagesAtLimit ? t("visits.maxPhotosReached") : t("visits.addImage")
                 }
               >
                 <Plus
@@ -363,9 +380,36 @@ export function NailVisitForm({
                   strokeWidth={1.5}
                 />
                 <Text style={[Typography.bodyMedium, styles.nailUploadAddText]}>
-                  {mediaAtLimit
+                  {imagesAtLimit
                     ? t("visits.maximumPhotos", { count: String(VISIT_MAX_PHOTOS) })
                     : t("visits.addImage")}
+                </Text>
+                <View style={styles.nailUploadAddRowEndSpacer} />
+              </Pressable>
+
+              <Pressable
+                onPress={() => pickVideo()}
+                disabled={addVideoDisabled}
+                style={({ pressed }) => [
+                  styles.nailUploadAddRow,
+                  styles.nailUploadAddRowBelowGrid,
+                  pressed && !addVideoDisabled && styles.nailUploadAddRowPressed,
+                  addVideoDisabled && styles.nailUploadAddRowDisabled,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  videoAtLimit ? t("visits.maxVideosReached") : t("visits.addVideo")
+                }
+              >
+                <Plus
+                  size={responsiveScale(20)}
+                  color={primaryBlack}
+                  strokeWidth={1.5}
+                />
+                <Text style={[Typography.bodyMedium, styles.nailUploadAddText]}>
+                  {videoAtLimit
+                    ? t("visits.maximumVideos", { count: String(VISIT_MAX_VIDEOS) })
+                    : t("visits.addVideo")}
                 </Text>
                 <View style={styles.nailUploadAddRowEndSpacer} />
               </Pressable>

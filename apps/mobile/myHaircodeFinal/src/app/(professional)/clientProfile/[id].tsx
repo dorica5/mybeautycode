@@ -15,7 +15,7 @@ import { useClientSearch, requestClientLink } from "@/src/api/profiles";
 import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
   Colors,
@@ -24,10 +24,11 @@ import {
   primaryWhite,
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import {
-  getClientLinkUiStatus,
   removeRelationship,
+  useClientLinkUiStatus,
+  clientLinkUiStatusQueryKey,
   type ClientLinkUiStatus,
 } from "@/src/api/relationships";
 import {
@@ -77,6 +78,7 @@ const UserProfile = () => {
     full_name?: string | string[];
     phone_number?: string | string[];
     relationship?: string | string[];
+    link_pending?: string | string[];
     price?: string | string[];
   }>();
   const client_id =
@@ -99,9 +101,9 @@ const UserProfile = () => {
     : undefined;
 
   const { session, profile: myProfile } = useAuth();
-  const { activeProfessionCode } = useActiveProfessionState(myProfile);
+  const { activeProfessionCode, storedProfessionReady } =
+    useActiveProfessionState(myProfile);
   const [loading, setLoading] = useState(false);
-  const [linkState, setLinkState] = useState<ClientLinkUiStatus | null>(null);
   const [isBlockedUser, setIsBlockedUser] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -120,29 +122,37 @@ const UserProfile = () => {
 
   const navFullName = paramStr(params.full_name);
   const navPhone = paramStr(params.phone_number);
+  const navLinkPending = paramStr(params.link_pending) === "true";
+  const navRelationshipActive = paramStr(params.relationship) === "true";
 
-  const refreshLinkState = useCallback(async () => {
-    if (!hairdresser_id || !client_id || !isUuid(client_id)) return;
-    try {
-      const s = await getClientLinkUiStatus(
-        String(hairdresser_id),
-        client_id,
-        activeProfessionCode
-      );
-      setLinkState(s);
-    } catch (error) {
-      console.error("Error loading client link state:", error);
-      setLinkState("none");
-    }
-  }, [hairdresser_id, client_id, activeProfessionCode]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void refreshLinkState();
-    }, [refreshLinkState])
+  const linkStatusQueryEnabled = Boolean(
+    storedProfessionReady &&
+      activeProfessionCode &&
+      hairdresser_id &&
+      client_id &&
+      isUuid(client_id)
   );
 
-  const isRelated = linkState === "active";
+  const initialLinkStatus: ClientLinkUiStatus | undefined = navRelationshipActive
+    ? "active"
+    : navLinkPending
+      ? "pending"
+      : undefined;
+
+  const {
+    data: linkState,
+    isPending: linkStatePending,
+    isFetched: linkStateFetched,
+  } = useClientLinkUiStatus(hairdresser_id, client_id, activeProfessionCode, {
+    enabled: linkStatusQueryEnabled,
+    initialStatus: initialLinkStatus,
+  });
+
+  const linkStateResolved =
+    linkState ??
+    (linkStatusQueryEnabled && linkStateFetched ? ("none" as const) : null);
+
+  const isRelated = linkStateResolved === "active";
 
   useEffect(() => {
     const checkBlocked = async () => {
@@ -155,12 +165,26 @@ const UserProfile = () => {
   }, [client_id, hairdresser_id]);
 
   const handleAddClient = async () => {
-    if (linkState === "pending" || loading || !client_id || !isUuid(client_id))
+    if (
+      linkStateResolved === "pending" ||
+      loading ||
+      !client_id ||
+      !isUuid(client_id) ||
+      !hairdresser_id ||
+      !activeProfessionCode
+    )
       return;
     setLoading(true);
     try {
       await requestClientLink(client_id, activeProfessionCode);
-      setLinkState("pending");
+      queryClient.setQueryData(
+        clientLinkUiStatusQueryKey(
+          String(hairdresser_id),
+          client_id,
+          activeProfessionCode
+        ),
+        "pending" satisfies ClientLinkUiStatus
+      );
       await queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
       setAlertVisible(true);
     } catch (err) {
@@ -184,7 +208,16 @@ const UserProfile = () => {
       await queryClient.invalidateQueries({
         queryKey: ["latest_visits", hairdresser_id],
       });
-      setLinkState("none");
+      if (hairdresser_id && activeProfessionCode) {
+        queryClient.setQueryData(
+          clientLinkUiStatusQueryKey(
+            String(hairdresser_id),
+            cid,
+            activeProfessionCode
+          ),
+          "none" satisfies ClientLinkUiStatus
+        );
+      }
       setActiveAction(null);
     } catch {
       Alert.alert(t("common.error"), t("moderation.removeRelationshipFailed"));
@@ -358,7 +391,7 @@ const UserProfile = () => {
     );
   }
 
-  if (linkState === null) {
+  if (linkStateResolved === null) {
     return (
       <SafeAreaView style={[styles.mintRoot, styles.mintCenter]} edges={["top"]}>
         <StatusBar style="dark" />
@@ -444,21 +477,21 @@ const UserProfile = () => {
                 style={({ pressed }) => [
                   styles.addClientPill,
                   pressed &&
-                    linkState === "none" &&
+                    linkStateResolved === "none" &&
                     !loading && { opacity: 0.85 },
                 ]}
                 onPress={handleAddClient}
-                disabled={linkState === "pending" || loading}
+                disabled={linkStateResolved === "pending" || loading}
                 accessibilityRole="button"
                 accessibilityState={{
-                  disabled: linkState === "pending" || loading,
+                  disabled: linkStateResolved === "pending" || loading,
                 }}
               >
-                {loading ? (
+                {loading || (linkStatePending && linkState == null) ? (
                   <ActivityIndicator color={primaryBlack} />
                 ) : (
                   <Text style={styles.addClientPillLabel}>
-                    {linkState === "pending"
+                    {linkStateResolved === "pending"
                       ? t("profile.requestPending")
                       : t("profile.addClient")}
                   </Text>
