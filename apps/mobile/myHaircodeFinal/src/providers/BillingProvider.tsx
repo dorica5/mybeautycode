@@ -26,6 +26,7 @@ import {
   getCustomerInfoSafe,
   getRevenueCatApiKey,
   hasActiveEntitlement,
+  shouldInitializeRevenueCat,
 } from "@/src/lib/revenuecat";
 
 type BillingContextValue = {
@@ -104,13 +105,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
   const [revenueCatReady, setRevenueCatReady] = useState(false);
 
   useEffect(() => {
-    if (!profile?.id || !isPro) {
-      setRevenueCatReady(false);
-      return;
-    }
-
-    const apiKey = getRevenueCatApiKey();
-    if (!apiKey) {
+    if (!profile?.id || !isPro || !shouldInitializeRevenueCat()) {
       setRevenueCatReady(false);
       return;
     }
@@ -118,7 +113,13 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     let alive = true;
     (async () => {
       try {
-        configureRevenueCat(apiKey, profile.id);
+        const apiKey = getRevenueCatApiKey();
+        if (!apiKey) {
+          setRevenueCatReady(false);
+          return;
+        }
+
+        await configureRevenueCat(apiKey, profile.id);
         if (!alive) return;
         setRevenueCatReady(true);
         const info = await getCustomerInfoSafe(true);
@@ -129,6 +130,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (e) {
         console.warn("RevenueCat init failed", e);
+        if (alive) setRevenueCatReady(false);
       }
     })();
 

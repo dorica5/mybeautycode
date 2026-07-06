@@ -7,9 +7,23 @@ import Purchases, {
 import RevenueCatUI, {
   type CustomerCenterCallbacks,
 } from "react-native-purchases-ui";
+import Constants from "expo-constants";
 import { Linking, Platform } from "react-native";
+import { BYPASS_PRO_PAYWALL_FOR_DEV } from "@/src/lib/subscriptionFlags";
 
 export const ENTITLEMENT_ID = "premium";
+
+export function isExpoGo(): boolean {
+  return Constants.appOwnership === "expo";
+}
+
+/** Native StoreKit / Play Billing — not Expo Go preview or web. */
+export function shouldInitializeRevenueCat(): boolean {
+  if (BYPASS_PRO_PAYWALL_FOR_DEV) return false;
+  if (Platform.OS === "web") return false;
+  if (isExpoGo()) return false;
+  return !!getRevenueCatApiKey();
+}
 
 export function getRevenueCatApiKey(): string | null {
   const ios = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY?.trim();
@@ -19,9 +33,12 @@ export function getRevenueCatApiKey(): string | null {
   return ios || android || null;
 }
 
-export function configureRevenueCat(apiKey: string, appUserID: string) {
+export async function configureRevenueCat(
+  apiKey: string,
+  appUserID: string
+): Promise<void> {
   Purchases.setLogLevel(__DEV__ ? "WARN" : "ERROR");
-  Purchases.configure({ apiKey, appUserID });
+  await Purchases.configure({ apiKey, appUserID });
 }
 
 export async function getCustomerInfoSafe(force = false): Promise<CustomerInfo | null> {
