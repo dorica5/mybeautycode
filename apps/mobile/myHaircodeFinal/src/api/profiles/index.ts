@@ -162,7 +162,7 @@ export const useListAllHairdresserSearch = (
         `/api/profiles/search/hairdressers-with-relationship?${params.toString()}`
       );
     },
-    enabled: q.length > 0 && !!clientId,
+    enabled: q.length > 0 && !!clientId && !!code,
     ...SEARCH_QUERY_OPTIONS,
   });
 };
@@ -175,12 +175,18 @@ export const useAddHairdresser = (
   const queryClient = useQueryClient();
   const code = professionCode?.trim() || undefined;
   return useMutation({
-    mutationFn: () =>
-      api.post("/api/relationships", {
+    mutationFn: () => {
+      if (!code) {
+        return Promise.reject(
+          new Error("profession_code is required for this connection")
+        );
+      }
+      return api.post("/api/relationships", {
         hairdresser_id,
         client_id: client_id ?? undefined,
-        ...(code ? { profession_code: code } : {}),
-      }),
+        profession_code: code,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({});
       queryClient.invalidateQueries({

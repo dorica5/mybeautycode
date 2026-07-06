@@ -45,22 +45,25 @@ export const relationshipController = {
     if (!hairdresser_id) {
       return res.status(400).json({ error: "hairdresser_id required" });
     }
-    // The connect action is scoped per profession lane (hair vs nails vs brows
-    // are independent accounts). Defaults to "hair" for backwards compat.
+    // Each connect is scoped to one profession account (hair / nails / brows / barber).
     const professionCodeRaw =
       typeof req.body.profession_code === "string"
         ? req.body.profession_code
         : typeof req.body.professionCode === "string"
           ? req.body.professionCode
           : undefined;
-    const profession_code =
-      professionCodeRaw && professionCodeRaw.trim()
-        ? professionCodeRaw.trim()
-        : "hair";
+    const profession_code = professionCodeRaw?.trim();
+    if (!profession_code) {
+      return res.status(400).json({ error: "profession_code is required" });
+    }
     try {
       await relationshipService.add(hairdresser_id, clientId, profession_code);
       res.json({ success: true });
     } catch (err) {
+      const e = err as Error & { statusCode?: number };
+      if (e.statusCode === 400) {
+        return res.status(400).json({ error: e.message });
+      }
       console.error("relationship add error:", err);
       res.status(500).json({ error: "Failed to add relationship" });
     }

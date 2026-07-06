@@ -341,8 +341,9 @@ export const sv: AppLocaleMessages = {
     wantsConnectOnBrand: "{{name}} vill ansluta med dig på {{brand}}",
     cannotOpen: "Kan inte öppna",
     cannotOpenMissingClient: "Denna avisering saknar klientinformation.",
-    cannotOpenMissingVisit:
-      "Denna avisering saknar data. Det kan hända med äldre aviseringar. Nya besöksaviseringar öppnas korrekt.",
+    cannotOpenMissingVisit: "Detta besök är inte längre tillgängligt.",
+    visitUnavailableTitle: "Besöket är inte tillgängligt",
+    visitUnavailableMessage: "Det kan ha tagits bort.",
   },
   inspiration: {
     title: "Min inspiration",

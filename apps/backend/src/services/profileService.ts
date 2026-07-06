@@ -814,16 +814,30 @@ export const profileService = {
           }
         : undefined;
 
+    const searchFilter = professionalDiscoverySearch(searchQuery);
+    const discoveryFilters: Prisma.ProfessionalProfileWhereInput[] = [];
+    if (Object.keys(searchFilter).length > 0) {
+      discoveryFilters.push(searchFilter);
+    }
+    if (laneFilter) {
+      discoveryFilters.push(laneFilter);
+    }
+
     const profProfiles = await prisma.professionalProfile.findMany({
       where: {
         // Don't surface yourself in a client-side search.
         profileId: { not: clientUserId },
-        ...professionalDiscoverySearch(searchQuery),
-        ...(laneFilter ?? {}),
+        ...(discoveryFilters.length > 0 ? { AND: discoveryFilters } : {}),
       },
       include: {
         profile: {
-          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+            username: true,
+          },
         },
         professionalProfessions: {
           where: professionId ? { professionId } : undefined,
@@ -872,8 +886,10 @@ export const profileService = {
       professional_profile_id: pp.id,
       profile_id: pp.profileId,
       hairdresser_id: pp.profileId,
+      profession_code: canonicalCode ?? normalizedCode ?? null,
       full_name:
         professionalProfileDisplayName(pp) ?? profileDisplayName(pp.profile),
+      username: pp.profile.username ?? null,
       avatar_url: resolveLaneAvatarUrl(
         laneAvatarFor(pp),
         pp.profile.avatarUrl

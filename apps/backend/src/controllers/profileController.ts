@@ -161,6 +161,9 @@ export const profileController = {
       professionCodeRaw && professionCodeRaw.trim()
         ? professionCodeRaw.trim()
         : undefined;
+    if (!professionCode) {
+      return res.status(400).json({ error: "profession_code is required" });
+    }
     try {
       const results = await profileService.searchProfessionalsWithRelationship(
         String(q),

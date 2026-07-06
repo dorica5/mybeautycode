@@ -343,7 +343,9 @@ export const en = {
     cannotOpenMissingClient:
       "This notification is missing client information.",
     cannotOpenMissingVisit:
-      "This notification is missing data. This can happen with older notifications. New visit notifications will open correctly.",
+      "This visit is no longer available.",
+    visitUnavailableTitle: "Visit unavailable",
+    visitUnavailableMessage: "It may have been removed.",
   },
   inspiration: {
     title: "My inspiration",

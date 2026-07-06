@@ -342,8 +342,9 @@ export const nb: AppLocaleMessages = {
     wantsConnectOnBrand: "{{name}} vil koble seg til deg på {{brand}}",
     cannotOpen: "Kan ikke åpne",
     cannotOpenMissingClient: "Dette varselet mangler kundeinformasjon.",
-    cannotOpenMissingVisit:
-      "Dette varselet mangler data. Det kan skje med eldre varsler. Nye besøksvarsler åpnes riktig.",
+    cannotOpenMissingVisit: "Dette besøket er ikke lenger tilgjengelig.",
+    visitUnavailableTitle: "Besøket er ikke tilgjengelig",
+    visitUnavailableMessage: "Det kan ha blitt slettet.",
   },
   inspiration: {
     title: "Min inspirasjon",

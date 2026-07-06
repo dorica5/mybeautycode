@@ -423,7 +423,7 @@ const OtherProfessionalProfileScreen = () => {
     );
   }
 
-  if (!blockCheckComplete || relLoading || profileLoading) {
+  if (!blockCheckComplete || relationshipStatusLoading || profileLoading) {
     return <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />;
   }
 

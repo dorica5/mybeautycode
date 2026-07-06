@@ -26,6 +26,7 @@ type SearchResultProps = {
     profile_id?: string;
     client_id?: string;
     full_name: string;
+    profession_code?: string | null;
     avatar_url: string | null;
     phone_number: string;
     relationship_exists?: boolean;
@@ -45,14 +46,26 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
   const [actionBusyClientId, setActionBusyClientId] = useState<string | null>(null);
 
   const isProClientRow = context === "hairdresser";
-  const baseNameStyle = isProClientRow
+  const defaultBaseNameStyle = isProClientRow
     ? Typography.bodySmall
     : styles.resultText;
-  const boldNameStyle = isProClientRow
+  const defaultBoldNameStyle = isProClientRow
     ? [Typography.bodySmall, { fontFamily: FONT_FAMILY.outfitMedium }]
     : null;
 
-  const highlightMatch = (text: string, q: string) => {
+  const highlightMatch = (
+    text: string,
+    q: string,
+    options?: {
+      baseStyle?: typeof defaultBaseNameStyle;
+      boldStyle?: typeof defaultBoldNameStyle;
+      useResponsiveBold?: boolean;
+    }
+  ) => {
+    const baseNameStyle = options?.baseStyle ?? defaultBaseNameStyle;
+    const boldNameStyle = options?.boldStyle ?? defaultBoldNameStyle;
+    const useResponsiveBold = options?.useResponsiveBold ?? !isProClientRow;
+
     if (!q || !q.trim()) {
       return <Text style={baseNameStyle}>{text}</Text>;
     }
@@ -65,12 +78,12 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
     const textLower = text.toLowerCase();
 
     const boldSpan = (match: string) =>
-      isProClientRow ? (
-        <Text style={boldNameStyle}>{match}</Text>
-      ) : (
+      useResponsiveBold ? (
         <ResponsiveText weight="Bold" size={18} tabletSize={16}>
           {match}
         </ResponsiveText>
+      ) : (
+        <Text style={boldNameStyle}>{match}</Text>
       );
 
     /** Case-insensitive substring matches anywhere in the name (e.g. "Ma" in "Amanda" and "Manda"). */
@@ -256,6 +269,8 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
   const href = proId
     ? `/(client)/(tabs)/userList/professionalProfile/${proId}`
     : null;
+  const laneParam =
+    item.profession_code?.trim() || professionCode?.trim() || null;
 
   const rowContent = (
     <>
@@ -279,9 +294,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
           full_name: item.full_name,
           phone_number: item.phone_number,
           client_id: item.client_id,
-          ...(professionCode?.trim()
-            ? { profession: professionCode.trim() }
-            : {}),
+          ...(laneParam ? { profession: laneParam } : {}),
           ...(hasRelationship ? { relationship: "true" } : {}),
         },
       }}

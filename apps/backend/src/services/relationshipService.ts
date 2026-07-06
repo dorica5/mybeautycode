@@ -108,9 +108,14 @@ export const relationshipService = {
   async add(
     professionalProfileIdOrProfileId: string | string[],
     clientUserId: string,
-    professionCode: string = "hair"
+    professionCode: string
   ) {
-    const normalizedCode = professionCode.trim() || "hair";
+    const normalizedCode = professionCode.trim();
+    if (!normalizedCode) {
+      throw Object.assign(new Error("profession_code is required"), {
+        statusCode: 400,
+      });
+    }
     const professionId = await professionService.getProfessionIdByCode(
       normalizedCode
     );
@@ -123,6 +128,20 @@ export const relationshipService = {
         ? await professionService.getOrCreateProfessionalProfileId(id)
         : id;
 
+      const scope =
+        await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+          professionalProfileId,
+          normalizedCode
+        );
+      if (!scope) {
+        throw Object.assign(
+          new Error(
+            "This professional does not have that profession account"
+          ),
+          { statusCode: 400 }
+        );
+      }
+
       // Materialize the lane on the pro so they stay discoverable in this
       // profession's search even if this link is later removed.
       await professionService.ensureProfessionsForProfile(
@@ -134,7 +153,7 @@ export const relationshipService = {
         where: {
           professionalProfileId,
           clientUserId,
-          professionId,
+          professionId: scope.professionId,
         },
       });
       if (!existing) {
@@ -142,7 +161,7 @@ export const relationshipService = {
           data: {
             professionalProfileId,
             clientUserId,
-            professionId,
+            professionId: scope.professionId,
             status: "active",
             createdByUserId: clientUserId,
           },

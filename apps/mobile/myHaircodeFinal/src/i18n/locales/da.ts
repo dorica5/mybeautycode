@@ -340,8 +340,9 @@ export const da: AppLocaleMessages = {
     wantsConnectOnBrand: "{{name}} vil forbinde med dig på {{brand}}",
     cannotOpen: "Kan ikke åbne",
     cannotOpenMissingClient: "Denne notifikation mangler klientoplysninger.",
-    cannotOpenMissingVisit:
-      "Denne notifikation mangler data. Det kan ske med ældre notifikationer. Nye besøgsnotifikationer åbnes korrekt.",
+    cannotOpenMissingVisit: "Dette besøg er ikke længere tilgængeligt.",
+    visitUnavailableTitle: "Besøget er ikke tilgængeligt",
+    visitUnavailableMessage: "Det kan være blevet slettet.",
   },
   inspiration: {
     title: "Min inspiration",

@@ -72,6 +72,12 @@ const ProfessionalProfileScreen = () => {
     const raw = normalizeRouteParam(profession);
     return raw?.trim() ? raw.trim() : null;
   })();
+  /** Lane from Discover / map — never infer from the pro's other accounts. */
+  const relationshipLane = useMemo((): ProfessionChoiceCode | null => {
+    if (!routeProfessionRaw) return null;
+    return coerceProfessionCode(routeProfessionRaw);
+  }, [routeProfessionRaw]);
+
   const { session, profile } = useAuth();
   const client_id = session?.user.id;
 
@@ -82,26 +88,24 @@ const ProfessionalProfileScreen = () => {
   const { data: blockedIdList } = useBlockedIdList(client_id);
   const p = profileData as Profile | undefined;
 
-  const scopedLane = useMemo((): ProfessionChoiceCode | null => {
-    if (routeProfessionRaw) {
-      return coerceProfessionCode(routeProfessionRaw);
-    }
+  const displayLane = useMemo((): ProfessionChoiceCode | null => {
+    if (relationshipLane) return relationshipLane;
     const codes = p?.profession_codes;
-    if (Array.isArray(codes) && codes.length > 0) {
+    if (Array.isArray(codes) && codes.length === 1) {
       return coerceProfessionCode(String(codes[0]).trim());
     }
     return null;
-  }, [routeProfessionRaw, p?.profession_codes]);
+  }, [relationshipLane, p?.profession_codes]);
 
   const scopedDetail = useMemo(() => {
-    if (!p?.professions_detail?.length || !scopedLane) return null;
+    if (!p?.professions_detail?.length || !displayLane) return null;
     return (
       p.professions_detail.find(
         (row) =>
-          coerceProfessionCode(row.profession_code ?? undefined) === scopedLane
+          coerceProfessionCode(row.profession_code ?? undefined) === displayLane
       ) ?? null
     );
-  }, [p?.professions_detail, scopedLane]);
+  }, [p?.professions_detail, displayLane]);
 
   const data = p
     ? {
@@ -109,7 +113,7 @@ const ProfessionalProfileScreen = () => {
           resolveProfessionalFullName(p) ?? p.full_name,
         first_name: p.first_name,
         username: p.username,
-        avatar_url: resolveAvatarStoragePath(p, scopedLane),
+        avatar_url: resolveAvatarStoragePath(p, displayLane),
         about_me: scopedDetail?.about_me ?? p.about_me,
         salon_name: scopedDetail?.business_name ?? p.salon_name,
         business_address: scopedDetail?.business_address ?? p.business_address,
@@ -131,7 +135,9 @@ const ProfessionalProfileScreen = () => {
     data: isRelatedFromApi = false,
     isFetched: relFetched,
     isFetching: relFetching,
-  } = useRelationshipCheck(client_id ?? undefined, hairdresser_id, scopedLane);
+  } = useRelationshipCheck(client_id ?? undefined, hairdresser_id, relationshipLane, {
+    enabled: Boolean(client_id && hairdresser_id && relationshipLane),
+  });
 
   const isRelated =
     relatedFromRoute !== undefined ? relatedFromRoute : isRelatedFromApi;
@@ -152,7 +158,7 @@ const ProfessionalProfileScreen = () => {
   const { mutateAsync: addHairdresserDB } = useAddHairdresser(
     hairdresser_id,
     client_id,
-    scopedLane
+    relationshipLane
   );
 
   const isBlockedUser = Boolean(
@@ -162,11 +168,13 @@ const ProfessionalProfileScreen = () => {
       blockedIdList.includes(String(hairdresser_id))
   );
   const showRelationshipCta =
-    !isOwnProfile && (relationshipStatusLoading || !isRelated);
+    !isOwnProfile &&
+    !!relationshipLane &&
+    (relationshipStatusLoading || !isRelated);
 
   const deleteHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
-    if (!scopedLane) {
+    if (!relationshipLane) {
       Alert.alert(
         t("moderation.removeLinkFailed"),
         t("moderation.removeLinkFailedMessage")
@@ -177,7 +185,7 @@ const ProfessionalProfileScreen = () => {
       await removeRelationships.mutateAsync([
         {
           hairdresserId: hairdresser_id,
-          professionCode: scopedLane,
+          professionCode: relationshipLane,
         },
       ]);
       setActiveAction(null);
@@ -191,12 +199,19 @@ const ProfessionalProfileScreen = () => {
   }, [
     client_id,
     hairdresser_id,
-    scopedLane,
+    relationshipLane,
     removeRelationships,
   ]);
 
   const addHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
+    if (!relationshipLane) {
+      Alert.alert(
+        t("moderation.removeLinkFailed"),
+        t("moderation.removeLinkFailedMessage")
+      );
+      return;
+    }
     setLoading(true);
     try {
       await addHairdresserDB();
@@ -204,7 +219,7 @@ const ProfessionalProfileScreen = () => {
       const message = clientAddedPushBody(
         t,
         profile?.full_name,
-        scopedLane
+        relationshipLane
       );
       // Deliver to the pro's specific profession-account inbox (hair, nails
       // or brows) so "added you on nails" doesn't leak into their hair inbox.
@@ -217,10 +232,10 @@ const ProfessionalProfileScreen = () => {
           isClient: true,
           senderName: profile?.full_name,
           senderAvatar: profile?.avatar_url,
-          ...(scopedLane ? { profession_code: scopedLane } : {}),
+          ...(relationshipLane ? { profession_code: relationshipLane } : {}),
         },
         t("push.newClientAddedTitle"),
-        scopedLane ?? undefined
+        relationshipLane ?? undefined
       );
 
       await queryClient.invalidateQueries({
@@ -232,7 +247,7 @@ const ProfessionalProfileScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient, scopedLane, t]);
+  }, [addHairdresserDB, hairdresser_id, client_id, profile, queryClient, relationshipLane, t]);
 
   const handleModalOption = (action: string) => {
     setPendingAction(action);
@@ -452,7 +467,7 @@ const ProfessionalProfileScreen = () => {
         professionCodes={
           Array.isArray(data.profession_codes) ? data.profession_codes : null
         }
-        activeProfessionCode={scopedLane}
+        activeProfessionCode={relationshipLane ?? displayLane}
         viewerProfessionCodes={profile?.profession_codes}
         onBack={() => router.back()}
         showRelationshipCta={showRelationshipCta}
@@ -467,7 +482,7 @@ const ProfessionalProfileScreen = () => {
             </Pressable>
           )
         }
-        analyticsProfessionCode={scopedLane}
+        analyticsProfessionCode={displayLane}
       />
       <SmallDraggableModal
         isVisible={isModalVisible}
