@@ -1,4 +1,5 @@
-import type { Profile } from "@/src/constants/types";
+import type { Profile, ProfessionDetailApi } from "@/src/constants/types";
+import { coerceProfessionCode } from "@/src/constants/professionCodes";
 
 /** Split a full display string into first token + remainder (legacy full_name style). */
 export function splitPersonName(full: string | null | undefined): {
@@ -27,13 +28,40 @@ type NameProfile = Pick<
   | "full_name"
   | "first_name"
   | "last_name"
+  | "professions_detail"
 >;
 
-/** Pro-facing full name: separate pro first/last, then legacy fallbacks. */
+function professionDetailForCode(
+  profile: NameProfile | null | undefined,
+  professionCode?: string | null
+): ProfessionDetailApi | null {
+  const code = coerceProfessionCode(professionCode ?? undefined);
+  if (!code || !profile?.professions_detail?.length) return null;
+  return (
+    profile.professions_detail.find(
+      (row) => coerceProfessionCode(row.profession_code) === code
+    ) ?? null
+  );
+}
+
+/** Pro-facing full name for one lane (or legacy flat profile fields). */
 export function resolveProfessionalFullName(
-  profile: NameProfile | null | undefined
+  profile: NameProfile | null | undefined,
+  professionCode?: string | null
 ): string | null {
   if (!profile) return null;
+
+  const lane = professionDetailForCode(profile, professionCode);
+  if (lane) {
+    const fromLaneParts = combinePersonName(
+      lane.pro_first_name ?? "",
+      lane.pro_last_name ?? ""
+    );
+    if (fromLaneParts) return fromLaneParts;
+    const laneDisplay = lane.display_name?.trim();
+    if (laneDisplay) return laneDisplay;
+  }
+
   const fromParts = combinePersonName(
     profile.pro_first_name ?? "",
     profile.pro_last_name ?? ""
@@ -48,9 +76,21 @@ export function resolveProfessionalFullName(
 }
 
 export function resolveProfessionalNameParts(
-  profile: NameProfile | null | undefined
+  profile: NameProfile | null | undefined,
+  professionCode?: string | null
 ): { firstName: string; lastName: string } {
   if (!profile) return { firstName: "", lastName: "" };
+
+  const lane = professionDetailForCode(profile, professionCode);
+  if (lane) {
+    const first = lane.pro_first_name?.trim() ?? "";
+    const last = lane.pro_last_name?.trim() ?? "";
+    if (first || last) return { firstName: first, lastName: last };
+    if (lane.display_name?.trim()) {
+      return splitPersonName(lane.display_name);
+    }
+  }
+
   const first = profile.pro_first_name?.trim() ?? "";
   const last = profile.pro_last_name?.trim() ?? "";
   if (first || last) return { firstName: first, lastName: last };

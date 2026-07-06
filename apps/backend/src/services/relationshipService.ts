@@ -25,7 +25,7 @@ export const relationshipService = {
     // profession's search (evidence that survives link deletion).
     await professionService.ensureProfessionsForProfile(professionalProfileId, [
       normalizedCode,
-    ]);
+    ], { seedFromProfileId: hairdresserProfileUserId });
 
     const prof = await prisma.professionalProfile.findUnique({
       where: { id: professionalProfileId },
@@ -144,9 +144,14 @@ export const relationshipService = {
 
       // Materialize the lane on the pro so they stay discoverable in this
       // profession's search even if this link is later removed.
+      const profMeta = await prisma.professionalProfile.findUnique({
+        where: { id: professionalProfileId },
+        select: { profileId: true },
+      });
       await professionService.ensureProfessionsForProfile(
         professionalProfileId,
-        [normalizedCode]
+        [normalizedCode],
+        { seedFromProfileId: profMeta?.profileId }
       );
 
       const existing = await prisma.clientProfessionalLink.findFirst({

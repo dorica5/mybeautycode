@@ -8,7 +8,7 @@ import {
   needsProfessionCodesSqlFallback,
   serializeProfileForApi,
 } from "../lib/serializeProfileForApi";
-import { ensureProfessionalDisplayNameSeeded } from "../lib/professionalDisplayName";
+import { readProfessionCodeQuery } from "../lib/readProfessionCodeQuery";
 
 export const authController = {
   async me(req: Request, res: Response) {
@@ -24,16 +24,6 @@ export const authController = {
       if (!profile) {
         return res.status(404).json({ error: "Profile not found" });
       }
-      if (profile.professionalProfile) {
-        const seeded = await ensureProfessionalDisplayNameSeeded(userId);
-        if (seeded) {
-          profile =
-            (await prisma.profile.findUnique({
-              where: { id: userId },
-              include: profileWithProfessionalForApiInclude,
-            })) ?? profile;
-        }
-      }
       let professionCodesSqlFallback: string[] | undefined;
       if (
         profile.professionalProfile &&
@@ -43,9 +33,13 @@ export const authController = {
           userId
         );
       }
+      const activeProfessionCode = readProfessionCodeQuery(
+        req.query as Record<string, unknown>
+      );
       return res.json(
         serializeProfileForApi(profile, {
           professionCodesSqlFallback,
+          activeProfessionCode,
         })
       );
     } catch (err) {

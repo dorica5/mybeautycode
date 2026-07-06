@@ -19,6 +19,12 @@ export type ClientProfile = {
 /** Per-profession salon / bio / social from API (`professions_detail`). */
 export type ProfessionDetailApi = {
   profession_code: string | null;
+  /** Lane-specific pro given name (independent per profession account). */
+  pro_first_name?: string | null;
+  /** Lane-specific pro family name. */
+  pro_last_name?: string | null;
+  /** Lane-specific combined pro display name. */
+  display_name?: string | null;
   business_name: string | null;
   business_number: string | null;
   business_address: string | null;

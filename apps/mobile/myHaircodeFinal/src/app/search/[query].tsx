@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { NavBackRow } from "@/src/components/NavBackRow";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useListAllClientSearch } from "@/src/api/profiles";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { useClearOnProfessionChange } from "@/src/hooks/useClearOnProfessionChange";
 import { primaryBlack } from "@/src/constants/Colors";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
@@ -56,6 +57,17 @@ const SearchPage = () => {
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setDebouncedQuery("");
+  }, []);
+
+  useClearOnProfessionChange(
+    activeProfessionCode,
+    storedProfessionReady,
+    clearSearch
+  );
 
   const q = debouncedQuery.trim();
   const hasQuery = q.length > 0;
@@ -175,7 +187,11 @@ const SearchPage = () => {
             <Text style={styles.text}>{t("search.searchExistingClients")}</Text>
           </View>
 
-          <SearchInput onSearch={handleSearch} initialQuery={""} />
+          <SearchInput
+            key={activeProfessionCode ?? "pro-lane"}
+            onSearch={handleSearch}
+            initialQuery=""
+          />
 
           {body}
         </View>

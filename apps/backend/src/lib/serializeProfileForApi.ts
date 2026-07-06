@@ -1,8 +1,10 @@
 import type { Profile, ProfessionalProfile } from "@prisma/client";
-import { profileDisplayName, professionalProfileDisplayName } from "./profileDisplay";
+import { profileDisplayName } from "./profileDisplay";
 import {
   pickDefaultProfessionRow,
+  pickProfessionRowForCode,
   professionsDetailSnakeCase,
+  resolveLaneProfessionalName,
   type ProfessionJoinRow,
 } from "./professionBusinessHelpers";
 import {
@@ -47,6 +49,8 @@ export type SerializeProfileOptions = {
    * is omitted from the payload even if the target has a hair profession.
    */
   exposeColorBrandToViewer?: boolean;
+  /** Scope flat pro name + salon fields to this lane (multi-account pros). */
+  activeProfessionCode?: string | null;
 };
 
 function toIsoString(value: Date | null | undefined): string | null {
@@ -110,8 +114,13 @@ export function serializeProfileForApi(
       : (options?.professionCodesSqlFallback ?? []);
 
   const rows = prof.professionalProfessions ?? [];
-  const defaultRow = pickDefaultProfessionRow(rows);
-  const professions_detail = professionsDetailSnakeCase(rows);
+  const activeRow = pickProfessionRowForCode(
+    rows,
+    options?.activeProfessionCode
+  );
+  const defaultRow = activeRow ?? pickDefaultProfessionRow(rows);
+  const professions_detail = professionsDetailSnakeCase(rows, profile, prof);
+  const activeName = resolveLaneProfessionalName(defaultRow, profile, prof);
 
   /** Public “salon color lines” — hairdresser viewers only when target lists `hair`. */
   const targetHasHairProfession = profession_codes.includes("hair");
@@ -125,9 +134,9 @@ export function serializeProfileForApi(
     ...base,
     professional_profile_id: prof.id,
     profession_codes,
-    pro_first_name: prof.firstName ?? null,
-    pro_last_name: prof.lastName ?? null,
-    display_name: professionalProfileDisplayName(prof),
+    pro_first_name: activeName.firstName,
+    pro_last_name: activeName.lastName,
+    display_name: activeName.displayName,
     /** Per-profession salon / bio / social (use `profession_code` on PATCH to target a row). */
     professions_detail,
     business_name: defaultRow?.businessName ?? null,

@@ -1,23 +1,15 @@
 import { prisma } from "../lib/prisma";
 import { pickDefaultProfessionRow } from "../lib/professionBusinessHelpers";
 import { profileDisplayName } from "../lib/profileDisplay";
+import { normalizeProfessionCodeInput } from "../lib/normalizeProfessionCode";
+
+export { normalizeProfessionCodeInput } from "../lib/normalizeProfessionCode";
 
 /** Default profession code for hair (backward compatibility) */
 const DEFAULT_PROFESSION_CODE = "hair";
 
 /** In-memory cache for `professions.id` by normalized code (speeds map salon sheet, etc.). */
 const professionIdByNormalizedCode = new Map<string, string>();
-
-/** Map common aliases / typos to `professions.code` values. */
-export function normalizeProfessionCodeInput(raw: string): string {
-  const t = raw.trim().toLowerCase().replace(/\s+/g, "_");
-  if (t === "nail" || t === "nail_technician" || t === "nailtech") return "nails";
-  if (t === "hairdresser" || t === "hair_dresser") return "hair";
-  if (t === "brow" || t === "brows" || t === "lashes" || t === "brow_stylist")
-    return "brows_lashes";
-  if (t === "consumer" || t === "personal") return "client";
-  return t;
-}
 
 export const professionService = {
   /** Get profession ID by code (e.g. "hair"). Caches result. */
@@ -69,6 +61,7 @@ export const professionService = {
   async ensureProfessionsForProfile(
     professionalProfileId: string,
     codes: string[],
+    options?: { seedFromProfileId?: string }
   ): Promise<void> {
     if (codes.length === 0) return;
     const professionIds = await Promise.all(
@@ -84,11 +77,36 @@ export const professionService = {
     const have = new Set(existing.map((e) => e.professionId));
     const missing = professionIds.filter((id) => !have.has(id));
     if (missing.length === 0) return;
+
+    let seedFirst: string | null = null;
+    let seedLast: string | null = null;
+    let seedDisplay: string | null = null;
+    const profileId = options?.seedFromProfileId?.trim();
+    if (profileId) {
+      const profile = await prisma.profile.findUnique({
+        where: { id: profileId },
+        select: { firstName: true, lastName: true },
+      });
+      seedFirst = profile?.firstName?.trim() || null;
+      seedLast = profile?.lastName?.trim() || null;
+      seedDisplay = profileDisplayName({
+        firstName: seedFirst,
+        lastName: seedLast,
+      });
+    }
+
     await prisma.professionalProfession.createMany({
       data: missing.map((professionId) => ({
         professionalProfileId,
         professionId,
         isActive: true,
+        ...(seedFirst || seedLast || seedDisplay
+          ? {
+              firstName: seedFirst,
+              lastName: seedLast,
+              ...(seedDisplay ? { displayName: seedDisplay } : {}),
+            }
+          : {}),
       })),
     });
   },
@@ -122,7 +140,15 @@ export const professionService = {
     if (raw) {
       try {
         const canonical = normalizeProfessionCodeInput(raw);
-        await this.ensureProfessionsForProfile(professionalProfileId, [canonical]);
+        const profRow = await prisma.professionalProfile.findUnique({
+          where: { id: professionalProfileId },
+          select: { profileId: true },
+        });
+        await this.ensureProfessionsForProfile(
+          professionalProfileId,
+          [canonical],
+          { seedFromProfileId: profRow?.profileId }
+        );
       } catch {
         /** Invalid / unknown profession code — do not create rows. */
       }

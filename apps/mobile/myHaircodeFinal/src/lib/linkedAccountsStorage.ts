@@ -26,6 +26,8 @@ export type AccountSurfaceRow = {
   /** Which professional role this row is; null for the client row. */
   professionCode: ProfessionChoiceCode | null;
   roleLabel: string;
+  /** Pro or client display name for this row. */
+  nameLine: string;
   detailLine: string;
   rowKey: string;
 };
@@ -112,6 +114,7 @@ export function expandAccountRows(
         surface: "client",
         professionCode: null,
         roleLabel: "Client",
+        nameLine: clientDisplayName(profile),
         detailLine: "",
         rowKey: `${entry.id}-client`,
       },
@@ -127,6 +130,7 @@ export function expandAccountRows(
       surface: "professional",
       professionCode: null,
       roleLabel: "Professional",
+      nameLine: nameLineForProfession(profile, null),
       detailLine: "",
       rowKey: `${entry.id}-pro`,
     });
@@ -137,6 +141,7 @@ export function expandAccountRows(
       surface: "professional",
       professionCode: only,
       roleLabel: PROFESSION_HEADLINE_ROLE[only],
+      nameLine: nameLineForProfession(profile, only),
       detailLine: detailLineForProfession(profile, only),
       rowKey: `${entry.id}-pro-${only}`,
     });
@@ -147,6 +152,7 @@ export function expandAccountRows(
         surface: "professional",
         professionCode: code,
         roleLabel: PROFESSION_HEADLINE_ROLE[code],
+        nameLine: nameLineForProfession(profile, code),
         detailLine: detailLineForProfession(profile, code),
         rowKey: `${entry.id}-pro-${code}`,
       });
@@ -160,6 +166,7 @@ export function expandAccountRows(
       surface: "client",
       professionCode: null,
       roleLabel: "Client",
+      nameLine: clientDisplayName(profile),
       detailLine: "",
       rowKey: `${entry.id}-client`,
     },
@@ -172,11 +179,19 @@ export function buildDetailLine(profile: Profile): string {
   return salon ?? "";
 }
 
-function displayName(profile: Profile): string {
-  if (profile.user_type === "HAIRDRESSER") {
-    const pro = resolveProfessionalFullName(profile);
-    if (pro) return pro;
+function nameLineForProfession(
+  profile: Profile,
+  code: ProfessionChoiceCode | null
+): string {
+  if (code == null) {
+    return clientDisplayName(profile);
   }
+  const fromLane = resolveProfessionalFullName(profile, code);
+  if (fromLane) return fromLane;
+  return clientDisplayName(profile);
+}
+
+function clientDisplayName(profile: Profile): string {
   const full = profile.full_name?.trim();
   if (full) return full;
   const joined = [profile.first_name, profile.last_name]
@@ -196,7 +211,10 @@ export function linkedAccountEntryFromSession(
     id: session.user.id,
     meta: {
       roleLabel: roleLabelForProfile(profile),
-      name: displayName(profile),
+      name:
+        profile.user_type === "HAIRDRESSER"
+          ? resolveProfessionalFullName(profile) ?? clientDisplayName(profile)
+          : clientDisplayName(profile),
       detail: buildDetailLine(profile),
       userType: profileUserType(profile),
     },

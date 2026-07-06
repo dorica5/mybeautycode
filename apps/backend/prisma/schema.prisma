@@ -164,6 +164,10 @@ model ProfessionalProfession {
   socialClickCounts  Json                @default("{}") @map("social_click_counts")
   /// Service/discovery specialization tags for this lane (validated per profession).
   discoveryCategories Json                @default("[]") @map("discovery_categories")
+  /// Pro display name for this lane only (independent per hair / brows / nails).
+  firstName             String?             @map("first_name")
+  lastName              String?             @map("last_name")
+  displayName           String?             @map("display_name")
   profession            Profession          @relation(fields: [professionId], references: [id], onDelete: Cascade)
   professionalProfile   ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
   salon                 Salon?              @relation(fields: [salonId], references: [id], onDelete: SetNull)

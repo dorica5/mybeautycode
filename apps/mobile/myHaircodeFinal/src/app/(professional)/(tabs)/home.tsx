@@ -35,6 +35,7 @@ import {
   primaryWhite,
 } from "@/src/constants/Colors";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { useClearOnProfessionChange } from "@/src/hooks/useClearOnProfessionChange";
 import { useI18n, formatVisitListDateForLocale } from "@/src/providers/LanguageProvider";
 import { useVisitLimitGate } from "@/src/hooks/useVisitLimitGate";
 
@@ -147,6 +148,12 @@ const HomeScreen = () => {
     setSearchQuery("");
     setDebouncedQuery("");
   }, []);
+
+  useClearOnProfessionChange(
+    activeProfessionCode,
+    storedProfessionReady,
+    dismissClientSearchOverlay
+  );
 
   const showClientSearchResults =
     clientSearchFieldFocused && debouncedQuery.trim().length > 0;
@@ -278,6 +285,7 @@ const HomeScreen = () => {
                   {t("home.proSearchLabel")}
                 </Text>
                 <SearchInput
+                  key={activeProfessionCode ?? "pro-lane"}
                   onSearch={handleSearch}
                   initialQuery=""
                   value={searchQuery}

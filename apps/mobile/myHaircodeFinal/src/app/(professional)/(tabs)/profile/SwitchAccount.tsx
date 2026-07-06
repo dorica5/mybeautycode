@@ -249,7 +249,7 @@ const SwitchAccountScreen = () => {
                         selected: isCurrent,
                         disabled: isCurrent,
                       }}
-                      accessibilityLabel={`${roleLabel} ${row.entry.meta.name}${
+                      accessibilityLabel={`${roleLabel} ${row.nameLine}${
                         row.detailLine ? ` ${row.detailLine}` : ""
                       }${isCurrent ? ` ${t("profile.currentAccountA11y")}` : ""}`}
                       style={({ pressed }) => [
@@ -259,7 +259,7 @@ const SwitchAccountScreen = () => {
                     >
                       <View style={styles.accountCardTextCol}>
                         <Text style={styles.roleLabel}>{roleLabel}</Text>
-                        <Text style={styles.nameLine}>{row.entry.meta.name}</Text>
+                        <Text style={styles.nameLine}>{row.nameLine}</Text>
                         {row.detailLine ? (
                           <Text style={styles.detailLine} numberOfLines={2}>
                             {row.detailLine}
