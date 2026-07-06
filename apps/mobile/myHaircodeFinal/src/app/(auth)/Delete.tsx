@@ -1,6 +1,6 @@
 import { Alert, StyleSheet, Text, View } from "react-native";
 import React, { useMemo, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import TopNav from "@/src/components/TopNav";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -24,6 +24,7 @@ import {
   PROFESSION_HEADLINE_ROLE,
 } from "@/src/constants/professionCodes";
 import {
+  pinSessionProfessionCode,
   setLastAppSurface,
   setLastProfessionCode,
 } from "@/src/lib/lastVisitPreference";
@@ -114,13 +115,21 @@ const Delete = () => {
         setProfile(next);
 
         const codes = next.profession_codes ?? [];
-        if (codes.length > 0) {
-          const first = coerceProfessionCode(codes[0]);
-          if (first) await setLastProfessionCode(profile.id, first);
-        }
-
         if (!profileHasProfessionalCapability(next)) {
+          pinSessionProfessionCode(null);
           await setLastAppSurface(profile.id, "client");
+          router.replace("/(client)/(tabs)/home" as Href);
+        } else {
+          const remaining =
+            codes
+              .map((c) => coerceProfessionCode(c))
+              .find((c) => c != null && c !== canonical) ??
+            coerceProfessionCode(codes[0]);
+          if (remaining) {
+            pinSessionProfessionCode(remaining);
+            await setLastProfessionCode(profile.id, remaining);
+          }
+          router.replace("/(professional)/(tabs)/profile" as Href);
         }
       } else {
         await api.delete(`/api/users/${profile.id}`);

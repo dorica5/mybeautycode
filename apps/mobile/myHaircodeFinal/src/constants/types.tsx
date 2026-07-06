@@ -47,8 +47,12 @@ export type Profile = {
   /** Legacy API mirror of `business_number`. */
   salon_phone_number: string | null;
   salon_name: string | null;
-  /** professional_profiles.display_name */
+  /** Combined legacy pro name (derived from pro_first_name + pro_last_name). */
   display_name?: string | null;
+  /** Professional account given name (independent of client first_name). */
+  pro_first_name?: string | null;
+  /** Professional account family name (independent of client last_name). */
+  pro_last_name?: string | null;
   business_name?: string | null;
   business_number?: string | null;
   business_address?: string | null;

@@ -23,6 +23,7 @@ import {
   parseSocialLinks,
   socialLinkRowLabel,
 } from "@/src/lib/socialMediaStorage";
+import { normalizeExternalUrlString } from "@/src/lib/safeExternalUrl";
 import { parseColorBrands } from "@/src/lib/colorBrandStorage";
 import {
   profileHasHairProfession,
@@ -62,18 +63,27 @@ function displayFirstName(
   return sp === -1 ? f : f.slice(0, sp);
 }
 
-function normalizeWebUrl(raw: string): string {
-  const t = raw.trim();
-  if (!t) return t;
-  return /^https?:\/\//i.test(t) ? t : `https://${t}`;
-}
-
-async function openExternalUrl(url: string, cannotOpenMessage: string) {
+async function openTelUrl(url: string, cannotOpenMessage: string) {
   const u = url.trim();
   if (!u) return;
   try {
     const ok = await Linking.canOpenURL(u);
     if (ok) await Linking.openURL(u);
+    else Alert.alert(cannotOpenMessage);
+  } catch {
+    Alert.alert(cannotOpenMessage);
+  }
+}
+
+async function openSafeWebUrl(raw: string, cannotOpenMessage: string) {
+  const safe = normalizeExternalUrlString(raw);
+  if (!safe) {
+    Alert.alert(cannotOpenMessage);
+    return;
+  }
+  try {
+    const ok = await Linking.canOpenURL(safe);
+    if (ok) await Linking.openURL(safe);
     else Alert.alert(cannotOpenMessage);
   } catch {
     Alert.alert(cannotOpenMessage);
@@ -259,6 +269,10 @@ export function PublicProfessionalProfileView({
   );
   const businessName = salonName?.trim() ?? "";
   const socialUrls = parseSocialLinks(socialMediaRaw ?? "");
+  const safeBookingUrl = useMemo(
+    () => normalizeExternalUrlString(bookingSite ?? ""),
+    [bookingSite]
+  );
   const colorBrands = parseColorBrands(colorBrandRaw ?? "");
   const targetHairLane =
     activeProfessionCode != null
@@ -279,15 +293,14 @@ export function PublicProfessionalProfileView({
   const handleCall = useCallback(() => {
     const p = salonPhone?.trim();
     if (!p) return;
-    void openExternalUrl(
+    void openTelUrl(
       p.startsWith("tel:") ? p : `tel:${p}`,
       t("common.cannotOpenLink")
     );
   }, [salonPhone, t]);
 
   const handleBooking = useCallback(() => {
-    const u = bookingSite?.trim();
-    if (!u) return;
+    if (!safeBookingUrl) return;
     if (shouldTrackAnalytics) {
       void recordProfessionalAnalyticsEvent({
         subjectProfileId: profileUserId,
@@ -295,8 +308,8 @@ export function PublicProfessionalProfileView({
         event: "booking_click",
       });
     }
-    void openExternalUrl(normalizeWebUrl(u), t("common.cannotOpenLink"));
-  }, [bookingSite, shouldTrackAnalytics, lane, profileUserId, t]);
+    void openSafeWebUrl(safeBookingUrl, t("common.cannotOpenLink"));
+  }, [safeBookingUrl, shouldTrackAnalytics, lane, profileUserId, t]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -371,7 +384,7 @@ export function PublicProfessionalProfileView({
               >
                 <ActivityIndicator color={primaryBlack} />
               </View>
-            ) : !isRelated ? (
+            ) : !isRelated && !relationshipStatusLoading ? (
               <PaddedLabelButton
                 title={relationshipCta.addTitle}
                 horizontalPadding={32}
@@ -440,7 +453,7 @@ export function PublicProfessionalProfileView({
             </View>
           ) : null}
 
-          {bookingSite?.trim() ? (
+          {safeBookingUrl ? (
             <View style={styles.sectionBlock}>
               <Text style={[Typography.label, styles.sectionTitle]}>
                 {t("publicProfile.linkToBookingSite")}
@@ -451,7 +464,7 @@ export function PublicProfessionalProfileView({
                 accessibilityRole="link"
               >
                 <Text style={[Typography.outfitRegular16, styles.pillText]}>
-                  {bookingSite.replace(/^https?:\/\//i, "").replace(/\/$/, "")}
+                  {safeBookingUrl.replace(/^https?:\/\//i, "").replace(/\/$/, "")}
                 </Text>
               </Pressable>
             </View>
@@ -479,10 +492,7 @@ export function PublicProfessionalProfileView({
                             socialPlatform: kind,
                           });
                         }
-                        void openExternalUrl(
-                          normalizeWebUrl(url),
-                          t("common.cannotOpenLink")
-                        );
+                        void openSafeWebUrl(url, t("common.cannotOpenLink"));
                       }}
                       accessibilityRole="link"
                       accessibilityLabel={label}

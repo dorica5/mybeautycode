@@ -39,6 +39,7 @@ import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import { clientAddedPushBody } from "@/src/i18n/pushCopy";
 import { reportReasonLabel } from "@/src/i18n/moderationLabels";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
+import { resolveProfessionalFullName } from "@/src/lib/professionalDisplayName";
 
 function normalizeRouteParam(
   value: string | string[] | undefined
@@ -48,12 +49,23 @@ function normalizeRouteParam(
   return undefined;
 }
 
+/** Search / map pass `relationship=true` when the link is already active. */
+function parseRelationshipRouteParam(
+  value: string | string[] | undefined
+): boolean | undefined {
+  const raw = normalizeRouteParam(value);
+  if (raw === "true" || raw === "1") return true;
+  if (raw === "false" || raw === "0") return false;
+  return undefined;
+}
+
 const ProfessionalProfileScreen = () => {
   const { t } = useI18n();
   const moderationDetailCopy = useModerationDetailCopy();
-  const { id, profession } = useLocalSearchParams<{
+  const { id, profession, relationship: relationshipParam } = useLocalSearchParams<{
     id: string | string[];
     profession?: string | string[];
+    relationship?: string | string[];
   }>();
   const hairdresser_id = normalizeRouteParam(id);
   const routeProfessionRaw = (() => {
@@ -93,7 +105,8 @@ const ProfessionalProfileScreen = () => {
 
   const data = p
     ? {
-        full_name: p.full_name,
+        full_name:
+          resolveProfessionalFullName(p) ?? p.full_name,
         first_name: p.first_name,
         username: p.username,
         avatar_url: resolveAvatarStoragePath(p, scopedLane),
@@ -109,11 +122,21 @@ const ProfessionalProfileScreen = () => {
       }
     : undefined;
 
-  const { data: isRelated = false, isPending: relPending } = useRelationshipCheck(
-    client_id ?? undefined,
-    hairdresser_id,
-    scopedLane
+  const relatedFromRoute = useMemo(
+    () => parseRelationshipRouteParam(relationshipParam),
+    [relationshipParam]
   );
+
+  const {
+    data: isRelatedFromApi = false,
+    isFetched: relFetched,
+    isFetching: relFetching,
+  } = useRelationshipCheck(client_id ?? undefined, hairdresser_id, scopedLane);
+
+  const isRelated =
+    relatedFromRoute !== undefined ? relatedFromRoute : isRelatedFromApi;
+  const relationshipStatusLoading =
+    relatedFromRoute === undefined && (!relFetched || relFetching);
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
   const isOwnProfile = Boolean(
@@ -138,7 +161,8 @@ const ProfessionalProfileScreen = () => {
       hairdresser_id &&
       blockedIdList.includes(String(hairdresser_id))
   );
-  const showRelationshipCta = !isOwnProfile && !isRelated;
+  const showRelationshipCta =
+    !isOwnProfile && (relationshipStatusLoading || !isRelated);
 
   const deleteHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
@@ -433,7 +457,7 @@ const ProfessionalProfileScreen = () => {
         onBack={() => router.back()}
         showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}
-        relationshipStatusLoading={relPending}
+        relationshipStatusLoading={relationshipStatusLoading}
         addLoading={loading}
         onAddHairdresser={addHairdresser}
         headerRight={

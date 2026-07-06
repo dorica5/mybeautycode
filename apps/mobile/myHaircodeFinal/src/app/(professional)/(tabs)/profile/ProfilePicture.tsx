@@ -7,7 +7,7 @@ import {
   View,
   ScrollView,
 } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
@@ -22,21 +22,24 @@ import {
 } from "@/src/components/MintProfileScreenShell";
 import { Typography } from "@/src/constants/Typography";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
-import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
+import {
+  patchProfessionAvatarInProfile,
+  resolveAvatarStoragePath,
+} from "@/src/lib/resolveAvatarStoragePath";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import type { Profile } from "@/src/constants/types";
 
 const ProfilePicture = () => {
   const { t } = useI18n();
   const { profile, setProfile } = useAuth();
-  const { avatarImage } = useImageContext();
-  const { activeProfessionCode } = useActiveProfessionState(profile);
-  const originalImage = avatarImage;
+  const { avatarImage, refreshAvatarImage } = useImageContext();
+  const { activeProfessionCode, professionLine, storedProfessionReady, commitActiveProfession } =
+    useActiveProfessionState(profile);
   const id = profile.id;
-  const [image, setImage] = useState<string | null>(originalImage);
-  const [changed, setChanged] = useState(false);
+  const [pickedFileUri, setPickedFileUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const { mutate: updateProfile } = useUpdateSupabaseProfile();
+  const { mutateAsync: updateProfileAsync } = useUpdateSupabaseProfile();
 
   const updateUserProfile = async () => {
     if (!id) {
@@ -50,42 +53,42 @@ const ProfilePicture = () => {
       );
       return;
     }
+    if (!pickedFileUri) return;
+
     setLoading(true);
+    try {
+      const avatar_url = await uploadAvatarToStorage(pickedFileUri);
+      if (!avatar_url) {
+        Alert.alert(t("common.error"), t("profile.uploadImageFailed"));
+        setLoading(false);
+        return;
+      }
 
-    const avatar_url = await uploadImage();
-    if (!avatar_url) {
-      setLoading(false);
-      return;
-    }
-
-    updateProfile(
-      {
+      const fresh = await updateProfileAsync({
         id,
         avatar_url,
         profession_code: activeProfessionCode,
-      },
-      {
-        onSuccess: (fresh) => {
-          setProfile(fresh as never);
-          setLoading(false);
-          setChanged(false);
-        },
-        onError: (error) => {
-          setLoading(false);
-          Alert.alert(t("profile.updateFailed"), error.message);
-        },
-      }
-    );
-  };
-
-  const uploadImage = async () => {
-    if (!image?.startsWith("file://")) {
-      const path = resolveAvatarStoragePath(profile, activeProfessionCode);
-      return path;
+      });
+      const merged = patchProfessionAvatarInProfile(
+        fresh as Profile,
+        activeProfessionCode,
+        avatar_url
+      );
+      setProfile(merged);
+      await commitActiveProfession(activeProfessionCode);
+      await refreshAvatarImage({
+        professionCode: activeProfessionCode,
+        storagePath: avatar_url,
+      });
+      setPickedFileUri(null);
+      setLoading(false);
+    } catch (error) {
+      setLoading(false);
+      Alert.alert(
+        t("profile.updateFailed"),
+        error instanceof Error ? error.message : t("common.error")
+      );
     }
-    const path = await uploadAvatarToStorage(image);
-    if (!path) Alert.alert(t("common.error"), t("profile.uploadImageFailed"));
-    return path;
   };
 
   const pickImage = async () => {
@@ -97,17 +100,19 @@ const ProfilePicture = () => {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImage(result.assets[0].uri);
+      setPickedFileUri(result.assets[0].uri);
     }
   };
 
-  useEffect(() => {
-    setImage(originalImage);
-  }, [originalImage]);
+  const laneAvatarPath = useMemo(
+    () => resolveAvatarStoragePath(profile, activeProfessionCode),
+    [profile, activeProfessionCode]
+  );
 
-  useEffect(() => {
-    setChanged(image !== originalImage);
-  }, [image, originalImage]);
+  const laneHint =
+    storedProfessionReady && activeProfessionCode
+      ? professionLine
+      : t("common.loading");
 
   return (
     <MintProfileScreenShell>
@@ -116,7 +121,7 @@ const ProfilePicture = () => {
         showSaveButton
         saveAction={updateUserProfile}
         loading={loading}
-        saveChanged={changed}
+        saveChanged={pickedFileUri != null}
       />
       <ScrollView
         style={styles.scroll}
@@ -124,25 +129,22 @@ const ProfilePicture = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <Text style={styles.laneHint}>{laneHint}</Text>
         <Pressable style={styles.pickerContainer} onPress={pickImage}>
-          {image?.startsWith("file://") || !image ? (
-            image ? (
-              <Image
-                source={{ uri: image }}
-                style={styles.pickerCircle}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.pickerCircle} />
-            )
+          {pickedFileUri ? (
+            <Image
+              source={{ uri: pickedFileUri }}
+              style={styles.pickerCircle}
+              resizeMode="cover"
+            />
           ) : (
             <AvatarWithSpinner
-              uri={avatarImage}
+              uri={laneAvatarPath ?? avatarImage}
               size={scale(150)}
               style={styles.profilePic}
             />
           )}
-          {!changed ? (
+          {!pickedFileUri ? (
             <Text
               style={[
                 Typography.bodyMedium,
@@ -165,6 +167,12 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollInner: {
     alignItems: "center",
+  },
+  laneHint: {
+    ...Typography.bodySmall,
+    textAlign: "center",
+    marginBottom: 12,
+    opacity: 0.85,
   },
   pickerContainer: {
     alignItems: "center",

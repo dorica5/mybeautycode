@@ -278,11 +278,11 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
         params: {
           full_name: item.full_name,
           phone_number: item.phone_number,
-          relationship: hasRelationship,
           client_id: item.client_id,
           ...(professionCode?.trim()
             ? { profession: professionCode.trim() }
             : {}),
+          ...(hasRelationship ? { relationship: "true" } : {}),
         },
       }}
       style={styles.resultItem}

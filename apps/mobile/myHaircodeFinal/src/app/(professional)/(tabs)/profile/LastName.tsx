@@ -7,7 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
 import {
   MintProfileScreenShell,
@@ -20,13 +20,21 @@ import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
 import { Profile } from "@/src/constants/types";
 import { validatePersonName } from "@/src/lib/profileFieldValidation";
+import {
+  combinePersonName,
+  resolveProfessionalNameParts,
+} from "@/src/lib/professionalDisplayName";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 const LastName = () => {
   const { t } = useI18n();
   const { profile, setProfile } = useAuth();
-  const original = profile.last_name ?? "";
   const id = profile.id;
+  const nameParts = useMemo(
+    () => resolveProfessionalNameParts(profile),
+    [profile]
+  );
+  const original = nameParts.lastName;
 
   const [lastName, setLastName] = useState(original);
   const [changed, setChanged] = useState(false);
@@ -69,12 +77,16 @@ const LastName = () => {
     }
     setLoading(true);
     updateProfile(
-      { id, last_name: result.value },
+      { id, pro_last_name: result.value },
       {
         onSuccess: () => {
           setProfile((prev: Profile) => ({
             ...prev,
-            last_name: result.value,
+            pro_last_name: result.value,
+            display_name: combinePersonName(
+              resolveProfessionalNameParts(prev).firstName,
+              result.value
+            ),
           }));
           setChanged(false);
           setLoading(false);
@@ -88,6 +100,10 @@ const LastName = () => {
       }
     );
   };
+
+  useEffect(() => {
+    setLastName(original);
+  }, [original]);
 
   useEffect(() => {
     setChanged(lastName !== original);

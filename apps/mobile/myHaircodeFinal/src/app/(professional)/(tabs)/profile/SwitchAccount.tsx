@@ -27,7 +27,12 @@ import {
   professionCodesList,
   type AccountSurfaceRow,
 } from "@/src/lib/linkedAccountsStorage";
-import { getLastProfessionCode, setLastProfessionCode } from "@/src/lib/lastVisitPreference";
+import {
+  getLastProfessionCode,
+  getSessionProfessionPin,
+  pinSessionProfessionCode,
+  setLastProfessionCode,
+} from "@/src/lib/lastVisitPreference";
 import { pickActiveProfessionCode } from "@/src/constants/professionCodes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useImageContext } from "@/src/providers/ImageProvider";
@@ -79,7 +84,7 @@ const SwitchAccountScreen = () => {
   const { t } = useI18n();
   const { profile, session, loading } = useAuth();
   const queryClient = useQueryClient();
-  const { refreshInspirationImages } = useImageContext();
+  const { refreshInspirationImages, refreshAvatarImage } = useImageContext();
   const { activeSurface: activeSurfaceParam, returnTo: returnToParam } =
     useLocalSearchParams<{
       activeSurface?: string | string[];
@@ -150,7 +155,10 @@ const SwitchAccountScreen = () => {
       }
       if (activeSurface !== "professional") return false;
       const codes = professionCodesList(profile!);
-      const active = pickActiveProfessionCode(codes, lastProfessionCode);
+      const active = pickActiveProfessionCode(
+        codes,
+        getSessionProfessionPin() ?? lastProfessionCode
+      );
       if (row.professionCode == null) {
         return codes.length === 0 && active == null;
       }
@@ -172,25 +180,34 @@ const SwitchAccountScreen = () => {
       void queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
 
       if (row.surface === "client") {
+        pinSessionProfessionCode(null);
         /** Don’t await: inspiration fetch + signing blocks the transition; home loads in background. */
         void refreshInspirationImages(true, "hair");
+        void refreshAvatarImage();
         router.replace("/(client)/(tabs)/home");
         return;
       }
 
       if (row.professionCode) {
+        pinSessionProfessionCode(row.professionCode);
         /** One fast storage write so the destination reads the right profession; avoid awaiting network refresh. */
         await setLastProfessionCode(uid, row.professionCode);
         setLastProfessionCodeState(row.professionCode);
         void refreshInspirationImages(true, row.professionCode);
+        void refreshAvatarImage(row.professionCode);
       }
       router.replace("/(professional)/(tabs)/home");
     },
-    [session, profile, rowIsCurrent, queryClient, refreshInspirationImages]
+    [session, profile, rowIsCurrent, queryClient, refreshInspirationImages, refreshAvatarImage]
   );
 
   useEffect(() => {
     if (!profile?.id) return;
+    const pinned = getSessionProfessionPin();
+    if (pinned) {
+      setLastProfessionCodeState(pinned);
+      return;
+    }
     void getLastProfessionCode(profile.id).then(setLastProfessionCodeState);
   }, [profile?.id, profile?.profession_codes, profile?.professions_detail]);
 

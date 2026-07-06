@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma";
 import { pickDefaultProfessionRow } from "../lib/professionBusinessHelpers";
+import { profileDisplayName } from "../lib/profileDisplay";
 
 /** Default profession code for hair (backward compatibility) */
 const DEFAULT_PROFESSION_CODE = "hair";
@@ -173,8 +174,20 @@ export const professionService = {
       select: { id: true },
     });
     if (!prof) {
+      const profile = await prisma.profile.findUnique({
+        where: { id: profileId },
+        select: { firstName: true, lastName: true },
+      });
+      const firstName = profile?.firstName?.trim() || null;
+      const lastName = profile?.lastName?.trim() || null;
+      const displayName = profileDisplayName({ firstName, lastName });
       prof = await prisma.professionalProfile.create({
-        data: { profileId },
+        data: {
+          profileId,
+          firstName,
+          lastName,
+          ...(displayName ? { displayName } : {}),
+        },
         select: { id: true },
       });
       /** Professions are added when onboarding completes (see profileService.update + profession_code). */

@@ -4,12 +4,13 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
   ReactNode,
 } from "react";
 import { api } from "../lib/apiClient";
 import { useAuth } from "./AuthProvider";
 import { pickActiveProfessionCode } from "../constants/professionCodes";
-import { getLastProfessionCode } from "../lib/lastVisitPreference";
+import { getLastProfessionCode, getSessionProfessionPin } from "../lib/lastVisitPreference";
 import { resolveAvatarStoragePath } from "../lib/resolveAvatarStoragePath";
 import {
   fetchSignedStorageUrl,
@@ -59,6 +60,9 @@ interface ImageContextValue {
   inspirationImages: InspirationImage[];
   avatarImage: string | null;
   imagesLoading: boolean;
+  refreshAvatarImage: (
+    options?: string | null | { professionCode?: string | null; storagePath?: string | null }
+  ) => Promise<void>;
   refreshInspirationImages: (
     silent?: boolean,
     professionCode?: string
@@ -71,6 +75,7 @@ const ImageContext = createContext<ImageContextValue>({
   inspirationImages: [],
   avatarImage: null,
   imagesLoading: true,
+  refreshAvatarImage: async () => {},
   refreshInspirationImages: async () => [] as InspirationImage[],
   deleteInspirationImages: async () => {},
   setInspirationImages: () => {},
@@ -81,6 +86,8 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
   const [imagesLoading, setImagesLoading] = useState(true);
   const { profile, session, lastAppSurfacePref } = useAuth();
+  /** Drop stale sign responses when profile updates race with an explicit save refresh. */
+  const avatarRequestIdRef = useRef(0);
 
   const fetchImagesFromDB = useCallback(
     async (professionCode: string): Promise<InspirationImage[]> => {
@@ -153,12 +160,13 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
         console.error("Error deleting images:", error);
         const stored = profile?.id ? await getLastProfessionCode(profile.id) : null;
+        const pinned = getSessionProfessionPin();
         const code =
           lastAppSurfacePref === "client"
             ? "hair"
             : pickActiveProfessionCode(
                 profile?.profession_codes as string[] | null | undefined,
-                stored
+                pinned ?? stored ?? undefined
               ) ?? "hair";
         await refreshInspirationImages(true, code);
         throw error;
@@ -169,30 +177,73 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
     [refreshInspirationImages, lastAppSurfacePref, profile?.id, profile?.profession_codes]
   );
 
-  const fetchAvatarImage = useCallback(async () => {
-    if (!profile) {
-      setAvatarImage(null);
-      return;
-    }
-    const stored = profile.id ? await getLastProfessionCode(profile.id) : null;
-    const activeCode =
-      lastAppSurfacePref === "client"
-        ? null
-        : pickActiveProfessionCode(profile.profession_codes, stored ?? undefined);
+  const fetchAvatarImage = useCallback(
+    async (overrideProfessionCode?: string | null, requestId?: number) => {
+      const id = requestId ?? ++avatarRequestIdRef.current;
+      if (!profile) {
+        if (id === avatarRequestIdRef.current) setAvatarImage(null);
+        return;
+      }
+      const pinned = getSessionProfessionPin();
+      const stored = profile.id ? await getLastProfessionCode(profile.id) : null;
+      const activeCode =
+        lastAppSurfacePref === "client"
+          ? null
+          : pickActiveProfessionCode(
+              profile.profession_codes,
+              overrideProfessionCode ?? pinned ?? stored ?? undefined
+            );
 
-    const path = resolveAvatarStoragePath(profile, activeCode);
-    if (!path) {
-      setAvatarImage(null);
-      return;
-    }
-    try {
-      const url = await fetchSignedStorageUrl("avatars", path);
-      setAvatarImage(url);
-    } catch (error) {
-      console.error("Error fetching avatar:", error);
-      setAvatarImage(null);
-    }
-  }, [profile, lastAppSurfacePref]);
+      const path = resolveAvatarStoragePath(profile, activeCode);
+      if (!path) {
+        if (id === avatarRequestIdRef.current) setAvatarImage(null);
+        return;
+      }
+      try {
+        const url = await fetchSignedStorageUrl("avatars", path);
+        if (id !== avatarRequestIdRef.current) return;
+        setAvatarImage(url);
+      } catch (error) {
+        console.error("Error fetching avatar:", error);
+        if (id === avatarRequestIdRef.current) setAvatarImage(null);
+      }
+    },
+    [profile, lastAppSurfacePref]
+  );
+
+  const refreshAvatarImage = useCallback(
+    async (
+      options?: string | null | {
+        professionCode?: string | null;
+        storagePath?: string | null;
+      }
+    ) => {
+      const requestId = ++avatarRequestIdRef.current;
+      let professionCode: string | null | undefined;
+      let storagePath: string | null | undefined;
+      if (typeof options === "string" || options === null) {
+        professionCode = options;
+      } else if (options && typeof options === "object") {
+        professionCode = options.professionCode;
+        storagePath = options.storagePath;
+      }
+
+      const pathOverride = storagePath?.trim() || null;
+      if (pathOverride) {
+        try {
+          const url = await fetchSignedStorageUrl("avatars", pathOverride);
+          if (requestId !== avatarRequestIdRef.current) return;
+          setAvatarImage(url);
+        } catch (error) {
+          console.error("Error fetching avatar:", error);
+          if (requestId === avatarRequestIdRef.current) setAvatarImage(null);
+        }
+        return;
+      }
+      await fetchAvatarImage(professionCode, requestId);
+    },
+    [fetchAvatarImage]
+  );
 
   const professionAvatarsKey =
     profile?.professions_detail
@@ -207,14 +258,18 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     if (profile?.id) {
-      void fetchAvatarImage();
+      const requestId = ++avatarRequestIdRef.current;
+      void fetchAvatarImage(undefined, requestId);
       void (async () => {
+        const pinned = getSessionProfessionPin();
         const stored = await getLastProfessionCode(profile.id);
         const code =
           lastAppSurfacePref === "client"
             ? "hair"
-            : pickActiveProfessionCode(profile.profession_codes, stored) ??
-              "hair";
+            : pickActiveProfessionCode(
+                profile.profession_codes,
+                pinned ?? stored ?? undefined
+              ) ?? "hair";
         await refreshInspirationImages(false, code);
       })();
     }
@@ -235,6 +290,7 @@ export const ImageProvider = ({ children }: { children: ReactNode }) => {
         inspirationImages,
         avatarImage,
         imagesLoading,
+        refreshAvatarImage,
         refreshInspirationImages,
         deleteInspirationImages,
         setInspirationImages,

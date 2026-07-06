@@ -636,6 +636,7 @@ export const sv: AppLocaleMessages = {
     invalidLink: "Ogiltig länk",
     enterValidUrl: "Ange en giltig URL.",
     enterValidWebsiteUrl: "Ange en giltig webbadress.",
+    blockedLink: "Endast säkra webbadresser (http eller https) tillåts.",
     invalidProfileLink: "Den här profillänken är inte giltig.",
     couldNotLoadProfile: "Vi kunde inte ladda den här profilen.",
     invalidClientProfileLink:

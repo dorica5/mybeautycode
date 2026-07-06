@@ -6,6 +6,7 @@ import {
   coerceProfessionCode,
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import { resolveProfessionalFullName } from "@/src/lib/professionalDisplayName";
 
 /** Én bruker kan ha flere «overflater» (pro / klient); samme innlogging. */
 export type LinkedAccountEntry = {
@@ -172,6 +173,10 @@ export function buildDetailLine(profile: Profile): string {
 }
 
 function displayName(profile: Profile): string {
+  if (profile.user_type === "HAIRDRESSER") {
+    const pro = resolveProfessionalFullName(profile);
+    if (pro) return pro;
+  }
   const full = profile.full_name?.trim();
   if (full) return full;
   const joined = [profile.first_name, profile.last_name]

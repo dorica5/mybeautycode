@@ -8,6 +8,8 @@ import {
   needsProfessionCodesSqlFallback,
   serializeProfileForApi,
 } from "../lib/serializeProfileForApi";
+import { ensureProfessionalDisplayNameSeeded } from "../lib/professionalDisplayName";
+
 export const authController = {
   async me(req: Request, res: Response) {
     const userId = req.userId;
@@ -15,12 +17,22 @@ export const authController = {
       return res.status(401).json({ error: "Unauthorized" });
     }
     try {
-      const profile = await prisma.profile.findUnique({
+      let profile = await prisma.profile.findUnique({
         where: { id: userId },
         include: profileWithProfessionalForApiInclude,
       });
       if (!profile) {
         return res.status(404).json({ error: "Profile not found" });
+      }
+      if (profile.professionalProfile) {
+        const seeded = await ensureProfessionalDisplayNameSeeded(userId);
+        if (seeded) {
+          profile =
+            (await prisma.profile.findUnique({
+              where: { id: userId },
+              include: profileWithProfessionalForApiInclude,
+            })) ?? profile;
+        }
       }
       let professionCodesSqlFallback: string[] | undefined;
       if (

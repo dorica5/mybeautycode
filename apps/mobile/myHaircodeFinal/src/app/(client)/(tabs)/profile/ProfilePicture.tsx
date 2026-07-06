@@ -4,10 +4,9 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  View,
   ScrollView,
 } from "react-native";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
@@ -21,17 +20,14 @@ import {
   mintProfileScrollContent,
 } from "@/src/components/MintProfileScreenShell";
 import { Typography } from "@/src/constants/Typography";
-import { Profile } from "@/src/constants/types";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 const ProfilePicture = () => {
   const { t } = useI18n();
-  const { profile, setProfile } = useAuth();
-  const { avatarImage } = useImageContext();
-  const originalImage = avatarImage;
+  const { profile } = useAuth();
+  const { avatarImage, refreshAvatarImage } = useImageContext();
   const id = profile.id;
-  const [image, setImage] = useState<string | null>(originalImage);
-  const [changed, setChanged] = useState(false);
+  const [pickedFileUri, setPickedFileUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const { mutate: updateProfile } = useUpdateSupabaseProfile();
@@ -41,37 +37,35 @@ const ProfilePicture = () => {
       Alert.alert(t("profile.userNotFound"));
       return;
     }
+    if (!pickedFileUri) return;
+
     setLoading(true);
-
-    const avatar_url = await uploadImage();
-
-    updateProfile(
-      {
-        id,
-        avatar_url,
-      },
-      {
-        onSuccess: () => {
-          setProfile((prev: Profile) => ({
-            ...prev,
-            avatar_url,
-          }));
-          setLoading(false);
-          setChanged(false);
-        },
-        onError: (error) => {
-          setLoading(false);
-          Alert.alert(t("profile.updateFailed"), error.message);
-        },
+    try {
+      const avatar_url = await uploadAvatarToStorage(pickedFileUri);
+      if (!avatar_url) {
+        Alert.alert(t("common.error"), t("profile.uploadImageFailed"));
+        setLoading(false);
+        return;
       }
-    );
-  };
 
-  const uploadImage = async () => {
-    if (!image?.startsWith("file://")) return image;
-    const path = await uploadAvatarToStorage(image);
-    if (!path) Alert.alert(t("common.error"), t("profile.uploadImageFailed"));
-    return path;
+      updateProfile(
+        { id, avatar_url },
+        {
+          onSuccess: () => {
+            setPickedFileUri(null);
+            void refreshAvatarImage();
+            setLoading(false);
+          },
+          onError: (error) => {
+            setLoading(false);
+            Alert.alert(t("profile.updateFailed"), error.message);
+          },
+        }
+      );
+    } catch {
+      setLoading(false);
+      Alert.alert(t("common.error"), t("profile.uploadImageFailed"));
+    }
   };
 
   const pickImage = async () => {
@@ -83,13 +77,9 @@ const ProfilePicture = () => {
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImage(result.assets[0].uri);
+      setPickedFileUri(result.assets[0].uri);
     }
   };
-
-  useEffect(() => {
-    setChanged(image !== originalImage);
-  }, [image, originalImage]);
 
   return (
     <MintProfileScreenShell>
@@ -98,7 +88,7 @@ const ProfilePicture = () => {
         showSaveButton
         saveAction={updateUserProfile}
         loading={loading}
-        saveChanged={changed}
+        saveChanged={pickedFileUri != null}
       />
       <ScrollView
         style={styles.scroll}
@@ -107,24 +97,20 @@ const ProfilePicture = () => {
         showsVerticalScrollIndicator={false}
       >
         <Pressable style={styles.pickerContainer} onPress={pickImage}>
-          {image?.startsWith("file://") || !image ? (
-            image ? (
-              <Image
-                source={{ uri: image }}
-                style={styles.pickerCircle}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.pickerCircle} />
-            )
+          {pickedFileUri ? (
+            <Image
+              source={{ uri: pickedFileUri }}
+              style={styles.pickerCircle}
+              resizeMode="cover"
+            />
           ) : (
             <AvatarWithSpinner
-              uri={avatarImage}
+              uri={profile.avatar_url ?? avatarImage}
               size={scale(150)}
               style={styles.profilePic}
             />
           )}
-          {!changed ? (
+          {!pickedFileUri ? (
             <Text
               style={[
                 Typography.bodyMedium,

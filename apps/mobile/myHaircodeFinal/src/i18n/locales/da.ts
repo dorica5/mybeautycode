@@ -638,6 +638,7 @@ export const da: AppLocaleMessages = {
     invalidLink: "Ugyldigt link",
     enterValidUrl: "Indtast en gyldig URL.",
     enterValidWebsiteUrl: "Indtast en gyldig webadresse.",
+    blockedLink: "Kun sikre webadresser (http eller https) er tilladt.",
     invalidProfileLink: "Dette profillink er ikke gyldigt.",
     couldNotLoadProfile: "Vi kunne ikke indlæse denne profil.",
     invalidClientProfileLink:

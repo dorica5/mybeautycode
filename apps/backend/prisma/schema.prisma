@@ -82,6 +82,10 @@ model ProfessionalProfile {
   createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime?                 @map("updated_at") @db.Timestamptz(6)
   displayName              String?                   @map("display_name")
+  /// Professional-facing given name (independent of client `profiles.first_name`).
+  firstName                String?                   @map("first_name")
+  /// Professional-facing family name (independent of client `profiles.last_name`).
+  lastName                 String?                   @map("last_name")
   clientProfessionalLinks  ClientProfessionalLink[]
   professionalHairProfile  ProfessionalHairProfile?
   professionalNailsProfile ProfessionalNailsProfile?

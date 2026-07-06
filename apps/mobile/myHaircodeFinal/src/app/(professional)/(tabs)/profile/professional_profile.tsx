@@ -8,11 +8,25 @@ import { Colors } from "@/src/constants/Colors";
 import type { ProfessionDetailApi } from "@/src/constants/types";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import {
+  resolveProfessionalFullName,
+  resolveProfessionalNameParts,
+} from "@/src/lib/professionalDisplayName";
+import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 
 const ProfessionalProfile = () => {
   const { profile } = useAuth();
   const { avatarImage } = useImageContext();
   const { activeProfessionCode } = useActiveProfessionState(profile);
+
+  const proFullName = useMemo(
+    () => resolveProfessionalFullName(profile),
+    [profile]
+  );
+  const proFirstName = useMemo(
+    () => resolveProfessionalNameParts(profile).firstName,
+    [profile]
+  );
 
   const detailForActive = useMemo(() => {
     const rows = profile?.professions_detail;
@@ -25,6 +39,11 @@ const ProfessionalProfile = () => {
       ) ?? null
     );
   }, [profile?.professions_detail, activeProfessionCode]);
+
+  const laneAvatarPath = useMemo(
+    () => resolveAvatarStoragePath(profile, activeProfessionCode),
+    [profile, activeProfessionCode]
+  );
 
   if (!profile?.id) return null;
 
@@ -44,10 +63,10 @@ const ProfessionalProfile = () => {
       <PublicProfessionalProfileView
         mode="self"
         profileUserId={profile.id}
-        fullName={profile.full_name}
-        firstName={profile.first_name ?? null}
+        fullName={proFullName}
+        firstName={proFirstName}
         username={profile.username ?? null}
-        avatarUrl={avatarImage ?? profile.avatar_url}
+        avatarUrl={laneAvatarPath ?? avatarImage ?? null}
         salonName={salonName}
         businessAddress={businessAddress ?? null}
         aboutMe={aboutMe}

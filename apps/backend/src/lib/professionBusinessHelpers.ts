@@ -3,6 +3,11 @@
  * These helpers pick a default row for legacy flat API fields and serialize detail arrays.
  */
 
+import {
+  safeBookingSiteForRead,
+  sanitizeSocialMediaForStorage,
+} from "./safeExternalUrl";
+
 export type ProfessionJoinRow = {
   profession: { code: string; sortOrder: number } | null | undefined;
   businessName: string | null;
@@ -49,8 +54,8 @@ export function professionsDetailSnakeCase(rows: ProfessionJoinRow[]) {
     business_number: r.businessNumber ?? null,
     business_address: r.businessAddress ?? null,
     about_me: r.aboutMe ?? null,
-    social_media: r.socialMedia ?? null,
-    booking_site: r.bookingSite ?? null,
+    social_media: sanitizeSocialMediaForStorage(r.socialMedia),
+    booking_site: safeBookingSiteForRead(r.bookingSite),
     avatar_url: r.avatarUrl ?? null,
     discovery_categories: Array.isArray(r.discoveryCategories)
       ? (r.discoveryCategories as string[])

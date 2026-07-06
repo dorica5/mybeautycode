@@ -28,20 +28,26 @@ export async function requestClientLink(
   });
 }
 
+import type { Profile } from "@/src/constants/types";
+
 export const useUpdateSupabaseProfile = () => {
   const queryClient = useQueryClient();
   const { setProfile } = useAuth();
 
   return useMutation({
     mutationFn: async (data: { id: string; [key: string]: unknown }) => {
-      await api.put(`/api/profiles/${data.id}`, data);
-      const fresh = await api.get(`/api/auth/me`);
-      setProfile(fresh as never);
+      const fresh = (await api.put(`/api/profiles/${data.id}`, data)) as Profile;
+      setProfile(fresh);
       return fresh;
     },
     onSuccess: async (_, { id }) => {
       await queryClient.invalidateQueries({ queryKey: ["profiles"] });
       await queryClient.invalidateQueries({ queryKey: ["profiles", id] });
+      await queryClient.invalidateQueries({
+        queryKey: clientProfileByIdQueryKey(id),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["hairdresserSearch"] });
+      await queryClient.invalidateQueries({ queryKey: ["manageHairdresser"] });
     },
   });
 };
@@ -131,7 +137,8 @@ export const useClientSearch = (client_id: string | undefined) => {
     queryKey: clientProfileByIdQueryKey(client_id ?? ""),
     queryFn: () => fetchClientProfileById(client_id!),
     enabled: !!client_id && isUuid(client_id),
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchOnMount: true,
   });
 };
 

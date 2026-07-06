@@ -1,7 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileWithProfessionalForApiInclude } from "../lib/profileIncludes";
-import { profileDisplayName } from "../lib/profileDisplay";
+import { profileDisplayName, professionalProfileDisplayName, splitDisplayName } from "../lib/profileDisplay";
+import {
+  pickDefaultProfessionRow,
+  resolveLaneAvatarUrl,
+} from "../lib/professionBusinessHelpers";
 import {
   normalizeProfessionCodeInput,
   professionService,
@@ -10,6 +14,11 @@ import {
   allowedDiscoveryCodesForProfession,
   normalizeDiscoveryCategoriesForProfession,
 } from "../lib/profDiscoveryCategories";
+import {
+  assertSafeBookingSite,
+  assertSafeSocialMedia,
+} from "../lib/safeExternalUrl";
+import { ensureProfessionalDisplayNameSeeded } from "../lib/professionalDisplayName";
 
 const nameSearch = (searchQuery: string) => ({
   OR: [
@@ -30,6 +39,8 @@ function professionalDiscoverySearch(
   const tokenMatch = (token: string): Prisma.ProfessionalProfileWhereInput => ({
     OR: [
       { displayName: { contains: token, mode: "insensitive" } },
+      { firstName: { contains: token, mode: "insensitive" } },
+      { lastName: { contains: token, mode: "insensitive" } },
       { profile: nameSearch(token) },
       {
         professionalProfessions: {
@@ -159,8 +170,24 @@ export const profileService = {
   async update(id: string, data: Record<string, unknown>) {
     const filtered: Record<string, unknown> = {};
     const displayNameData: Record<string, unknown> = {};
+    const proNameData: Record<string, unknown> = {};
     const professionBusinessData: Record<string, unknown> = {};
     const body = { ...data };
+
+    const pullProNameField = (
+      snakeKey: string,
+      camelKey: "firstName" | "lastName"
+    ) => {
+      for (const key of [snakeKey, camelKey]) {
+        if (!Object.prototype.hasOwnProperty.call(body, key)) continue;
+        const raw = body[key as keyof typeof body];
+        delete body[key as keyof typeof body];
+        if (raw === null || raw === undefined) proNameData[camelKey] = null;
+        else if (typeof raw === "string") proNameData[camelKey] = raw.trim() || null;
+      }
+    };
+    pullProNameField("pro_first_name", "firstName");
+    pullProNameField("pro_last_name", "lastName");
 
     let colorBrandUpdate: string | null | undefined;
     if (
@@ -183,18 +210,19 @@ export const profileService = {
     delete body.profession_code;
     delete body.professionCode;
 
-    /** When targeting a profession lane, store avatar on that row — not on `profiles`. */
+    /** Lane avatar — never mirror onto the shared client `profiles.avatar_url`. */
     let professionAvatarUpdate: string | null | undefined;
-    if (
-      professionCode &&
-      (Object.prototype.hasOwnProperty.call(body, "avatar_url") ||
-        Object.prototype.hasOwnProperty.call(body, "avatarUrl"))
-    ) {
+    const avatarTouched =
+      Object.prototype.hasOwnProperty.call(body, "avatar_url") ||
+      Object.prototype.hasOwnProperty.call(body, "avatarUrl");
+    if (professionCode && avatarTouched) {
       const raw = body.avatar_url ?? body.avatarUrl;
       delete body.avatar_url;
       delete body.avatarUrl;
       if (raw === null) professionAvatarUpdate = null;
       else if (typeof raw === "string") professionAvatarUpdate = raw.trim() || null;
+    } else if (!professionCode && avatarTouched) {
+      /** Client account photo — stored on `profiles` only. */
     }
 
     // Pull salon identity (place_id, lat, lng) off the body so the generic field
@@ -273,6 +301,27 @@ export const profileService = {
 
     if (professionAvatarUpdate !== undefined) {
       professionBusinessData.avatarUrl = professionAvatarUpdate;
+      delete filtered.avatarUrl;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(displayNameData, "displayName")) {
+      const raw = displayNameData.displayName;
+      if (raw === null || raw === undefined) {
+        displayNameData.displayName = null;
+      } else if (typeof raw === "string") {
+        displayNameData.displayName = raw.trim() || null;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(professionBusinessData, "socialMedia")) {
+      professionBusinessData.socialMedia = assertSafeSocialMedia(
+        professionBusinessData.socialMedia
+      );
+    }
+    if (Object.prototype.hasOwnProperty.call(professionBusinessData, "bookingSite")) {
+      professionBusinessData.bookingSite = assertSafeBookingSite(
+        professionBusinessData.bookingSite
+      );
     }
 
     if (Object.prototype.hasOwnProperty.call(filtered, "username")) {
@@ -313,6 +362,7 @@ export const profileService = {
       const needProfessionalProfile =
         shouldApplyProfession ||
         Object.keys(displayNameData).length > 0 ||
+        Object.keys(proNameData).length > 0 ||
         Object.keys(professionBusinessData).length > 0 ||
         professionAvatarUpdate !== undefined;
 
@@ -320,17 +370,57 @@ export const profileService = {
         ? await professionService.getOrCreateProfessionalProfileId(id)
         : null;
 
+      if (profProfileId) {
+        await ensureProfessionalDisplayNameSeeded(id);
+      }
+
       if (shouldApplyProfession && profProfileId) {
         await professionService.ensureProfessionsForProfile(profProfileId, [
           professionCode!,
         ]);
       }
 
-      if (profProfileId && Object.keys(displayNameData).length > 0) {
-        displayNameData.updatedAt = new Date();
+      if (
+        profProfileId &&
+        (Object.keys(displayNameData).length > 0 ||
+          Object.keys(proNameData).length > 0)
+      ) {
+        const current = await prisma.professionalProfile.findUnique({
+          where: { id: profProfileId },
+          select: { firstName: true, lastName: true, displayName: true },
+        });
+
+        let firstName = current?.firstName ?? null;
+        let lastName = current?.lastName ?? null;
+
+        if (Object.prototype.hasOwnProperty.call(proNameData, "firstName")) {
+          firstName = (proNameData.firstName as string | null) ?? null;
+        }
+        if (Object.prototype.hasOwnProperty.call(proNameData, "lastName")) {
+          lastName = (proNameData.lastName as string | null) ?? null;
+        }
+
+        if (
+          Object.keys(proNameData).length === 0 &&
+          Object.prototype.hasOwnProperty.call(displayNameData, "displayName")
+        ) {
+          const split = splitDisplayName(
+            displayNameData.displayName as string | null | undefined
+          );
+          firstName = split.firstName;
+          lastName = split.lastName;
+        }
+
+        const displayName = profileDisplayName({ firstName, lastName });
+
         await prisma.professionalProfile.update({
           where: { id: profProfileId },
-          data: displayNameData as never,
+          data: {
+            firstName,
+            lastName,
+            displayName,
+            updatedAt: new Date(),
+          },
         });
       }
 
@@ -735,6 +825,14 @@ export const profileService = {
         profile: {
           select: { id: true, firstName: true, lastName: true, avatarUrl: true },
         },
+        professionalProfessions: {
+          where: professionId ? { professionId } : undefined,
+          select: {
+            avatarUrl: true,
+            professionId: true,
+            profession: { select: { code: true, sortOrder: true } },
+          },
+        },
       },
     });
 
@@ -742,6 +840,16 @@ export const profileService = {
       (pp) => !blockedProfileIds.has(pp.profileId)
     );
     if (visible.length === 0) return [];
+
+    const laneAvatarFor = (
+      pp: (typeof profProfiles)[number]
+    ): string | null => {
+      const rows = pp.professionalProfessions ?? [];
+      if (professionId) {
+        return rows.find((r) => r.professionId === professionId)?.avatarUrl ?? null;
+      }
+      return pickDefaultProfessionRow(rows)?.avatarUrl ?? null;
+    };
 
     // Annotate each result with the existing link state for this client
     // (scoped to the chosen lane when provided).
@@ -764,8 +872,12 @@ export const profileService = {
       professional_profile_id: pp.id,
       profile_id: pp.profileId,
       hairdresser_id: pp.profileId,
-      full_name: pp.displayName ?? profileDisplayName(pp.profile),
-      avatar_url: pp.profile.avatarUrl,
+      full_name:
+        professionalProfileDisplayName(pp) ?? profileDisplayName(pp.profile),
+      avatar_url: resolveLaneAvatarUrl(
+        laneAvatarFor(pp),
+        pp.profile.avatarUrl
+      ),
       has_relationship: activeProIds.has(pp.id),
       link_pending: pendingProIds.has(pp.id),
     }));

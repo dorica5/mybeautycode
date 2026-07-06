@@ -104,12 +104,14 @@ const OtherProfessionalProfileScreen = () => {
       }
     : undefined;
 
-  const { data: isRelated = false, isFetching: relLoading } =
+  const { data: isRelatedFromApi = false, isFetched: relFetched, isFetching: relFetching } =
     useRelationshipCheck(
       client_id ?? undefined,
       hairdresser_id,
       professionCodeFromVisit
     );
+  const isRelated = isRelatedFromApi;
+  const relationshipStatusLoading = !relFetched || relFetching;
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
   const [isBlockedUser, setIsBlockedUser] = useState(false);
@@ -131,7 +133,7 @@ const OtherProfessionalProfileScreen = () => {
       profile?.id &&
       hairdresser_id &&
       profile.id !== hairdresser_id &&
-      !isRelated
+      (relationshipStatusLoading || !isRelated)
   );
 
   const isViewingOwnProfile = Boolean(
@@ -478,6 +480,7 @@ const OtherProfessionalProfileScreen = () => {
         onBack={() => router.back()}
         showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}
+        relationshipStatusLoading={relationshipStatusLoading}
         addLoading={loading}
         onAddHairdresser={addHairdresser}
         headerRight={

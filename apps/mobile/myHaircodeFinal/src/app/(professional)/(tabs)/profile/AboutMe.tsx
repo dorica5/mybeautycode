@@ -58,6 +58,7 @@ import {
   serializeSocialLinks,
   socialLinkRowLabel,
 } from "@/src/lib/socialMediaStorage";
+import { validateExternalUrl } from "@/src/lib/safeExternalUrl";
 import {
   coerceProfessionCode,
   type ProfessionChoiceCode,
@@ -545,20 +546,22 @@ const AboutMe = () => {
 
   const commitSocialUrl = () => {
     if (!socialUrlModal) return;
-    let u = socialUrlModal.draft.trim();
-    if (!u) {
+    const draft = socialUrlModal.draft.trim();
+    if (!draft) {
       setSocialUrlModal(null);
       return;
     }
-    if (!/^https?:\/\//i.test(u)) {
-      u = `https://${u}`;
-    }
-    try {
-      void new URL(u);
-    } catch {
-      Alert.alert(t("profile.invalidLink"), t("profile.enterValidUrl"));
+    const result = validateExternalUrl(draft);
+    if (!result.ok) {
+      Alert.alert(
+        t("profile.invalidLink"),
+        result.blocked
+          ? t("profile.blockedLink")
+          : t("profile.enterValidUrl")
+      );
       return;
     }
+    const u = result.normalized;
     setSocialLinks((prev) => {
       const next = [...prev];
       const idx = socialUrlModal.editIndex;
@@ -574,22 +577,23 @@ const AboutMe = () => {
 
   const commitBookingUrl = () => {
     if (!bookingUrlModal) return;
-    let u = bookingUrlModal.draft.trim();
-    if (!u) {
+    const draft = bookingUrlModal.draft.trim();
+    if (!draft) {
       setBookingSite("");
       setBookingUrlModal(null);
       return;
     }
-    if (!/^https?:\/\//i.test(u)) {
-      u = `https://${u}`;
-    }
-    try {
-      void new URL(u);
-    } catch {
-      Alert.alert(t("profile.invalidLink"), t("profile.enterValidWebsiteUrl"));
+    const result = validateExternalUrl(draft);
+    if (!result.ok) {
+      Alert.alert(
+        t("profile.invalidLink"),
+        result.blocked
+          ? t("profile.blockedLink")
+          : t("profile.enterValidWebsiteUrl")
+      );
       return;
     }
-    setBookingSite(u);
+    setBookingSite(result.normalized);
     setBookingUrlModal(null);
   };
 

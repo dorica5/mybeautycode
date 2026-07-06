@@ -20,7 +20,7 @@ const ClientPublicProfile = () => {
         fullName={profile.full_name}
         firstName={profile.first_name ?? null}
         username={profile.username ?? null}
-        avatarUrl={avatarImage ?? profile.avatar_url}
+        avatarUrl={profile.avatar_url ?? avatarImage}
         phoneNumber={profile.phone_number}
         aboutMe={profile.about_me}
         onBack={() => router.back()}

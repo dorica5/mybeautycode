@@ -639,6 +639,7 @@ export const en = {
     invalidLink: "Invalid link",
     enterValidUrl: "Enter a valid URL.",
     enterValidWebsiteUrl: "Enter a valid website URL.",
+    blockedLink: "Only safe website links (http or https) are allowed.",
     invalidProfileLink: "This profile link isn't valid.",
     couldNotLoadProfile: "We couldn't load this profile.",
     invalidClientProfileLink:

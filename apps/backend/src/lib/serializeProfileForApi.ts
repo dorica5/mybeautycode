@@ -1,10 +1,14 @@
 import type { Profile, ProfessionalProfile } from "@prisma/client";
-import { profileDisplayName } from "./profileDisplay";
+import { profileDisplayName, professionalProfileDisplayName } from "./profileDisplay";
 import {
   pickDefaultProfessionRow,
   professionsDetailSnakeCase,
   type ProfessionJoinRow,
 } from "./professionBusinessHelpers";
+import {
+  safeBookingSiteForRead,
+  sanitizeSocialMediaForStorage,
+} from "./safeExternalUrl";
 
 type ProfessionalProfileWithProfessions = ProfessionalProfile & {
   professionalProfessions?: ProfessionJoinRow[];
@@ -85,6 +89,8 @@ export function serializeProfileForApi(
       professional_profile_id: null,
       profession_codes: [] as string[],
       display_name: null,
+      pro_first_name: null,
+      pro_last_name: null,
       professions_detail: [] as Record<string, unknown>[],
       business_name: null,
       business_number: null,
@@ -119,15 +125,17 @@ export function serializeProfileForApi(
     ...base,
     professional_profile_id: prof.id,
     profession_codes,
-    display_name: prof.displayName ?? null,
+    pro_first_name: prof.firstName ?? null,
+    pro_last_name: prof.lastName ?? null,
+    display_name: professionalProfileDisplayName(prof),
     /** Per-profession salon / bio / social (use `profession_code` on PATCH to target a row). */
     professions_detail,
     business_name: defaultRow?.businessName ?? null,
     business_number: defaultRow?.businessNumber ?? null,
     business_address: defaultRow?.businessAddress ?? null,
     about_me: defaultRow?.aboutMe ?? null,
-    social_media: defaultRow?.socialMedia ?? null,
-    booking_site: defaultRow?.bookingSite ?? null,
+    social_media: sanitizeSocialMediaForStorage(defaultRow?.socialMedia),
+    booking_site: safeBookingSiteForRead(defaultRow?.bookingSite),
     /** Legacy aliases — same values as default profession row (hair if present, else lowest sort_order). */
     salon_name: defaultRow?.businessName ?? null,
     salon_phone_number: defaultRow?.businessNumber ?? null,

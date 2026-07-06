@@ -643,6 +643,7 @@ export const nb: AppLocaleMessages = {
     invalidLink: "Ugyldig lenke",
     enterValidUrl: "Skriv inn en gyldig URL.",
     enterValidWebsiteUrl: "Skriv inn en gyldig nettadresse.",
+    blockedLink: "Kun sikre nettadresser (http eller https) er tillatt.",
     invalidProfileLink: "Denne profillenken er ikke gyldig.",
     couldNotLoadProfile: "Vi kunne ikke laste denne profilen.",
     invalidClientProfileLink:

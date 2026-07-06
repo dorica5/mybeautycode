@@ -49,6 +49,7 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { usePostHog } from "posthog-react-native";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 import { useEstablishmentNoun, useI18n } from "@/src/providers/LanguageProvider";
 import { AppLanguageButton } from "@/src/components/AppLanguageButton";
 
@@ -68,6 +69,8 @@ const ProfileScreen = () => {
     return null;
   }
 
+  const laneAvatarPath = resolveAvatarStoragePath(profile, activeProfessionCode);
+  const avatarUri = laneAvatarPath ?? avatarImage;
   const profileAvatarSize = scalePercent(25);
 
   return (
@@ -81,9 +84,9 @@ const ProfileScreen = () => {
           >
             <View style={styles.mainView}>
               <AppLanguageButton />
-              {avatarImage ? (
+              {avatarUri ? (
                 <AvatarWithSpinner
-                  uri={avatarImage}
+                  uri={avatarUri}
                   size={profileAvatarSize}
                   style={styles.profilePic}
                 />

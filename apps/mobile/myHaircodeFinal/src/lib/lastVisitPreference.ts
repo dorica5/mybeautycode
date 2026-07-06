@@ -5,6 +5,17 @@ const professionKey = (userId: string) => `lastProfessionCode:${userId}`;
 
 export type LastAppSurface = "client" | "professional";
 
+/** In-memory pin — wins over AsyncStorage until user switches account (avoids hair default on save). */
+let sessionProfessionPin: string | null = null;
+
+export function pinSessionProfessionCode(code: string | null): void {
+  sessionProfessionPin = code?.trim() ? code.trim() : null;
+}
+
+export function getSessionProfessionPin(): string | null {
+  return sessionProfessionPin;
+}
+
 export async function getLastAppSurface(
   userId: string
 ): Promise<LastAppSurface | null> {
