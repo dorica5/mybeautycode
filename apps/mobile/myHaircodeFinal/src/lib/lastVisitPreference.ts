@@ -8,8 +8,27 @@ export type LastAppSurface = "client" | "professional";
 /** In-memory pin — wins over AsyncStorage until user switches account (avoids hair default on save). */
 let sessionProfessionPin: string | null = null;
 
+const sessionProfessionPinListeners = new Set<() => void>();
+
+function notifySessionProfessionPinListeners(): void {
+  for (const listener of sessionProfessionPinListeners) {
+    listener();
+  }
+}
+
+/** Subscribe when UI must react to `pinSessionProfessionCode` without waiting on AsyncStorage. */
+export function subscribeSessionProfessionPin(listener: () => void): () => void {
+  sessionProfessionPinListeners.add(listener);
+  return () => {
+    sessionProfessionPinListeners.delete(listener);
+  };
+}
+
 export function pinSessionProfessionCode(code: string | null): void {
-  sessionProfessionPin = code?.trim() ? code.trim() : null;
+  const next = code?.trim() ? code.trim() : null;
+  if (next === sessionProfessionPin) return;
+  sessionProfessionPin = next;
+  notifySessionProfessionPinListeners();
 }
 
 export function getSessionProfessionPin(): string | null {

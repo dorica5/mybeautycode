@@ -37,7 +37,10 @@ import {
   isTablet 
 } from "@/src/utils/responsive";
 import { ResponsiveText } from "@/src/components/ResponsiveText";
-import { isBlocked } from "@/src/api/moderation";
+import { useBlockedBySender } from "@/src/api/moderation";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { coerceProfessionCode } from "@/src/constants/professionCodes";
+import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
@@ -47,9 +50,10 @@ type SharedInspirationRow = { path: string; displayUri: string };
 
 const InspirationNotification = () => {
   const { t } = useI18n();
-  const { senderName, batch_id, profile_pic, senderId } =
+  const { senderName, batch_id, profile_pic, senderId, professionCode, profession_code } =
     useLocalSearchParams();
   const { profile } = useAuth();
+  const { activeProfessionCode } = useActiveProfessionState(profile);
   const [images, setImages] = useState<SharedInspirationRow[]>([]);
   const [selectedImage, setSelectedImage] = useState<SharedInspirationRow | null>(
     null
@@ -59,23 +63,32 @@ const InspirationNotification = () => {
   const [hasPendingImages, setHasPendingImages] = useState(false);
   const { refreshInspirationImages } = useImageContext();
   const [statusMessage, setStatusMessage] = useState("");
-  const [isBlockedUser, setIsBlockedUser] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const user_type = profile?.user_type;
+  const senderIdParam =
+    typeof senderId === "string" ? senderId : Array.isArray(senderId) ? senderId[0] : undefined;
+  const inspirationLane =
+    coerceProfessionCode(
+      (typeof professionCode === "string"
+        ? professionCode
+        : Array.isArray(professionCode)
+          ? professionCode[0]
+          : undefined) ??
+        (typeof profession_code === "string"
+          ? profession_code
+          : Array.isArray(profession_code)
+            ? profession_code[0]
+            : undefined)
+    ) ?? activeProfessionCode;
+
+  const { isBlockedBySender, ready: blockStateReady } = useBlockedBySender(
+    profile?.id,
+    senderIdParam,
+    inspirationLane
+  );
 
   const screenWidth = Dimensions.get("window").width;
-
-  useEffect(() => {
-    const checkBlocked = async () => {
-      if (profile.id && senderId) {
-        const blocked = await isBlocked(senderId, profile.id);
-        console.log("User is blocked:", blocked);
-        setIsBlockedUser(blocked);
-      }
-    };
-    checkBlocked();
-  }, [profile.id, senderId]);
 
   useEffect(() => {
     const fetchSharedInspirations = async () => {
@@ -235,6 +248,37 @@ const InspirationNotification = () => {
 
   const { numColumns, imageSize } = getImageGridDimensions();
 
+  if (!blockStateReady) {
+    return (
+      <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />
+    );
+  }
+
+  const showSenderProfile = !isBlockedBySender;
+
+  const openSenderProfile = () => {
+    if (!senderIdParam || isBlockedBySender) return;
+    if (user_type === "HAIRDRESSER") {
+      router.push({
+        pathname: `../(professional)/clientProfile/${senderIdParam}`,
+        params: {
+          id: senderIdParam,
+          relationship: "true",
+          ...(inspirationLane ? { professionCode: inspirationLane } : {}),
+        },
+      });
+      return;
+    }
+    router.push({
+      pathname: `../(client)/(tabs)/userList/professionalProfile/${senderIdParam}`,
+      params: {
+        id: senderIdParam,
+        relationship: "true",
+        ...(inspirationLane ? { profession: inspirationLane } : {}),
+      },
+    });
+  };
+
   return (
     <>
       <StatusBar style="dark" backgroundColor="#fff" />
@@ -246,37 +290,40 @@ const InspirationNotification = () => {
               {t("notifications.inspirationFrom")}
             </ResponsiveText>
 
-            <Pressable
-              style={styles.profileColumn}
-              onPress={
-                !isBlockedUser
-                  ? () =>
-                      user_type === "HAIRDRESSER"
-                        ? router.push({
-                            pathname: `../(professional)/clientProfile/${senderId}`,
-                            params: { id: senderId, relationship: "true" },
-                          })
-                        : router.push({
-                            pathname: `../(client)/(tabs)/userList/professionalProfile/${senderId}`,
-                            params: { id: senderId, relationship: "true" },
-                          })
-                  : null
-              }
-            >
-              <AvatarWithSpinner
-                uri={profile_pic}
-                size={responsiveScale(55, 70)}
-                style={styles.profileImage}
-              />
-              <ResponsiveText 
-                size={16} 
-                tabletSize={14} 
-                weight="SemiBold" 
-                style={styles.name}
+            {showSenderProfile ? (
+              <Pressable
+                style={styles.profileColumn}
+                onPress={openSenderProfile}
+              >
+                <AvatarWithSpinner
+                  uri={profile_pic}
+                  size={responsiveScale(55, 70)}
+                  style={styles.profileImage}
+                />
+                <ResponsiveText
+                  size={16}
+                  tabletSize={14}
+                  weight="SemiBold"
+                  style={styles.name}
+                >
+                  {senderName}
+                </ResponsiveText>
+              </Pressable>
+            ) : (
+              <ResponsiveText
+                size={16}
+                tabletSize={14}
+                weight="SemiBold"
+                style={styles.namePlain}
               >
                 {senderName}
               </ResponsiveText>
-            </Pressable>
+            )}
+            {isBlockedBySender ? (
+              <ResponsiveText size={14} tabletSize={12} style={styles.blockedHint}>
+                {t("notifications.profileUnavailableBlocked")}
+              </ResponsiveText>
+            ) : null}
           </View>
 
           {statusMessage !== "" && (
@@ -511,6 +558,16 @@ const styles = StyleSheet.create({
     lineHeight: responsiveScale(24, 20),
     textAlign: "center",
     paddingBottom: responsivePadding(20),
+  },
+  namePlain: {
+    lineHeight: responsiveScale(24, 20),
+    textAlign: "center",
+    paddingBottom: responsivePadding(12),
+  },
+  blockedHint: {
+    textAlign: "center",
+    opacity: 0.72,
+    paddingBottom: responsivePadding(16),
   },
   message: {
     lineHeight: responsiveScale(40, 32),

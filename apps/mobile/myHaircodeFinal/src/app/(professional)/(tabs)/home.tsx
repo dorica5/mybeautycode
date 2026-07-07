@@ -17,6 +17,7 @@ import SearchInput from "@/src/components/SearchInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchResults from "@/src/components/SearchResults";
 import { useListAllClientSearch } from "@/src/api/profiles";
+import { blockedIdListQueryKey, blockedIds } from "@/src/api/moderation";
 import { prefetchHaircodeWithMedia, useLatestHaircodes } from "@/src/api/visits";
 import { useQueryClient } from "@tanstack/react-query";
 import VisitCard from "@/src/components/VisitCard";
@@ -132,6 +133,16 @@ const HomeScreen = () => {
     const handler = setTimeout(() => setDebouncedQuery(searchQuery), 200);
     return () => clearTimeout(handler);
   }, [searchQuery]);
+
+  useEffect(() => {
+    const uid = profile?.id;
+    if (!uid) return;
+    void queryClient.prefetchQuery({
+      queryKey: blockedIdListQueryKey(uid),
+      queryFn: () => blockedIds(uid),
+      staleTime: 120_000,
+    });
+  }, [profile?.id, queryClient]);
 
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);

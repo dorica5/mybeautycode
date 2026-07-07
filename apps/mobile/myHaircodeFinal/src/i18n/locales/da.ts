@@ -340,9 +340,12 @@ export const da: AppLocaleMessages = {
     wantsConnectOnBrand: "{{name}} vil forbinde med dig på {{brand}}",
     cannotOpen: "Kan ikke åbne",
     cannotOpenMissingClient: "Denne notifikation mangler klientoplysninger.",
+    cannotOpenMissingProfessional:
+      "Denne notifikation mangler professionel information.",
     cannotOpenMissingVisit: "Dette besøg er ikke længere tilgængeligt.",
     visitUnavailableTitle: "Besøget er ikke tilgængeligt",
     visitUnavailableMessage: "Det kan være blevet slettet.",
+    profileUnavailableBlocked: "Denne profil er ikke tilgængelig.",
   },
   inspiration: {
     title: "Min inspiration",
@@ -487,6 +490,9 @@ export const da: AppLocaleMessages = {
     accountBlockedMessage: "De kan ikke længere nå dig via {{brand}}.",
     blockUserFailed: "Kunne ikke blokere bruger",
     unblockUserFailed: "Kunne ikke fjerne blokering",
+    unblockSuccessTitle: "Blokering fjernet",
+    unblockSuccessMessage:
+      "Blokeringen er fjernet. Linket blev afsluttet. I kan forbinde igen fra profilen, hvis I vil arbejde sammen.",
     removeProfessionalFailed: "Kunne ikke fjerne denne professionelle.",
     addProfessionalFailed: "Kunne ikke tilføje professionel.",
     removeLinkFailed: "Kunne ikke fjerne forbindelse",

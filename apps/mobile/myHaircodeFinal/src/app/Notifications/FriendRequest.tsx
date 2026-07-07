@@ -9,7 +9,8 @@ import {
 import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { isBlocked } from "@/src/api/moderation";
+import { useBlockedBySender } from "@/src/api/moderation";
+import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
@@ -55,12 +56,18 @@ export const FriendRequest = () => {
   const { activeProfessionCode } = useActiveProfessionState(profile);
   const [isHandled, setIsHandled] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
-  const [isBlockedUser, setIsBlockedUser] = useState(false);
 
+  const senderIdParam = firstParam(senderId);
   const isClientRequest = isClient === "true";
   const displayName = firstParam(senderName)?.trim() || t("common.someone");
   const requestLane = coerceProfessionCode(
     firstParam(professionCode) ?? firstParam(profession_code) ?? undefined
+  );
+  const blockLane = requestLane ?? activeProfessionCode ?? null;
+  const { isBlockedBySender, ready: blockStateReady } = useBlockedBySender(
+    profile?.id,
+    senderIdParam,
+    blockLane
   );
 
   const clientRequestMessage = clientAddedPushBody(
@@ -74,8 +81,8 @@ export const FriendRequest = () => {
   });
 
   const openClientHub = () => {
-    const clientId = firstParam(senderId);
-    if (isBlockedUser || !clientId) return;
+    const clientId = senderIdParam;
+    if (isBlockedBySender || !clientId) return;
     const lane =
       firstParam(professionCode)?.trim() ||
       firstParam(profession_code)?.trim() ||
@@ -91,17 +98,6 @@ export const FriendRequest = () => {
       },
     });
   };
-
-  useEffect(() => {
-    const checkBlocked = async () => {
-      if (profile.id && senderId) {
-        const blocked = await isBlocked(senderId, profile.id);
-        console.log("User is blocked:", blocked);
-        setIsBlockedUser(blocked);
-      }
-    };
-    checkBlocked();
-  }, [profile.id, senderId]);
 
   useEffect(() => {
     const updateNotificationStatus = async () => {
@@ -177,11 +173,13 @@ export const FriendRequest = () => {
     }
   };
 
-  if (isCheckingStatus) {
+  if (isCheckingStatus || !blockStateReady) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]} />
+      <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />
     );
   }
+
+  const showSenderProfile = !isBlockedBySender;
 
   if (isClientRequest) {
     return (
@@ -196,9 +194,10 @@ export const FriendRequest = () => {
           />
 
           <View style={styles.content}>
+            {showSenderProfile ? (
               <Pressable
                 style={styles.profileColumn}
-                onPress={!isBlockedUser ? openClientHub : undefined}
+                onPress={openClientHub}
               >
                 <AvatarWithSpinner
                   uri={profile_pic}
@@ -209,16 +208,24 @@ export const FriendRequest = () => {
                   {senderName}
                 </Text>
               </Pressable>
+            ) : null}
             <Text style={[Typography.bodyMedium, styles.message]}>
               {clientRequestMessage}
             </Text>
-            <View style={styles.viewProfileAction}>
-              <MintBrandModalPrimaryButton
-                label={t("common.viewProfile")}
-                onPress={openClientHub}
-                accessibilityLabel={t("common.viewProfile")}
-              />
-            </View>
+            {isBlockedBySender ? (
+              <Text style={[Typography.bodySmall, styles.blockedHint]}>
+                {t("notifications.profileUnavailableBlocked")}
+              </Text>
+            ) : null}
+            {showSenderProfile ? (
+              <View style={styles.viewProfileAction}>
+                <MintBrandModalPrimaryButton
+                  label={t("common.viewProfile")}
+                  onPress={openClientHub}
+                  accessibilityLabel={t("common.viewProfile")}
+                />
+              </View>
+            ) : null}
           </View>
         </SafeAreaView>
       </>
@@ -237,19 +244,18 @@ export const FriendRequest = () => {
         />
 
         <View style={styles.content}>
+          {showSenderProfile ? (
             <Pressable
               style={styles.profileColumn}
-              onPress={
-                !isBlockedUser
-                  ? () =>
-                      router.push({
-                        pathname: `../(client)/(tabs)/userList/professionalProfile/${senderId}`,
-                        params: {
-                          id: senderId,
-                          relationship: isHandled ? "true" : "false",
-                        },
-                      })
-                  : null
+              onPress={() =>
+                router.push({
+                  pathname: `../(client)/(tabs)/userList/professionalProfile/${senderId}`,
+                  params: {
+                    id: senderId,
+                    relationship: isHandled ? "true" : "false",
+                    ...(requestLane ? { profession: requestLane } : {}),
+                  },
+                })
               }
             >
               <AvatarWithSpinner
@@ -259,10 +265,16 @@ export const FriendRequest = () => {
               />
               <Text style={[Typography.h3, styles.name]}>{senderName}</Text>
             </Pressable>
+          ) : null}
 
           <Text style={[Typography.bodyMedium, styles.message]}>
             {proRequestMessage}
           </Text>
+          {isBlockedBySender ? (
+            <Text style={[Typography.bodySmall, styles.blockedHint]}>
+              {t("notifications.profileUnavailableBlocked")}
+            </Text>
+          ) : null}
 
           {!isHandled && (
             <View
@@ -331,6 +343,13 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     color: primaryBlack,
     opacity: 0.92,
+  },
+  blockedHint: {
+    textAlign: "center",
+    marginTop: responsiveMargin(14),
+    maxWidth: 360,
+    color: primaryBlack,
+    opacity: 0.72,
   },
   viewProfileAction: {
     marginTop: responsiveMargin(26),

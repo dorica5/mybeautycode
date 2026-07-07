@@ -19,6 +19,8 @@ import {
   assertSafeBookingSite,
   assertSafeSocialMedia,
 } from "../lib/safeExternalUrl";
+import { profileIdsHiddenFromViewer } from "../lib/blockDiscoveryHelpers";
+import { moderationService } from "./moderationService";
 
 const nameSearch = (searchQuery: string) => ({
   OR: [
@@ -245,6 +247,18 @@ export const profileService = {
       })
     );
 
+    let clientAboutMeUpdate: string | null | undefined;
+    if (
+      Object.prototype.hasOwnProperty.call(body, "client_about_me") ||
+      Object.prototype.hasOwnProperty.call(body, "clientAboutMe")
+    ) {
+      const raw = body.client_about_me ?? body.clientAboutMe;
+      delete body.client_about_me;
+      delete body.clientAboutMe;
+      if (raw === null) clientAboutMeUpdate = null;
+      else if (typeof raw === "string") clientAboutMeUpdate = raw.trim() || null;
+    }
+
     let aboutMeUpdate: string | null | undefined;
     if (
       Object.prototype.hasOwnProperty.call(body, "about_me") ||
@@ -301,11 +315,15 @@ export const profileService = {
     filtered.updatedAt = new Date();
 
     if (aboutMeUpdate !== undefined) {
-      if (hasProfessionalProfile) {
+      if (professionCode) {
         professionBusinessData.aboutMe = aboutMeUpdate;
-      } else {
+      } else if (clientAboutMeUpdate === undefined) {
         filtered.aboutMe = aboutMeUpdate;
       }
+    }
+
+    if (clientAboutMeUpdate !== undefined) {
+      filtered.aboutMe = clientAboutMeUpdate;
     }
 
     if (professionAvatarUpdate !== undefined) {
@@ -760,17 +778,21 @@ export const profileService = {
     });
     pendingClientIds = new Set(pendingRels.map((r) => r.clientUserId));
 
-    const blocked = await prisma.blockedUser.findMany({
-      where: { blockerId: myProfileId },
-      select: { blockedId: true },
-    });
-    const blockedIds = blocked.map((b) => b.blockedId);
+    const hiddenClientIds =
+      scope && professionCode?.trim()
+        ? await moderationService.getAllBlockerIds(
+            myProfileId,
+            professionCode.trim()
+          )
+        : [];
 
     const profiles = await prisma.profile.findMany({
       where: {
         AND: [
           { id: { not: myProfileId } },
-          ...(blockedIds.length > 0 ? [{ id: { notIn: blockedIds } }] : []),
+          ...(hiddenClientIds.length > 0
+            ? [{ id: { notIn: hiddenClientIds } }]
+            : []),
           /** Match profiles not explicitly incomplete (`false`); allows null in older rows. */
           { NOT: { setupStatus: false } },
           ...(q ? [nameSearch(q)] : []),
@@ -807,7 +829,7 @@ export const profileService = {
    * existing link state *in the same profession lane*, so removing a link
    * naturally makes the pro searchable again (until the client re-connects).
    *
-   * Blocked users (either direction) are always excluded.
+   * Block discovery is asymmetric — see `blockDiscoveryHelpers`.
    */
   async searchProfessionalsWithRelationship(
     searchQuery: string,
@@ -825,19 +847,14 @@ export const profileService = {
       );
     }
 
-    // Mutual-block filter: don't surface anyone the client blocked, and don't
-    // surface anyone who blocked the client.
-    const blocks = await prisma.blockedUser.findMany({
-      where: {
-        OR: [{ blockerId: clientUserId }, { blockedId: clientUserId }],
-      },
-      select: { blockerId: true, blockedId: true },
-    });
-    const blockedProfileIds = new Set<string>();
-    for (const b of blocks) {
-      if (b.blockerId === clientUserId) blockedProfileIds.add(b.blockedId);
-      else blockedProfileIds.add(b.blockerId);
-    }
+    // Asymmetric + lane-scoped: hide pros who blocked this client on this lane.
+    const hiddenProfileIds =
+      canonicalCode ?? normalizedCode
+        ? await profileIdsHiddenFromViewer(
+            clientUserId,
+            canonicalCode ?? normalizedCode!
+          )
+        : new Set<string>();
 
     // "Pro has this lane" is evidenced by any of:
     //  1. an active (or legacy-null) ProfessionalProfession row for the lane
@@ -919,7 +936,7 @@ export const profileService = {
     });
 
     const visible = profProfiles.filter(
-      (pp) => !blockedProfileIds.has(pp.profileId)
+      (pp) => !hiddenProfileIds.has(pp.profileId)
     );
     if (visible.length === 0) return [];
 

@@ -79,6 +79,7 @@ import {
   listMyPublicProfileWork,
   type PublicProfileWorkRow,
 } from "@/src/api/publicProfileWork";
+import { resolveLaneAboutMe } from "@/src/lib/clientAboutMe";
 import {
   laneScopedNullableField,
   laneScopedTextField,
@@ -154,14 +155,8 @@ const AboutMe = () => {
   }, [profile.professions_detail, activeProfessionCode]);
 
   const baselineAboutMe = useMemo(
-    () =>
-      laneScopedTextField(
-        detailForActive,
-        activeProfessionCode,
-        detailForActive?.about_me,
-        profile.about_me
-      ),
-    [detailForActive, activeProfessionCode, profile.about_me]
+    () => resolveLaneAboutMe(detailForActive?.about_me),
+    [detailForActive?.about_me]
   );
   const baselineSocialMedia = useMemo(
     () =>
@@ -226,9 +221,7 @@ const AboutMe = () => {
       (x: ProfessionDetailApi) =>
         coerceProfessionCode(x.profession_code) === professionApi
     );
-    setAboutMe(
-      laneScopedTextField(d ?? null, professionApi, d?.about_me, profile.about_me)
-    );
+    setAboutMe(resolveLaneAboutMe(d?.about_me));
     setSocialLinks(
       parseSocialLinks(
         laneScopedNullableField(
@@ -260,7 +253,6 @@ const AboutMe = () => {
     professionApi,
     profile.id,
     profile.professions_detail,
-    profile.about_me,
     profile.social_media,
     profile.booking_site,
     profile.color_brand,

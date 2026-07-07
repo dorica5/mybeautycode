@@ -99,6 +99,8 @@ export function serializeProfileForApi(
       business_name: null,
       business_number: null,
       business_address: null,
+      /** Client personal bio. */
+      client_about_me: profile.aboutMe ?? null,
       about_me: profile.aboutMe ?? null,
       social_media: null,
       booking_site: null,
@@ -142,6 +144,9 @@ export function serializeProfileForApi(
     business_name: defaultRow?.businessName ?? null,
     business_number: defaultRow?.businessNumber ?? null,
     business_address: defaultRow?.businessAddress ?? null,
+    /** Client personal bio — independent of pro Get discovered superpower. */
+    client_about_me: profile.aboutMe ?? null,
+    /** Active/default lane superpower (pro Get discovered). */
     about_me: defaultRow?.aboutMe ?? null,
     social_media: sanitizeSocialMediaForStorage(defaultRow?.socialMedia),
     booking_site: safeBookingSiteForRead(defaultRow?.bookingSite),

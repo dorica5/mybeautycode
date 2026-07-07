@@ -242,7 +242,7 @@ const SingleVisitClient = () => {
     const checkBlockStatus = async () => {
       if (profile?.id && hairdresser_id) {
         try {
-          const blockerIds = await allBlockerIds(profile.id);
+          const blockerIds = await allBlockerIds(profile.id, professionCode);
           setIsBlockedByHairdresser(blockerIds.includes(hairdresser_id));
         } catch (error) {
           console.error("Error checking block status:", error);
@@ -252,7 +252,7 @@ const SingleVisitClient = () => {
     };
 
     checkBlockStatus();
-  }, [profile?.id, hairdresser_id]);
+  }, [profile?.id, hairdresser_id, professionCode]);
 
   const handleDelete = (id: string, hId: string) => {
     deleteHaircode({ haircodeId: id, hairdresserId: hId });
@@ -268,7 +268,10 @@ const SingleVisitClient = () => {
     }
     router.push({
       pathname: "./other_professional_profile",
-      params: { hairdresser_id: String(hairdresser_id) },
+      params: {
+        hairdresser_id: String(hairdresser_id),
+        profession_code: professionCode,
+      },
     });
   };
 

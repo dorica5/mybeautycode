@@ -341,9 +341,12 @@ export const sv: AppLocaleMessages = {
     wantsConnectOnBrand: "{{name}} vill ansluta med dig på {{brand}}",
     cannotOpen: "Kan inte öppna",
     cannotOpenMissingClient: "Denna avisering saknar klientinformation.",
+    cannotOpenMissingProfessional:
+      "Denna avisering saknar professionell information.",
     cannotOpenMissingVisit: "Detta besök är inte längre tillgängligt.",
     visitUnavailableTitle: "Besöket är inte tillgängligt",
     visitUnavailableMessage: "Det kan ha tagits bort.",
+    profileUnavailableBlocked: "Den här profilen är inte tillgänglig.",
   },
   inspiration: {
     title: "Min inspiration",
@@ -487,6 +490,9 @@ export const sv: AppLocaleMessages = {
     accountBlockedMessage: "De kommer inte längre att kunna nå dig via {{brand}}.",
     blockUserFailed: "Kunde inte blockera användaren",
     unblockUserFailed: "Kunde inte häva blockeringen",
+    unblockSuccessTitle: "Blockering borttagen",
+    unblockSuccessMessage:
+      "Blockeringen är borttagen. Länken avslutades. Ni kan ansluta igen från profilen om ni vill arbeta tillsammans.",
     removeProfessionalFailed: "Kunde inte ta bort den här professionella.",
     addProfessionalFailed: "Kunde inte lägga till professionell.",
     removeLinkFailed: "Kunde inte ta bort anslutningen",

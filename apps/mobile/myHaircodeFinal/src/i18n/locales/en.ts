@@ -342,10 +342,14 @@ export const en = {
     cannotOpen: "Cannot open",
     cannotOpenMissingClient:
       "This notification is missing client information.",
+    cannotOpenMissingProfessional:
+      "This notification is missing professional information.",
     cannotOpenMissingVisit:
       "This visit is no longer available.",
     visitUnavailableTitle: "Visit unavailable",
     visitUnavailableMessage: "It may have been removed.",
+    profileUnavailableBlocked:
+      "This profile is not available.",
   },
   inspiration: {
     title: "My inspiration",
@@ -492,6 +496,9 @@ export const en = {
       "They can no longer reach you through {{brand}}.",
     blockUserFailed: "Failed to block user",
     unblockUserFailed: "Failed to unblock user",
+    unblockSuccessTitle: "Block removed",
+    unblockSuccessMessage:
+      "The block is removed. Your link was ended. You can connect again from their profile if you want to work together.",
     removeProfessionalFailed: "Failed to remove this professional.",
     addProfessionalFailed: "Failed to add professional.",
     removeLinkFailed: "Couldn't remove link",

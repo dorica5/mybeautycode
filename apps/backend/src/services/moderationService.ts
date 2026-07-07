@@ -1,64 +1,126 @@
 import { prisma } from "../lib/prisma";
+import { normalizeProfessionCodeInput } from "../lib/normalizeProfessionCode";
 import { professionService } from "./professionService";
 
+export type BlockedUserRow = {
+  blocked_id: string;
+  profession_code: string;
+};
+
+async function removeClientLinkForLane(
+  profileA: string,
+  profileB: string,
+  professionCode: string
+): Promise<void> {
+  const code = normalizeProfessionCodeInput(professionCode);
+  const professionId = await professionService.getProfessionIdByCode(code);
+  const profProfileIdA =
+    await professionService.getOrCreateProfessionalProfileId(profileA);
+  const profProfileIdB =
+    await professionService.getOrCreateProfessionalProfileId(profileB);
+
+  await prisma.clientProfessionalLink.deleteMany({
+    where: {
+      professionId,
+      OR: [
+        { professionalProfileId: profProfileIdA, clientUserId: profileB },
+        { professionalProfileId: profProfileIdB, clientUserId: profileA },
+      ],
+    },
+  });
+}
+
 export const moderationService = {
-  async getBlockedIds(blockerId: string) {
+  async getBlockedIds(blockerId: string): Promise<BlockedUserRow[]> {
     const rows = await prisma.blockedUser.findMany({
       where: { blockerId },
-      select: { blockedId: true },
+      select: { blockedId: true, professionCode: true },
     });
-    return rows.map((r) => r.blockedId);
+    return rows.map((r) => ({
+      blocked_id: r.blockedId,
+      profession_code: r.professionCode,
+    }));
   },
 
-  async getAllBlockerIds(blockedId: string) {
+  async getAllBlockerIds(
+    blockedId: string,
+    professionCode?: string | null
+  ): Promise<string[]> {
+    const where: { blockedId: string; professionCode?: string } = {
+      blockedId,
+    };
+    if (typeof professionCode === "string" && professionCode.trim()) {
+      where.professionCode = normalizeProfessionCodeInput(professionCode);
+    }
     const rows = await prisma.blockedUser.findMany({
-      where: { blockedId },
+      where,
       select: { blockerId: true },
     });
     return rows.map((r) => r.blockerId);
   },
 
-  async isBlocked(blockerId: string, blockedId: string) {
+  async isBlocked(
+    blockerId: string,
+    blockedId: string,
+    professionCode: string
+  ): Promise<boolean> {
+    const code = normalizeProfessionCodeInput(professionCode);
     const row = await prisma.blockedUser.findFirst({
-      where: { blockerId, blockedId },
+      where: { blockerId, blockedId, professionCode: code },
     });
     return !!row;
   },
 
-  async block(blockerId: string, blockedId: string, reason: string) {
-    await prisma.blockedUser.create({
-      data: { blockerId, blockedId, reason },
-    });
-    const blockerProfId = await professionService.getOrCreateProfessionalProfileId(blockerId);
-    const blockedProfId = await professionService.getOrCreateProfessionalProfileId(blockedId);
-    await prisma.clientProfessionalLink.deleteMany({
+  async block(
+    blockerId: string,
+    blockedId: string,
+    reason: string,
+    professionCode: string
+  ) {
+    const code = normalizeProfessionCodeInput(professionCode);
+    if (!code) {
+      throw Object.assign(new Error("profession_code is required"), {
+        statusCode: 400,
+      });
+    }
+
+    await prisma.blockedUser.upsert({
       where: {
-        OR: [
-          { professionalProfileId: blockerProfId, clientUserId: blockedId },
-          { professionalProfileId: blockedProfId, clientUserId: blockerId },
-        ],
+        blockerId_blockedId_professionCode: {
+          blockerId,
+          blockedId,
+          professionCode: code,
+        },
       },
+      create: {
+        blockerId,
+        blockedId,
+        professionCode: code,
+        reason,
+      },
+      update: { reason },
     });
+
+    await removeClientLinkForLane(blockerId, blockedId, code);
     return { success: true };
   },
 
-  async unblock(blockerId: string, blockedId: string) {
+  async unblock(
+    blockerId: string,
+    blockedId: string,
+    professionCode: string
+  ) {
+    const code = normalizeProfessionCodeInput(professionCode);
+    if (!code) {
+      throw Object.assign(new Error("profession_code is required"), {
+        statusCode: 400,
+      });
+    }
+
     await prisma.blockedUser.deleteMany({
-      where: { blockerId, blockedId },
+      where: { blockerId, blockedId, professionCode: code },
     });
-    /** After unblock, client–professional link must not remain — they add each other again if they want to reconnect. */
-    const blockerProfId =
-      await professionService.getOrCreateProfessionalProfileId(blockerId);
-    const blockedProfId =
-      await professionService.getOrCreateProfessionalProfileId(blockedId);
-    await prisma.clientProfessionalLink.deleteMany({
-      where: {
-        OR: [
-          { professionalProfileId: blockerProfId, clientUserId: blockedId },
-          { professionalProfileId: blockedProfId, clientUserId: blockerId },
-        ],
-      },
-    });
+    await removeClientLinkForLane(blockerId, blockedId, code);
     return { success: true };
   },
 
@@ -87,7 +149,8 @@ export const moderationService = {
     reporterId: string,
     reportedId: string,
     reason: string,
-    additionalDetails?: string
+    additionalDetails?: string,
+    professionCode?: string | null
   ) {
     const existing = await prisma.reportedUser.findFirst({
       where: { reporterId, reportedId },
@@ -103,16 +166,34 @@ export const moderationService = {
         adminNotes: additionalDetails,
       },
     });
-    const reporterProfId = await professionService.getOrCreateProfessionalProfileId(reporterId);
-    const reportedProfId = await professionService.getOrCreateProfessionalProfileId(reportedId);
-    await prisma.clientProfessionalLink.deleteMany({
-      where: {
-        OR: [
-          { professionalProfileId: reporterProfId, clientUserId: reportedId },
-          { professionalProfileId: reportedProfId, clientUserId: reporterId },
-        ],
-      },
-    });
+
+    if (typeof professionCode === "string" && professionCode.trim()) {
+      await removeClientLinkForLane(
+        reporterId,
+        reportedId,
+        professionCode.trim()
+      );
+    } else {
+      const reporterProfId =
+        await professionService.getOrCreateProfessionalProfileId(reporterId);
+      const reportedProfId =
+        await professionService.getOrCreateProfessionalProfileId(reportedId);
+      await prisma.clientProfessionalLink.deleteMany({
+        where: {
+          OR: [
+            {
+              professionalProfileId: reporterProfId,
+              clientUserId: reportedId,
+            },
+            {
+              professionalProfileId: reportedProfId,
+              clientUserId: reporterId,
+            },
+          ],
+        },
+      });
+    }
+
     const status = await this.getUserStatus(reportedId);
     return {
       success: true,

@@ -1,5 +1,5 @@
 /* eslint-disable no-case-declarations */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { router, type Href } from "expo-router";
 import { Colors, primaryBlack, primaryWhite } from "../constants/Colors";
@@ -17,7 +17,7 @@ import {
 } from "@/src/providers/LanguageProvider";
 import { localizedNotificationMessage } from "@/src/i18n/notificationCopy";
 
-const CLIENT_CARD_DARK = "#262626";
+const CLIENT_CARD_READ_BG = "#FFFFFF";
 
 export type NotificationCardTone = "light" | "dark";
 
@@ -32,7 +32,7 @@ export type NotificationItemProps = {
     sender?: { avatar_url?: string; full_name?: string };
     data?: Record<string, unknown>;
   };
-  /** Client notifications list: mint screen card styles (Today = light, else dark). */
+  /** Mint inbox card layout; unread/read colors are derived from read state. */
   cardTone?: NotificationCardTone;
 };
 
@@ -55,11 +55,26 @@ export const NotificationItem = ({
       ? notification.data.senderName.trim()
       : null);
 
-  const isHandled =
-    notification.status === "accepted" ||
-    notification.status === "rejected" ||
-    notification.data?.status === "accepted" ||
-    notification.data?.status === "rejected";
+  const isLinkRequest =
+    notification.type === "FRIEND_REQUEST" ||
+    notification.type === "link_request";
+
+  const isAcceptedLink = Boolean(
+    isLinkRequest &&
+      (notification.status === "accepted" ||
+        notification.data?.status === "accepted")
+  );
+
+  const isRejectedLink = Boolean(
+    isLinkRequest &&
+      (notification.status === "rejected" ||
+        notification.data?.status === "rejected")
+  );
+
+  const isClientInitiatedLink = Boolean(
+    notification.data?.isClient === true ||
+      notification.data?.isClient === "true"
+  );
 
   const professionCodeRaw =
     (notification.data?.profession_code ?? notification.data?.professionCode) as
@@ -71,6 +86,17 @@ export const NotificationItem = ({
       : null;
 
   const displayMessage = localizedNotificationMessage(notification, t);
+
+  useEffect(() => {
+    setIsRead(Boolean(notification.read));
+  }, [notification.id, notification.read]);
+
+  /** Mint inbox: unread = primary black, read = white (ignore date section). */
+  const displayCardTone: NotificationCardTone | undefined = cardTone
+    ? isRead
+      ? "light"
+      : "dark"
+    : undefined;
 
   const markAsRead = async () => {
     if (!isRead) {
@@ -191,7 +217,64 @@ export const NotificationItem = ({
     formatVisitListDateForLocale(locale, createdAt);
 
   const handlePress = async () => {
-    if (isHandled) return;
+    if (isRejectedLink) return;
+
+    if (isAcceptedLink) {
+      await markAsRead();
+
+      /** Client added this pro — sender is the client, not a hairdresser. */
+      if (isClientInitiatedLink) {
+        const clientId =
+          typeof notification.sender_id === "string" &&
+          notification.sender_id.trim()
+            ? notification.sender_id.trim()
+            : null;
+        if (!clientId) {
+          Alert.alert(
+            t("notifications.cannotOpen"),
+            t("notifications.cannotOpenMissingClient")
+          );
+          return;
+        }
+        router.push({
+          pathname: "/Notifications/FriendRequest",
+          params: {
+            notificationId: notification.id,
+            senderId: clientId,
+            senderName: senderName ?? notification.sender?.full_name ?? "",
+            isClient: "true",
+            profile_pic: notification.sender?.avatar_url,
+            ...(professionCode ? { professionCode } : {}),
+          },
+        });
+        return;
+      }
+
+      const proId =
+        typeof notification.sender_id === "string" &&
+        notification.sender_id.trim()
+          ? notification.sender_id.trim()
+          : null;
+      if (!proId) {
+        Alert.alert(
+          t("notifications.cannotOpen"),
+          t("notifications.cannotOpenMissingProfessional")
+        );
+        return;
+      }
+      router.push({
+        pathname: "/Notifications/ConnectionConfirmed",
+        params: {
+          notificationId: notification.id,
+          senderId: proId,
+          senderName: senderName ?? notification.sender?.full_name ?? "",
+          profile_pic: notification.sender?.avatar_url,
+          ...(professionCode ? { professionCode } : {}),
+        },
+      });
+      return;
+    }
+
     await markAsRead();
     console.log("Handling notification type:", notification.type);
 
@@ -204,7 +287,7 @@ export const NotificationItem = ({
             notificationId: notification.id,
             senderId: notification.sender_id,
             senderName: notification.sender?.full_name,
-            isClient: notification.data?.isClient,
+            isClient: isClientInitiatedLink ? "true" : notification.data?.isClient,
             title: notification.title,
             profile_pic: notification.sender?.avatar_url,
             ...(professionCode ? { professionCode } : {}),
@@ -260,6 +343,7 @@ export const NotificationItem = ({
             imageUrls: notification.data?.imageUrls?.join(","),
             batch_id: notification.data?.batchId,
             profile_pic: notification.sender?.avatar_url,
+            ...(professionCode ? { professionCode } : {}),
           },
         });
         break;
@@ -340,8 +424,7 @@ export const NotificationItem = ({
     }
   };
 
-  const effectiveTone: NotificationCardTone | undefined =
-    cardTone && isHandled ? "dark" : cardTone;
+  const effectiveTone: NotificationCardTone | undefined = displayCardTone;
 
   const iconColor =
     effectiveTone === "dark" ? primaryWhite : primaryBlack;
@@ -352,7 +435,7 @@ export const NotificationItem = ({
       size={responsiveScale(40)}
       style={[
         styles.profileImage,
-        cardTone === "dark" && styles.profileImageOnDark,
+        effectiveTone === "dark" && styles.profileImageOnDark,
       ]}
     />
   ) : (
@@ -375,15 +458,14 @@ export const NotificationItem = ({
     <>
     <TouchableOpacity
       style={[
-        cardTone === "light" && styles.clientCardLight,
-        cardTone === "dark" && styles.clientCardDark,
-        isHandled && cardTone && styles.clientCardHandled,
+        displayCardTone === "light" && styles.clientCardLight,
+        displayCardTone === "dark" && styles.clientCardDark,
         !cardTone && styles.container,
         !cardTone && !isRead && styles.unread,
       ]}
       onPress={handlePress}
-      disabled={isHandled}
-      activeOpacity={isHandled ? 1 : 0.85}
+      disabled={isRejectedLink}
+      activeOpacity={isRejectedLink ? 1 : 0.85}
     >
       <View
         style={[
@@ -434,7 +516,7 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveScale(14),
     paddingHorizontal: responsiveScale(16),
     borderRadius: responsiveBorderRadius(18),
-    backgroundColor: "#FFFFFF",
+    backgroundColor: CLIENT_CARD_READ_BG,
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: primaryBlack,
   },
@@ -443,12 +525,8 @@ const styles = StyleSheet.create({
     paddingVertical: responsiveScale(14),
     paddingHorizontal: responsiveScale(16),
     borderRadius: responsiveBorderRadius(18),
-    backgroundColor: CLIENT_CARD_DARK,
-    borderWidth: StyleSheet.hairlineWidth * 2,
-    borderColor: CLIENT_CARD_DARK,
-  },
-  clientCardHandled: {
     backgroundColor: primaryBlack,
+    borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: primaryBlack,
   },
   contentContainerClient: {

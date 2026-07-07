@@ -11,6 +11,7 @@ import {
   getSessionProfessionPin,
   pinSessionProfessionCode,
   setLastProfessionCode,
+  subscribeSessionProfessionPin,
 } from "@/src/lib/lastVisitPreference";
 import {
   professionAccountLabelFromT,
@@ -36,6 +37,11 @@ export function useActiveProfessionState(profile: Profile | null | undefined) {
   const [storedProfession, setStoredProfession] = useState<
     string | null | undefined
   >(undefined);
+  const [sessionPinVersion, setSessionPinVersion] = useState(0);
+
+  useEffect(() => subscribeSessionProfessionPin(() => {
+    setSessionPinVersion((v) => v + 1);
+  }), []);
 
   const reloadStoredProfession = useCallback(() => {
     const uid = profile?.id;
@@ -67,7 +73,7 @@ export function useActiveProfessionState(profile: Profile | null | undefined) {
       professionCodesFromProfile,
       pinned ?? storedProfession ?? undefined
     );
-  }, [professionCodesFromProfile, storedProfession]);
+  }, [professionCodesFromProfile, storedProfession, sessionPinVersion]);
 
   const professionLine = useMemo(() => {
     if (storedProfession === undefined) return t("profession.accountProfessional");

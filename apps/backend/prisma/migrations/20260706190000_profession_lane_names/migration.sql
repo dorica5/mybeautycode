@@ -1,3 +1,9 @@
+-- Per-lane display names on professional_professions.
+ALTER TABLE "professional_professions"
+  ADD COLUMN IF NOT EXISTS "first_name" TEXT,
+  ADD COLUMN IF NOT EXISTS "last_name" TEXT,
+  ADD COLUMN IF NOT EXISTS "display_name" TEXT;
+
 -- Hair (primary) lane keeps the legacy shared pro name; other lanes stay client-seeded.
 UPDATE "professional_professions" pp
 SET
@@ -5,9 +11,10 @@ SET
   "last_name" = prof."last_name",
   "display_name" = prof."display_name",
   "updated_at" = NOW()
-FROM "professional_profiles" prof
-JOIN "professions" pr ON pr."id" = pp."profession_id"
+FROM "professional_profiles" prof,
+     "professions" pr
 WHERE pp."professional_profile_id" = prof."id"
+  AND pp."profession_id" = pr."id"
   AND pr."code" = 'hair'
   AND (
     prof."first_name" IS NOT NULL
@@ -31,9 +38,10 @@ SET
   ),
   "updated_at" = NOW()
 FROM "professional_profiles" prof
-JOIN "profiles" p ON p."id" = prof."profile_id"
-JOIN "professions" pr ON pr."id" = pp."profession_id"
+INNER JOIN "profiles" p ON p."id" = prof."profile_id",
+     "professions" pr
 WHERE pp."professional_profile_id" = prof."id"
+  AND pp."profession_id" = pr."id"
   AND pr."code" <> 'hair'
   AND (
     SELECT COUNT(*)::int

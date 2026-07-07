@@ -16,6 +16,8 @@ import SearchResults from "@/src/components/SearchResults";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useListAllClientSearch } from "@/src/api/profiles";
+import { blockedIdListQueryKey, blockedIds } from "@/src/api/moderation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { useClearOnProfessionChange } from "@/src/hooks/useClearOnProfessionChange";
 import { primaryBlack } from "@/src/constants/Colors";
@@ -25,6 +27,7 @@ const SearchPage = () => {
   const { t } = useI18n();
   const router = useRouter();
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const {
     storedProfessionReady,
     activeProfessionCode,
@@ -53,6 +56,16 @@ const SearchPage = () => {
       clearTimeout(handler);
     };
   }, [searchQuery]);
+
+  useEffect(() => {
+    const uid = profile?.id;
+    if (!uid) return;
+    void queryClient.prefetchQuery({
+      queryKey: blockedIdListQueryKey(uid),
+      queryFn: () => blockedIds(uid),
+      staleTime: 120_000,
+    });
+  }, [profile?.id, queryClient]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);

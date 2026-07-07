@@ -13,6 +13,7 @@ import {
   resolveProfessionalNameParts,
 } from "@/src/lib/professionalDisplayName";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
+import { resolveLaneAboutMe } from "@/src/lib/clientAboutMe";
 import {
   laneScopedNullableField,
   laneScopedTextField,
@@ -58,13 +59,7 @@ const ProfessionalProfile = () => {
       detailForActive?.business_name,
       profile.salon_name
     ) || null;
-  const aboutMe =
-    laneScopedNullableField(
-      detailForActive,
-      activeProfessionCode,
-      detailForActive?.about_me,
-      profile.about_me
-    );
+  const aboutMe = resolveLaneAboutMe(detailForActive?.about_me) || null;
   const salonPhone =
     laneScopedTextField(
       detailForActive,

@@ -21,6 +21,7 @@ import { salonRoutes } from "./routes/salons";
 import { professionalAnalyticsRoutes } from "./routes/professionalAnalytics";
 import { feedbackRoutes } from "./routes/feedback";
 import { billingRoutes } from "./routes/billing";
+import { logSlackFeedbackStatus } from "./lib/slackEnv";
 
 const app = express();
 const httpServer = createServer(app);
@@ -80,6 +81,7 @@ const PORT = process.env.PORT || 3001;
 
 httpServer.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
+  logSlackFeedbackStatus();
   void connectPrisma().catch((e) => {
     console.warn(
       "Database not reachable at startup (resume Supabase or check DATABASE_URL):",

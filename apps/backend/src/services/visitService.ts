@@ -143,18 +143,30 @@ export const visitService = {
     const profileId = profProfile?.profileId;
     if (!profileId) return [];
 
-    const blocking = await prisma.blockedUser.findMany({
-      where: {
-        OR: [{ blockerId: profileId }, { blockedId: profileId }],
-      },
-    });
-    const blockedIds = new Set<string>();
-    blocking.forEach((b) => {
-      if (b.blockerId === profileId) blockedIds.add(b.blockedId);
-      else blockedIds.add(b.blockerId);
-    });
+    const laneCode = scope.professionId
+      ? (
+          await prisma.profession.findUnique({
+            where: { id: scope.professionId },
+            select: { code: true },
+          })
+        )?.code
+      : null;
 
-    /** Only clients with an active link (this lane) appear in latest; excludes removed/archived/blocked links. */
+    const blockedClientIds = new Set<string>();
+    if (laneCode && profileId) {
+      const blockers = await prisma.blockedUser.findMany({
+        where: { blockedId: profileId, professionCode: laneCode },
+        select: { blockerId: true },
+      });
+      blockers.forEach((b) => blockedClientIds.add(b.blockerId));
+      const blocked = await prisma.blockedUser.findMany({
+        where: { blockerId: profileId, professionCode: laneCode },
+        select: { blockedId: true },
+      });
+      blocked.forEach((b) => blockedClientIds.add(b.blockedId));
+    }
+
+    /** Only clients with an active link (this lane) appear in latest. */
     const activeLinks = await prisma.clientProfessionalLink.findMany({
       where: {
         professionalProfileId,
@@ -170,7 +182,9 @@ export const visitService = {
       return [];
     }
 
-    const allowedClientIds = linkedClientIds.filter((id) => !blockedIds.has(id));
+    const allowedClientIds = linkedClientIds.filter(
+      (id) => !blockedClientIds.has(id)
+    );
     if (allowedClientIds.length === 0) {
       return [];
     }
@@ -193,7 +207,7 @@ export const visitService = {
       },
     });
     /** Extra filter in case of bad rows; each payload carries `profession_code` for the client. */
-    const laneCode = scope.normalizedCode;
+    const payloadLaneCode = scope.normalizedCode;
     return records
       .filter((r) => r.professionId === scope.professionId)
       .map((r) => {
@@ -201,7 +215,7 @@ export const visitService = {
         void _privateNoteIgnored;
         return {
           ...restRecord,
-          profession_code: r.profession?.code ?? laneCode,
+          profession_code: r.profession?.code ?? payloadLaneCode,
           client_profile: r.clientUser,
         };
       });

@@ -12,10 +12,10 @@ import {
 import { DotsThree } from "phosphor-react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useClientSearch, requestClientLink } from "@/src/api/profiles";
-import MyButton from "@/src/components/MyButton";
+import { BlockedInlineNotice } from "@/src/components/BlockedProfileScreen";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
   Colors,
@@ -32,14 +32,15 @@ import {
   type ClientLinkUiStatus,
 } from "@/src/api/relationships";
 import {
-  isBlocked,
   unblockUser,
-  UNBLOCK_RELATIONSHIP_RESET_ALERT,
   blockUser,
   reportUserEnhanced,
   REPORT_REASONS,
   type ReportReason,
+  useViewerBlockedTarget,
 } from "@/src/api/moderation";
+import { UnblockSuccessModal } from "@/src/components/UnblockSuccessModal";
+import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
   ModerationSheetHeading,
@@ -65,7 +66,7 @@ import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { coerceRouteParam, isUuid } from "@/src/utils/isUuid";
 import { useI18n } from "@/src/providers/LanguageProvider";
-import { reportReasonLabel } from "@/src/i18n/moderationLabels";
+import { resolveClientAboutMe } from "@/src/lib/clientAboutMe";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -96,7 +97,9 @@ const UserProfile = () => {
           (profileData as { Username?: string }).Username,
         avatar_url: profileData.avatarUrl ?? profileData.avatar_url,
         phone_number: profileData.phoneNumber ?? profileData.phone_number,
-        about_me: profileData.aboutMe ?? profileData.about_me,
+        about_me: resolveClientAboutMe(
+          profileData as Pick<Profile, "client_about_me" | "about_me">
+        ),
       }
     : undefined;
 
@@ -104,11 +107,11 @@ const UserProfile = () => {
   const { activeProfessionCode, storedProfessionReady } =
     useActiveProfessionState(myProfile);
   const [loading, setLoading] = useState(false);
-  const [isBlockedUser, setIsBlockedUser] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [unblockSuccessVisible, setUnblockSuccessVisible] = useState(false);
   const queryClient = useQueryClient();
 
   const hairdresser_id = session?.user.id;
@@ -154,15 +157,8 @@ const UserProfile = () => {
 
   const isRelated = linkStateResolved === "active";
 
-  useEffect(() => {
-    const checkBlocked = async () => {
-      if (client_id && hairdresser_id && isUuid(client_id)) {
-        const blocked = await isBlocked(hairdresser_id, client_id);
-        setIsBlockedUser(blocked);
-      }
-    };
-    checkBlocked();
-  }, [client_id, hairdresser_id]);
+  const { isBlocked: isBlockedUser, ready: blockStateReady } =
+    useViewerBlockedTarget(hairdresser_id, client_id, activeProfessionCode);
 
   const handleAddClient = async () => {
     if (
@@ -331,11 +327,12 @@ const UserProfile = () => {
                       : t("moderation.inappropriateContent")
                 }
                 onPress={async () => {
-                  if (!client_id || !hairdresser_id) return;
+                  if (!client_id || !hairdresser_id || !activeProfessionCode) return;
                   await blockUser(
                     hairdresser_id,
                     client_id,
                     reason,
+                    activeProfessionCode,
                     queryClient
                   );
                   Alert.alert(
@@ -345,7 +342,6 @@ const UserProfile = () => {
                     })
                   );
                   setActiveAction(null);
-                  setIsBlockedUser(true);
                 }}
               />
             )
@@ -391,12 +387,14 @@ const UserProfile = () => {
     );
   }
 
-  if (linkStateResolved === null) {
+  if (
+    linkStateResolved === null ||
+    !storedProfessionReady ||
+    !activeProfessionCode ||
+    !blockStateReady
+  ) {
     return (
-      <SafeAreaView style={[styles.mintRoot, styles.mintCenter]} edges={["top"]}>
-        <StatusBar style="dark" />
-        <ActivityIndicator color={primaryBlack} />
-      </SafeAreaView>
+      <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />
     );
   }
 
@@ -452,26 +450,19 @@ const UserProfile = () => {
             ) : null}
 
             {isBlockedUser ? (
-              <View style={styles.mintButtonWrap}>
-                <MyButton
-                  style={[styles.unblockMint, { borderColor: "red" }]}
-                  text={t("profile.unblock")}
-                  textSize={18}
-                  textTabletSize={14}
-                  onPress={async () => {
-                    await unblockUser(
-                      hairdresser_id,
-                      String(client_id),
-                      queryClient
-                    );
-                    setIsBlockedUser(false);
-                    Alert.alert(
-                      UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
-                      UNBLOCK_RELATIONSHIP_RESET_ALERT.message
-                    );
-                  }}
-                />
-              </View>
+              <BlockedInlineNotice
+                style={styles.mintButtonWrap}
+                onUnblock={async () => {
+                  if (!hairdresser_id || !client_id || !activeProfessionCode) return;
+                  await unblockUser(
+                    hairdresser_id,
+                    String(client_id),
+                    activeProfessionCode,
+                    queryClient
+                  );
+                  setUnblockSuccessVisible(true);
+                }}
+              />
             ) : (
               <Pressable
                 style={({ pressed }) => [
@@ -506,6 +497,10 @@ const UserProfile = () => {
             clientName={data?.full_name?.trim() || navFullName?.trim() || null}
           />
         </SafeAreaView>
+        <UnblockSuccessModal
+          visible={unblockSuccessVisible}
+          onClose={() => setUnblockSuccessVisible(false)}
+        />
       </>
     );
   }
@@ -556,23 +551,16 @@ const UserProfile = () => {
 
             <View style={styles.whiteStack}>
               {isBlockedUser ? (
-                <MyButton
-                  style={[styles.whiteUnblockButton, { borderColor: "red" }]}
-                  text={t("profile.unblockUser")}
-                  textSize={18}
-                  textTabletSize={14}
-                  onPress={async () => {
-                    if (!hairdresser_id || !client_id) return;
+                <BlockedInlineNotice
+                  onUnblock={async () => {
+                    if (!hairdresser_id || !client_id || !activeProfessionCode) return;
                     await unblockUser(
                       hairdresser_id,
                       String(client_id),
+                      activeProfessionCode,
                       queryClient
                     );
-                    setIsBlockedUser(false);
-                    Alert.alert(
-                      UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
-                      UNBLOCK_RELATIONSHIP_RESET_ALERT.message
-                    );
+                    setUnblockSuccessVisible(true);
                   }}
                 />
               ) : (
@@ -632,6 +620,10 @@ const UserProfile = () => {
           modalHeight={screenHeight * 0.72}
           sheetVariant="brand"
           renderContent={renderSecondaryModal()}
+        />
+        <UnblockSuccessModal
+          visible={unblockSuccessVisible}
+          onClose={() => setUnblockSuccessVisible(false)}
         />
       </View>
     </>
@@ -720,16 +712,6 @@ const styles = StyleSheet.create({
     marginBottom: responsiveMargin(16),
     textAlign: "center",
   },
-  whiteUnblockButton: {
-    marginTop: responsiveScale(24),
-    height: responsiveScale(50),
-    paddingVertical: responsivePadding(12, 8),
-    backgroundColor: Colors.light.yellowish,
-    borderWidth: responsiveScale(2),
-    borderColor: Colors.dark.warmGreen,
-    width: "95%",
-    alignSelf: "center",
-  },
   aboutSection: {
     width: "100%",
     marginTop: responsiveScale(8),
@@ -776,12 +758,6 @@ const styles = StyleSheet.create({
     marginTop: responsiveMargin(8),
     width: "100%",
     maxWidth: 400,
-    alignSelf: "center",
-  },
-  unblockMint: {
-    borderWidth: responsiveScale(2),
-    backgroundColor: "transparent",
-    width: "95%",
     alignSelf: "center",
   },
 });

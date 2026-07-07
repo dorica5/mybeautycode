@@ -33,6 +33,10 @@ const _layout = () => {
   }, [profile?.id, activeProfessionCode]);
 
   useEffect(() => {
+    setUnreadCount(0);
+  }, [activeProfessionCode]);
+
+  useEffect(() => {
     loadUnreadNotifications();
 
     const interval = setInterval(loadUnreadNotifications, 2000);

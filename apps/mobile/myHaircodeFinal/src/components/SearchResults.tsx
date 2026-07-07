@@ -10,6 +10,12 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { requestClientLink } from "@/src/api/profiles";
 import {
+  isBlockedOnLane,
+  useBlockedIdList,
+  blockedIdListQueryKey,
+  blockedIds,
+} from "@/src/api/moderation";
+import {
   responsiveScale,
   responsivePadding,
   responsiveMargin,
@@ -42,6 +48,8 @@ type SearchResultProps = {
 const SearchResults = ({ item, context, query, professionCode }: SearchResultProps) => {
   const { t } = useI18n();
   const { profile } = useAuth();
+  const { data: blockedIdList, isFetched: blockedListFetched } =
+    useBlockedIdList(profile?.id);
   const queryClient = useQueryClient();
   const [actionBusyClientId, setActionBusyClientId] = useState<string | null>(null);
 
@@ -129,9 +137,18 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
     const clientId = item.client_id ?? item.id;
     const hairdresserId = profile?.id;
     const laneReady = Boolean(professionCode?.trim());
+    const blockedThisClientOnLane = isBlockedOnLane(
+      blockedIdList,
+      clientId ? String(clientId) : "",
+      professionCode
+    );
     const showQuickLinkActions =
-      Boolean(hairdresserId) && laneReady && isUuid(clientId);
-    /** Trailing add / pending only — no icon once the client has approved (active). */
+      Boolean(hairdresserId) &&
+      laneReady &&
+      isUuid(clientId) &&
+      blockedListFetched &&
+      !blockedThisClientOnLane;
+    /** Trailing add / pending only — no icon once linked or while blocked on this lane. */
     const showTrailingSlot = showQuickLinkActions && !hasRelationship;
     const trailingIconDp = responsiveScale(24);
 
@@ -140,8 +157,18 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
       await queryClient.invalidateQueries({ queryKey: ["latest_visits"] });
     };
 
+    const prefetchBlockedList = () => {
+      if (!hairdresserId) return;
+      void queryClient.prefetchQuery({
+        queryKey: blockedIdListQueryKey(hairdresserId),
+        queryFn: () => blockedIds(hairdresserId),
+        staleTime: 120_000,
+      });
+    };
+
     const navigateToClient = () => {
       if (!isUuid(clientId)) return;
+      prefetchBlockedList();
       if (hasRelationship) {
         router.push({
           pathname: "/visits/[id]" as Href,
@@ -173,6 +200,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
 
     const navigateToPendingClientProfile = () => {
       if (!isUuid(clientId)) return;
+      prefetchBlockedList();
       router.push({
         pathname: "/(professional)/clientProfile/[id]" as Href,
         params: {
@@ -295,7 +323,9 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
           phone_number: item.phone_number,
           client_id: item.client_id,
           ...(laneParam ? { profession: laneParam } : {}),
-          ...(hasRelationship ? { relationship: "true" } : {}),
+          ...(hasRelationship
+            ? { relationship: "true" }
+            : { relationship: "false" }),
         },
       }}
       style={styles.resultItem}

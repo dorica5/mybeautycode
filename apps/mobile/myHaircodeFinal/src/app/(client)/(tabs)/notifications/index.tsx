@@ -7,12 +7,12 @@ import {
   RefreshControl,
   Platform,
 } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { isToday, isYesterday, parseISO } from "date-fns";
 import {
   NotificationItem,
-  type NotificationCardTone,
   type NotificationItemProps,
 } from "@/src/components/NotificationItem";
 import { fetchNotifications } from "@/src/providers/useNotifcations";
@@ -109,10 +109,6 @@ function sortGroups(groups: Grouped[]): Grouped[] {
   });
 }
 
-function toneForSection(bucket: DateBucket): NotificationCardTone {
-  return bucket === "today" ? "light" : "dark";
-}
-
 const Notifications = () => {
   const { t, locale } = useI18n();
   const { profile } = useAuth();
@@ -154,6 +150,12 @@ const Notifications = () => {
     return () => clearInterval(interval);
   }, [loadNotifications]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void loadNotifications(false);
+    }, [loadNotifications])
+  );
+
   const renderGroup = ({ item }: { item: Grouped }) => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{bucketLabel(item.bucket, t)}</Text>
@@ -163,7 +165,7 @@ const Notifications = () => {
           notification={
             notification as NotificationItemProps["notification"]
           }
-          cardTone={toneForSection(item.bucket)}
+          cardTone="light"
         />
       ))}
     </View>

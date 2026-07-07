@@ -51,6 +51,7 @@ export function resolveProfessionalFullName(
 ): string | null {
   if (!profile) return null;
 
+  const explicitLane = coerceProfessionCode(professionCode ?? undefined);
   const lane = professionDetailForCode(profile, professionCode);
   if (lane) {
     const fromLaneParts = combinePersonName(
@@ -61,6 +62,9 @@ export function resolveProfessionalFullName(
     const laneDisplay = lane.display_name?.trim();
     if (laneDisplay) return laneDisplay;
   }
+
+  /** Viewing a specific lane — never leak hair / another lane's name. */
+  if (explicitLane) return null;
 
   const fromParts = combinePersonName(
     profile.pro_first_name ?? "",

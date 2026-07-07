@@ -188,10 +188,15 @@ export const useAddHairdresser = (
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({});
-      queryClient.invalidateQueries({
-        queryKey: ["clientSearch", client_id],
-      });
+      queryClient.invalidateQueries({ queryKey: ["relationship"] });
+      if (client_id) {
+        queryClient.invalidateQueries({
+          queryKey: ["manageHairdresser", client_id],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["clientSearch", client_id],
+        });
+      }
     },
   });
 };
@@ -235,6 +240,7 @@ export const useRemoveRelationships = (clientId: string) => {
       await queryClient.invalidateQueries({
         queryKey: ["listAllHairdresserSearch", clientId],
       });
+      await queryClient.invalidateQueries({ queryKey: ["latest_visits"] });
     },
   });
 };

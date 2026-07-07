@@ -55,6 +55,8 @@ export type Profile = {
   salon_name: string | null;
   /** Combined legacy pro name (derived from pro_first_name + pro_last_name). */
   display_name?: string | null;
+  /** Client personal bio (`profiles.about_me`). Separate from pro superpower. */
+  client_about_me?: string | null;
   /** Professional account given name (independent of client first_name). */
   pro_first_name?: string | null;
   /** Professional account family name (independent of client last_name). */
@@ -65,8 +67,9 @@ export type Profile = {
   professional_profile_id?: string | null;
   /** From API: profession rows linked to this professional profile, sorted by `sort_order`. */
   profession_codes?: string[];
-  /** Per-role business fields; top-level `salon_name` / `about_me` mirror the default profession (hair if present). */
+  /** Per-role business fields; top-level `salon_name` / `about_me` mirror the active/default profession lane. */
   professions_detail?: ProfessionDetailApi[];
+  /** Pro Get discovered superpower for the default/active lane — not the client bio. */
   about_me: string | null;
   social_media: string | null;
   booking_site: string | null;

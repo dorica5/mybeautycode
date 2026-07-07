@@ -16,7 +16,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { PublicProfileWorkGrid } from "@/src/components/PublicProfileWorkGrid";
-import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { SocialStrokeIcon20 } from "@/src/components/icons/GetDiscoveredStrokeIcons";
 import { inferSocialFromUrl } from "@/src/lib/inferSocialFromUrl";
 import {
@@ -370,37 +369,9 @@ export function PublicProfessionalProfileView({
           ) : null}
         </View>
 
-        {mode === "client" && showRelationshipCta ? (
+        {mode === "client" && (showRelationshipCta || isRelated) ? (
           <View style={styles.ctaWrap}>
-            {relationshipStatusLoading ? (
-              <View
-                style={[
-                  styles.addHairdresserBtnBase,
-                  layout.tablet
-                    ? styles.addHairdresserBtnTablet
-                    : styles.addHairdresserBtnPhone,
-                  styles.relationshipStatusLoading,
-                ]}
-              >
-                <ActivityIndicator color={primaryBlack} />
-              </View>
-            ) : !isRelated && !relationshipStatusLoading ? (
-              <PaddedLabelButton
-                title={relationshipCta.addTitle}
-                horizontalPadding={32}
-                verticalPadding={16}
-                onPress={onAddHairdresser}
-                disabled={addLoading}
-                accessibilityLabel={relationshipCta.addTitle}
-                style={[
-                  styles.addHairdresserBtnBase,
-                  layout.tablet
-                    ? styles.addHairdresserBtnTablet
-                    : styles.addHairdresserBtnPhone,
-                ]}
-                textStyle={styles.addHairdresserBtnLabel}
-              />
-            ) : (
+            {isRelated ? (
               <View
                 style={[
                   styles.addHairdresserBtnBase,
@@ -409,11 +380,39 @@ export function PublicProfessionalProfileView({
                     : styles.addHairdresserBtnPhone,
                   styles.addedGhost,
                 ]}
+                accessibilityRole="text"
               >
                 <Text style={[Typography.label, styles.addedGhostLabel]}>
                   {relationshipCta.addedTitle}
                 </Text>
               </View>
+            ) : (
+              <Pressable
+                onPress={onAddHairdresser}
+                disabled={addLoading || relationshipStatusLoading}
+                accessibilityRole="button"
+                accessibilityLabel={relationshipCta.addTitle}
+                accessibilityState={{
+                  disabled: addLoading || relationshipStatusLoading,
+                  busy: addLoading,
+                }}
+                style={({ pressed }) => [
+                  styles.addHairdresserBtnBase,
+                  layout.tablet
+                    ? styles.addHairdresserBtnTablet
+                    : styles.addHairdresserBtnPhone,
+                  styles.addHairdresserBtnPressable,
+                  pressed && !addLoading && { opacity: 0.88 },
+                ]}
+              >
+                {addLoading ? (
+                  <ActivityIndicator color={primaryWhite} />
+                ) : (
+                  <Text style={[Typography.label, styles.addHairdresserBtnLabel]}>
+                    {relationshipCta.addTitle}
+                  </Text>
+                )}
+              </Pressable>
             )}
           </View>
         ) : null}
@@ -632,7 +631,9 @@ const styles = StyleSheet.create({
     color: primaryWhite,
     textAlign: "center",
   },
-  relationshipStatusLoading: {
+  addHairdresserBtnPressable: {
+    paddingVertical: responsivePadding(16),
+    paddingHorizontal: responsivePadding(32),
     justifyContent: "center",
     minHeight: responsiveScale(52),
   },

@@ -4,12 +4,26 @@ import { moderationService } from "../services/moderationService";
 export const moderationController = {
   async block(req: Request, res: Response) {
     const blockerId = req.userId!;
-    const { blocked_id, reason } = req.body;
+    const { blocked_id, reason, profession_code, professionCode } = req.body;
+    const laneRaw =
+      typeof profession_code === "string"
+        ? profession_code
+        : typeof professionCode === "string"
+          ? professionCode
+          : "";
     if (!blocked_id) {
       return res.status(400).json({ error: "blocked_id required" });
     }
+    if (!laneRaw.trim()) {
+      return res.status(400).json({ error: "profession_code is required" });
+    }
     try {
-      await moderationService.block(blockerId, blocked_id, reason ?? "User blocked");
+      await moderationService.block(
+        blockerId,
+        blocked_id,
+        reason ?? "User blocked",
+        laneRaw.trim()
+      );
       res.json({ success: true });
     } catch (err) {
       console.error("moderation block error:", err);
@@ -19,12 +33,21 @@ export const moderationController = {
 
   async unblock(req: Request, res: Response) {
     const blockerId = req.userId!;
-    const { blocked_id } = req.body;
+    const { blocked_id, profession_code, professionCode } = req.body;
+    const laneRaw =
+      typeof profession_code === "string"
+        ? profession_code
+        : typeof professionCode === "string"
+          ? professionCode
+          : "";
     if (!blocked_id) {
       return res.status(400).json({ error: "blocked_id required" });
     }
+    if (!laneRaw.trim()) {
+      return res.status(400).json({ error: "profession_code is required" });
+    }
     try {
-      await moderationService.unblock(blockerId, blocked_id);
+      await moderationService.unblock(blockerId, blocked_id, laneRaw.trim());
       res.json({ success: true });
     } catch (err) {
       console.error("moderation unblock error:", err);
@@ -45,11 +68,20 @@ export const moderationController = {
 
   async getAllBlockerIds(req: Request, res: Response) {
     const blockedId = req.query.blocked_id ?? req.userId;
+    const profession_code =
+      typeof req.query.profession_code === "string"
+        ? req.query.profession_code
+        : typeof req.query.professionCode === "string"
+          ? req.query.professionCode
+          : undefined;
     if (!blockedId) {
       return res.status(400).json({ error: "blocked_id required" });
     }
     try {
-      const ids = await moderationService.getAllBlockerIds(String(blockedId));
+      const ids = await moderationService.getAllBlockerIds(
+        String(blockedId),
+        profession_code
+      );
       res.json(ids);
     } catch (err) {
       console.error("moderation getAllBlockerIds error:", err);
