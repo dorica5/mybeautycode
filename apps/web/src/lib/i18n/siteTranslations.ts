@@ -36,6 +36,11 @@ export type SiteTranslations = {
   proSteps: [string, string, string];
   aboutBody: string[];
   aboutSignOff: string;
+  aboutTeamPhotoAlt: string;
+  badgeNotes: {
+    clients: string;
+    professionals: string;
+  };
   paymentIntro: string;
   paymentFootnote: string;
   paymentDownloadHint: string;
@@ -98,6 +103,12 @@ const en: SiteTranslations = {
     `We are a small team based in Bergen, Norway, with hairdressing background and coding skills, building something we believe the beauty industry has needed for a long time.`,
   ],
   aboutSignOff: "With love, Cecilie & Dorcas 🖤",
+  aboutTeamPhotoAlt: "Cecilie and Dorcas, founders of myne",
+  badgeNotes: {
+    clients:
+      "Professionals with a star can see your previous history if you share it",
+    professionals: "Previous client history is visible for subscribers",
+  },
   paymentIntro:
     "For professionals ready to grow. Always free for clients.",
   paymentFootnote:
@@ -187,6 +198,12 @@ const nb: SiteTranslations = {
     `Vi er et lite team basert i Bergen, Norge, med frisørbakgrunn og kodeferdigheter, som bygger noe vi tror skjønnhetsbransjen har trengt lenge.`,
   ],
   aboutSignOff: "Med kjærlighet, Cecilie & Dorcas 🖤",
+  aboutTeamPhotoAlt: "Cecilie og Dorcas, grunnleggerne av myne",
+  badgeNotes: {
+    clients:
+      "Fagfolk med stjerne kan se din tidligere historikk dersom du deler",
+    professionals: "Tidligere kundehistorikk er synlig for abonnenter",
+  },
   paymentIntro:
     "For fagfolk klare til å vokse. Alltid gratis for kunder.",
   paymentFootnote:
@@ -276,6 +293,12 @@ const sv: SiteTranslations = {
     `Vi är ett litet team baserat i Bergen, Norge, med frisörbakgrund och kodningskunskaper, som bygger något vi tror skönhetsbranschen har behövt länge.`,
   ],
   aboutSignOff: "Med kärlek, Cecilie & Dorcas 🖤",
+  aboutTeamPhotoAlt: "Cecilie och Dorcas, grundarna av myne",
+  badgeNotes: {
+    clients:
+      "Proffs med stjärna kan se din tidigare historik om du delar",
+    professionals: "Tidigare kundhistorik är synlig för prenumeranter",
+  },
   paymentIntro:
     "För proffs redo att växa. Alltid gratis för kunder.",
   paymentFootnote:
@@ -365,6 +388,12 @@ const da: SiteTranslations = {
     `Vi er et lille team baseret i Bergen, Norge, med frisørbaggrund og kodningsfærdigheder, der bygger noget, vi tror skønhedsbranchen har haft brug for i lang tid.`,
   ],
   aboutSignOff: "Med kærlighed, Cecilie & Dorcas 🖤",
+  aboutTeamPhotoAlt: "Cecilie og Dorcas, stifterne af myne",
+  badgeNotes: {
+    clients:
+      "Fagfolk med en stjerne kan se din tidligere historik, hvis du deler",
+    professionals: "Tidligere kundehistorik er synlig for abonnenter",
+  },
   paymentIntro:
     "For fagfolk klar til at vokse. Altid gratis for kunder.",
   paymentFootnote:
