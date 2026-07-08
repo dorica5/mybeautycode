@@ -4,10 +4,14 @@ import type { Profile } from "@/src/constants/types";
 import {
   coerceProfessionCode,
   pickActiveProfessionCode,
+  type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import {
   getLastProfessionCode,
+  getSessionProfessionPin,
+  pinSessionProfessionCode,
   setLastProfessionCode,
+  subscribeSessionProfessionPin,
 } from "@/src/lib/lastVisitPreference";
 import {
   professionAccountLabelFromT,
@@ -33,11 +37,21 @@ export function useActiveProfessionState(profile: Profile | null | undefined) {
   const [storedProfession, setStoredProfession] = useState<
     string | null | undefined
   >(undefined);
+  const [sessionPinVersion, setSessionPinVersion] = useState(0);
+
+  useEffect(() => subscribeSessionProfessionPin(() => {
+    setSessionPinVersion((v) => v + 1);
+  }), []);
 
   const reloadStoredProfession = useCallback(() => {
     const uid = profile?.id;
     if (!uid) return;
-    void getLastProfessionCode(uid).then(setStoredProfession);
+    void getLastProfessionCode(uid).then((stored) => {
+      setStoredProfession(stored);
+      if (stored?.trim() && getSessionProfessionPin() == null) {
+        pinSessionProfessionCode(stored);
+      }
+    });
   }, [profile?.id]);
 
   useEffect(() => {
@@ -54,11 +68,12 @@ export function useActiveProfessionState(profile: Profile | null | undefined) {
 
   const activeProfessionCode = useMemo(() => {
     if (storedProfession === undefined) return null;
+    const pinned = getSessionProfessionPin();
     return pickActiveProfessionCode(
       professionCodesFromProfile,
-      storedProfession ?? undefined
+      pinned ?? storedProfession ?? undefined
     );
-  }, [professionCodesFromProfile, storedProfession]);
+  }, [professionCodesFromProfile, storedProfession, sessionPinVersion]);
 
   const professionLine = useMemo(() => {
     if (storedProfession === undefined) return t("profession.accountProfessional");
@@ -72,32 +87,23 @@ export function useActiveProfessionState(profile: Profile | null | undefined) {
     return professionAccountLabelFromT(t, code);
   }, [storedProfession, activeProfessionCode, professionCodesFromProfile, t]);
 
-  useEffect(() => {
-    if (storedProfession === undefined || !profile?.id) return;
-    const uid = profile.id;
-    const codes = professionCodesFromProfile;
-    const picked = pickActiveProfessionCode(codes, storedProfession ?? undefined);
-    const firstListRaw =
-      codes?.find((c: string) => coerceProfessionCode(c) != null) ??
-      codes?.[0];
-    const codeToStore =
-      picked ??
-      coerceProfessionCode(firstListRaw ?? undefined) ??
-      coerceProfessionCode(storedProfession ?? undefined);
-    if (codeToStore) {
-      void setLastProfessionCode(uid, codeToStore);
-    }
-  }, [
-    profile?.id,
-    professionCodesKey,
-    storedProfession,
-    professionCodesFromProfile,
-  ]);
+  /** Persist explicit profession choice — call when user switches account or saves lane-scoped data. */
+  const commitActiveProfession = useCallback(
+    async (code: ProfessionChoiceCode) => {
+      const uid = profile?.id;
+      if (!uid) return;
+      pinSessionProfessionCode(code);
+      setStoredProfession(code);
+      await setLastProfessionCode(uid, code);
+    },
+    [profile?.id]
+  );
 
   return {
     storedProfessionReady,
     activeProfessionCode,
     professionLine,
     professionCodesFromProfile,
+    commitActiveProfession,
   };
 }

@@ -10,6 +10,12 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { requestClientLink } from "@/src/api/profiles";
 import {
+  isBlockedOnLane,
+  useBlockedIdList,
+  blockedIdListQueryKey,
+  blockedIds,
+} from "@/src/api/moderation";
+import {
   responsiveScale,
   responsivePadding,
   responsiveMargin,
@@ -26,6 +32,7 @@ type SearchResultProps = {
     profile_id?: string;
     client_id?: string;
     full_name: string;
+    profession_code?: string | null;
     avatar_url: string | null;
     phone_number: string;
     relationship_exists?: boolean;
@@ -41,18 +48,32 @@ type SearchResultProps = {
 const SearchResults = ({ item, context, query, professionCode }: SearchResultProps) => {
   const { t } = useI18n();
   const { profile } = useAuth();
+  const { data: blockedIdList, isFetched: blockedListFetched } =
+    useBlockedIdList(profile?.id);
   const queryClient = useQueryClient();
   const [actionBusyClientId, setActionBusyClientId] = useState<string | null>(null);
 
   const isProClientRow = context === "hairdresser";
-  const baseNameStyle = isProClientRow
+  const defaultBaseNameStyle = isProClientRow
     ? Typography.bodySmall
     : styles.resultText;
-  const boldNameStyle = isProClientRow
+  const defaultBoldNameStyle = isProClientRow
     ? [Typography.bodySmall, { fontFamily: FONT_FAMILY.outfitMedium }]
     : null;
 
-  const highlightMatch = (text: string, q: string) => {
+  const highlightMatch = (
+    text: string,
+    q: string,
+    options?: {
+      baseStyle?: typeof defaultBaseNameStyle;
+      boldStyle?: typeof defaultBoldNameStyle;
+      useResponsiveBold?: boolean;
+    }
+  ) => {
+    const baseNameStyle = options?.baseStyle ?? defaultBaseNameStyle;
+    const boldNameStyle = options?.boldStyle ?? defaultBoldNameStyle;
+    const useResponsiveBold = options?.useResponsiveBold ?? !isProClientRow;
+
     if (!q || !q.trim()) {
       return <Text style={baseNameStyle}>{text}</Text>;
     }
@@ -65,12 +86,12 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
     const textLower = text.toLowerCase();
 
     const boldSpan = (match: string) =>
-      isProClientRow ? (
-        <Text style={boldNameStyle}>{match}</Text>
-      ) : (
+      useResponsiveBold ? (
         <ResponsiveText weight="Bold" size={18} tabletSize={16}>
           {match}
         </ResponsiveText>
+      ) : (
+        <Text style={boldNameStyle}>{match}</Text>
       );
 
     /** Case-insensitive substring matches anywhere in the name (e.g. "Ma" in "Amanda" and "Manda"). */
@@ -116,9 +137,18 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
     const clientId = item.client_id ?? item.id;
     const hairdresserId = profile?.id;
     const laneReady = Boolean(professionCode?.trim());
+    const blockedThisClientOnLane = isBlockedOnLane(
+      blockedIdList,
+      clientId ? String(clientId) : "",
+      professionCode
+    );
     const showQuickLinkActions =
-      Boolean(hairdresserId) && laneReady && isUuid(clientId);
-    /** Trailing add / pending only — no icon once the client has approved (active). */
+      Boolean(hairdresserId) &&
+      laneReady &&
+      isUuid(clientId) &&
+      blockedListFetched &&
+      !blockedThisClientOnLane;
+    /** Trailing add / pending only — no icon once linked or while blocked on this lane. */
     const showTrailingSlot = showQuickLinkActions && !hasRelationship;
     const trailingIconDp = responsiveScale(24);
 
@@ -127,8 +157,18 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
       await queryClient.invalidateQueries({ queryKey: ["latest_visits"] });
     };
 
+    const prefetchBlockedList = () => {
+      if (!hairdresserId) return;
+      void queryClient.prefetchQuery({
+        queryKey: blockedIdListQueryKey(hairdresserId),
+        queryFn: () => blockedIds(hairdresserId),
+        staleTime: 120_000,
+      });
+    };
+
     const navigateToClient = () => {
       if (!isUuid(clientId)) return;
+      prefetchBlockedList();
       if (hasRelationship) {
         router.push({
           pathname: "/visits/[id]" as Href,
@@ -153,12 +193,14 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
           phone_number: item.phone_number,
           relationship: "false",
           client_id: clientId,
+          ...(linkPending ? { link_pending: "true" } : {}),
         },
       });
     };
 
     const navigateToPendingClientProfile = () => {
       if (!isUuid(clientId)) return;
+      prefetchBlockedList();
       router.push({
         pathname: "/(professional)/clientProfile/[id]" as Href,
         params: {
@@ -167,6 +209,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
           phone_number: item.phone_number,
           relationship: "false",
           client_id: clientId,
+          link_pending: "true",
         },
       });
     };
@@ -254,6 +297,8 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
   const href = proId
     ? `/(client)/(tabs)/userList/professionalProfile/${proId}`
     : null;
+  const laneParam =
+    item.profession_code?.trim() || professionCode?.trim() || null;
 
   const rowContent = (
     <>
@@ -276,11 +321,11 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
         params: {
           full_name: item.full_name,
           phone_number: item.phone_number,
-          relationship: hasRelationship,
           client_id: item.client_id,
-          ...(professionCode?.trim()
-            ? { profession: professionCode.trim() }
-            : {}),
+          ...(laneParam ? { profession: laneParam } : {}),
+          ...(hasRelationship
+            ? { relationship: "true" }
+            : { relationship: "false" }),
         },
       }}
       style={styles.resultItem}

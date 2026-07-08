@@ -10,6 +10,10 @@ import {
   pickDefaultProfessionRow,
   resolveLaneAvatarUrl,
 } from "../lib/professionBusinessHelpers";
+import {
+  safeBookingSiteForRead,
+  sanitizeSocialMediaForStorage,
+} from "../lib/safeExternalUrl";
 
 const supabase = createClient(
   process.env.SUPABASE_URL!,
@@ -82,8 +86,9 @@ export const visitService = {
             business_number: biz?.businessNumber ?? undefined,
             business_address: biz?.businessAddress ?? undefined,
             about_me: biz?.aboutMe ?? undefined,
-            booking_site: biz?.bookingSite ?? undefined,
-            social_media: biz?.socialMedia ?? undefined,
+            booking_site: safeBookingSiteForRead(biz?.bookingSite) ?? undefined,
+            social_media:
+              sanitizeSocialMediaForStorage(biz?.socialMedia) ?? undefined,
             salon_name:
               biz?.businessName ?? pp.displayName ?? undefined,
             salon_phone_number: biz?.businessNumber ?? undefined,
@@ -138,18 +143,30 @@ export const visitService = {
     const profileId = profProfile?.profileId;
     if (!profileId) return [];
 
-    const blocking = await prisma.blockedUser.findMany({
-      where: {
-        OR: [{ blockerId: profileId }, { blockedId: profileId }],
-      },
-    });
-    const blockedIds = new Set<string>();
-    blocking.forEach((b) => {
-      if (b.blockerId === profileId) blockedIds.add(b.blockedId);
-      else blockedIds.add(b.blockerId);
-    });
+    const laneCode = scope.professionId
+      ? (
+          await prisma.profession.findUnique({
+            where: { id: scope.professionId },
+            select: { code: true },
+          })
+        )?.code
+      : null;
 
-    /** Only clients with an active link (this lane) appear in latest; excludes removed/archived/blocked links. */
+    const blockedClientIds = new Set<string>();
+    if (laneCode && profileId) {
+      const blockers = await prisma.blockedUser.findMany({
+        where: { blockedId: profileId, professionCode: laneCode },
+        select: { blockerId: true },
+      });
+      blockers.forEach((b) => blockedClientIds.add(b.blockerId));
+      const blocked = await prisma.blockedUser.findMany({
+        where: { blockerId: profileId, professionCode: laneCode },
+        select: { blockedId: true },
+      });
+      blocked.forEach((b) => blockedClientIds.add(b.blockedId));
+    }
+
+    /** Only clients with an active link (this lane) appear in latest. */
     const activeLinks = await prisma.clientProfessionalLink.findMany({
       where: {
         professionalProfileId,
@@ -165,7 +182,9 @@ export const visitService = {
       return [];
     }
 
-    const allowedClientIds = linkedClientIds.filter((id) => !blockedIds.has(id));
+    const allowedClientIds = linkedClientIds.filter(
+      (id) => !blockedClientIds.has(id)
+    );
     if (allowedClientIds.length === 0) {
       return [];
     }
@@ -188,7 +207,7 @@ export const visitService = {
       },
     });
     /** Extra filter in case of bad rows; each payload carries `profession_code` for the client. */
-    const laneCode = scope.normalizedCode;
+    const payloadLaneCode = scope.normalizedCode;
     return records
       .filter((r) => r.professionId === scope.professionId)
       .map((r) => {
@@ -196,7 +215,7 @@ export const visitService = {
         void _privateNoteIgnored;
         return {
           ...restRecord,
-          profession_code: r.profession?.code ?? laneCode,
+          profession_code: r.profession?.code ?? payloadLaneCode,
           client_profile: r.clientUser,
         };
       });
@@ -245,8 +264,9 @@ export const visitService = {
           business_number: biz?.businessNumber ?? undefined,
           business_address: biz?.businessAddress ?? undefined,
           about_me: biz?.aboutMe ?? undefined,
-          booking_site: biz?.bookingSite ?? undefined,
-          social_media: biz?.socialMedia ?? undefined,
+          booking_site: safeBookingSiteForRead(biz?.bookingSite) ?? undefined,
+          social_media:
+            sanitizeSocialMediaForStorage(biz?.socialMedia) ?? undefined,
           salon_name: biz?.businessName ?? pp.displayName ?? undefined,
           salon_phone_number: biz?.businessNumber ?? undefined,
         }
@@ -448,20 +468,39 @@ export const visitService = {
     });
   },
 
-  async deleteByProfessional(serviceRecordId: string, professionalProfileIdOrProfileId: string) {
-    const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
-      professionalProfileIdOrProfileId
-    );
+  async deleteByProfessional(serviceRecordId: string, viewerProfileId: string) {
     const record = await prisma.serviceRecord.findUnique({
       where: { id: serviceRecordId },
     });
-    if (!record || record.professionalProfileId !== professionalProfileId) {
-      throw new Error("You can only delete your own service records.");
+    if (!record) {
+      throw Object.assign(new Error("Visit not found."), { statusCode: 404 });
     }
+
+    const viewerPP = await prisma.professionalProfile.findUnique({
+      where: { profileId: viewerProfileId },
+      select: { id: true },
+    });
+
+    const ownsViaProfile =
+      viewerPP != null &&
+      record.professionalProfileId != null &&
+      record.professionalProfileId === viewerPP.id;
+    const ownsViaCreator = record.createdByUserId === viewerProfileId;
+
+    if (!ownsViaProfile && !ownsViaCreator) {
+      throw Object.assign(
+        new Error("You can only delete your own service records."),
+        { statusCode: 403 }
+      );
+    }
+
     const createdAt = new Date(record.createdAt);
     const daysDiff = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysDiff > 7) {
-      throw new Error("You can only delete service records within 7 days.");
+      throw Object.assign(
+        new Error("You can only delete service records within 7 days."),
+        { statusCode: 400 }
+      );
     }
     const media = await prisma.serviceRecordMedia.findMany({
       where: { serviceRecordId },
@@ -477,15 +516,15 @@ export const visitService = {
     return { success: true };
   },
 
-  async deleteByClient(serviceRecordId: string, professionalProfileIdOrProfileId: string) {
-    const professionalProfileId = await professionService.getOrCreateProfessionalProfileId(
-      professionalProfileIdOrProfileId
-    );
+  async deleteByClient(serviceRecordId: string, clientUserId: string) {
     const record = await prisma.serviceRecord.findUnique({
       where: { id: serviceRecordId },
     });
-    if (!record || record.professionalProfileId !== professionalProfileId) {
-      throw new Error("Unauthorized");
+    if (!record || record.clientUserId !== clientUserId) {
+      throw Object.assign(
+        new Error("You can only delete visits on your own client account."),
+        { statusCode: 403 }
+      );
     }
     const media = await prisma.serviceRecordMedia.findMany({
       where: { serviceRecordId },

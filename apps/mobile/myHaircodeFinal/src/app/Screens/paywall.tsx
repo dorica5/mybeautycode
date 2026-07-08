@@ -627,5 +627,7 @@ const styles = StyleSheet.create({
     color: primaryBlack,
     textDecorationLine: "underline",
     opacity: 0.78,
+    paddingTop: 2,
+    lineHeight: Math.round(responsiveFontSize(16, 14) * 1.5),
   },
 });

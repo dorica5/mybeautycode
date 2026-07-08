@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   FlatList,
   Modal,
@@ -22,7 +21,9 @@ import Carousel from "react-native-reanimated-carousel";
 import InspirationTopNav from "@/src/components/InspirationTopNav";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import OptimizedImage from "@/src/components/OptimizedImage";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/lib/apiClient";
+import { prefetchHaircodeWithMedia } from "@/src/api/visits";
 import { useResolvedListProfessionCode } from "@/src/hooks/useResolvedListProfessionCode";
 import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
 import {
@@ -51,25 +52,6 @@ type GalleryRow = {
   media_type: string;
 };
 
-type HaircodeDetailBundle = {
-  id: string;
-  hairdresser_id: string;
-  hairdresser_name: string;
-  created_at: string;
-  service_description: string;
-  services: string;
-  price: string;
-  hairdresser_profile: {
-    id: string;
-    avatar_url: string;
-    salon_name: string;
-    salon_phone_number: string;
-    about_me: string;
-    booking_site: string;
-    social_media: string;
-  };
-};
-
 function isImageMedia(row: GalleryRow): boolean {
   return (row.media_type ?? "").toLowerCase() === "image";
 }
@@ -77,6 +59,7 @@ function isImageMedia(row: GalleryRow): boolean {
 const ViewGallery = () => {
   const { t } = useI18n();
   useVisitScreenGate("view");
+  const queryClient = useQueryClient();
   const { clientId, clientName, professionCode: professionCodeParam } =
     useLocalSearchParams();
   const safeInsets = useSafeAreaInsets();
@@ -114,10 +97,6 @@ const ViewGallery = () => {
   const [detailForHaircodeId, setDetailForHaircodeId] = useState<string | null>(
     null
   );
-  const [haircodeDetails, setHaircodeDetails] = useState<HaircodeDetailBundle | null>(
-    null
-  );
-  const [detailLoading, setDetailLoading] = useState(false);
 
   const imageItems = useMemo(
     () => rows.filter((r) => r.media_url && isImageMedia(r)),
@@ -196,109 +175,15 @@ const ViewGallery = () => {
     };
   }, [modalVisible, carouselBatchKey, imageItems, carouselKeyForItem]);
 
-  const fetchHaircodeBundle = useCallback(async (haircodeId: string) => {
-    try {
-      const haircode = await api.get<{
-        id: string;
-        createdByUserId?: string;
-        created_by_user_id?: string;
-        hairdresserId?: string;
-        createdAt?: string;
-        created_at?: string;
-        serviceDescription?: string;
-        summary?: string;
-        services?: string;
-        price?: string | number;
-        recordData?: { services?: string };
-        hairdresserName?: string;
-      }>(`/api/visits/${haircodeId}`);
-
-      const hid =
-        haircode.createdByUserId ??
-        haircode.created_by_user_id ??
-        haircode.hairdresserId ??
-        (haircode as { hairdresser_id?: string }).hairdresser_id;
-      if (!hid) throw new Error("Missing professional");
-
-      const hairdresserProfile = await api.get<{
-        id: string;
-        fullName?: string;
-        full_name?: string;
-        avatarUrl?: string;
-        salonName?: string;
-        salonPhoneNumber?: string;
-        aboutMe?: string;
-        bookingSite?: string;
-        socialMedia?: string;
-      }>(`/api/profiles/${hid}`);
-
-      const createdRaw = haircode.createdAt ?? haircode.created_at;
-      const servicesFromRecord =
-        haircode.services ??
-        haircode.recordData?.services ??
-        "";
-
-      const proDisplayName =
-        hairdresserProfile.fullName ??
-        hairdresserProfile.full_name ??
-        haircode.hairdresserName ??
-        "";
-
-      const bundle: HaircodeDetailBundle = {
-        id: haircode.id,
-        hairdresser_id: hid,
-        hairdresser_name: proDisplayName,
-        created_at: createdRaw ? String(createdRaw) : "",
-        service_description:
-          haircode.serviceDescription ?? haircode.summary ?? "",
-        services: servicesFromRecord,
-        price:
-          haircode.price != null ? String(haircode.price) : "",
-        hairdresser_profile: {
-          id: hairdresserProfile.id,
-          avatar_url: hairdresserProfile.avatarUrl ?? "",
-          salon_name: hairdresserProfile.salonName ?? "",
-          salon_phone_number: hairdresserProfile.salonPhoneNumber ?? "",
-          about_me: hairdresserProfile.aboutMe ?? "",
-          booking_site: hairdresserProfile.bookingSite ?? "",
-          social_media:
-            typeof hairdresserProfile.socialMedia === "string"
-              ? hairdresserProfile.socialMedia
-              : JSON.stringify(hairdresserProfile.socialMedia ?? {}),
-        },
-      };
-      setHaircodeDetails(bundle);
-    } catch (err) {
-      console.error("view_gallery haircode fetch:", err);
-      setHaircodeDetails(null);
-      Alert.alert(t("common.error"), t("visits.couldNotLoadDetails"));
-    }
-  }, []);
-
+  /** Warm visit detail for single_visit — never blocks the modal button. */
   useEffect(() => {
-    if (!modalVisible || !detailForHaircodeId) {
-      setHaircodeDetails(null);
-      return;
-    }
-    setHaircodeDetails(null);
-    let cancelled = false;
-    void (async () => {
-      setDetailLoading(true);
-      try {
-        await fetchHaircodeBundle(detailForHaircodeId);
-      } finally {
-        if (!cancelled) setDetailLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [modalVisible, detailForHaircodeId, fetchHaircodeBundle]);
+    if (!modalVisible || !detailForHaircodeId) return;
+    void prefetchHaircodeWithMedia(queryClient, detailForHaircodeId);
+  }, [modalVisible, detailForHaircodeId, queryClient]);
 
   const closeModal = () => {
     setModalVisible(false);
     setDetailForHaircodeId(null);
-    setHaircodeDetails(null);
   };
 
   const handleGridPress = (item: GalleryRow) => {
@@ -310,32 +195,21 @@ const ViewGallery = () => {
     setStartingIndex(start);
     setCurrentIndex(start);
     const first = imageItems[start];
-    if (first) {
+    if (first?.haircode_id) {
       setDetailForHaircodeId(first.haircode_id);
+      void prefetchHaircodeWithMedia(queryClient, first.haircode_id);
     }
     setModalVisible(true);
   };
 
   const navigateToHaircode = () => {
-    if (!haircodeDetails) return;
+    if (!detailForHaircodeId) return;
+    const visitId = detailForHaircodeId;
     closeModal();
     router.push({
       pathname: "/visits/single_visit",
       params: {
-        haircodeId: haircodeDetails.id,
-        hairdresserName: haircodeDetails.hairdresser_name,
-        hairdresser_profile_pic: haircodeDetails.hairdresser_profile.avatar_url,
-        description: haircodeDetails.service_description,
-        services: haircodeDetails.services,
-        createdAt: new Date(haircodeDetails.created_at).toLocaleDateString(
-          "en-GB"
-        ),
-        salon_name: haircodeDetails.hairdresser_profile.salon_name,
-        salonPhoneNumber: haircodeDetails.hairdresser_profile.salon_phone_number,
-        about_me: haircodeDetails.hairdresser_profile.about_me,
-        booking_site: haircodeDetails.hairdresser_profile.booking_site,
-        social_media: haircodeDetails.hairdresser_profile.social_media,
-        price: haircodeDetails.price,
+        haircodeId: visitId,
         full_name: displayName,
       },
     });
@@ -561,11 +435,11 @@ const ViewGallery = () => {
 
               <View style={styles.detailFooter}>
                 <PaddedLabelButton
-                  title={detailLoading ? t("common.loading") : t("visits.viewVisit")}
+                  title={t("visits.viewVisit")}
                   horizontalPadding={32}
                   verticalPadding={16}
                   onPress={navigateToHaircode}
-                  disabled={detailLoading || !haircodeDetails}
+                  disabled={!detailForHaircodeId}
                   style={styles.visitPrimaryButton}
                   textStyle={styles.visitPrimaryButtonLabel}
                 />

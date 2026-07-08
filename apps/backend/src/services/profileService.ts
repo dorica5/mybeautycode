@@ -1,7 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileWithProfessionalForApiInclude } from "../lib/profileIncludes";
-import { profileDisplayName } from "../lib/profileDisplay";
+import { profileDisplayName, splitDisplayName } from "../lib/profileDisplay";
+import {
+  pickDefaultProfessionRow,
+  resolveLaneAvatarUrl,
+  resolveLaneProfessionalName,
+} from "../lib/professionBusinessHelpers";
 import {
   normalizeProfessionCodeInput,
   professionService,
@@ -10,6 +15,12 @@ import {
   allowedDiscoveryCodesForProfession,
   normalizeDiscoveryCategoriesForProfession,
 } from "../lib/profDiscoveryCategories";
+import {
+  assertSafeBookingSite,
+  assertSafeSocialMedia,
+} from "../lib/safeExternalUrl";
+import { profileIdsHiddenFromViewer } from "../lib/blockDiscoveryHelpers";
+import { moderationService } from "./moderationService";
 
 const nameSearch = (searchQuery: string) => ({
   OR: [
@@ -30,12 +41,23 @@ function professionalDiscoverySearch(
   const tokenMatch = (token: string): Prisma.ProfessionalProfileWhereInput => ({
     OR: [
       { displayName: { contains: token, mode: "insensitive" } },
+      { firstName: { contains: token, mode: "insensitive" } },
+      { lastName: { contains: token, mode: "insensitive" } },
       { profile: nameSearch(token) },
       {
         professionalProfessions: {
           some: {
-            OR: [{ isActive: true }, { isActive: null }],
-            businessName: { contains: token, mode: "insensitive" },
+            AND: [
+              { OR: [{ isActive: true }, { isActive: null }] },
+              {
+                OR: [
+                  { businessName: { contains: token, mode: "insensitive" } },
+                  { firstName: { contains: token, mode: "insensitive" } },
+                  { lastName: { contains: token, mode: "insensitive" } },
+                  { displayName: { contains: token, mode: "insensitive" } },
+                ],
+              },
+            ],
           },
         },
       },
@@ -159,8 +181,24 @@ export const profileService = {
   async update(id: string, data: Record<string, unknown>) {
     const filtered: Record<string, unknown> = {};
     const displayNameData: Record<string, unknown> = {};
+    const proNameData: Record<string, unknown> = {};
     const professionBusinessData: Record<string, unknown> = {};
     const body = { ...data };
+
+    const pullProNameField = (
+      snakeKey: string,
+      camelKey: "firstName" | "lastName"
+    ) => {
+      for (const key of [snakeKey, camelKey]) {
+        if (!Object.prototype.hasOwnProperty.call(body, key)) continue;
+        const raw = body[key as keyof typeof body];
+        delete body[key as keyof typeof body];
+        if (raw === null || raw === undefined) proNameData[camelKey] = null;
+        else if (typeof raw === "string") proNameData[camelKey] = raw.trim() || null;
+      }
+    };
+    pullProNameField("pro_first_name", "firstName");
+    pullProNameField("pro_last_name", "lastName");
 
     let colorBrandUpdate: string | null | undefined;
     if (
@@ -183,18 +221,19 @@ export const profileService = {
     delete body.profession_code;
     delete body.professionCode;
 
-    /** When targeting a profession lane, store avatar on that row — not on `profiles`. */
+    /** Lane avatar — never mirror onto the shared client `profiles.avatar_url`. */
     let professionAvatarUpdate: string | null | undefined;
-    if (
-      professionCode &&
-      (Object.prototype.hasOwnProperty.call(body, "avatar_url") ||
-        Object.prototype.hasOwnProperty.call(body, "avatarUrl"))
-    ) {
+    const avatarTouched =
+      Object.prototype.hasOwnProperty.call(body, "avatar_url") ||
+      Object.prototype.hasOwnProperty.call(body, "avatarUrl");
+    if (professionCode && avatarTouched) {
       const raw = body.avatar_url ?? body.avatarUrl;
       delete body.avatar_url;
       delete body.avatarUrl;
       if (raw === null) professionAvatarUpdate = null;
       else if (typeof raw === "string") professionAvatarUpdate = raw.trim() || null;
+    } else if (!professionCode && avatarTouched) {
+      /** Client account photo — stored on `profiles` only. */
     }
 
     // Pull salon identity (place_id, lat, lng) off the body so the generic field
@@ -207,6 +246,18 @@ export const profileService = {
         select: { id: true },
       })
     );
+
+    let clientAboutMeUpdate: string | null | undefined;
+    if (
+      Object.prototype.hasOwnProperty.call(body, "client_about_me") ||
+      Object.prototype.hasOwnProperty.call(body, "clientAboutMe")
+    ) {
+      const raw = body.client_about_me ?? body.clientAboutMe;
+      delete body.client_about_me;
+      delete body.clientAboutMe;
+      if (raw === null) clientAboutMeUpdate = null;
+      else if (typeof raw === "string") clientAboutMeUpdate = raw.trim() || null;
+    }
 
     let aboutMeUpdate: string | null | undefined;
     if (
@@ -264,15 +315,40 @@ export const profileService = {
     filtered.updatedAt = new Date();
 
     if (aboutMeUpdate !== undefined) {
-      if (hasProfessionalProfile) {
+      if (professionCode) {
         professionBusinessData.aboutMe = aboutMeUpdate;
-      } else {
+      } else if (clientAboutMeUpdate === undefined) {
         filtered.aboutMe = aboutMeUpdate;
       }
     }
 
+    if (clientAboutMeUpdate !== undefined) {
+      filtered.aboutMe = clientAboutMeUpdate;
+    }
+
     if (professionAvatarUpdate !== undefined) {
       professionBusinessData.avatarUrl = professionAvatarUpdate;
+      delete filtered.avatarUrl;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(displayNameData, "displayName")) {
+      const raw = displayNameData.displayName;
+      if (raw === null || raw === undefined) {
+        displayNameData.displayName = null;
+      } else if (typeof raw === "string") {
+        displayNameData.displayName = raw.trim() || null;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(professionBusinessData, "socialMedia")) {
+      professionBusinessData.socialMedia = assertSafeSocialMedia(
+        professionBusinessData.socialMedia
+      );
+    }
+    if (Object.prototype.hasOwnProperty.call(professionBusinessData, "bookingSite")) {
+      professionBusinessData.bookingSite = assertSafeBookingSite(
+        professionBusinessData.bookingSite
+      );
     }
 
     if (Object.prototype.hasOwnProperty.call(filtered, "username")) {
@@ -313,6 +389,7 @@ export const profileService = {
       const needProfessionalProfile =
         shouldApplyProfession ||
         Object.keys(displayNameData).length > 0 ||
+        Object.keys(proNameData).length > 0 ||
         Object.keys(professionBusinessData).length > 0 ||
         professionAvatarUpdate !== undefined;
 
@@ -321,17 +398,106 @@ export const profileService = {
         : null;
 
       if (shouldApplyProfession && profProfileId) {
-        await professionService.ensureProfessionsForProfile(profProfileId, [
-          professionCode!,
-        ]);
+        await professionService.ensureProfessionsForProfile(
+          profProfileId,
+          [professionCode!],
+          { seedFromProfileId: id }
+        );
       }
 
-      if (profProfileId && Object.keys(displayNameData).length > 0) {
-        displayNameData.updatedAt = new Date();
-        await prisma.professionalProfile.update({
-          where: { id: profProfileId },
-          data: displayNameData as never,
+      if (
+        profProfileId &&
+        (Object.keys(displayNameData).length > 0 ||
+          Object.keys(proNameData).length > 0)
+      ) {
+        const laneCount = await prisma.professionalProfession.count({
+          where: { professionalProfileId: profProfileId },
         });
+
+        let codeForName = professionCode;
+        if (!codeForName && laneCount <= 1) {
+          codeForName =
+            (await professionService.getDefaultProfessionCodeForProfessionalProfile(
+              profProfileId
+            )) ?? null;
+        }
+        if (!codeForName) {
+          throw Object.assign(
+            new Error(
+              "Send profession_code when updating your professional name."
+            ),
+            { statusCode: 400 }
+          );
+        }
+
+        await professionService.ensureProfessionsForProfile(
+          profProfileId,
+          [codeForName],
+          { seedFromProfileId: id }
+        );
+
+        const professionId = await professionService.getProfessionIdByCode(
+          codeForName
+        );
+        const currentLane = await prisma.professionalProfession.findUnique({
+          where: {
+            professionalProfileId_professionId: {
+              professionalProfileId: profProfileId,
+              professionId,
+            },
+          },
+          select: { firstName: true, lastName: true, displayName: true },
+        });
+
+        let firstName = currentLane?.firstName ?? null;
+        let lastName = currentLane?.lastName ?? null;
+
+        if (Object.prototype.hasOwnProperty.call(proNameData, "firstName")) {
+          firstName = (proNameData.firstName as string | null) ?? null;
+        }
+        if (Object.prototype.hasOwnProperty.call(proNameData, "lastName")) {
+          lastName = (proNameData.lastName as string | null) ?? null;
+        }
+
+        if (
+          Object.keys(proNameData).length === 0 &&
+          Object.prototype.hasOwnProperty.call(displayNameData, "displayName")
+        ) {
+          const split = splitDisplayName(
+            displayNameData.displayName as string | null | undefined
+          );
+          firstName = split.firstName;
+          lastName = split.lastName;
+        }
+
+        const displayName = profileDisplayName({ firstName, lastName });
+
+        await prisma.professionalProfession.update({
+          where: {
+            professionalProfileId_professionId: {
+              professionalProfileId: profProfileId,
+              professionId,
+            },
+          },
+          data: {
+            firstName,
+            lastName,
+            displayName,
+            updatedAt: new Date(),
+          },
+        });
+
+        if (laneCount <= 1) {
+          await prisma.professionalProfile.update({
+            where: { id: profProfileId },
+            data: {
+              firstName,
+              lastName,
+              displayName,
+              updatedAt: new Date(),
+            },
+          });
+        }
       }
 
       const addressTouched = Object.prototype.hasOwnProperty.call(
@@ -612,17 +778,21 @@ export const profileService = {
     });
     pendingClientIds = new Set(pendingRels.map((r) => r.clientUserId));
 
-    const blocked = await prisma.blockedUser.findMany({
-      where: { blockerId: myProfileId },
-      select: { blockedId: true },
-    });
-    const blockedIds = blocked.map((b) => b.blockedId);
+    const hiddenClientIds =
+      scope && professionCode?.trim()
+        ? await moderationService.getAllBlockerIds(
+            myProfileId,
+            professionCode.trim()
+          )
+        : [];
 
     const profiles = await prisma.profile.findMany({
       where: {
         AND: [
           { id: { not: myProfileId } },
-          ...(blockedIds.length > 0 ? [{ id: { notIn: blockedIds } }] : []),
+          ...(hiddenClientIds.length > 0
+            ? [{ id: { notIn: hiddenClientIds } }]
+            : []),
           /** Match profiles not explicitly incomplete (`false`); allows null in older rows. */
           { NOT: { setupStatus: false } },
           ...(q ? [nameSearch(q)] : []),
@@ -659,7 +829,7 @@ export const profileService = {
    * existing link state *in the same profession lane*, so removing a link
    * naturally makes the pro searchable again (until the client re-connects).
    *
-   * Blocked users (either direction) are always excluded.
+   * Block discovery is asymmetric — see `blockDiscoveryHelpers`.
    */
   async searchProfessionalsWithRelationship(
     searchQuery: string,
@@ -677,19 +847,14 @@ export const profileService = {
       );
     }
 
-    // Mutual-block filter: don't surface anyone the client blocked, and don't
-    // surface anyone who blocked the client.
-    const blocks = await prisma.blockedUser.findMany({
-      where: {
-        OR: [{ blockerId: clientUserId }, { blockedId: clientUserId }],
-      },
-      select: { blockerId: true, blockedId: true },
-    });
-    const blockedProfileIds = new Set<string>();
-    for (const b of blocks) {
-      if (b.blockerId === clientUserId) blockedProfileIds.add(b.blockedId);
-      else blockedProfileIds.add(b.blockerId);
-    }
+    // Asymmetric + lane-scoped: hide pros who blocked this client on this lane.
+    const hiddenProfileIds =
+      canonicalCode ?? normalizedCode
+        ? await profileIdsHiddenFromViewer(
+            clientUserId,
+            canonicalCode ?? normalizedCode!
+          )
+        : new Set<string>();
 
     // "Pro has this lane" is evidenced by any of:
     //  1. an active (or legacy-null) ProfessionalProfession row for the lane
@@ -724,24 +889,66 @@ export const profileService = {
           }
         : undefined;
 
+    const searchFilter = professionalDiscoverySearch(searchQuery);
+    const discoveryFilters: Prisma.ProfessionalProfileWhereInput[] = [];
+    if (Object.keys(searchFilter).length > 0) {
+      discoveryFilters.push(searchFilter);
+    }
+    if (laneFilter) {
+      discoveryFilters.push(laneFilter);
+    }
+
     const profProfiles = await prisma.professionalProfile.findMany({
       where: {
         // Don't surface yourself in a client-side search.
         profileId: { not: clientUserId },
-        ...professionalDiscoverySearch(searchQuery),
-        ...(laneFilter ?? {}),
+        ...(discoveryFilters.length > 0 ? { AND: discoveryFilters } : {}),
       },
       include: {
         profile: {
-          select: { id: true, firstName: true, lastName: true, avatarUrl: true },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+            username: true,
+          },
+        },
+        professionalProfessions: {
+          where: professionId ? { professionId } : undefined,
+          select: {
+            avatarUrl: true,
+            professionId: true,
+            firstName: true,
+            lastName: true,
+            displayName: true,
+            businessName: true,
+            businessNumber: true,
+            businessAddress: true,
+            aboutMe: true,
+            socialMedia: true,
+            bookingSite: true,
+            discoveryCategories: true,
+            profession: { select: { code: true, sortOrder: true } },
+          },
         },
       },
     });
 
     const visible = profProfiles.filter(
-      (pp) => !blockedProfileIds.has(pp.profileId)
+      (pp) => !hiddenProfileIds.has(pp.profileId)
     );
     if (visible.length === 0) return [];
+
+    const laneAvatarFor = (
+      pp: (typeof profProfiles)[number]
+    ): string | null => {
+      const rows = pp.professionalProfessions ?? [];
+      if (professionId) {
+        return rows.find((r) => r.professionId === professionId)?.avatarUrl ?? null;
+      }
+      return pickDefaultProfessionRow(rows)?.avatarUrl ?? null;
+    };
 
     // Annotate each result with the existing link state for this client
     // (scoped to the chosen lane when provided).
@@ -760,14 +967,28 @@ export const profileService = {
       else if (l.status === "pending") pendingProIds.add(l.professionalProfileId);
     }
 
-    return visible.map((pp) => ({
-      professional_profile_id: pp.id,
-      profile_id: pp.profileId,
-      hairdresser_id: pp.profileId,
-      full_name: pp.displayName ?? profileDisplayName(pp.profile),
-      avatar_url: pp.profile.avatarUrl,
-      has_relationship: activeProIds.has(pp.id),
-      link_pending: pendingProIds.has(pp.id),
-    }));
+    return visible.map((pp) => {
+      const laneRows = pp.professionalProfessions ?? [];
+      const laneRow = professionId
+        ? laneRows.find((r) => r.professionId === professionId) ?? null
+        : pickDefaultProfessionRow(laneRows);
+      const laneName = resolveLaneProfessionalName(laneRow, pp.profile, pp);
+
+      return {
+        professional_profile_id: pp.id,
+        profile_id: pp.profileId,
+        hairdresser_id: pp.profileId,
+        profession_code: canonicalCode ?? normalizedCode ?? null,
+        full_name:
+          laneName.displayName ?? profileDisplayName(pp.profile),
+        username: pp.profile.username ?? null,
+        avatar_url: resolveLaneAvatarUrl(
+          laneAvatarFor(pp),
+          pp.profile.avatarUrl
+        ),
+        has_relationship: activeProIds.has(pp.id),
+        link_pending: pendingProIds.has(pp.id),
+      };
+    });
   },
 };

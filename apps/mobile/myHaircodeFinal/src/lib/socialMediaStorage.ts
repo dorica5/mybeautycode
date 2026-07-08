@@ -4,8 +4,9 @@
  */
 
 import { inferSocialFromUrl } from "./inferSocialFromUrl";
+import { normalizeExternalUrlString } from "./safeExternalUrl";
 
-export function parseSocialLinks(raw: string | null | undefined): string[] {
+function parseSocialLinksRaw(raw: string | null | undefined): string[] {
   if (raw == null) return [];
   const t = String(raw).trim();
   if (!t) return [];
@@ -35,8 +36,17 @@ export function parseSocialLinks(raw: string | null | undefined): string[] {
   return [t];
 }
 
+/** Parsed links filtered to safe http(s) URLs only. */
+export function parseSocialLinks(raw: string | null | undefined): string[] {
+  return parseSocialLinksRaw(raw)
+    .map((link) => normalizeExternalUrlString(link))
+    .filter((link): link is string => link != null);
+}
+
 export function serializeSocialLinks(links: string[]): string {
-  const cleaned = links.map((l) => l.trim()).filter(Boolean);
+  const cleaned = links
+    .map((l) => normalizeExternalUrlString(l.trim()))
+    .filter((l): l is string => l != null);
   if (cleaned.length === 0) return "";
   if (cleaned.length === 1) return cleaned[0];
   return JSON.stringify({ links: cleaned });

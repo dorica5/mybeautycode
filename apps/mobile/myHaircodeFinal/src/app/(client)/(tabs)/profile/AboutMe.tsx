@@ -16,13 +16,13 @@ import {
   mintProfileScrollContent,
 } from "@/src/components/MintProfileScreenShell";
 import { responsiveScale } from "@/src/utils/responsive";
-import { Profile } from "@/src/constants/types";
+import { resolveClientAboutMe } from "@/src/lib/clientAboutMe";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 const AboutMe = () => {
   const { t } = useI18n();
   const { profile, setProfile } = useAuth();
-  const original = profile.about_me ?? "";
+  const original = resolveClientAboutMe(profile);
   const id = profile.id;
 
   const [aboutMe, setAboutMe] = useState(original);
@@ -40,14 +40,10 @@ const AboutMe = () => {
     const trimmed = aboutMe.trim();
     setLoading(true);
     updateProfile(
-      { id, about_me: trimmed || null },
+      { id, client_about_me: trimmed || null },
       {
-        onSuccess: () => {
-          setProfile((prev: Profile) => ({
-            ...prev,
-            about_me: trimmed || null,
-          }));
-          setAboutMe(trimmed);
+        onSuccess: (fresh) => {
+          setAboutMe(resolveClientAboutMe(fresh));
           setChanged(false);
           setLoading(false);
           Keyboard.dismiss();
@@ -59,6 +55,10 @@ const AboutMe = () => {
       }
     );
   };
+
+  useEffect(() => {
+    setAboutMe(resolveClientAboutMe(profile));
+  }, [profile.client_about_me, profile.id, profile.profession_codes, profile.user_type]);
 
   useEffect(() => {
     setChanged(aboutMe.trim() !== original.trim());

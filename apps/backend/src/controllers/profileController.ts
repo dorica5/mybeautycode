@@ -34,6 +34,9 @@ export const profileController = {
         serializeProfileForApi(profile, {
           professionCodesSqlFallback,
           exposeColorBrandToViewer,
+          activeProfessionCode: readProfessionCodeQuery(
+            req.query as Record<string, unknown>
+          ),
         })
       );
     } catch (err) {
@@ -67,6 +70,14 @@ export const profileController = {
       res.json(
         serializeProfileForApi(fresh, {
           professionCodesSqlFallback,
+          activeProfessionCode:
+            readProfessionCodeQuery(req.query as Record<string, unknown>) ??
+            (typeof req.body?.profession_code === "string"
+              ? req.body.profession_code.trim()
+              : undefined) ??
+            (typeof req.body?.professionCode === "string"
+              ? req.body.professionCode.trim()
+              : undefined),
         })
       );
     } catch (err: unknown) {
@@ -161,6 +172,9 @@ export const profileController = {
       professionCodeRaw && professionCodeRaw.trim()
         ? professionCodeRaw.trim()
         : undefined;
+    if (!professionCode) {
+      return res.status(400).json({ error: "profession_code is required" });
+    }
     try {
       const results = await profileService.searchProfessionalsWithRelationship(
         String(q),

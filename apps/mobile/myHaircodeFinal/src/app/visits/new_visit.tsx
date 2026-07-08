@@ -12,16 +12,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import { coerceProfessionCode, type ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import {
-  canonicalizeVisitServicesFromStrings,
-  visitServiceLayoutForProfession,
+  canonicalizeVisitServiceCodesFromStrings,
+  discoveryCategoryLabel,
+  localizedVisitServiceLayoutForProfession,
 } from "@/src/constants/profDiscoveryCategories";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import {
   NailVisitForm,
   VISIT_DESCRIPTION_MAX_CHARS,
   VISIT_MAX_PHOTOS,
+  VISIT_MAX_VIDEOS,
 } from "@/src/components/visits/NailVisitForm";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import DraggableModal from "@/src/components/DraggableModal";
 import { VisitPreviewModalContent } from "@/src/components/visits/VisitPreviewModalContent";
 import * as ImagePicker from "expo-image-picker";
@@ -29,7 +31,17 @@ import { signVisitMedia, type VisitMediaRow } from "@/src/lib/storageSignedUrl";
 import { randomUUID } from "expo-crypto";
 import { api } from "@/src/lib/apiClient";
 import { useAuth } from "@/src/providers/AuthProvider";
-import { fetchHaircodeWithMedia, useSubmitHaircode } from "@/src/api/visits";
+import {
+  fetchHaircodeWithMedia,
+  parseVisitSaveErrorMessage,
+  type VisitSubmitResult,
+  useSubmitHaircode,
+} from "@/src/api/visits";
+import { isVisitLimitError } from "@/src/constants/billingConfig";
+import {
+  VisitSaveFeedbackModal,
+  type VisitSaveFeedbackKind,
+} from "@/src/components/visits/VisitSaveFeedbackModal";
 import {
   responsiveScale,
   scalePercent,
@@ -59,6 +71,34 @@ function normalizeServicesFromParams(
       return t;
     })
     .filter(Boolean);
+}
+
+const VISIT_MAX_VIDEO_DURATION_SEC = 60;
+
+function visitImageCount(media: { type?: string }[]): number {
+  return media.filter((m) => m.type !== "video").length;
+}
+
+function visitVideoCount(media: { type?: string }[]): number {
+  return media.filter((m) => m.type === "video").length;
+}
+
+function uploadContentTypeForMedia(
+  type: string,
+  uri: string,
+  mimeType?: string | null
+): { fileExtension: string; contentType: string } {
+  if (type === "video") {
+    const mime = mimeType?.toLowerCase() ?? "";
+    if (mime.includes("quicktime") || uri.toLowerCase().includes(".mov")) {
+      return { fileExtension: "mov", contentType: "video/quicktime" };
+    }
+    if (mime.includes("mp4") || uri.toLowerCase().includes(".mp4")) {
+      return { fileExtension: "mp4", contentType: "video/mp4" };
+    }
+    return { fileExtension: "mp4", contentType: mime || "video/mp4" };
+  }
+  return { fileExtension: "png", contentType: "image/png" };
 }
 
 function firstRouteParam(
@@ -172,17 +212,18 @@ const NewVisit = () => {
   const [capturedMedia, setCapturedMedia] = useState<any[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [originalMedia, setOriginalMedia] = useState<StoredVisitMedia[]>([]);
-  const [selectedOptionsString, setSelectedOptionsString] = useState<
-    string | null
-  >();
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
 
   const screenHeight = Dimensions.get("window").height;
   const scrollViewRef = useRef<ScrollView>(null);
-  const { mutate: submitHaircode, isPending } = useSubmitHaircode();
+  const { mutateAsync: submitHaircodeAsync, isPending } = useSubmitHaircode();
   const posthog = usePostHog();
+  const [saveFeedback, setSaveFeedback] = useState<VisitSaveFeedbackKind | null>(
+    null
+  );
+  const pendingSuccessNavRef = useRef<(() => void) | null>(null);
 
   const {
     activeProfessionCode: storedLaneProfessionCode,
@@ -228,30 +269,22 @@ const NewVisit = () => {
     storedProfessionReady || routeLaneMatchesProfile;
 
   const visitServiceLayout = useMemo(
-    () => visitServiceLayoutForProfession(activeProfessionCode),
-    [activeProfessionCode]
+    () => localizedVisitServiceLayoutForProfession(activeProfessionCode, t),
+    [activeProfessionCode, t]
   );
-  const servicePrimaryLabels = useMemo(
-    () => visitServiceLayout.primary.map((o) => o.label),
+  const visitDropdownCodeSet = useMemo(
+    () => new Set(visitServiceLayout.dropdown.map((o) => o.code)),
     [visitServiceLayout]
-  );
-  const serviceDropdownLabels = useMemo(
-    () => visitServiceLayout.dropdown.map((o) => o.label),
-    [visitServiceLayout]
-  );
-  const visitDropdownLabelSet = useMemo(
-    () => new Set(serviceDropdownLabels),
-    [serviceDropdownLabels]
   );
 
   const handleDropdownServices = useCallback(
-    (nextDropdownLabels: string[]) => {
+    (nextDropdownCodes: string[]) => {
       setSelectedOptions((prev) => {
-        const base = prev.filter((p) => !visitDropdownLabelSet.has(p));
-        return [...new Set([...base, ...nextDropdownLabels])];
+        const base = prev.filter((p) => !visitDropdownCodeSet.has(p));
+        return [...new Set([...base, ...nextDropdownCodes])];
       });
     },
-    [visitDropdownLabelSet]
+    [visitDropdownCodeSet]
   );
 
   const visitServicesNormalizedRef = useRef(false);
@@ -265,9 +298,17 @@ const NewVisit = () => {
     }
     visitServicesNormalizedRef.current = true;
     setSelectedOptions((prev) =>
-      canonicalizeVisitServicesFromStrings(prev, activeProfessionCode)
+      canonicalizeVisitServiceCodesFromStrings(prev, activeProfessionCode)
     );
   }, [activeProfessionCode]);
+
+  const selectedOptionsDisplay = useMemo(
+    () =>
+      selectedOptions
+        .map((code) => discoveryCategoryLabel(code, t))
+        .join(", "),
+    [selectedOptions, t]
+  );
 
   const [durationMinutes, setDurationMinutes] = useState<number>(
     params.duration ? parseInt(params.duration.toString()) : 0
@@ -385,17 +426,13 @@ const NewVisit = () => {
     setCapturedMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleOptionPress = (option: string) => {
+  const handleOptionPress = (code: string) => {
     setSelectedOptions((prevSelectedOptions) =>
-      prevSelectedOptions.includes(option)
-        ? prevSelectedOptions.filter((item) => item !== option)
-        : [...prevSelectedOptions, option]
+      prevSelectedOptions.includes(code)
+        ? prevSelectedOptions.filter((item) => item !== code)
+        : [...prevSelectedOptions, code]
     );
   };
-
-  useEffect(() => {
-    setSelectedOptionsString(selectedOptions.join(", "));
-  }, [selectedOptions]);
 
   const toggleModal = () => {
     setIsModalVisible(!isModalVisible);
@@ -408,21 +445,18 @@ const NewVisit = () => {
       return null;
     }
 
-    const { uri, type, isFromDB, media_url } = capturedMedia[index];
+    const { uri, type, isFromDB, media_url, mimeType } = capturedMedia[index];
 
     if (isFromDB && media_url) {
       console.log(`Reusing existing media: ${media_url}`);
       return media_url;
     }
 
-    let fileExtension = "png";
-    let contentType = "image/png";
-
-    if (type === "video") {
-      const meta = videoUploadMeta(uri);
-      fileExtension = meta.fileExtension;
-      contentType = meta.contentType;
-    }
+    const { fileExtension, contentType } = uploadContentTypeForMedia(
+      type,
+      uri,
+      mimeType
+    );
 
     if (!uri.startsWith("file://") && !uri.startsWith("content://")) {
       const pathMatch = uri.match(/haircode_images\/(.*)/);
@@ -451,7 +485,7 @@ const NewVisit = () => {
 
   const pickImage = async () => {
     const queued = pendingImages.length + (imageToCrop ? 1 : 0);
-    if (capturedMedia.length + queued >= VISIT_MAX_PHOTOS) {
+    if (visitImageCount(capturedMedia) + queued >= VISIT_MAX_PHOTOS) {
       Alert.alert(
         t("visits.photoLimitTitle"),
         t("visits.photoLimitMessage", { count: String(VISIT_MAX_PHOTOS) })
@@ -465,10 +499,11 @@ const NewVisit = () => {
       return;
     }
 
-    const remaining = VISIT_MAX_PHOTOS - capturedMedia.length - queued;
+    const remaining =
+      VISIT_MAX_PHOTOS - visitImageCount(capturedMedia) - queued;
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images", "videos"],
+      mediaTypes: ["images"],
       allowsMultipleSelection: true,
       quality: 1,
     });
@@ -512,9 +547,85 @@ const NewVisit = () => {
     }
   };
 
+  const pickVideo = async () => {
+    if (visitVideoCount(capturedMedia) >= VISIT_MAX_VIDEOS) {
+      Alert.alert(
+        t("visits.videoLimitTitle"),
+        t("visits.videoLimitMessage", { count: String(VISIT_MAX_VIDEOS) })
+      );
+      return;
+    }
+
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(t("common.permissionNeeded"), t("visits.cameraRollRequired"));
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["videos"],
+        allowsMultipleSelection: false,
+        quality: 1,
+        ...(Platform.OS === "ios"
+          ? {
+              // Passthrough fails for iCloud-offloaded videos (PHPhotosErrorDomain 3164).
+              // Export presets download from iCloud before returning a local file.
+              videoExportPreset: ImagePicker.VideoExportPreset.MediumQuality,
+              preferredAssetRepresentationMode:
+                ImagePicker.UIImagePickerPreferredAssetRepresentationMode
+                  .Compatible,
+            }
+          : {}),
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const asset = result.assets[0];
+      const uri = asset.uri?.trim();
+      if (!uri) {
+        Alert.alert(
+          t("visits.videoPickFailedTitle"),
+          t("visits.videoPickFailedMessage")
+        );
+        return;
+      }
+
+      const durationSec =
+        asset.duration != null ? asset.duration / 1000 : null;
+      if (
+        durationSec != null &&
+        durationSec > VISIT_MAX_VIDEO_DURATION_SEC
+      ) {
+        Alert.alert(
+          t("visits.videoLimitTitle"),
+          t("visits.videoTooLongMessage", {
+            seconds: String(VISIT_MAX_VIDEO_DURATION_SEC),
+          })
+        );
+        return;
+      }
+
+      setCapturedMedia((prev) => [
+        ...prev,
+        {
+          uri,
+          type: "video",
+          mimeType: asset.mimeType ?? null,
+        },
+      ]);
+    } catch (error) {
+      console.warn("pickVideo failed", error);
+      Alert.alert(
+        t("visits.videoPickFailedTitle"),
+        t("visits.videoPickFailedMessage")
+      );
+    }
+  };
+
   const handleCropComplete = (croppedUri: string) => {
     setCapturedMedia((prevMedia) => {
-      if (prevMedia.length >= VISIT_MAX_PHOTOS) {
+      if (visitImageCount(prevMedia) >= VISIT_MAX_PHOTOS) {
         setImageToCrop(null);
         setPendingImages([]);
         return prevMedia;
@@ -529,7 +640,7 @@ const NewVisit = () => {
       ];
 
       setPendingImages((pending) => {
-        const room = VISIT_MAX_PHOTOS - nextMedia.length;
+        const room = VISIT_MAX_PHOTOS - visitImageCount(nextMedia);
         if (room <= 0 || pending.length === 0) {
           if (pending.length > 0 && room <= 0) {
             Alert.alert(
@@ -554,6 +665,22 @@ const NewVisit = () => {
     setPendingImages([]);
   };
 
+  const handleSaveFeedbackDismiss = useCallback(() => {
+    const navigate = pendingSuccessNavRef.current;
+    pendingSuccessNavRef.current = null;
+    setSaveFeedback(null);
+    navigate?.();
+  }, []);
+
+  const handleSaveFeedbackSubscribe = useCallback(() => {
+    pendingSuccessNavRef.current = null;
+    setSaveFeedback(null);
+    router.push({
+      pathname: "/Screens/paywall",
+      params: { from: "visit-limit" },
+    });
+  }, []);
+
   const handleSubmit = async () => {
     if (!activeProfessionCode) {
       Alert.alert(
@@ -563,7 +690,7 @@ const NewVisit = () => {
       return;
     }
     try {
-      await submitHaircode({
+      const result = (await submitHaircodeAsync({
         isEditing,
         params,
         newHaircode,
@@ -577,6 +704,38 @@ const NewVisit = () => {
         uploadMedia,
         hasMediaChanged,
         professionCode: activeProfessionCode,
+      })) as VisitSubmitResult;
+
+      pendingSuccessNavRef.current = () => {
+        if (isEditing) {
+          router.replace({
+            pathname: "/visits/single_visit",
+            params: {
+              haircodeId: result.haircodeId,
+              description: String(result.newHaircode),
+              services: String(result.selectedOptions),
+              price: String(result.price),
+              duration: String(result.duration),
+              createdAt: result.formattedDate,
+              hairdresserName:
+                (params.hairdresserName as string) || profile.full_name,
+              full_name: params.full_name as string,
+              number: params.number as string,
+              salon_name:
+                (params.salon_name as string) || profile.salon_name,
+              hairdresser_profile_pic:
+                (params.hairdresser_profile_pic as string) ||
+                profile.avatar_url,
+            },
+          });
+        } else {
+          router.back();
+        }
+      };
+
+      setSaveFeedback({
+        type: "success",
+        mode: isEditing ? "edit" : "create",
       });
 
       posthog.capture("Visit Added", {
@@ -584,8 +743,20 @@ const NewVisit = () => {
         client_id: clientId ?? "unknown",
       });
     } catch (err) {
-      console.error("Unexpected error:", err);
-      Alert.alert(t("common.error"), t("visits.somethingWentWrong"));
+      console.error("Visit save failed:", err);
+      if (isVisitLimitError(err)) {
+        setSaveFeedback({
+          type: "limit",
+          limit:
+            (err.billing as { freeVisitLimit?: number } | undefined)
+              ?.freeVisitLimit ?? 10,
+        });
+        return;
+      }
+      setSaveFeedback({
+        type: "error",
+        message: parseVisitSaveErrorMessage(err, t),
+      });
     }
   };
 
@@ -603,7 +774,7 @@ const NewVisit = () => {
     onClose: toggleModal,
     visitTitle: t("visits.visitTitle", { date: visitDateLabel }),
     dateText: visitDateLabel,
-    serviceText: selectedOptionsString ?? "",
+    serviceText: selectedOptionsDisplay,
     commentText: newHaircode,
     durationText:
       durationMinutes > 0 ? formatDurationDisplay(durationMinutes) : "",
@@ -646,10 +817,10 @@ const NewVisit = () => {
       <SafeAreaView style={styles.nailSafeArea}>
         <NailVisitForm
           scrollRef={scrollViewRef}
-          servicePrimaryOptions={servicePrimaryLabels}
-          serviceDropdownOptions={serviceDropdownLabels}
+          servicePrimaryOptions={visitServiceLayout.primary}
+          serviceDropdownOptions={visitServiceLayout.dropdown}
           onChangeDropdownServices={
-            serviceDropdownLabels.length > 0
+            visitServiceLayout.dropdown.length > 0
               ? handleDropdownServices
               : undefined
           }
@@ -670,7 +841,9 @@ const NewVisit = () => {
           professionCode={activeProfessionCode}
           capturedMedia={capturedMedia}
           pickImage={pickImage}
+          pickVideo={pickVideo}
           pickImageDisabled={imageToCrop !== null || isUploadingMedia}
+          pickVideoDisabled={imageToCrop !== null || isUploadingMedia}
           removeMedia={removeMedia}
           isPending={isPending}
           isUploadingMedia={isUploadingMedia}
@@ -690,6 +863,11 @@ const NewVisit = () => {
         imageUri={imageToCrop || ""}
         onCancel={handleCropCancel}
         onCropComplete={handleCropComplete}
+      />
+      <VisitSaveFeedbackModal
+        feedback={saveFeedback}
+        onDismiss={handleSaveFeedbackDismiss}
+        onSubscribe={handleSaveFeedbackSubscribe}
       />
     </>
   );

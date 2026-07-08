@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
+import { isBlockedPairForLane } from "../lib/blockDiscoveryHelpers";
 import { professionService } from "./professionService";
 
 /** Strip legacy public/signed URL to object path (same idea as mobile `normalizeStorageObjectPath`). */
@@ -19,23 +20,10 @@ function normalizeHaircodeStoragePath(urlOrPath: string): string {
   return s;
 }
 
-async function isBlockedPair(aProfileId: string, bProfileId: string): Promise<boolean> {
-  const row = await prisma.blockedUser.findFirst({
-    where: {
-      OR: [
-        { blockerId: aProfileId, blockedId: bProfileId },
-        { blockerId: bProfileId, blockedId: aProfileId },
-      ],
-    },
-    select: { id: true },
-  });
-  return !!row;
-}
-
 export const serviceRecordAccessService = {
   /**
-   * Client may read their visits. Professionals may read if they created the visit,
-   * or have an active link with the same client (and no block with that client).
+   * Client may read their visits. Professionals may read if they have an active
+   * link on the visit lane and no block on that lane.
    */
   async canAccessServiceRecord(
     viewerProfileId: string,
@@ -47,7 +35,20 @@ export const serviceRecordAccessService = {
   ): Promise<boolean> {
     if (record.clientUserId === viewerProfileId) return true;
 
-    if (await isBlockedPair(viewerProfileId, record.clientUserId)) {
+    if (!record.professionId) return false;
+
+    const lane = await prisma.profession.findUnique({
+      where: { id: record.professionId },
+      select: { code: true },
+    });
+    if (
+      lane?.code &&
+      (await isBlockedPairForLane(
+        viewerProfileId,
+        record.clientUserId,
+        lane.code
+      ))
+    ) {
       return false;
     }
 
@@ -58,7 +59,6 @@ export const serviceRecordAccessService = {
     if (!viewerPP) return false;
 
     if (record.professionalProfileId && record.professionalProfileId === viewerPP.id) {
-      if (!record.professionId) return false;
       const link = await prisma.clientProfessionalLink.findFirst({
         where: {
           clientUserId: record.clientUserId,
@@ -71,16 +71,13 @@ export const serviceRecordAccessService = {
       return !!link;
     }
 
-    const linkWhere: Prisma.ClientProfessionalLinkWhereInput = {
-      clientUserId: record.clientUserId,
-      professionalProfileId: viewerPP.id,
-      status: "active",
-    };
-    if (record.professionId) {
-      linkWhere.professionId = record.professionId;
-    }
     const link = await prisma.clientProfessionalLink.findFirst({
-      where: linkWhere,
+      where: {
+        clientUserId: record.clientUserId,
+        professionalProfileId: viewerPP.id,
+        professionId: record.professionId,
+        status: "active",
+      },
       select: { id: true },
     });
     return !!link;
@@ -109,17 +106,13 @@ export const serviceRecordAccessService = {
     }
   },
 
-  /** Caller may see this client's visit list / gallery: self or an active linked professional (not blocked). */
+  /** Caller may see this client's visit list / gallery: self or an active linked professional (not blocked on lane). */
   async assertCanAccessClientTimeline(
     viewerProfileId: string,
     clientUserId: string,
     options?: { professionCode?: string | null }
   ): Promise<void> {
     if (viewerProfileId === clientUserId) return;
-
-    if (await isBlockedPair(viewerProfileId, clientUserId)) {
-      throw Object.assign(new Error("Forbidden"), { statusCode: 403 as const });
-    }
 
     const viewerPP = await prisma.professionalProfile.findUnique({
       where: { profileId: viewerProfileId },
@@ -138,15 +131,28 @@ export const serviceRecordAccessService = {
       throw Object.assign(new Error("Forbidden"), { statusCode: 403 as const });
     }
 
-    const linkWhere: Prisma.ClientProfessionalLinkWhereInput = {
-      clientUserId,
-      professionalProfileId: viewerPP.id,
-      status: "active",
-      professionId: scope.professionId,
-    };
+    const lane = await prisma.profession.findUnique({
+      where: { id: scope.professionId },
+      select: { code: true },
+    });
+    if (
+      lane?.code &&
+      (await isBlockedPairForLane(
+        viewerProfileId,
+        clientUserId,
+        lane.code
+      ))
+    ) {
+      throw Object.assign(new Error("Forbidden"), { statusCode: 403 as const });
+    }
 
     const link = await prisma.clientProfessionalLink.findFirst({
-      where: linkWhere,
+      where: {
+        clientUserId,
+        professionalProfileId: viewerPP.id,
+        status: "active",
+        professionId: scope.professionId,
+      },
       select: { id: true },
     });
     if (!link) {

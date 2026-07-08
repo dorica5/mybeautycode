@@ -22,7 +22,7 @@ import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { supabase } from "@/src/lib/supabase";
 import { router, useLocalSearchParams } from "expo-router";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
-import { primaryBlack, primaryWhite, setupSageBackground } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
   contentCardMaxWidth,
@@ -344,8 +344,6 @@ const ProfessionalSetup = () => {
             {t("setup.accountSuffix")}
           </Text>
 
-          <Text style={[Typography.h4, styles.aboutYouSubhead]}>{t("setup.aboutYou")}</Text>
-
           <View style={[styles.form, { maxWidth: formMaxW }]}>
             <BrandOutlineField
               label={t("profile.placeName", { place: placeNoun })}
@@ -436,7 +434,7 @@ export default ProfessionalSetup;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: setupSageBackground,
+    backgroundColor: primaryGreen,
   },
   keyboard: {
     flex: 1,
@@ -457,12 +455,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: primaryBlack,
     marginTop: responsiveMargin(isTablet() ? 20 : 32),
-    marginBottom: responsiveMargin(14),
-  },
-  aboutYouSubhead: {
-    color: primaryBlack,
-    textAlign: "center",
-    marginTop: responsiveMargin(isTablet() ? 14 : 18),
     marginBottom: responsiveMargin(isTablet() ? 28 : 36),
   },
   form: {

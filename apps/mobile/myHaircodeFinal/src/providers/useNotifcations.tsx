@@ -6,6 +6,7 @@ import { Alert, Platform } from "react-native";
 import { api } from "@/src/lib/apiClient";
 import { supabase } from "@/src/lib/supabase";
 import { router } from "expo-router";
+import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { defaultAppLocale, translate } from "@/src/i18n";
 
 export interface PushNotification {
@@ -99,7 +100,7 @@ export const sendPushNotification = async (
 ) => {
   const code =
     typeof professionCode === "string" && professionCode.trim()
-      ? professionCode.trim()
+      ? coerceProfessionCode(professionCode.trim()) ?? professionCode.trim()
       : null;
   try {
     await api.post("/api/notifications/send", {
@@ -130,7 +131,9 @@ export const fetchNotifications = async (
     if (inbox === null) {
       params.set("profession_code", "client");
     } else if (typeof inbox === "string" && inbox.trim()) {
-      params.set("profession_code", inbox.trim());
+      const lane =
+        coerceProfessionCode(inbox.trim()) ?? inbox.trim();
+      params.set("profession_code", lane);
     }
     const qs = params.toString();
     const data = await api.get<unknown[]>(

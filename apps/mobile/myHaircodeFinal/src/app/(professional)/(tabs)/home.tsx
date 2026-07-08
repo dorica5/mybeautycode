@@ -17,6 +17,7 @@ import SearchInput from "@/src/components/SearchInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchResults from "@/src/components/SearchResults";
 import { useListAllClientSearch } from "@/src/api/profiles";
+import { blockedIdListQueryKey, blockedIds } from "@/src/api/moderation";
 import { prefetchHaircodeWithMedia, useLatestHaircodes } from "@/src/api/visits";
 import { useQueryClient } from "@tanstack/react-query";
 import VisitCard from "@/src/components/VisitCard";
@@ -35,6 +36,7 @@ import {
   primaryWhite,
 } from "@/src/constants/Colors";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { useClearOnProfessionChange } from "@/src/hooks/useClearOnProfessionChange";
 import { useI18n, formatVisitListDateForLocale } from "@/src/providers/LanguageProvider";
 import { useVisitLimitGate } from "@/src/hooks/useVisitLimitGate";
 
@@ -132,6 +134,16 @@ const HomeScreen = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  useEffect(() => {
+    const uid = profile?.id;
+    if (!uid) return;
+    void queryClient.prefetchQuery({
+      queryKey: blockedIdListQueryKey(uid),
+      queryFn: () => blockedIds(uid),
+      staleTime: 120_000,
+    });
+  }, [profile?.id, queryClient]);
+
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
   }, []);
@@ -147,6 +159,12 @@ const HomeScreen = () => {
     setSearchQuery("");
     setDebouncedQuery("");
   }, []);
+
+  useClearOnProfessionChange(
+    activeProfessionCode,
+    storedProfessionReady,
+    dismissClientSearchOverlay
+  );
 
   const showClientSearchResults =
     clientSearchFieldFocused && debouncedQuery.trim().length > 0;
@@ -278,6 +296,7 @@ const HomeScreen = () => {
                   {t("home.proSearchLabel")}
                 </Text>
                 <SearchInput
+                  key={activeProfessionCode ?? "pro-lane"}
                   onSearch={handleSearch}
                   initialQuery=""
                   value={searchQuery}

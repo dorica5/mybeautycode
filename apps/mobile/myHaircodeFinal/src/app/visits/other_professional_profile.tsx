@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { StyleSheet, View, Alert, Pressable, Text, ActivityIndicator } from "react-native";
 import { DotsThree } from "phosphor-react-native";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
-import MyButton from "@/src/components/MyButton";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
@@ -18,20 +17,20 @@ import {
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import {
   blockUser,
-  isBlocked,
   REPORT_REASONS,
   ReportReason,
   reportUserEnhanced,
   unblockUser,
-  UNBLOCK_RELATIONSHIP_RESET_ALERT,
+  useViewerBlockedTarget,
 } from "@/src/api/moderation";
+import { UnblockSuccessModal } from "@/src/components/UnblockSuccessModal";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRelationshipCheck } from "@/src/api/relationships";
+import { useRelationshipCheck, relationshipCheckQueryKey } from "@/src/api/relationships";
 import { useRemoveRelationships } from "@/src/api/profiles";
-import { sendPushNotification } from "@/src/providers/useNotifcations";
 import { responsiveScale } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
+import { BlockedProfileScreen } from "@/src/components/BlockedProfileScreen";
 import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import { isUuid } from "@/src/utils/isUuid";
 import {
@@ -39,8 +38,8 @@ import {
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
+import { buildPublicProfessionalProfileFields } from "@/src/lib/publicProfessionalProfileFields";
 import { useI18n } from "@/src/providers/LanguageProvider";
-import { clientAddedPushBody } from "@/src/i18n/pushCopy";
 import { reportReasonLabel } from "@/src/i18n/moderationLabels";
 
 /**
@@ -76,44 +75,26 @@ const OtherProfessionalProfileScreen = () => {
   );
   const p = profileData as Profile | undefined;
 
-  const scopedDetail = useMemo(() => {
-    if (!p?.professions_detail?.length || !professionCodeFromVisit) return null;
-    return (
-      p.professions_detail.find(
-        (row) =>
-          coerceProfessionCode(row.profession_code ?? undefined) ===
-          professionCodeFromVisit
-      ) ?? null
-    );
-  }, [p?.professions_detail, professionCodeFromVisit]);
-
   const data = p
     ? {
-        full_name: p.full_name,
-        first_name: p.first_name,
-        username: p.username,
+        ...buildPublicProfessionalProfileFields(p, professionCodeFromVisit),
         avatar_url: resolveAvatarStoragePath(p, professionCodeFromVisit),
-        about_me: scopedDetail?.about_me ?? p.about_me,
-        salon_name: scopedDetail?.business_name ?? p.salon_name,
-        business_address: scopedDetail?.business_address ?? p.business_address,
-        salon_phone_number: scopedDetail?.business_number ?? p.salon_phone_number,
-        booking_site: scopedDetail?.booking_site ?? p.booking_site,
-        social_media: scopedDetail?.social_media ?? p.social_media,
-        color_brand: p.color_brand,
-        profession_codes: p.profession_codes,
       }
     : undefined;
 
-  const { data: isRelated = false, isFetching: relLoading } =
+  const { data: isRelatedFromApi = false, isFetched: relFetched } =
     useRelationshipCheck(
       client_id ?? undefined,
       hairdresser_id,
       professionCodeFromVisit
     );
+  const [linkJustAdded, setLinkJustAdded] = useState(false);
+  const isRelated = linkJustAdded || isRelatedFromApi;
+  const relationshipStatusLoading =
+    !linkJustAdded && !isRelatedFromApi && !relFetched;
   const removeRelationships = useRemoveRelationships(client_id ?? "");
 
-  const [isBlockedUser, setIsBlockedUser] = useState(false);
-  const [blockCheckComplete, setBlockCheckComplete] = useState(false);
+  const [unblockSuccessVisible, setUnblockSuccessVisible] = useState(false);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
@@ -126,39 +107,22 @@ const OtherProfessionalProfileScreen = () => {
     professionCodeFromVisit
   );
 
+  const { isBlocked: isBlockedUser, ready: blockStateReady } =
+    useViewerBlockedTarget(client_id, hairdresser_id, professionCodeFromVisit);
+
   const showRelationshipCta = Boolean(
     profile?.user_type === "CLIENT" &&
       profile?.id &&
       hairdresser_id &&
+      professionCodeFromVisit &&
       profile.id !== hairdresser_id &&
-      !isRelated
+      !isRelated &&
+      !isBlockedUser
   );
 
   const isViewingOwnProfile = Boolean(
     profile?.id && hairdresser_id && profile.id === hairdresser_id
   );
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        if (client_id && hairdresser_id) {
-          const blocked = await isBlocked(
-            client_id as string,
-            hairdresser_id as string
-          );
-          if (alive) setIsBlockedUser(blocked);
-        }
-      } catch (e) {
-        console.error("Error checking blocked:", e);
-      } finally {
-        if (alive) setBlockCheckComplete(true);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [client_id, hairdresser_id]);
 
   const deleteHairdresser = useCallback(async () => {
     if (!client_id || !hairdresser_id) return;
@@ -192,38 +156,20 @@ const OtherProfessionalProfileScreen = () => {
   ]);
 
   const addHairdresser = useCallback(async () => {
-    if (!client_id || !hairdresser_id) return;
+    if (!client_id || !hairdresser_id || !professionCodeFromVisit) return;
     setLoading(true);
     try {
       await addHairdresserDB();
 
-      const message = clientAddedPushBody(
-        t,
-        profile?.full_name,
-        professionCodeFromVisit
+      setLinkJustAdded(true);
+      queryClient.setQueryData(
+        relationshipCheckQueryKey(
+          client_id,
+          hairdresser_id,
+          professionCodeFromVisit
+        ),
+        true
       );
-      // Deliver to the pro's specific profession-account inbox so it doesn't
-      // leak across their other profession accounts.
-      await sendPushNotification(
-        hairdresser_id as string,
-        client_id as string,
-        "FRIEND_REQUEST",
-        message,
-        {
-          isClient: true,
-          senderName: profile?.full_name,
-          senderAvatar: profile?.avatar_url,
-          ...(professionCodeFromVisit
-            ? { profession_code: professionCodeFromVisit }
-            : {}),
-        },
-        t("push.newClientAddedTitle"),
-        professionCodeFromVisit ?? undefined
-      );
-
-      await queryClient.invalidateQueries({
-        queryKey: ["relationship"],
-      });
     } catch (error) {
       console.error("Error adding hairdresser:", error);
       Alert.alert(t("common.error"), t("moderation.addProfessionalFailed"));
@@ -238,14 +184,15 @@ const OtherProfessionalProfileScreen = () => {
   };
 
   const handleUnblock = async () => {
-    if (!client_id || !hairdresser_id) return;
+    if (!client_id || !hairdresser_id || !professionCodeFromVisit) return;
     try {
-      await unblockUser(client_id, hairdresser_id, queryClient);
-      setIsBlockedUser(false);
-      Alert.alert(
-        UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
-        UNBLOCK_RELATIONSHIP_RESET_ALERT.message
+      await unblockUser(
+        client_id,
+        hairdresser_id,
+        professionCodeFromVisit,
+        queryClient
       );
+      setUnblockSuccessVisible(true);
     } catch (error) {
       console.error("Error unblocking user:", error);
       Alert.alert(t("common.error"), t("moderation.unblockUserFailed"));
@@ -253,12 +200,13 @@ const OtherProfessionalProfileScreen = () => {
   };
 
   const handleBlock = async (reason: string) => {
-    if (!client_id || !hairdresser_id) return;
+    if (!client_id || !hairdresser_id || !professionCodeFromVisit) return;
     try {
       await blockUser(
         client_id,
         hairdresser_id,
         reason,
+        professionCodeFromVisit,
         queryClient as unknown as {
           invalidateQueries: (opts: unknown) => void;
         }
@@ -268,7 +216,6 @@ const OtherProfessionalProfileScreen = () => {
         t("moderation.accountBlockedMessage", { brand: BRAND_DISPLAY_NAME })
       );
       setActiveAction(null);
-      setIsBlockedUser(true);
     } catch (error) {
       console.error("Error blocking user:", error);
       Alert.alert(t("common.error"), t("moderation.blockUserFailed"));
@@ -421,21 +368,18 @@ const OtherProfessionalProfileScreen = () => {
     );
   }
 
-  if (!blockCheckComplete || relLoading || profileLoading) {
+  if (profileLoading || !blockStateReady) {
     return <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />;
   }
 
   if (isBlockedUser) {
     return (
       <>
-        <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
-        <View style={styles.blockedWrap}>
-          <MyButton
-            style={[styles.unblockBtn, { borderColor: "red" }]}
-            text={t("profile.unblock")}
-            onPress={handleUnblock}
-          />
-        </View>
+        <BlockedProfileScreen onUnblock={handleUnblock} />
+        <UnblockSuccessModal
+          visible={unblockSuccessVisible}
+          onClose={() => setUnblockSuccessVisible(false)}
+        />
       </>
     );
   }
@@ -478,6 +422,7 @@ const OtherProfessionalProfileScreen = () => {
         onBack={() => router.back()}
         showRelationshipCta={showRelationshipCta}
         isRelated={isRelated}
+        relationshipStatusLoading={relationshipStatusLoading}
         addLoading={loading}
         onAddHairdresser={addHairdresser}
         headerRight={
@@ -551,16 +496,5 @@ const styles = StyleSheet.create({
     fontSize: responsiveScale(16),
     color: primaryBlack,
     textAlign: "center",
-  },
-  blockedWrap: {
-    flex: 1,
-    backgroundColor: Colors.light.primaryGreen,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: responsiveScale(24),
-  },
-  unblockBtn: {
-    alignSelf: "stretch",
-    maxWidth: 400,
   },
 });

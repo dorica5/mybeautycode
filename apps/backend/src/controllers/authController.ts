@@ -8,6 +8,8 @@ import {
   needsProfessionCodesSqlFallback,
   serializeProfileForApi,
 } from "../lib/serializeProfileForApi";
+import { readProfessionCodeQuery } from "../lib/readProfessionCodeQuery";
+
 export const authController = {
   async me(req: Request, res: Response) {
     const userId = req.userId;
@@ -15,7 +17,7 @@ export const authController = {
       return res.status(401).json({ error: "Unauthorized" });
     }
     try {
-      const profile = await prisma.profile.findUnique({
+      let profile = await prisma.profile.findUnique({
         where: { id: userId },
         include: profileWithProfessionalForApiInclude,
       });
@@ -31,9 +33,13 @@ export const authController = {
           userId
         );
       }
+      const activeProfessionCode = readProfessionCodeQuery(
+        req.query as Record<string, unknown>
+      );
       return res.json(
         serializeProfileForApi(profile, {
           professionCodesSqlFallback,
+          activeProfessionCode,
         })
       );
     } catch (err) {

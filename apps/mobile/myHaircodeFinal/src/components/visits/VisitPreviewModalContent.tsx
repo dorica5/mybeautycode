@@ -12,12 +12,13 @@ import {
 } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 import { Image, type ImageLoadEventData } from "expo-image";
-import { ResizeMode, Video } from "expo-av";
+import { ResizeMode, Video, type AVPlaybackStatus } from "expo-av";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
+import { formatVisitServicesForDisplay } from "@/src/constants/profDiscoveryCategories";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import {
@@ -207,16 +208,112 @@ export function VisitPreviewSizedVideo({
   maxWidth,
   maxHeight,
   cornerRadius,
+  isActive = false,
 }: {
   uri: string;
   maxWidth: number;
   maxHeight: number;
   cornerRadius: number;
+  /** When true, playback starts; native controls allow pause, scrub, and fullscreen. */
+  isActive?: boolean;
 }) {
+  const trimmedUri = uri?.trim() ?? "";
+  const videoRef = useRef<Video>(null);
+  const wasActiveRef = useRef(false);
+  const autoPlayedRef = useRef(false);
+  const wasPlayingRef = useRef(false);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    setNatural(null);
+    wasActiveRef.current = false;
+    autoPlayedRef.current = false;
+    wasPlayingRef.current = false;
+  }, [trimmedUri]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    const becameActive = isActive && !wasActiveRef.current;
+    const becameInactive = !isActive && wasActiveRef.current;
+    wasActiveRef.current = isActive;
+
+    if (!video) return;
+
+    if (becameInactive) {
+      autoPlayedRef.current = false;
+      wasPlayingRef.current = false;
+      void (async () => {
+        try {
+          try {
+            await video.dismissFullscreenPlayer();
+          } catch {
+            // Not in fullscreen — ignore.
+          }
+          await video.pauseAsync();
+          await video.setPositionAsync(0);
+        } catch {
+          // Ignore unload races.
+        }
+      })();
+      return;
+    }
+
+    if (becameActive && !autoPlayedRef.current) {
+      autoPlayedRef.current = true;
+      void video.playAsync().catch(() => {});
+    }
+  }, [isActive, trimmedUri]);
+
+  const tryAutoPlay = useCallback(() => {
+    if (!isActive || autoPlayedRef.current) return;
+    autoPlayedRef.current = true;
+    void videoRef.current?.playAsync().catch(() => {});
+  }, [isActive]);
+
+  const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
+    if (!status.isLoaded) return;
+
+    if (status.didJustFinish) {
+      wasPlayingRef.current = false;
+      void (async () => {
+        try {
+          await videoRef.current?.setPositionAsync(0);
+          await videoRef.current?.pauseAsync();
+        } catch {
+          // Ignore unload races.
+        }
+      })();
+      return;
+    }
+
+    const justStartedPlaying = status.isPlaying && !wasPlayingRef.current;
+    wasPlayingRef.current = status.isPlaying;
+
+    const duration = status.durationMillis ?? 0;
+    const atEnd = duration > 0 && status.positionMillis >= duration - 500;
+    if (justStartedPlaying && atEnd) {
+      void (async () => {
+        try {
+          await videoRef.current?.setPositionAsync(0);
+          await videoRef.current?.playAsync();
+        } catch {
+          // Ignore unload races.
+        }
+      })();
+    }
+  }, []);
+
   const { dw, dh } = natural
     ? containedDisplaySize(natural.w, natural.h, maxWidth, maxHeight)
     : { dw: maxWidth, dh: maxHeight };
+
+  if (!trimmedUri) {
+    return (
+      <View
+        style={[styles.slidePageCenter, { width: maxWidth, height: maxHeight }]}
+      />
+    );
+  }
 
   return (
     <View
@@ -229,16 +326,20 @@ export function VisitPreviewSizedVideo({
         ]}
       >
         <Video
-          source={{ uri }}
+          ref={videoRef}
+          source={{ uri: trimmedUri }}
           style={{ width: dw, height: dh }}
           useNativeControls
-          resizeMode={ResizeMode.COVER}
-          isLooping
+          resizeMode={ResizeMode.CONTAIN}
+          isLooping={false}
+          progressUpdateIntervalMillis={250}
+          onPlaybackStatusUpdate={onPlaybackStatusUpdate}
           onReadyForDisplay={(e) => {
             const { width, height } = e.naturalSize;
             if (width > 0 && height > 0) {
               setNatural({ w: width, h: height });
             }
+            tryAutoPlay();
           }}
         />
       </View>
@@ -295,7 +396,11 @@ export function VisitPreviewModalContent({
 
   const professionalLabel = `${professionLabelFromT(t, professionCode)}:`;
   const displayDate = dateText?.trim() ? dateText : "";
-  const displayService = serviceText?.trim() ? serviceText : "";
+  const displayService = formatVisitServicesForDisplay(
+    serviceText,
+    professionCode,
+    t
+  );
   const displayComment = commentText?.trim() ? commentText : "";
   const displayDuration = durationText?.trim() ? durationText : "";
   const displayPrice = priceText?.trim() ? priceText : "";
@@ -465,12 +570,13 @@ export function VisitPreviewModalContent({
                       cornerRadius={previewMediaRadius}
                       priority={index === 0 ? "high" : "normal"}
                     />
-                  ) : item.uri ? (
+                  ) : item.type === "video" && item.uri ? (
                     <VisitPreviewSizedVideo
                       uri={item.uri}
                       maxWidth={carouselTrackWidth}
                       maxHeight={carouselHeight}
                       cornerRadius={previewMediaRadius}
+                      isActive={index === activeSlide}
                     />
                   ) : null}
                 </View>

@@ -2,11 +2,13 @@ import { prisma } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 import { professionService } from "./professionService";
 import { profileDisplayName } from "../lib/profileDisplay";
+import { resolveLaneAvatarUrl } from "../lib/professionBusinessHelpers";
 import {
   storedCategoriesIncludeAllCodes,
   storedCategoriesIncludeAnyCode,
   storedDiscoveryCategoriesNonEmpty,
 } from "../lib/profDiscoveryCategories";
+import { professionalProfileIdsHiddenFromViewer } from "../lib/blockDiscoveryHelpers";
 
 export type DiscoveryMatchMode = "any" | "all";
 
@@ -119,13 +121,21 @@ async function countActiveProsAtSalonForLane(
   salonId: string,
   professionId: string,
   discoveryNormalizedCodes: string[] | undefined,
-  matchMode: DiscoveryMatchMode = "any"
+  matchMode: DiscoveryMatchMode = "any",
+  hiddenProfessionalProfileIds?: Set<string>
 ): Promise<number> {
   const rows = await prisma.professionalProfession.findMany({
     where: {
       salonId,
       professionId,
       OR: [{ isActive: true }, { isActive: null }],
+      ...(hiddenProfessionalProfileIds && hiddenProfessionalProfileIds.size > 0
+        ? {
+            professionalProfileId: {
+              notIn: [...hiddenProfessionalProfileIds],
+            },
+          }
+        : {}),
     },
     select: { discoveryCategories: true },
   });
@@ -203,6 +213,19 @@ export const salonService = {
       discoveryMatch
     );
 
+    const hiddenProProfileIds = viewerProfileId?.trim() && professionCode?.trim()
+      ? await professionalProfileIdsHiddenFromViewer(
+          viewerProfileId.trim(),
+          professionCode.trim()
+        )
+      : new Set<string>();
+    const hideProsSql =
+      hiddenProProfileIds.size > 0
+        ? Prisma.sql`AND pp.professional_profile_id NOT IN (${Prisma.join(
+            [...hiddenProProfileIds].map((id) => Prisma.sql`${id}::uuid`)
+          )})`
+        : Prisma.sql``;
+
     const aggregated = await prisma.$queryRaw<
       Array<{
         id: string;
@@ -229,6 +252,7 @@ export const salonService = {
         AND (pp.is_active IS NULL OR pp.is_active = true)
         ${professionSql}
         ${discoverySql}
+        ${hideProsSql}
       GROUP BY s.id, s.google_place_id, s.name, s.formatted_address, s.latitude, s.longitude
       ORDER BY s.id
       LIMIT ${MAX_RESULTS}
@@ -305,7 +329,8 @@ export const salonService = {
               r.id,
               professionId,
               discoveryCodes,
-              discoveryMatch
+              discoveryMatch,
+              hiddenProProfileIds
             );
             if (cnt < 1) continue;
             byId.set(r.id, {
@@ -373,6 +398,7 @@ export const salonService = {
     const rowSelect = {
       professionId: true,
       businessName: true,
+      avatarUrl: true,
       discoveryCategories: true,
       professionalProfile: {
         select: {
@@ -455,6 +481,18 @@ export const salonService = {
       );
     }
 
+    const hiddenProIds = professionCode?.trim()
+      ? await professionalProfileIdsHiddenFromViewer(
+          viewerProfileId,
+          professionCode.trim()
+        )
+      : new Set<string>();
+    if (hiddenProIds.size > 0) {
+      merged = merged.filter(
+        (r) => !hiddenProIds.has(r.professionalProfile.id)
+      );
+    }
+
     if (merged.length === 0) return [];
 
     const proProfileIds = merged.map((r) => r.professionalProfile.id);
@@ -483,7 +521,7 @@ export const salonService = {
         profile_id: pp.profile.id,
         hairdresser_id: pp.profile.id,
         full_name: pp.displayName ?? profileDisplayName(pp.profile),
-        avatar_url: pp.profile.avatarUrl,
+        avatar_url: resolveLaneAvatarUrl(r.avatarUrl, pp.profile.avatarUrl),
         has_relationship: activeSet.has(pp.id),
         link_pending: pendingSet.has(pp.id),
         business_name: r.businessName,

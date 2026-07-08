@@ -58,6 +58,7 @@ import {
   serializeSocialLinks,
   socialLinkRowLabel,
 } from "@/src/lib/socialMediaStorage";
+import { validateExternalUrl } from "@/src/lib/safeExternalUrl";
 import {
   coerceProfessionCode,
   type ProfessionChoiceCode,
@@ -78,6 +79,11 @@ import {
   listMyPublicProfileWork,
   type PublicProfileWorkRow,
 } from "@/src/api/publicProfileWork";
+import { resolveLaneAboutMe } from "@/src/lib/clientAboutMe";
+import {
+  laneScopedNullableField,
+  laneScopedTextField,
+} from "@/src/lib/professionLaneFields";
 
 /**
  * Get discovered — professional-only editor (public-facing bio, links, hair color brands, portfolio).
@@ -149,16 +155,28 @@ const AboutMe = () => {
   }, [profile.professions_detail, activeProfessionCode]);
 
   const baselineAboutMe = useMemo(
-    () => detailForActive?.about_me ?? profile.about_me ?? "",
-    [detailForActive, profile.about_me]
+    () => resolveLaneAboutMe(detailForActive?.about_me),
+    [detailForActive?.about_me]
   );
   const baselineSocialMedia = useMemo(
-    () => detailForActive?.social_media ?? profile.social_media,
-    [detailForActive, profile.social_media]
+    () =>
+      laneScopedNullableField(
+        detailForActive,
+        activeProfessionCode,
+        detailForActive?.social_media,
+        profile.social_media
+      ),
+    [detailForActive, activeProfessionCode, profile.social_media]
   );
   const baselineBookingSite = useMemo(
-    () => detailForActive?.booking_site ?? profile.booking_site ?? "",
-    [detailForActive, profile.booking_site]
+    () =>
+      laneScopedTextField(
+        detailForActive,
+        activeProfessionCode,
+        detailForActive?.booking_site,
+        profile.booking_site
+      ),
+    [detailForActive, activeProfessionCode, profile.booking_site]
   );
   const baselineDiscoveryCategories = useMemo(
     () =>
@@ -203,22 +221,41 @@ const AboutMe = () => {
       (x: ProfessionDetailApi) =>
         coerceProfessionCode(x.profession_code) === professionApi
     );
-    setAboutMe(d?.about_me ?? profile.about_me ?? "");
-    setSocialLinks(parseSocialLinks(d?.social_media ?? profile.social_media));
-    setBookingSite(d?.booking_site ?? profile.booking_site ?? "");
+    setAboutMe(resolveLaneAboutMe(d?.about_me));
+    setSocialLinks(
+      parseSocialLinks(
+        laneScopedNullableField(
+          d ?? null,
+          professionApi,
+          d?.social_media,
+          profile.social_media
+        )
+      )
+    );
+    setBookingSite(
+      laneScopedTextField(
+        d ?? null,
+        professionApi,
+        d?.booking_site,
+        profile.booking_site
+      )
+    );
     setDiscoveryCategories(
       sanitizeDiscoveryCategoriesForProfession(
         normalizeDiscoveryCategoriesFromApi(d?.discovery_categories),
         professionApi
       )
     );
+    setColorBrands(
+      professionApi === "hair" ? parseColorBrands(profile.color_brand ?? "") : []
+    );
   }, [
     professionApi,
     profile.id,
     profile.professions_detail,
-    profile.about_me,
     profile.social_media,
     profile.booking_site,
+    profile.color_brand,
   ]);
 
   const [changed, setChanged] = useState(false);
@@ -545,20 +582,22 @@ const AboutMe = () => {
 
   const commitSocialUrl = () => {
     if (!socialUrlModal) return;
-    let u = socialUrlModal.draft.trim();
-    if (!u) {
+    const draft = socialUrlModal.draft.trim();
+    if (!draft) {
       setSocialUrlModal(null);
       return;
     }
-    if (!/^https?:\/\//i.test(u)) {
-      u = `https://${u}`;
-    }
-    try {
-      void new URL(u);
-    } catch {
-      Alert.alert(t("profile.invalidLink"), t("profile.enterValidUrl"));
+    const result = validateExternalUrl(draft);
+    if (!result.ok) {
+      Alert.alert(
+        t("profile.invalidLink"),
+        result.blocked
+          ? t("profile.blockedLink")
+          : t("profile.enterValidUrl")
+      );
       return;
     }
+    const u = result.normalized;
     setSocialLinks((prev) => {
       const next = [...prev];
       const idx = socialUrlModal.editIndex;
@@ -574,22 +613,23 @@ const AboutMe = () => {
 
   const commitBookingUrl = () => {
     if (!bookingUrlModal) return;
-    let u = bookingUrlModal.draft.trim();
-    if (!u) {
+    const draft = bookingUrlModal.draft.trim();
+    if (!draft) {
       setBookingSite("");
       setBookingUrlModal(null);
       return;
     }
-    if (!/^https?:\/\//i.test(u)) {
-      u = `https://${u}`;
-    }
-    try {
-      void new URL(u);
-    } catch {
-      Alert.alert(t("profile.invalidLink"), t("profile.enterValidWebsiteUrl"));
+    const result = validateExternalUrl(draft);
+    if (!result.ok) {
+      Alert.alert(
+        t("profile.invalidLink"),
+        result.blocked
+          ? t("profile.blockedLink")
+          : t("profile.enterValidWebsiteUrl")
+      );
       return;
     }
-    setBookingSite(u);
+    setBookingSite(result.normalized);
     setBookingUrlModal(null);
   };
 

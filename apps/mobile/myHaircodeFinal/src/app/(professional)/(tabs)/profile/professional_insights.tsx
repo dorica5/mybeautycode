@@ -8,11 +8,10 @@ import {
   ActivityIndicator,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
 import { Eye, Globe, ShareNetwork } from "phosphor-react-native";
 import { useQuery } from "@tanstack/react-query";
-import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { fetchMyProfessionalAnalytics } from "@/src/api/professionalAnalytics";
@@ -32,7 +31,11 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
-import { NavBackRow } from "@/src/components/NavBackRow";
+import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
+import {
+  MintProfileScreenShell,
+  mintProfileScrollContent,
+} from "@/src/components/MintProfileScreenShell";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { SocialStrokeIcon20 } from "@/src/components/icons/GetDiscoveredStrokeIcons";
 import type { SocialKind } from "@/src/lib/inferSocialFromUrl";
@@ -144,168 +147,164 @@ const ProfessionalInsightsScreen = () => {
   const heroPatternVerticalNudge = heroHeight * 0.34;
 
   return (
-    <>
-      <StatusBar style="dark" />
-      <View style={styles.outer}>
-        <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+    <MintProfileScreenShell>
+      <View style={styles.page}>
+        <View style={navBackChromeStyles.screenBar}>
+          <NavBackRow
+            onPress={() => router.back()}
+            layout="inlineBar"
+            hitSlop={12}
+            accessibilityLabel={t("common.goBack")}
+          />
+        </View>
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text
+            style={[Typography.h3, styles.heroTitle]}
+            accessibilityRole="header"
           >
-            <View style={styles.paddedHorizontal}>
-              <NavBackRow
-                onPress={() => router.back()}
-                style={styles.backRow}
-                hitSlop={12}
-                accessibilityLabel={t("common.goBack")}
+            {t("profile.yourReach")}
+          </Text>
+          <Text style={[Typography.outfitRegular16, styles.subtitle]}>
+            {professionLine
+              ? t("profile.reachSubtitleWithProfession", { profession: professionLine })
+              : t("profile.reachSubtitle")}
+          </Text>
+
+          <View
+            style={[
+              styles.heroBleed,
+              {
+                width: patternWidth,
+                marginLeft: -insets.left - responsivePadding(24),
+                marginRight: -insets.right - responsivePadding(24),
+                height: heroHeight,
+              },
+            ]}
+          >
+            <View style={[styles.hero, { height: heroHeight }]}>
+              <OrganicPattern
+                width={patternWidth}
+                height={heroHeight}
+                preserveAspectRatio="xMidYMid slice"
+                style={{
+                  transform: [{ translateY: -heroPatternVerticalNudge }],
+                }}
               />
             </View>
+          </View>
 
-            <View
-              style={[
-                styles.heroBleed,
-                {
-                  width: patternWidth,
-                  marginLeft: -insets.left,
-                  marginRight: -insets.right,
-                  height: heroHeight,
-                },
-              ]}
-            >
-              <View style={[styles.hero, { height: heroHeight }]}>
-                <OrganicPattern
-                  width={patternWidth}
-                  height={heroHeight}
-                  preserveAspectRatio="xMidYMid slice"
-                  style={{
-                    transform: [{ translateY: -heroPatternVerticalNudge }],
-                  }}
-                />
+          {!storedProfessionReady || !professionParam ? (
+            <View style={styles.loadingBlock}>
+              <ActivityIndicator color={primaryBlack} />
+            </View>
+          ) : isLoading ? (
+            <View style={styles.loadingBlock}>
+              <ActivityIndicator color={primaryBlack} />
+            </View>
+          ) : isError ? (
+            <View style={styles.errorCard}>
+              <Text style={[Typography.outfitRegular16, styles.errorText]}>
+                {t("profile.couldNotLoadStats")}
+              </Text>
+              <Pressable
+                onPress={() => refetch()}
+                style={styles.retryBtn}
+                accessibilityRole="button"
+              >
+                <Text style={[Typography.label, styles.retryLabel]}>{t("common.tryAgain")}</Text>
+              </Pressable>
+            </View>
+          ) : data ? (
+            <View style={styles.cards}>
+              <View style={styles.statCard}>
+                <View style={styles.statIconRow}>
+                  <Eye size={responsiveScale(26)} color={primaryBlack} weight="duotone" />
+                  <Text style={[Typography.label, styles.statLabel]}>{t("profile.profileViews")}</Text>
+                </View>
+                <Text style={styles.statNumber}>{formatInt(data.profileViewCount)}</Text>
+                <Text style={[Typography.outfitRegular16, styles.statHint]}>
+                  {t("profile.profileViewsHint")}
+                </Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={styles.statIconRow}>
+                  <Globe size={responsiveScale(26)} color={primaryBlack} weight="duotone" />
+                  <Text style={[Typography.label, styles.statLabel]}>{t("profile.bookingTaps")}</Text>
+                </View>
+                <Text style={styles.statNumber}>{formatInt(data.bookingClickCount)}</Text>
+                <Text style={[Typography.outfitRegular16, styles.statHint]}>
+                  {t("profile.bookingTapsHint")}
+                </Text>
+              </View>
+
+              <View style={[styles.statCard, styles.statCardLast]}>
+                <View style={styles.statIconRow}>
+                  <ShareNetwork
+                    size={responsiveScale(26)}
+                    color={primaryBlack}
+                    weight="duotone"
+                  />
+                  <Text style={[Typography.label, styles.statLabel]}>{t("profile.socialTaps")}</Text>
+                </View>
+                <Text style={styles.statNumber}>{formatInt(data.socialClickCount)}</Text>
+                <SocialTapBreakdown rows={socialBreakdownRows} />
               </View>
             </View>
-
-            <View style={styles.paddedHorizontal}>
-              <Text style={[Typography.h3, styles.title]}>{t("profile.yourReach")}</Text>
-              <Text style={[Typography.outfitRegular16, styles.subtitle]}>
-                {professionLine
-                  ? t("profile.reachSubtitleWithProfession", { profession: professionLine })
-                  : t("profile.reachSubtitle")}
-              </Text>
-
-              {!storedProfessionReady || !professionParam ? (
-                <View style={styles.loadingBlock}>
-                  <ActivityIndicator color={primaryBlack} />
-                </View>
-              ) : isLoading ? (
-                <View style={styles.loadingBlock}>
-                  <ActivityIndicator color={primaryBlack} />
-                </View>
-              ) : isError ? (
-                <View style={styles.errorCard}>
-                  <Text style={[Typography.outfitRegular16, styles.errorText]}>
-                    {t("profile.couldNotLoadStats")}
-                  </Text>
-                  <Pressable
-                    onPress={() => refetch()}
-                    style={styles.retryBtn}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[Typography.label, styles.retryLabel]}>{t("common.tryAgain")}</Text>
-                  </Pressable>
-                </View>
-              ) : data ? (
-                <View style={styles.cards}>
-                  <View style={styles.statCard}>
-                    <View style={styles.statIconRow}>
-                      <Eye size={responsiveScale(26)} color={primaryBlack} weight="duotone" />
-                      <Text style={[Typography.label, styles.statLabel]}>{t("profile.profileViews")}</Text>
-                    </View>
-                    <Text style={styles.statNumber}>{formatInt(data.profileViewCount)}</Text>
-                    <Text style={[Typography.outfitRegular16, styles.statHint]}>
-                      {t("profile.profileViewsHint")}
-                    </Text>
-                  </View>
-
-                  <View style={styles.statCard}>
-                    <View style={styles.statIconRow}>
-                      <Globe size={responsiveScale(26)} color={primaryBlack} weight="duotone" />
-                      <Text style={[Typography.label, styles.statLabel]}>{t("profile.bookingTaps")}</Text>
-                    </View>
-                    <Text style={styles.statNumber}>{formatInt(data.bookingClickCount)}</Text>
-                    <Text style={[Typography.outfitRegular16, styles.statHint]}>
-                      {t("profile.bookingTapsHint")}
-                    </Text>
-                  </View>
-
-                  <View style={[styles.statCard, styles.statCardLast]}>
-                    <View style={styles.statIconRow}>
-                      <ShareNetwork
-                        size={responsiveScale(26)}
-                        color={primaryBlack}
-                        weight="duotone"
-                      />
-                      <Text style={[Typography.label, styles.statLabel]}>{t("profile.socialTaps")}</Text>
-                    </View>
-                    <Text style={styles.statNumber}>{formatInt(data.socialClickCount)}</Text>
-                    <SocialTapBreakdown rows={socialBreakdownRows} />
-                  </View>
-                </View>
-              ) : null}
-
-              <Text style={[Typography.bodySmall, styles.footerNote]}>
-                {t("profile.reachFooterNote")}
-              </Text>
-            </View>
-          </ScrollView>
-          {isRefetching && !isLoading ? (
-            <View
-              style={[styles.refetchHint, { right: insets.right + responsivePadding(20) }]}
-              pointerEvents="none"
-            >
-              <ActivityIndicator size="small" color={primaryBlack} />
-            </View>
           ) : null}
-        </SafeAreaView>
+
+          <Text style={[Typography.bodySmall, styles.footerNote]}>
+            {t("profile.reachFooterNote")}
+          </Text>
+        </ScrollView>
+
+        {isRefetching && !isLoading ? (
+          <View
+            style={[styles.refetchHint, { right: insets.right + responsivePadding(20) }]}
+            pointerEvents="none"
+          >
+            <ActivityIndicator size="small" color={primaryBlack} />
+          </View>
+        ) : null}
       </View>
-    </>
+    </MintProfileScreenShell>
   );
 };
 
 export default ProfessionalInsightsScreen;
 
 const styles = StyleSheet.create({
-  outer: {
+  page: {
     flex: 1,
-    backgroundColor: primaryGreen,
   },
-  safe: {
+  scroll: {
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingBottom: responsiveScale(32),
+    ...mintProfileScrollContent,
+    paddingTop: responsiveMargin(12),
   },
-  paddedHorizontal: {
-    paddingHorizontal: responsivePadding(24),
-  },
-  backRow: {
-    alignSelf: "flex-start",
-    paddingVertical: responsiveMargin(8),
+  heroTitle: {
+    color: primaryBlack,
+    textAlign: "center",
+    width: "100%",
+    marginTop: responsiveMargin(4),
+    marginBottom: responsiveMargin(8),
   },
   heroBleed: {
-    marginTop: responsiveMargin(8),
-    marginBottom: responsiveMargin(-30),
+    marginTop: responsiveMargin(6),
+    marginBottom: responsiveMargin(-24),
     overflow: "hidden",
   },
   hero: {
     backgroundColor: primaryGreen,
     overflow: "hidden",
     width: "100%",
-  },
-  title: {
-    color: primaryBlack,
-    textAlign: "center",
-    marginBottom: responsiveMargin(8),
   },
   subtitle: {
     color: primaryBlack,

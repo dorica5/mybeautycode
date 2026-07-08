@@ -12,10 +12,10 @@ import {
 import { DotsThree } from "phosphor-react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useClientSearch, requestClientLink } from "@/src/api/profiles";
-import MyButton from "@/src/components/MyButton";
+import { BlockedInlineNotice } from "@/src/components/BlockedProfileScreen";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
   Colors,
@@ -24,21 +24,23 @@ import {
   primaryWhite,
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
-import { router, useFocusEffect } from "expo-router";
+import { router } from "expo-router";
 import {
-  getClientLinkUiStatus,
   removeRelationship,
+  useClientLinkUiStatus,
+  clientLinkUiStatusQueryKey,
   type ClientLinkUiStatus,
 } from "@/src/api/relationships";
 import {
-  isBlocked,
   unblockUser,
-  UNBLOCK_RELATIONSHIP_RESET_ALERT,
   blockUser,
   reportUserEnhanced,
   REPORT_REASONS,
   type ReportReason,
+  useViewerBlockedTarget,
 } from "@/src/api/moderation";
+import { UnblockSuccessModal } from "@/src/components/UnblockSuccessModal";
+import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
   ModerationSheetHeading,
@@ -64,7 +66,7 @@ import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { coerceRouteParam, isUuid } from "@/src/utils/isUuid";
 import { useI18n } from "@/src/providers/LanguageProvider";
-import { reportReasonLabel } from "@/src/i18n/moderationLabels";
+import { resolveClientAboutMe } from "@/src/lib/clientAboutMe";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -77,6 +79,7 @@ const UserProfile = () => {
     full_name?: string | string[];
     phone_number?: string | string[];
     relationship?: string | string[];
+    link_pending?: string | string[];
     price?: string | string[];
   }>();
   const client_id =
@@ -94,19 +97,21 @@ const UserProfile = () => {
           (profileData as { Username?: string }).Username,
         avatar_url: profileData.avatarUrl ?? profileData.avatar_url,
         phone_number: profileData.phoneNumber ?? profileData.phone_number,
-        about_me: profileData.aboutMe ?? profileData.about_me,
+        about_me: resolveClientAboutMe(
+          profileData as Pick<Profile, "client_about_me" | "about_me">
+        ),
       }
     : undefined;
 
   const { session, profile: myProfile } = useAuth();
-  const { activeProfessionCode } = useActiveProfessionState(myProfile);
+  const { activeProfessionCode, storedProfessionReady } =
+    useActiveProfessionState(myProfile);
   const [loading, setLoading] = useState(false);
-  const [linkState, setLinkState] = useState<ClientLinkUiStatus | null>(null);
-  const [isBlockedUser, setIsBlockedUser] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [unblockSuccessVisible, setUnblockSuccessVisible] = useState(false);
   const queryClient = useQueryClient();
 
   const hairdresser_id = session?.user.id;
@@ -120,47 +125,62 @@ const UserProfile = () => {
 
   const navFullName = paramStr(params.full_name);
   const navPhone = paramStr(params.phone_number);
+  const navLinkPending = paramStr(params.link_pending) === "true";
+  const navRelationshipActive = paramStr(params.relationship) === "true";
 
-  const refreshLinkState = useCallback(async () => {
-    if (!hairdresser_id || !client_id || !isUuid(client_id)) return;
-    try {
-      const s = await getClientLinkUiStatus(
-        String(hairdresser_id),
-        client_id,
-        activeProfessionCode
-      );
-      setLinkState(s);
-    } catch (error) {
-      console.error("Error loading client link state:", error);
-      setLinkState("none");
-    }
-  }, [hairdresser_id, client_id, activeProfessionCode]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void refreshLinkState();
-    }, [refreshLinkState])
+  const linkStatusQueryEnabled = Boolean(
+    storedProfessionReady &&
+      activeProfessionCode &&
+      hairdresser_id &&
+      client_id &&
+      isUuid(client_id)
   );
 
-  const isRelated = linkState === "active";
+  const initialLinkStatus: ClientLinkUiStatus | undefined = navRelationshipActive
+    ? "active"
+    : navLinkPending
+      ? "pending"
+      : undefined;
 
-  useEffect(() => {
-    const checkBlocked = async () => {
-      if (client_id && hairdresser_id && isUuid(client_id)) {
-        const blocked = await isBlocked(hairdresser_id, client_id);
-        setIsBlockedUser(blocked);
-      }
-    };
-    checkBlocked();
-  }, [client_id, hairdresser_id]);
+  const {
+    data: linkState,
+    isPending: linkStatePending,
+    isFetched: linkStateFetched,
+  } = useClientLinkUiStatus(hairdresser_id, client_id, activeProfessionCode, {
+    enabled: linkStatusQueryEnabled,
+    initialStatus: initialLinkStatus,
+  });
+
+  const linkStateResolved =
+    linkState ??
+    (linkStatusQueryEnabled && linkStateFetched ? ("none" as const) : null);
+
+  const isRelated = linkStateResolved === "active";
+
+  const { isBlocked: isBlockedUser, ready: blockStateReady } =
+    useViewerBlockedTarget(hairdresser_id, client_id, activeProfessionCode);
 
   const handleAddClient = async () => {
-    if (linkState === "pending" || loading || !client_id || !isUuid(client_id))
+    if (
+      linkStateResolved === "pending" ||
+      loading ||
+      !client_id ||
+      !isUuid(client_id) ||
+      !hairdresser_id ||
+      !activeProfessionCode
+    )
       return;
     setLoading(true);
     try {
       await requestClientLink(client_id, activeProfessionCode);
-      setLinkState("pending");
+      queryClient.setQueryData(
+        clientLinkUiStatusQueryKey(
+          String(hairdresser_id),
+          client_id,
+          activeProfessionCode
+        ),
+        "pending" satisfies ClientLinkUiStatus
+      );
       await queryClient.invalidateQueries({ queryKey: ["clientSearch"] });
       setAlertVisible(true);
     } catch (err) {
@@ -184,7 +204,16 @@ const UserProfile = () => {
       await queryClient.invalidateQueries({
         queryKey: ["latest_visits", hairdresser_id],
       });
-      setLinkState("none");
+      if (hairdresser_id && activeProfessionCode) {
+        queryClient.setQueryData(
+          clientLinkUiStatusQueryKey(
+            String(hairdresser_id),
+            cid,
+            activeProfessionCode
+          ),
+          "none" satisfies ClientLinkUiStatus
+        );
+      }
       setActiveAction(null);
     } catch {
       Alert.alert(t("common.error"), t("moderation.removeRelationshipFailed"));
@@ -298,11 +327,12 @@ const UserProfile = () => {
                       : t("moderation.inappropriateContent")
                 }
                 onPress={async () => {
-                  if (!client_id || !hairdresser_id) return;
+                  if (!client_id || !hairdresser_id || !activeProfessionCode) return;
                   await blockUser(
                     hairdresser_id,
                     client_id,
                     reason,
+                    activeProfessionCode,
                     queryClient
                   );
                   Alert.alert(
@@ -312,7 +342,6 @@ const UserProfile = () => {
                     })
                   );
                   setActiveAction(null);
-                  setIsBlockedUser(true);
                 }}
               />
             )
@@ -358,12 +387,14 @@ const UserProfile = () => {
     );
   }
 
-  if (linkState === null) {
+  if (
+    linkStateResolved === null ||
+    !storedProfessionReady ||
+    !activeProfessionCode ||
+    !blockStateReady
+  ) {
     return (
-      <SafeAreaView style={[styles.mintRoot, styles.mintCenter]} edges={["top"]}>
-        <StatusBar style="dark" />
-        <ActivityIndicator color={primaryBlack} />
-      </SafeAreaView>
+      <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />
     );
   }
 
@@ -419,46 +450,39 @@ const UserProfile = () => {
             ) : null}
 
             {isBlockedUser ? (
-              <View style={styles.mintButtonWrap}>
-                <MyButton
-                  style={[styles.unblockMint, { borderColor: "red" }]}
-                  text={t("profile.unblock")}
-                  textSize={18}
-                  textTabletSize={14}
-                  onPress={async () => {
-                    await unblockUser(
-                      hairdresser_id,
-                      String(client_id),
-                      queryClient
-                    );
-                    setIsBlockedUser(false);
-                    Alert.alert(
-                      UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
-                      UNBLOCK_RELATIONSHIP_RESET_ALERT.message
-                    );
-                  }}
-                />
-              </View>
+              <BlockedInlineNotice
+                style={styles.mintButtonWrap}
+                onUnblock={async () => {
+                  if (!hairdresser_id || !client_id || !activeProfessionCode) return;
+                  await unblockUser(
+                    hairdresser_id,
+                    String(client_id),
+                    activeProfessionCode,
+                    queryClient
+                  );
+                  setUnblockSuccessVisible(true);
+                }}
+              />
             ) : (
               <Pressable
                 style={({ pressed }) => [
                   styles.addClientPill,
                   pressed &&
-                    linkState === "none" &&
+                    linkStateResolved === "none" &&
                     !loading && { opacity: 0.85 },
                 ]}
                 onPress={handleAddClient}
-                disabled={linkState === "pending" || loading}
+                disabled={linkStateResolved === "pending" || loading}
                 accessibilityRole="button"
                 accessibilityState={{
-                  disabled: linkState === "pending" || loading,
+                  disabled: linkStateResolved === "pending" || loading,
                 }}
               >
-                {loading ? (
+                {loading || (linkStatePending && linkState == null) ? (
                   <ActivityIndicator color={primaryBlack} />
                 ) : (
                   <Text style={styles.addClientPillLabel}>
-                    {linkState === "pending"
+                    {linkStateResolved === "pending"
                       ? t("profile.requestPending")
                       : t("profile.addClient")}
                   </Text>
@@ -473,6 +497,10 @@ const UserProfile = () => {
             clientName={data?.full_name?.trim() || navFullName?.trim() || null}
           />
         </SafeAreaView>
+        <UnblockSuccessModal
+          visible={unblockSuccessVisible}
+          onClose={() => setUnblockSuccessVisible(false)}
+        />
       </>
     );
   }
@@ -523,23 +551,16 @@ const UserProfile = () => {
 
             <View style={styles.whiteStack}>
               {isBlockedUser ? (
-                <MyButton
-                  style={[styles.whiteUnblockButton, { borderColor: "red" }]}
-                  text={t("profile.unblockUser")}
-                  textSize={18}
-                  textTabletSize={14}
-                  onPress={async () => {
-                    if (!hairdresser_id || !client_id) return;
+                <BlockedInlineNotice
+                  onUnblock={async () => {
+                    if (!hairdresser_id || !client_id || !activeProfessionCode) return;
                     await unblockUser(
                       hairdresser_id,
                       String(client_id),
+                      activeProfessionCode,
                       queryClient
                     );
-                    setIsBlockedUser(false);
-                    Alert.alert(
-                      UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
-                      UNBLOCK_RELATIONSHIP_RESET_ALERT.message
-                    );
+                    setUnblockSuccessVisible(true);
                   }}
                 />
               ) : (
@@ -599,6 +620,10 @@ const UserProfile = () => {
           modalHeight={screenHeight * 0.72}
           sheetVariant="brand"
           renderContent={renderSecondaryModal()}
+        />
+        <UnblockSuccessModal
+          visible={unblockSuccessVisible}
+          onClose={() => setUnblockSuccessVisible(false)}
         />
       </View>
     </>
@@ -687,16 +712,6 @@ const styles = StyleSheet.create({
     marginBottom: responsiveMargin(16),
     textAlign: "center",
   },
-  whiteUnblockButton: {
-    marginTop: responsiveScale(24),
-    height: responsiveScale(50),
-    paddingVertical: responsivePadding(12, 8),
-    backgroundColor: Colors.light.yellowish,
-    borderWidth: responsiveScale(2),
-    borderColor: Colors.dark.warmGreen,
-    width: "95%",
-    alignSelf: "center",
-  },
   aboutSection: {
     width: "100%",
     marginTop: responsiveScale(8),
@@ -743,12 +758,6 @@ const styles = StyleSheet.create({
     marginTop: responsiveMargin(8),
     width: "100%",
     maxWidth: 400,
-    alignSelf: "center",
-  },
-  unblockMint: {
-    borderWidth: responsiveScale(2),
-    backgroundColor: "transparent",
-    width: "95%",
     alignSelf: "center",
   },
 });

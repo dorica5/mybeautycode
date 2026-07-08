@@ -8,7 +8,7 @@ import {
   Dimensions,
   useWindowDimensions,
 } from "react-native";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CaretRight, Plus, Eye, DotsThree } from "phosphor-react-native";
 import { ViewGalleryRowIcon } from "@/src/components/ViewGalleryRowIcon";
@@ -20,7 +20,7 @@ import {
   reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
 import { router, useLocalSearchParams } from "expo-router";
-import MyButton from "@/src/components/MyButton";
+import { BlockedInlineNotice } from "@/src/components/BlockedProfileScreen";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
@@ -33,13 +33,14 @@ import {
 } from "@/src/components/MintBrandModal";
 import {
   blockUser,
-  isBlocked,
   reportUserEnhanced,
   REPORT_REASONS,
   type ReportReason,
-  UNBLOCK_RELATIONSHIP_RESET_ALERT,
   unblockUser,
+  useViewerBlockedTarget,
+  useBlockedBySender,
 } from "@/src/api/moderation";
+import { UnblockSuccessModal } from "@/src/components/UnblockSuccessModal";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import {
@@ -200,7 +201,22 @@ const VisitList = () => {
   const [activeAction, setActiveAction] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
 
-  const [isBlockedUser, setIsBlockedUser] = useState(false);
+  const [unblockSuccessVisible, setUnblockSuccessVisible] = useState(false);
+
+  const { isBlocked: isBlockedUser, ready: blockStateReady } =
+    useViewerBlockedTarget(
+      hairdresser_id,
+      typeof client_id === "string" ? client_id : undefined,
+      navProfessionCode
+    );
+  const { isBlockedBySender: isBlockedByClient, ready: blockedByReady } =
+    useBlockedBySender(
+      hairdresser_id,
+      typeof client_id === "string" ? client_id : undefined,
+      navProfessionCode
+    );
+  const profileUnavailable =
+    isBlockedUser || isBlockedByClient;
 
   /** Pro must not open Safety & privacy against their own client profile. */
   const isSelfClientProfile = Boolean(
@@ -209,7 +225,7 @@ const VisitList = () => {
       String(hairdresser_id) === String(client_id)
   );
 
-  const displayPhonePill = isBlockedUser
+  const displayPhonePill = profileUnavailable
     ? null
     : data?.phone_number?.trim() ||
       normalizedPhoneNumber?.trim() ||
@@ -249,16 +265,6 @@ const VisitList = () => {
     setPendingAction(action);
     setIsModalVisible(false);
   };
-
-  useEffect(() => {
-    const checkBlocked = async () => {
-      if (client_id && hairdresser_id) {
-        const blocked = await isBlocked(hairdresser_id, client_id);
-        setIsBlockedUser(blocked);
-      }
-    };
-    checkBlocked();
-  }, [client_id, hairdresser_id]);
 
   const handleReport = async (reason: ReportReason) => {
     try {
@@ -329,7 +335,7 @@ const VisitList = () => {
           ? moderationDetailCopy.report
           : null;
 
-  if (relLoading) {
+  if (relLoading || !navProfessionReady || !blockStateReady || !blockedByReady) {
     return <MintFullScreenSpinner />;
   }
 
@@ -343,7 +349,7 @@ const VisitList = () => {
             onPress={() => router.back()}
             hitSlop={12}
           />
-          {!isBlockedUser && !isSelfClientProfile ? (
+          {!profileUnavailable && !isSelfClientProfile ? (
             <Pressable
               onPress={toggleModal}
               style={styles.connectedMore}
@@ -366,26 +372,28 @@ const VisitList = () => {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[
-              styles.avatarOuter,
-              {
-                width: connectedAvatarSize,
-                height: connectedAvatarSize,
-                borderRadius: connectedAvatarSize / 2,
-              },
-            ]}
-          >
-            <AvatarWithSpinner
-              uri={data?.avatar_url}
-              size={connectedAvatarSize}
-              style={{
-                width: connectedAvatarSize,
-                height: connectedAvatarSize,
-                borderRadius: connectedAvatarSize / 2,
-              }}
-            />
-          </View>
+          {!isBlockedByClient ? (
+            <View
+              style={[
+                styles.avatarOuter,
+                {
+                  width: connectedAvatarSize,
+                  height: connectedAvatarSize,
+                  borderRadius: connectedAvatarSize / 2,
+                },
+              ]}
+            >
+              <AvatarWithSpinner
+                uri={data?.avatar_url}
+                size={connectedAvatarSize}
+                style={{
+                  width: connectedAvatarSize,
+                  height: connectedAvatarSize,
+                  borderRadius: connectedAvatarSize / 2,
+                }}
+              />
+            </View>
+          ) : null}
 
           <Text
             style={[Typography.h3, styles.nameMint]}
@@ -393,7 +401,7 @@ const VisitList = () => {
           >
             {displayFullName}
           </Text>
-          {displayUsername ? (
+          {displayUsername && !isBlockedByClient ? (
             <Text
               style={[
                 Typography.anton26,
@@ -411,23 +419,24 @@ const VisitList = () => {
             </View>
           ) : null}
 
-          {isBlockedUser ? (
-            <View style={[styles.mintButtonWrap, { maxWidth: mintContentMaxW }]}>
-              <MyButton
-                style={[styles.unblockMint, { borderColor: "red" }]}
-                text={t("profile.unblockUser")}
-                textSize={18}
-                textTabletSize={14}
-                onPress={async () => {
-                  await unblockUser(hairdresser_id, client_id, queryClient);
-                  setIsBlockedUser(false);
-                  Alert.alert(
-                    UNBLOCK_RELATIONSHIP_RESET_ALERT.title,
-                    UNBLOCK_RELATIONSHIP_RESET_ALERT.message
-                  );
-                }}
-              />
-            </View>
+          {isBlockedByClient ? (
+            <Text style={[Typography.bodyMedium, styles.blockedByHint]}>
+              {t("notifications.profileUnavailableBlocked")}
+            </Text>
+          ) : isBlockedUser ? (
+            <BlockedInlineNotice
+              style={{ maxWidth: mintContentMaxW }}
+              onUnblock={async () => {
+                if (!hairdresser_id || !client_id || !navProfessionCode) return;
+                await unblockUser(
+                  hairdresser_id,
+                  client_id,
+                  navProfessionCode,
+                  queryClient
+                );
+                setUnblockSuccessVisible(true);
+              }}
+            />
           ) : (
             <View style={[styles.actionCard, { maxWidth: mintContentMaxW }]}>
               <View style={styles.actionRowShellFirst}>
@@ -573,10 +582,12 @@ const VisitList = () => {
                                 : t("moderation.inappropriateContent")
                           }
                           onPress={async () => {
+                            if (!navProfessionCode) return;
                             await blockUser(
                               hairdresser_id,
                               client_id,
                               reason,
+                              navProfessionCode,
                               queryClient
                             );
                             Alert.alert(
@@ -586,7 +597,6 @@ const VisitList = () => {
                               })
                             );
                             setActiveAction(null);
-                            setIsBlockedUser(true);
                           }}
                         />
                       )
@@ -618,6 +628,10 @@ const VisitList = () => {
               </MintBrandModalFooterRow>
             ) : null
           }
+        />
+        <UnblockSuccessModal
+          visible={unblockSuccessVisible}
+          onClose={() => setUnblockSuccessVisible(false)}
         />
       </SafeAreaView>
     </>
@@ -656,6 +670,13 @@ const styles = StyleSheet.create({
   nameMint: {
     textAlign: "center",
     marginBottom: responsiveMargin(8),
+  },
+  blockedByHint: {
+    textAlign: "center",
+    marginTop: responsiveMargin(20),
+    maxWidth: 360,
+    color: primaryBlack,
+    opacity: 0.72,
   },
   usernameMint: {
     textAlign: "center",
@@ -736,12 +757,6 @@ const styles = StyleSheet.create({
   mintButtonWrap: {
     marginTop: responsiveMargin(8),
     width: "100%",
-    alignSelf: "center",
-  },
-  unblockMint: {
-    borderWidth: responsiveScale(2),
-    backgroundColor: "transparent",
-    width: "95%",
     alignSelf: "center",
   },
   mintModerationMessage: {

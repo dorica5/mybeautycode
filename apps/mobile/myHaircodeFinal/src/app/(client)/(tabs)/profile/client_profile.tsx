@@ -5,6 +5,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { PublicClientProfileView } from "@/src/components/PublicClientProfileView";
 import { Colors } from "@/src/constants/Colors";
+import { resolveClientAboutMe } from "@/src/lib/clientAboutMe";
 
 const ClientPublicProfile = () => {
   const { profile } = useAuth();
@@ -20,9 +21,9 @@ const ClientPublicProfile = () => {
         fullName={profile.full_name}
         firstName={profile.first_name ?? null}
         username={profile.username ?? null}
-        avatarUrl={avatarImage ?? profile.avatar_url}
+        avatarUrl={profile.avatar_url ?? avatarImage}
         phoneNumber={profile.phone_number}
-        aboutMe={profile.about_me}
+        aboutMe={resolveClientAboutMe(profile)}
         onBack={() => router.back()}
       />
     </>

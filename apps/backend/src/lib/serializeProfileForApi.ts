@@ -2,9 +2,15 @@ import type { Profile, ProfessionalProfile } from "@prisma/client";
 import { profileDisplayName } from "./profileDisplay";
 import {
   pickDefaultProfessionRow,
+  pickProfessionRowForCode,
   professionsDetailSnakeCase,
+  resolveLaneProfessionalName,
   type ProfessionJoinRow,
 } from "./professionBusinessHelpers";
+import {
+  safeBookingSiteForRead,
+  sanitizeSocialMediaForStorage,
+} from "./safeExternalUrl";
 
 type ProfessionalProfileWithProfessions = ProfessionalProfile & {
   professionalProfessions?: ProfessionJoinRow[];
@@ -43,6 +49,8 @@ export type SerializeProfileOptions = {
    * is omitted from the payload even if the target has a hair profession.
    */
   exposeColorBrandToViewer?: boolean;
+  /** Scope flat pro name + salon fields to this lane (multi-account pros). */
+  activeProfessionCode?: string | null;
 };
 
 function toIsoString(value: Date | null | undefined): string | null {
@@ -85,10 +93,14 @@ export function serializeProfileForApi(
       professional_profile_id: null,
       profession_codes: [] as string[],
       display_name: null,
+      pro_first_name: null,
+      pro_last_name: null,
       professions_detail: [] as Record<string, unknown>[],
       business_name: null,
       business_number: null,
       business_address: null,
+      /** Client personal bio. */
+      client_about_me: profile.aboutMe ?? null,
       about_me: profile.aboutMe ?? null,
       social_media: null,
       booking_site: null,
@@ -104,8 +116,13 @@ export function serializeProfileForApi(
       : (options?.professionCodesSqlFallback ?? []);
 
   const rows = prof.professionalProfessions ?? [];
-  const defaultRow = pickDefaultProfessionRow(rows);
-  const professions_detail = professionsDetailSnakeCase(rows);
+  const activeRow = pickProfessionRowForCode(
+    rows,
+    options?.activeProfessionCode
+  );
+  const defaultRow = activeRow ?? pickDefaultProfessionRow(rows);
+  const professions_detail = professionsDetailSnakeCase(rows, profile, prof);
+  const activeName = resolveLaneProfessionalName(defaultRow, profile, prof);
 
   /** Public “salon color lines” — hairdresser viewers only when target lists `hair`. */
   const targetHasHairProfession = profession_codes.includes("hair");
@@ -119,15 +136,20 @@ export function serializeProfileForApi(
     ...base,
     professional_profile_id: prof.id,
     profession_codes,
-    display_name: prof.displayName ?? null,
+    pro_first_name: activeName.firstName,
+    pro_last_name: activeName.lastName,
+    display_name: activeName.displayName,
     /** Per-profession salon / bio / social (use `profession_code` on PATCH to target a row). */
     professions_detail,
     business_name: defaultRow?.businessName ?? null,
     business_number: defaultRow?.businessNumber ?? null,
     business_address: defaultRow?.businessAddress ?? null,
+    /** Client personal bio — independent of pro Get discovered superpower. */
+    client_about_me: profile.aboutMe ?? null,
+    /** Active/default lane superpower (pro Get discovered). */
     about_me: defaultRow?.aboutMe ?? null,
-    social_media: defaultRow?.socialMedia ?? null,
-    booking_site: defaultRow?.bookingSite ?? null,
+    social_media: sanitizeSocialMediaForStorage(defaultRow?.socialMedia),
+    booking_site: safeBookingSiteForRead(defaultRow?.bookingSite),
     /** Legacy aliases — same values as default profession row (hair if present, else lowest sort_order). */
     salon_name: defaultRow?.businessName ?? null,
     salon_phone_number: defaultRow?.businessNumber ?? null,

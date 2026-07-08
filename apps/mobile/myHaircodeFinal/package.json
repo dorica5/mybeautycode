@@ -47,11 +47,13 @@
     "expo-font": "~14.0.8",
     "expo-image": "^3.0.10",
     "expo-image-manipulator": "~14.0.7",
-    "expo-image-picker": "~17.0.8",
+    "expo-image-picker": "~17.0.11",
     "expo-linear-gradient": "~15.0.7",
     "expo-linking": "~8.0.8",
+    "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.11",
     "expo-router": "~6.0.5",
+    "expo-screen-orientation": "~9.0.9",
     "expo-secure-store": "~15.0.7",
     "expo-status-bar": "~3.0.8",
     "expo-web-browser": "~15.0.7",
@@ -68,6 +70,7 @@
     "react-native-gesture-handler": "~2.28.0",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
     "react-native-linear-gradient": "^2.8.3",
+    "react-native-maps": "1.20.1",
     "react-native-picker-select": "^9.3.1",
     "react-native-purchases-ui": "^9.1.0",
     "react-native-reanimated": "~4.1.0",
@@ -80,10 +83,7 @@
     "react-native-web": "0.21.0",
     "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1",
-    "react-native-zoom-toolkit": "^5.0.1",
-    "react-native-maps": "1.20.1",
-    "expo-location": "~19.0.8",
-    "expo-screen-orientation": "~9.0.9"
+    "react-native-zoom-toolkit": "^5.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
@@ -100,9 +100,9 @@
     "jest-expo": "^54.0.0",
     "react-native-svg-transformer": "^1.5.0",
     "react-native-web": "^0.21.0",
+    "sharp": "^0.33.5",
     "typescript": "~5.9.2",
-    "typescript-eslint": "^8.24.0",
-    "sharp": "^0.33.5"
+    "typescript-eslint": "^8.24.0"
   },
   "overrides": {},
   "private": true,

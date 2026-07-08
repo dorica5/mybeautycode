@@ -282,7 +282,7 @@ export const en = {
     blowout_styling: "Blowout & styling",
     afro_hair: "Afro hair",
     perms: "Perms",
-    bridal_hair: "Bridal hair",
+    bridal_hair: "Bride",
     makeup_hair_lane: "Makeup",
     brow_shaping_waxing: "Brow shaping & waxing",
     brow_lamination: "Brow lamination",
@@ -342,8 +342,14 @@ export const en = {
     cannotOpen: "Cannot open",
     cannotOpenMissingClient:
       "This notification is missing client information.",
+    cannotOpenMissingProfessional:
+      "This notification is missing professional information.",
     cannotOpenMissingVisit:
-      "This notification is missing data. This can happen with older notifications. New visit notifications will open correctly.",
+      "This visit is no longer available.",
+    visitUnavailableTitle: "Visit unavailable",
+    visitUnavailableMessage: "It may have been removed.",
+    profileUnavailableBlocked:
+      "This profile is not available.",
   },
   inspiration: {
     title: "My inspiration",
@@ -408,6 +414,7 @@ export const en = {
     removeMedia: "Remove media",
     maxPhotosReached: "Maximum photos reached",
     addImage: "Add image",
+    addVideo: "Add video",
     saveVisit: "Save visit",
     visitNotFound: "Visit not found.",
     missingVisitId: "Missing visit ID",
@@ -415,6 +422,8 @@ export const en = {
     visitPlaceholder: "Visit",
     visitUpdatedSuccess: "Visit updated successfully!",
     visitCreatedSuccess: "Visit created successfully!",
+    visitSavedTitle: "Visit saved",
+    visitSaveFailedTitle: "Could not save visit",
     failedSaveVisit: "Failed to save visit",
     couldNotVerifyDeletion: "Could not verify deletion eligibility.",
     edit: "Edit",
@@ -426,6 +435,14 @@ export const en = {
     failedProcessMedia: "Failed to process media file",
     photoLimitTitle: "Photo limit",
     photoLimitMessage: "You can add up to {{count}} photos per visit.",
+    videoLimitTitle: "Video limit",
+    videoLimitMessage: "You can add up to {{count}} video per visit.",
+    videoTooLongMessage: "Videos must be {{seconds}} seconds or shorter.",
+    videoPickFailedTitle: "Could not add video",
+    videoPickFailedMessage:
+      "The video could not be loaded. If it is stored in iCloud, connect to Wi‑Fi and try again, or pick a video that is saved on your device.",
+    maxVideosReached: "Maximum videos reached",
+    maximumVideos: "Maximum {{count}} video",
     somethingWentWrong: "Something went wrong.",
     couldNotDetermineProfession:
       "Could not determine which profession account this visit is for. Try again.",
@@ -481,6 +498,9 @@ export const en = {
       "They can no longer reach you through {{brand}}.",
     blockUserFailed: "Failed to block user",
     unblockUserFailed: "Failed to unblock user",
+    unblockSuccessTitle: "Block removed",
+    unblockSuccessMessage:
+      "The block is removed. Your link was ended. You can connect again from their profile if you want to work together.",
     removeProfessionalFailed: "Failed to remove this professional.",
     addProfessionalFailed: "Failed to add professional.",
     removeLinkFailed: "Couldn't remove link",
@@ -544,6 +564,8 @@ export const en = {
     yourReachAndStats: "Your reach & stats",
     privacySettings: "Privacy settings",
     manageProfessionals: "Manage professionals",
+    manageProfessionalsLine1: "Manage",
+    manageProfessionalsLine2: "professionals",
     changePassword: "Change password",
     deleteAccount: "Delete account",
     addAccount: "Add account",
@@ -630,6 +652,7 @@ export const en = {
     invalidLink: "Invalid link",
     enterValidUrl: "Enter a valid URL.",
     enterValidWebsiteUrl: "Enter a valid website URL.",
+    blockedLink: "Only safe website links (http or https) are allowed.",
     invalidProfileLink: "This profile link isn't valid.",
     couldNotLoadProfile: "We couldn't load this profile.",
     invalidClientProfileLink:

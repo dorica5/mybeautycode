@@ -1,7 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
-import { resolveLaneAvatarUrl } from "../lib/professionBusinessHelpers";
+import { resolveLaneAvatarUrl, resolveLaneProfessionalName } from "../lib/professionBusinessHelpers";
+import { displayNameForProfessionalLane } from "../lib/laneProfessionalDisplayName";
+import { clientAddedNotificationMessage } from "../lib/clientAddedNotificationMessage";
+import { normalizeProfessionCodeInput } from "../lib/normalizeProfessionCode";
 import { professionService } from "./professionService";
 import { notificationService } from "./notificationService";
 
@@ -17,7 +20,9 @@ export const relationshipService = {
   ) {
     const professionalProfileId =
       await professionService.getOrCreateProfessionalProfileId(hairdresserProfileUserId);
-    const normalizedCode = professionCode.trim() || "hair";
+    const normalizedCode = normalizeProfessionCodeInput(
+      professionCode.trim() || "hair"
+    );
     const professionId = await professionService.getProfessionIdByCode(
       normalizedCode
     );
@@ -25,7 +30,7 @@ export const relationshipService = {
     // profession's search (evidence that survives link deletion).
     await professionService.ensureProfessionsForProfile(professionalProfileId, [
       normalizedCode,
-    ]);
+    ], { seedFromProfileId: hairdresserProfileUserId });
 
     const prof = await prisma.professionalProfile.findUnique({
       where: { id: professionalProfileId },
@@ -85,7 +90,9 @@ export const relationshipService = {
       where: { id: prof.profileId },
       select: { firstName: true, lastName: true },
     });
-    const proName = profileDisplayName(proProfile ?? {});
+    const proName =
+      (await displayNameForProfessionalLane(prof.profileId, normalizedCode)) ??
+      profileDisplayName(proProfile ?? {});
 
     // Connection requests to a client always land in that user's client
     // inbox (professionCode: null). We still carry the requested lane in
@@ -108,9 +115,14 @@ export const relationshipService = {
   async add(
     professionalProfileIdOrProfileId: string | string[],
     clientUserId: string,
-    professionCode: string = "hair"
+    professionCode: string
   ) {
-    const normalizedCode = professionCode.trim() || "hair";
+    const normalizedCode = normalizeProfessionCodeInput(professionCode.trim());
+    if (!normalizedCode) {
+      throw Object.assign(new Error("profession_code is required"), {
+        statusCode: 400,
+      });
+    }
     const professionId = await professionService.getProfessionIdByCode(
       normalizedCode
     );
@@ -123,30 +135,73 @@ export const relationshipService = {
         ? await professionService.getOrCreateProfessionalProfileId(id)
         : id;
 
+      const scope =
+        await professionService.resolveActiveProfessionScopeForProfessionalProfile(
+          professionalProfileId,
+          normalizedCode
+        );
+      if (!scope) {
+        throw Object.assign(
+          new Error(
+            "This professional does not have that profession account"
+          ),
+          { statusCode: 400 }
+        );
+      }
+
       // Materialize the lane on the pro so they stay discoverable in this
       // profession's search even if this link is later removed.
+      const profMeta = await prisma.professionalProfile.findUnique({
+        where: { id: professionalProfileId },
+        select: { profileId: true },
+      });
       await professionService.ensureProfessionsForProfile(
         professionalProfileId,
-        [normalizedCode]
+        [normalizedCode],
+        { seedFromProfileId: profMeta?.profileId }
       );
 
       const existing = await prisma.clientProfessionalLink.findFirst({
         where: {
           professionalProfileId,
           clientUserId,
-          professionId,
+          professionId: scope.professionId,
         },
       });
       if (!existing) {
-        await prisma.clientProfessionalLink.create({
+        const created = await prisma.clientProfessionalLink.create({
           data: {
             professionalProfileId,
             clientUserId,
-            professionId,
+            professionId: scope.professionId,
             status: "active",
             createdByUserId: clientUserId,
           },
         });
+
+        const proProfileUserId = profMeta?.profileId;
+        if (proProfileUserId && proProfileUserId !== clientUserId) {
+          const clientProfile = await prisma.profile.findUnique({
+            where: { id: clientUserId },
+            select: { firstName: true, lastName: true, avatarUrl: true },
+          });
+          const clientName = profileDisplayName(clientProfile ?? {});
+
+          await notificationService.send(clientUserId, proProfileUserId, {
+            type: "FRIEND_REQUEST",
+            message: clientAddedNotificationMessage(clientName, normalizedCode),
+            title: "New client added",
+            status: "accepted",
+            extraData: {
+              isClient: true,
+              senderName: clientName,
+              senderAvatar: clientProfile?.avatarUrl ?? null,
+              profession_code: normalizedCode,
+              clientProfessionalLinkId: created.id,
+            },
+            professionCode: normalizedCode,
+          });
+        }
       }
     }
     return { success: true };
@@ -238,17 +293,27 @@ export const relationshipService = {
     const profileId = profProfile?.profileId;
     if (!profileId || clientIds.length === 0) return [];
 
-    const blocked = await prisma.blockedUser.findMany({
-      where: {
-        OR: [{ blockerId: profileId }, { blockedId: profileId }],
-      },
-      select: { blockerId: true, blockedId: true },
+    const lane = await prisma.profession.findUnique({
+      where: { id: scope.professionId },
+      select: { code: true },
     });
     const blockedIds = new Set<string>();
-    blocked.forEach((b) => {
-      if (b.blockerId === profileId) blockedIds.add(b.blockedId);
-      else blockedIds.add(b.blockerId);
-    });
+    if (lane?.code) {
+      const blocked = await prisma.blockedUser.findMany({
+        where: {
+          professionCode: lane.code,
+          OR: [
+            { blockerId: profileId, blockedId: { in: clientIds } },
+            { blockedId: profileId, blockerId: { in: clientIds } },
+          ],
+        },
+        select: { blockerId: true, blockedId: true },
+      });
+      blocked.forEach((b) => {
+        if (b.blockerId === profileId) blockedIds.add(b.blockedId);
+        else blockedIds.add(b.blockerId);
+      });
+    }
     const validIds = clientIds.filter((id) => !blockedIds.has(id));
     if (validIds.length === 0) return [];
 
@@ -316,11 +381,13 @@ export const relationshipService = {
     const profProfileIds = [
       ...new Set(rels.map((r) => r.professionalProfileId)),
     ];
-    const blocked = await prisma.blockedUser.findMany({
+    const blockedByPros = await prisma.blockedUser.findMany({
       where: { blockedId: clientUserId },
-      select: { blockerId: true },
+      select: { blockerId: true, professionCode: true },
     });
-    const blockerIds = new Set(blocked.map((b) => b.blockerId));
+    const blockedProLaneKeys = new Set(
+      blockedByPros.map((b) => `${b.blockerId}:${b.professionCode}`)
+    );
 
     const profProfiles = await prisma.professionalProfile.findMany({
       where: { id: { in: profProfileIds } },
@@ -341,14 +408,25 @@ export const relationshipService = {
         professionalProfileId: true,
         professionId: true,
         avatarUrl: true,
+        firstName: true,
+        lastName: true,
+        displayName: true,
+        businessName: true,
+        businessNumber: true,
+        businessAddress: true,
+        aboutMe: true,
+        socialMedia: true,
+        bookingSite: true,
+        discoveryCategories: true,
+        profession: { select: { code: true, sortOrder: true } },
       },
     });
     const laneAvatarKey = (profProfileId: string, professionId: string) =>
       `${profProfileId}:${professionId}`;
-    const laneAvatarByKey = new Map(
+    const laneByKey = new Map(
       laneRows.map((r) => [
         laneAvatarKey(r.professionalProfileId, r.professionId),
-        r.avatarUrl,
+        r,
       ])
     );
 
@@ -364,16 +442,25 @@ export const relationshipService = {
     for (const rel of rels) {
       const pp = ppById.get(rel.professionalProfileId);
       if (!pp) continue;
-      if (blockerIds.has(pp.profileId)) continue;
+      if (blockedProLaneKeys.has(`${pp.profileId}:${rel.profession.code}`))
+        continue;
+      const laneRow = laneByKey.get(
+        laneAvatarKey(rel.professionalProfileId, rel.professionId)
+      );
+      const laneName = resolveLaneProfessionalName(
+        laneRow ?? null,
+        pp.profile,
+        null
+      );
       out.push({
         link_id: rel.id,
         id: pp.profile.id,
         profession_code: rel.profession.code,
-        full_name: pp.displayName ?? profileDisplayName(pp.profile),
+        full_name:
+          laneName.displayName?.trim() ||
+          profileDisplayName(pp.profile),
         avatar_url: resolveLaneAvatarUrl(
-          laneAvatarByKey.get(
-            laneAvatarKey(rel.professionalProfileId, rel.professionId)
-          ),
+          laneRow?.avatarUrl,
           pp.profile.avatarUrl
         ),
         lastInteraction: rel.createdAt,

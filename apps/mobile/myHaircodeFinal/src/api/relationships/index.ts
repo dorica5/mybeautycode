@@ -70,6 +70,47 @@ export const relationshipCheckQueryKey = (
     professionCode ?? "unspecified",
   ] as const;
 
+export const clientLinkUiStatusQueryKey = (
+  hairdresserId: string,
+  clientId: string,
+  professionCode: string | null | undefined
+) =>
+  [
+    "clientLinkUiStatus",
+    hairdresserId,
+    clientId,
+    professionCode ?? "unspecified",
+  ] as const;
+
+export function useClientLinkUiStatus(
+  hairdresserId?: string,
+  clientId?: string,
+  professionCode?: string | null,
+  options?: {
+    enabled?: boolean;
+    initialStatus?: ClientLinkUiStatus;
+  }
+) {
+  const laneReady = Boolean(professionCode?.trim());
+  const enabled =
+    options?.enabled !== undefined
+      ? options.enabled
+      : Boolean(hairdresserId && clientId && laneReady);
+
+  return useQuery({
+    queryKey: clientLinkUiStatusQueryKey(
+      hairdresserId ?? "",
+      clientId ?? "",
+      professionCode
+    ),
+    queryFn: () =>
+      getClientLinkUiStatus(hairdresserId!, clientId!, professionCode),
+    enabled,
+    staleTime: 30_000,
+    ...(options?.initialStatus ? { initialData: options.initialStatus } : {}),
+  });
+}
+
 export function useRelationshipCheck(
   clientId?: string,
   hairdresserId?: string,

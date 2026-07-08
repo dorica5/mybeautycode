@@ -164,6 +164,16 @@ export function localizedNotificationMessage(
       return clientAddedPushBody(t, name, professionCode);
     }
     if (isAccepted) {
+      const clientAddFromMessage = notification.message
+        ?.trim()
+        .match(/^(.+?) has added you as their (.+?)\.?$/i);
+      if (clientAddFromMessage) {
+        const lane =
+          professionCode ??
+          professionFromEnglishRole(clientAddFromMessage[2]) ??
+          null;
+        return clientAddedPushBody(t, clientAddFromMessage[1].trim(), lane);
+      }
       return t("notifications.isNowYour", { name, role: roleLabel });
     }
     return t("notifications.wantsConnectOnBrand", {

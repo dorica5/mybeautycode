@@ -19,6 +19,12 @@ export type ClientProfile = {
 /** Per-profession salon / bio / social from API (`professions_detail`). */
 export type ProfessionDetailApi = {
   profession_code: string | null;
+  /** Lane-specific pro given name (independent per profession account). */
+  pro_first_name?: string | null;
+  /** Lane-specific pro family name. */
+  pro_last_name?: string | null;
+  /** Lane-specific combined pro display name. */
+  display_name?: string | null;
   business_name: string | null;
   business_number: string | null;
   business_address: string | null;
@@ -47,16 +53,23 @@ export type Profile = {
   /** Legacy API mirror of `business_number`. */
   salon_phone_number: string | null;
   salon_name: string | null;
-  /** professional_profiles.display_name */
+  /** Combined legacy pro name (derived from pro_first_name + pro_last_name). */
   display_name?: string | null;
+  /** Client personal bio (`profiles.about_me`). Separate from pro superpower. */
+  client_about_me?: string | null;
+  /** Professional account given name (independent of client first_name). */
+  pro_first_name?: string | null;
+  /** Professional account family name (independent of client last_name). */
+  pro_last_name?: string | null;
   business_name?: string | null;
   business_number?: string | null;
   business_address?: string | null;
   professional_profile_id?: string | null;
   /** From API: profession rows linked to this professional profile, sorted by `sort_order`. */
   profession_codes?: string[];
-  /** Per-role business fields; top-level `salon_name` / `about_me` mirror the default profession (hair if present). */
+  /** Per-role business fields; top-level `salon_name` / `about_me` mirror the active/default profession lane. */
   professions_detail?: ProfessionDetailApi[];
+  /** Pro Get discovered superpower for the default/active lane — not the client bio. */
   about_me: string | null;
   social_media: string | null;
   booking_site: string | null;

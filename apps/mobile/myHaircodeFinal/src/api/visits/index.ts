@@ -12,24 +12,85 @@ import { router } from "expo-router";
 import { useEffect } from "react";
 import { Alert } from "react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
-import { isVisitLimitError } from "@/src/constants/billingConfig";
 import { billingQueryKey } from "@/src/api/billing";
+
+export type VisitSubmitResult = {
+  success: true;
+  haircodeId: string;
+  formattedDate: string;
+  newHaircode: unknown;
+  selectedOptions: unknown;
+  price: unknown;
+  duration: unknown;
+};
+
+export function parseVisitSaveErrorMessage(
+  error: unknown,
+  t: (key: string) => string
+): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return t("visits.failedSaveVisit");
+}
+
+function visitListRowId(item: unknown): string | undefined {
+  if (!item || typeof item !== "object") return undefined;
+  const id = (item as { id?: unknown }).id;
+  return typeof id === "string" && id.length > 0 ? id : undefined;
+}
+
+/** Drop a visit from every cached latest / client list (home, see all visits, etc.). */
+export function removeVisitFromVisitListCaches(
+  queryClient: QueryClient,
+  haircodeId: string
+) {
+  if (!haircodeId) return;
+
+  const withoutDeleted = (old: unknown) => {
+    if (!Array.isArray(old)) return old;
+    return old.filter((item) => visitListRowId(item) !== haircodeId);
+  };
+
+  queryClient.setQueriesData({ queryKey: ["latest_visits"] }, withoutDeleted);
+  queryClient.setQueriesData({ queryKey: ["client_visits"] }, withoutDeleted);
+
+  queryClient.removeQueries({ queryKey: [haircodeId, "visit_with_media"] });
+  queryClient.removeQueries({ queryKey: [haircodeId, "visit_media"] });
+}
+
+function invalidateAllVisitListQueries(queryClient: QueryClient) {
+  return Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: ["latest_visits"],
+      refetchType: "all",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: ["client_visits"],
+      refetchType: "all",
+    }),
+  ]);
+}
 
 export const useDeleteHaircodeHairdresser = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ haircodeId }: { haircodeId: string; hairdresserId: string }) => {
-      await queryClient.invalidateQueries({ queryKey: ["latest_visits"] });
       await api.delete(`/api/visits/${haircodeId}/professional`);
-      return { success: true };
+      return { haircodeId };
     },
-    onSuccess: (_, { hairdresserId }) => {
-      queryClient.invalidateQueries({ queryKey: ["latest_visits", hairdresserId] });
-      queryClient.invalidateQueries({ queryKey: ["client_visits"] });
+    onMutate: async ({ haircodeId }) => {
+      await queryClient.cancelQueries({ queryKey: ["latest_visits"] });
+      await queryClient.cancelQueries({ queryKey: ["client_visits"] });
+      removeVisitFromVisitListCaches(queryClient, haircodeId);
+    },
+    onSuccess: ({ haircodeId }) => {
+      removeVisitFromVisitListCaches(queryClient, haircodeId);
+      void invalidateAllVisitListQueries(queryClient);
       router.back();
     },
     onError: (error: Error) => {
+      void invalidateAllVisitListQueries(queryClient);
       Alert.alert("Error", error.message);
     },
   });
@@ -216,14 +277,18 @@ export const useDeleteHaircodeClient = () => {
       await api.delete(`/api/visits/${haircodeId}/client`);
       return haircodeId;
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["client_visits"] });
-      queryClient.invalidateQueries({
-        queryKey: ["professional_visits", variables.hairdresserId],
-      });
+    onMutate: async ({ haircodeId }) => {
+      await queryClient.cancelQueries({ queryKey: ["latest_visits"] });
+      await queryClient.cancelQueries({ queryKey: ["client_visits"] });
+      removeVisitFromVisitListCaches(queryClient, haircodeId);
+    },
+    onSuccess: (haircodeId) => {
+      removeVisitFromVisitListCaches(queryClient, haircodeId);
+      void invalidateAllVisitListQueries(queryClient);
       router.back();
     },
     onError: (error: Error) => {
+      void invalidateAllVisitListQueries(queryClient);
       Alert.alert("Error", error.message);
     },
   });
@@ -419,61 +484,6 @@ export const useSubmitHaircode = () => {
         }
       }
 
-      Alert.alert(
-        t("common.success"),
-        isEditing ? t("visits.visitUpdatedSuccess") : t("visits.visitCreatedSuccess")
-      );
-
-      setTimeout(() => {
-        if (isEditing) {
-          router.replace({
-            pathname: "/visits/single_visit",
-            params: {
-              haircodeId: result.haircodeId,
-              description: String(result.newHaircode),
-              services: String(result.selectedOptions),
-              price: String(result.price),
-              duration: String(result.duration),
-              createdAt: result.formattedDate,
-              hairdresserName: (params.hairdresserName as string) || profile.full_name,
-              full_name: params.full_name as string,
-              number: params.number as string,
-              salon_name: (params.salon_name as string) || profile.salon_name,
-              hairdresser_profile_pic:
-                (params.hairdresser_profile_pic as string) || profile.avatar_url,
-            },
-          });
-        } else {
-          router.back();
-        }
-      }, 500);
-    },
-    onError: (error: unknown) => {
-      if (isVisitLimitError(error)) {
-        Alert.alert(t("billing.limitReachedTitle"), t("billing.limitReachedCreate", {
-          limit:
-            (error.billing as { freeVisitLimit?: number } | undefined)
-              ?.freeVisitLimit ?? 10,
-        }), [
-          { text: t("common.cancel"), style: "cancel" },
-          {
-            text: t("billing.subscribeToContinue"),
-            onPress: () =>
-              router.push({
-                pathname: "/Screens/paywall",
-                params: { from: "visit-limit" },
-              }),
-          },
-        ]);
-        return;
-      }
-      const msg =
-        typeof error === "string"
-          ? error
-          : error instanceof Error
-          ? error.message
-          : t("visits.failedSaveVisit");
-      Alert.alert(t("common.error"), msg);
     },
   });
 };

@@ -37,6 +37,19 @@ function parseSocialClickCounts(raw: unknown): Record<string, number> {
   return out;
 }
 
+function normalizeProfileId(id: string | null | undefined): string {
+  return typeof id === "string" ? id.trim().toLowerCase() : "";
+}
+
+function isSelfAnalyticsSubject(
+  subjectProfileId: string,
+  viewerProfileId: string
+): boolean {
+  const subject = normalizeProfileId(subjectProfileId);
+  const viewer = normalizeProfileId(viewerProfileId);
+  return Boolean(subject && viewer && subject === viewer);
+}
+
 async function findActiveProfessionRow(
   subjectProfileId: string,
   professionCode?: string | null
@@ -72,7 +85,7 @@ export const professionalAnalyticsService = {
     socialPlatform?: string | null;
   }): Promise<{ recorded: boolean }> {
     const { subjectProfileId, viewerProfileId, professionCode, event } = params;
-    if (subjectProfileId === viewerProfileId) {
+    if (isSelfAnalyticsSubject(subjectProfileId, viewerProfileId)) {
       return { recorded: false };
     }
 

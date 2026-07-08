@@ -14,7 +14,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "npx tsx prisma/seed.ts",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "slack:feedback:test": "tsx scripts/test-slack-feedback.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

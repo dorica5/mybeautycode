@@ -1,6 +1,7 @@
 import type { PlaceDetails } from "@/src/components/BrandAddressAutocompleteField";
 import type { ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import { parseProfilePhone } from "@/src/lib/profileFieldValidation";
+import { validateExternalUrl } from "@/src/lib/safeExternalUrl";
 
 export type ProfessionalSetupFormFields = {
   businessName: string;
@@ -31,6 +32,24 @@ export function buildProfessionalSetupProfilePutBody(args: {
   const social = fields.socialMedia.trim();
   const booking = fields.bookingSite.trim();
 
+  let socialMedia: string | null = null;
+  if (social.length > 0) {
+    const socialResult = validateExternalUrl(social);
+    if (!socialResult.ok) {
+      throw new Error("Social link must be a safe http or https URL.");
+    }
+    socialMedia = socialResult.normalized;
+  }
+
+  let bookingSite: string | null = null;
+  if (booking.length > 0) {
+    const bookingResult = validateExternalUrl(booking);
+    if (!bookingResult.ok) {
+      throw new Error("Booking site must be a safe http or https URL.");
+    }
+    bookingSite = bookingResult.normalized;
+  }
+
   const placeStillMatches =
     placeDetails && placeDetails.formattedAddress.trim() === bizAddr;
 
@@ -42,8 +61,8 @@ export function buildProfessionalSetupProfilePutBody(args: {
     business_place_id: placeStillMatches ? placeDetails!.placeId : null,
     business_latitude: placeStillMatches ? placeDetails!.latitude : null,
     business_longitude: placeStillMatches ? placeDetails!.longitude : null,
-    social_media: social.length > 0 ? social : null,
-    booking_site: booking.length > 0 ? booking : null,
+    social_media: socialMedia,
+    booking_site: bookingSite,
     about_me: null,
     setup_status: true,
     profession_code: professionCode,

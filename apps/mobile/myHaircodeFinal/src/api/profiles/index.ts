@@ -28,20 +28,26 @@ export async function requestClientLink(
   });
 }
 
+import type { Profile } from "@/src/constants/types";
+
 export const useUpdateSupabaseProfile = () => {
   const queryClient = useQueryClient();
   const { setProfile } = useAuth();
 
   return useMutation({
     mutationFn: async (data: { id: string; [key: string]: unknown }) => {
-      await api.put(`/api/profiles/${data.id}`, data);
-      const fresh = await api.get(`/api/auth/me`);
-      setProfile(fresh as never);
+      const fresh = (await api.put(`/api/profiles/${data.id}`, data)) as Profile;
+      setProfile(fresh);
       return fresh;
     },
     onSuccess: async (_, { id }) => {
       await queryClient.invalidateQueries({ queryKey: ["profiles"] });
       await queryClient.invalidateQueries({ queryKey: ["profiles", id] });
+      await queryClient.invalidateQueries({
+        queryKey: clientProfileByIdQueryKey(id),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["hairdresserSearch"] });
+      await queryClient.invalidateQueries({ queryKey: ["manageHairdresser"] });
     },
   });
 };
@@ -131,7 +137,8 @@ export const useClientSearch = (client_id: string | undefined) => {
     queryKey: clientProfileByIdQueryKey(client_id ?? ""),
     queryFn: () => fetchClientProfileById(client_id!),
     enabled: !!client_id && isUuid(client_id),
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchOnMount: true,
   });
 };
 
@@ -155,7 +162,7 @@ export const useListAllHairdresserSearch = (
         `/api/profiles/search/hairdressers-with-relationship?${params.toString()}`
       );
     },
-    enabled: q.length > 0 && !!clientId,
+    enabled: q.length > 0 && !!clientId && !!code,
     ...SEARCH_QUERY_OPTIONS,
   });
 };
@@ -168,17 +175,28 @@ export const useAddHairdresser = (
   const queryClient = useQueryClient();
   const code = professionCode?.trim() || undefined;
   return useMutation({
-    mutationFn: () =>
-      api.post("/api/relationships", {
+    mutationFn: () => {
+      if (!code) {
+        return Promise.reject(
+          new Error("profession_code is required for this connection")
+        );
+      }
+      return api.post("/api/relationships", {
         hairdresser_id,
         client_id: client_id ?? undefined,
-        ...(code ? { profession_code: code } : {}),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({});
-      queryClient.invalidateQueries({
-        queryKey: ["clientSearch", client_id],
+        profession_code: code,
       });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["relationship"] });
+      if (client_id) {
+        queryClient.invalidateQueries({
+          queryKey: ["manageHairdresser", client_id],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["clientSearch", client_id],
+        });
+      }
     },
   });
 };
@@ -222,6 +240,7 @@ export const useRemoveRelationships = (clientId: string) => {
       await queryClient.invalidateQueries({
         queryKey: ["listAllHairdresserSearch", clientId],
       });
+      await queryClient.invalidateQueries({ queryKey: ["latest_visits"] });
     },
   });
 };

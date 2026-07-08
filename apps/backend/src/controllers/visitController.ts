@@ -286,25 +286,27 @@ export const visitController = {
 
   async deleteHairdresser(req: Request, res: Response) {
     const { id } = req.params;
-    const hairdresserId = req.userId!;
+    const viewerProfileId = req.userId!;
     try {
-      await visitService.deleteByProfessional(id, hairdresserId);
+      await visitService.deleteByProfessional(id, viewerProfileId);
       res.json({ success: true });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to delete";
-      res.status(400).json({ error: msg });
+      const e = err as { statusCode?: number; message?: string };
+      const status = e.statusCode ?? 400;
+      res.status(status).json({ error: e.message ?? "Failed to delete" });
     }
   },
 
   async deleteClient(req: Request, res: Response) {
     const { id } = req.params;
-    const hairdresserId = req.userId!;
+    const clientUserId = req.userId!;
     try {
-      await visitService.deleteByClient(id, hairdresserId);
+      await visitService.deleteByClient(id, clientUserId);
       res.json({ success: true });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to delete";
-      res.status(400).json({ error: msg });
+      const e = err as { statusCode?: number; message?: string };
+      const status = e.statusCode ?? 400;
+      res.status(status).json({ error: e.message ?? "Failed to delete" });
     }
   },
 

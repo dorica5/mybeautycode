@@ -1,6 +1,11 @@
 import { NotificationType, Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
+import {
+  batchDisplayNamesForProfessionalLanes,
+  professionCodeFromNotificationPayload,
+} from "../lib/laneProfessionalDisplayName";
+import { normalizeProfessionCodeInput } from "../lib/normalizeProfessionCode";
 
 /** Inbox list only shows notifications newer than this (calendar months from now). */
 const NOTIFICATION_INBOX_MAX_AGE_MONTHS = 2;
@@ -50,12 +55,14 @@ export const notificationService = {
        *   - `"hair"` / `"nails"` / `"brows"` -> that profession account's inbox
        */
       professionCode?: string | null;
+      /** Override default status (e.g. `accepted` when client already linked). */
+      status?: string | null;
     }
   ) {
     const mappedType = resolveDbNotificationType(params.type);
     const normalizedLane =
       typeof params.professionCode === "string" && params.professionCode.trim()
-        ? params.professionCode.trim()
+        ? normalizeProfessionCodeInput(params.professionCode.trim())
         : null;
     // Mirror the lane in `data` too so legacy UI (NotificationItem) that reads
     // `data.profession_code` keeps working for copy purposes.
@@ -68,7 +75,12 @@ export const notificationService = {
         message: params.message,
         type: mappedType,
         senderId,
-        status: params.type === "FRIEND_REQUEST" ? "pending" : null,
+        status:
+          params.status !== undefined
+            ? params.status
+            : params.type === "FRIEND_REQUEST"
+              ? "pending"
+              : null,
         data: (mergedExtra ?? undefined) as object | undefined,
         professionCode: normalizedLane,
       },
@@ -125,7 +137,7 @@ export const notificationService = {
     if (inbox === null) {
       where.professionCode = null;
     } else if (typeof inbox === "string" && inbox.trim()) {
-      where.professionCode = inbox.trim();
+      where.professionCode = normalizeProfessionCodeInput(inbox.trim());
     }
     /** One round-trip via relation — avoids P1017 when the pool drops between two queries. */
     const rows = await prisma.notification.findMany({
@@ -142,17 +154,39 @@ export const notificationService = {
         },
       },
     });
-    return rows.map(({ sender: senderRow, ...n }) => ({
-      ...n,
-      sender_id: n.senderId,
-      sender: senderRow
-        ? {
-            full_name: profileDisplayName(senderRow),
-            avatar_url: senderRow.avatarUrl,
-          }
-        : null,
-      data: n.data,
-    }));
+    const laneNameLookups = rows
+      .map((row) => {
+        const code = professionCodeFromNotificationPayload(row);
+        if (!code || !row.senderId) return null;
+        return { profileUserId: row.senderId, professionCode: code };
+      })
+      .filter((x): x is { profileUserId: string; professionCode: string } =>
+        Boolean(x)
+      );
+    const laneNames = await batchDisplayNamesForProfessionalLanes(
+      laneNameLookups
+    );
+
+    return rows.map(({ sender: senderRow, ...n }) => {
+      const laneCode = professionCodeFromNotificationPayload(n);
+      const laneName =
+        laneCode && n.senderId
+          ? laneNames.get(
+              `${n.senderId}:${normalizeProfessionCodeInput(laneCode)}`
+            )
+          : undefined;
+      return {
+        ...n,
+        sender_id: n.senderId,
+        sender: senderRow
+          ? {
+              full_name: laneName ?? profileDisplayName(senderRow),
+              avatar_url: senderRow.avatarUrl,
+            }
+          : null,
+        data: n.data,
+      };
+    });
   },
 
   async markAsRead(notificationId: string, userId: string) {

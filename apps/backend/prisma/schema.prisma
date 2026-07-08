@@ -82,6 +82,10 @@ model ProfessionalProfile {
   createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime?                 @map("updated_at") @db.Timestamptz(6)
   displayName              String?                   @map("display_name")
+  /// Professional-facing given name (independent of client `profiles.first_name`).
+  firstName                String?                   @map("first_name")
+  /// Professional-facing family name (independent of client `profiles.last_name`).
+  lastName                 String?                   @map("last_name")
   clientProfessionalLinks  ClientProfessionalLink[]
   professionalHairProfile  ProfessionalHairProfile?
   professionalNailsProfile ProfessionalNailsProfile?
@@ -160,6 +164,10 @@ model ProfessionalProfession {
   socialClickCounts  Json                @default("{}") @map("social_click_counts")
   /// Service/discovery specialization tags for this lane (validated per profession).
   discoveryCategories Json                @default("[]") @map("discovery_categories")
+  /// Pro display name for this lane only (independent per hair / brows / nails).
+  firstName             String?             @map("first_name")
+  lastName              String?             @map("last_name")
+  displayName           String?             @map("display_name")
   profession            Profession          @relation(fields: [professionId], references: [id], onDelete: Cascade)
   professionalProfile   ProfessionalProfile @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
   salon                 Salon?              @relation(fields: [salonId], references: [id], onDelete: SetNull)
@@ -360,17 +368,20 @@ model Notification {
 }
 
 model BlockedUser {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  blockerId String   @map("blocker_id") @db.Uuid
-  blockedId String   @map("blocked_id") @db.Uuid
-  reason    String?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  blocked   Profile  @relation("BlockedUserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
-  blocker   Profile  @relation("BlockedUserBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blockerId        String   @map("blocker_id") @db.Uuid
+  blockedId        String   @map("blocked_id") @db.Uuid
+  /// Profession lane this block applies to (hair, nails, brows_lashes, …).
+  professionCode   String   @map("profession_code")
+  reason           String?
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  blocked          Profile  @relation("BlockedUserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  blocker          Profile  @relation("BlockedUserBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
 
-  @@unique([blockerId, blockedId])
+  @@unique([blockerId, blockedId, professionCode])
   @@index([blockerId])
   @@index([blockedId])
+  @@index([professionCode])
   @@map("blocked_users")
 }
 

@@ -60,6 +60,12 @@ const FindProfessionalsScreen = () => {
   const { profession } = useLocalSearchParams<{ profession?: string | string[] }>();
   const professionKey = parseProfession(normalizeProfessionParam(profession));
 
+  useEffect(() => {
+    if (!professionKey) {
+      router.replace("/(client)/(tabs)/userList/filter-before-map");
+    }
+  }, [professionKey]);
+
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
   const heroPatternVerticalNudge = heroHeight * 0.34;

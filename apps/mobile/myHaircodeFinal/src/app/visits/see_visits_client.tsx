@@ -123,12 +123,14 @@ const SeeVisitsClient = () => {
               const hp =
                 item.hairdresser_profile ?? item.professional_profile ?? null;
               const proAvatarUrl = hp?.avatar_url ?? undefined;
+              const proName = item.hairdresser_name?.trim() ?? "";
+              const subtitleLine = proName || t("common.professional");
 
               return (
                 <VisitTimelineCard
                   avatarUri={proAvatarUrl}
                   dateLine={formatVisitDate(item.created_at)}
-                  subtitleLine={displayClientName}
+                  subtitleLine={subtitleLine}
                   onPressIn={() => prefetchHaircodeWithMedia(queryClient, item.id)}
                   onPress={() => {
                     void prefetchHaircodeWithMedia(queryClient, item.id);

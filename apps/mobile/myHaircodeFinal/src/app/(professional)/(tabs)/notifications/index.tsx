@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,17 @@ import {
   RefreshControl,
   Platform,
 } from "react-native";
+import { useFocusEffect } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { isToday, isYesterday, parseISO } from "date-fns";
 import {
   NotificationItem,
-  type NotificationCardTone,
   type NotificationItemProps,
 } from "@/src/components/NotificationItem";
 import { fetchNotifications } from "@/src/providers/useNotifcations";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import { StatusBar } from "expo-status-bar";
 import { Typography } from "@/src/constants/Typography";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
@@ -110,34 +111,46 @@ function sortGroups(groups: Grouped[]): Grouped[] {
   });
 }
 
-function toneForSection(bucket: DateBucket): NotificationCardTone {
-  return bucket === "today" ? "light" : "dark";
-}
-
 const Notifications = () => {
   const { t, locale } = useI18n();
   const { profile } = useAuth();
-  const { activeProfessionCode } = useActiveProfessionState(profile);
+  const { activeProfessionCode, storedProfessionReady } =
+    useActiveProfessionState(profile);
   const [groupedNotifications, setGroupedNotifications] = useState<Grouped[]>(
     []
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [inboxLoading, setInboxLoading] = useState(true);
+  const [loadedLane, setLoadedLane] = useState<string | null>(null);
+  const loadGenerationRef = useRef(0);
 
   // Pro inbox: show only notifications for the currently active profession
   // account. Switching lanes (hair <-> nails) shows a different inbox.
   const loadNotifications = useCallback(
     async (fromUserPull: boolean) => {
       if (!profile?.id) return;
-      if (!activeProfessionCode) {
+      if (!storedProfessionReady || !activeProfessionCode) {
         setGroupedNotifications([]);
+        setLoadedLane(null);
+        setInboxLoading(false);
         return;
       }
-      if (fromUserPull) setRefreshing(true);
+
+      const lane = activeProfessionCode;
+      const generation = ++loadGenerationRef.current;
+      if (!fromUserPull) {
+        setInboxLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
       try {
         const notifications = (await fetchNotifications(
           profile.id,
-          activeProfessionCode
+          lane
         )) as NotifRow[];
+        if (generation !== loadGenerationRef.current) return;
+
         const visible = notifications.filter((n) => {
           const type = String(n.type ?? "");
           const s = String(n.status ?? (n.data as any)?.status ?? "");
@@ -145,14 +158,25 @@ const Notifications = () => {
           return !(isLinkRequest && s === "rejected");
         });
         setGroupedNotifications(sortGroups(groupByDate(visible, locale)));
+        setLoadedLane(lane);
       } catch (error) {
+        if (generation !== loadGenerationRef.current) return;
         console.error("Error loading notifications:", error);
       } finally {
-        if (fromUserPull) setRefreshing(false);
+        if (generation === loadGenerationRef.current) {
+          if (fromUserPull) setRefreshing(false);
+          else setInboxLoading(false);
+        }
       }
     },
-    [profile?.id, activeProfessionCode, locale]
+    [profile?.id, activeProfessionCode, storedProfessionReady, locale]
   );
+
+  useEffect(() => {
+    setGroupedNotifications([]);
+    setLoadedLane(null);
+    setInboxLoading(true);
+  }, [activeProfessionCode]);
 
   useEffect(() => {
     void loadNotifications(false);
@@ -161,6 +185,18 @@ const Notifications = () => {
     return () => clearInterval(interval);
   }, [loadNotifications]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void loadNotifications(false);
+    }, [loadNotifications])
+  );
+
+  const inboxReady =
+    storedProfessionReady &&
+    Boolean(activeProfessionCode) &&
+    !inboxLoading &&
+    loadedLane === activeProfessionCode;
+
   const renderGroup = ({ item }: { item: Grouped }) => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{bucketLabel(item.bucket, t)}</Text>
@@ -168,7 +204,7 @@ const Notifications = () => {
         <NotificationItem
           key={notification.id}
           notification={notification as NotificationItemProps["notification"]}
-          cardTone={toneForSection(item.bucket)}
+          cardTone="light"
         />
       ))}
     </View>
@@ -182,24 +218,29 @@ const Notifications = () => {
         <Text style={[Typography.h3, styles.title]} accessibilityRole="header">
           {t("notifications.title")}
         </Text>
-        <FlatList
-          data={groupedNotifications}
-          renderItem={renderGroup}
-          keyExtractor={(g) => String(g.bucket)}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>{t("notifications.empty")}</Text>
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => loadNotifications(true)}
-              tintColor={primaryBlack}
-              colors={Platform.OS === "android" ? [primaryBlack] : undefined}
-            />
-          }
-        />
+        {!inboxReady ? (
+          <ThemedRouteLoading accessibilityLabel={t("notifications.title")} />
+        ) : (
+          <FlatList
+            key={activeProfessionCode ?? "pro-inbox"}
+            data={groupedNotifications}
+            renderItem={renderGroup}
+            keyExtractor={(g) => String(g.bucket)}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>{t("notifications.empty")}</Text>
+            }
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => loadNotifications(true)}
+                tintColor={primaryBlack}
+                colors={Platform.OS === "android" ? [primaryBlack] : undefined}
+              />
+            }
+          />
+        )}
       </SafeAreaView>
     </>
   );

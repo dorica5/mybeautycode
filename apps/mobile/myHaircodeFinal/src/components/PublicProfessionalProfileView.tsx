@@ -10,18 +10,19 @@ import {
   Linking,
   Alert,
   useWindowDimensions,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { PublicProfileWorkGrid } from "@/src/components/PublicProfileWorkGrid";
-import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { SocialStrokeIcon20 } from "@/src/components/icons/GetDiscoveredStrokeIcons";
 import { inferSocialFromUrl } from "@/src/lib/inferSocialFromUrl";
 import {
   parseSocialLinks,
   socialLinkRowLabel,
 } from "@/src/lib/socialMediaStorage";
+import { normalizeExternalUrlString } from "@/src/lib/safeExternalUrl";
 import { parseColorBrands } from "@/src/lib/colorBrandStorage";
 import {
   profileHasHairProfession,
@@ -31,6 +32,7 @@ import {
 import {
   useI18n,
 } from "@/src/providers/LanguageProvider";
+import { useAuth } from "@/src/providers/AuthProvider";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -43,6 +45,10 @@ import {
   isTablet,
   contentCardMaxWidth,
 } from "@/src/utils/responsive";
+
+function normalizeProfileId(id: string | null | undefined): string {
+  return typeof id === "string" ? id.trim().toLowerCase() : "";
+}
 
 function displayFirstName(
   first: string | null | undefined,
@@ -57,18 +63,27 @@ function displayFirstName(
   return sp === -1 ? f : f.slice(0, sp);
 }
 
-function normalizeWebUrl(raw: string): string {
-  const t = raw.trim();
-  if (!t) return t;
-  return /^https?:\/\//i.test(t) ? t : `https://${t}`;
-}
-
-async function openExternalUrl(url: string, cannotOpenMessage: string) {
+async function openTelUrl(url: string, cannotOpenMessage: string) {
   const u = url.trim();
   if (!u) return;
   try {
     const ok = await Linking.canOpenURL(u);
     if (ok) await Linking.openURL(u);
+    else Alert.alert(cannotOpenMessage);
+  } catch {
+    Alert.alert(cannotOpenMessage);
+  }
+}
+
+async function openSafeWebUrl(raw: string, cannotOpenMessage: string) {
+  const safe = normalizeExternalUrlString(raw);
+  if (!safe) {
+    Alert.alert(cannotOpenMessage);
+    return;
+  }
+  try {
+    const ok = await Linking.canOpenURL(safe);
+    if (ok) await Linking.openURL(safe);
     else Alert.alert(cannotOpenMessage);
   } catch {
     Alert.alert(cannotOpenMessage);
@@ -143,6 +158,8 @@ export type PublicProfessionalProfileViewProps = {
   /** Client: show Add hairdresser / added state under header */
   showRelationshipCta?: boolean;
   isRelated?: boolean;
+  /** True while relationship status is still loading (avoids flashing add CTA). */
+  relationshipStatusLoading?: boolean;
   addLoading?: boolean;
   onAddHairdresser?: () => void;
   headerRight?: React.ReactNode;
@@ -175,6 +192,7 @@ export function PublicProfessionalProfileView({
   onBack,
   showRelationshipCta,
   isRelated,
+  relationshipStatusLoading = false,
   addLoading,
   onAddHairdresser,
   headerRight,
@@ -182,6 +200,7 @@ export function PublicProfessionalProfileView({
   viewerProfessionCodes,
 }: PublicProfessionalProfileViewProps) {
   const { t } = useI18n();
+  const { profile: viewerProfile } = useAuth();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const layout = useMemo(() => {
@@ -211,6 +230,15 @@ export function PublicProfessionalProfileView({
 
   const lane = analyticsProfessionCode?.trim() || null;
 
+  /** Never count self profile views / own booking or social link taps in insights. */
+  const shouldTrackAnalytics = useMemo(() => {
+    if (mode !== "client" || !lane || !profileUserId?.trim()) return false;
+    const viewerId = normalizeProfileId(viewerProfile?.id);
+    const subjectId = normalizeProfileId(profileUserId);
+    if (!viewerId || !subjectId) return false;
+    return viewerId !== subjectId;
+  }, [mode, lane, profileUserId, viewerProfile?.id]);
+
   const relationshipLaneForCta: ProfessionChoiceCode | null =
     activeProfessionCode ??
     coerceProfessionCode(lane ?? undefined);
@@ -225,13 +253,13 @@ export function PublicProfessionalProfileView({
 
   useFocusEffect(
     useCallback(() => {
-      if (mode !== "client" || !lane || !profileUserId) return;
+      if (!shouldTrackAnalytics) return;
       void recordProfessionalAnalyticsEvent({
         subjectProfileId: profileUserId,
         professionCode: lane,
         event: "profile_view",
       });
-    }, [mode, lane, profileUserId])
+    }, [shouldTrackAnalytics, lane, profileUserId])
   );
 
   const first = displayFirstName(
@@ -241,6 +269,10 @@ export function PublicProfessionalProfileView({
   );
   const businessName = salonName?.trim() ?? "";
   const socialUrls = parseSocialLinks(socialMediaRaw ?? "");
+  const safeBookingUrl = useMemo(
+    () => normalizeExternalUrlString(bookingSite ?? ""),
+    [bookingSite]
+  );
   const colorBrands = parseColorBrands(colorBrandRaw ?? "");
   const targetHairLane =
     activeProfessionCode != null
@@ -261,24 +293,23 @@ export function PublicProfessionalProfileView({
   const handleCall = useCallback(() => {
     const p = salonPhone?.trim();
     if (!p) return;
-    void openExternalUrl(
+    void openTelUrl(
       p.startsWith("tel:") ? p : `tel:${p}`,
       t("common.cannotOpenLink")
     );
   }, [salonPhone, t]);
 
   const handleBooking = useCallback(() => {
-    const u = bookingSite?.trim();
-    if (!u) return;
-    if (mode === "client" && lane && profileUserId) {
+    if (!safeBookingUrl) return;
+    if (shouldTrackAnalytics) {
       void recordProfessionalAnalyticsEvent({
         subjectProfileId: profileUserId,
         professionCode: lane,
         event: "booking_click",
       });
     }
-    void openExternalUrl(normalizeWebUrl(u), t("common.cannotOpenLink"));
-  }, [bookingSite, mode, lane, profileUserId, t]);
+    void openSafeWebUrl(safeBookingUrl, t("common.cannotOpenLink"));
+  }, [safeBookingUrl, shouldTrackAnalytics, lane, profileUserId, t]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -339,25 +370,9 @@ export function PublicProfessionalProfileView({
           ) : null}
         </View>
 
-        {mode === "client" && showRelationshipCta ? (
+        {mode === "client" && (showRelationshipCta || isRelated) ? (
           <View style={styles.ctaWrap}>
-            {!isRelated ? (
-              <PaddedLabelButton
-                title={relationshipCta.addTitle}
-                horizontalPadding={32}
-                verticalPadding={16}
-                onPress={onAddHairdresser}
-                disabled={addLoading}
-                accessibilityLabel={relationshipCta.addTitle}
-                style={[
-                  styles.addHairdresserBtnBase,
-                  layout.tablet
-                    ? styles.addHairdresserBtnTablet
-                    : styles.addHairdresserBtnPhone,
-                ]}
-                textStyle={styles.addHairdresserBtnLabel}
-              />
-            ) : (
+            {isRelated ? (
               <View
                 style={[
                   styles.addHairdresserBtnBase,
@@ -366,11 +381,39 @@ export function PublicProfessionalProfileView({
                     : styles.addHairdresserBtnPhone,
                   styles.addedGhost,
                 ]}
+                accessibilityRole="text"
               >
                 <Text style={[Typography.label, styles.addedGhostLabel]}>
                   {relationshipCta.addedTitle}
                 </Text>
               </View>
+            ) : (
+              <Pressable
+                onPress={onAddHairdresser}
+                disabled={addLoading || relationshipStatusLoading}
+                accessibilityRole="button"
+                accessibilityLabel={relationshipCta.addTitle}
+                accessibilityState={{
+                  disabled: addLoading || relationshipStatusLoading,
+                  busy: addLoading,
+                }}
+                style={({ pressed }) => [
+                  styles.addHairdresserBtnBase,
+                  layout.tablet
+                    ? styles.addHairdresserBtnTablet
+                    : styles.addHairdresserBtnPhone,
+                  styles.addHairdresserBtnPressable,
+                  pressed && !addLoading && { opacity: 0.88 },
+                ]}
+              >
+                {addLoading ? (
+                  <ActivityIndicator color={primaryWhite} />
+                ) : (
+                  <Text style={[Typography.label, styles.addHairdresserBtnLabel]}>
+                    {relationshipCta.addTitle}
+                  </Text>
+                )}
+              </Pressable>
             )}
           </View>
         ) : null}
@@ -410,7 +453,7 @@ export function PublicProfessionalProfileView({
             </View>
           ) : null}
 
-          {bookingSite?.trim() ? (
+          {safeBookingUrl ? (
             <View style={styles.sectionBlock}>
               <Text style={[Typography.label, styles.sectionTitle]}>
                 {t("publicProfile.linkToBookingSite")}
@@ -421,7 +464,7 @@ export function PublicProfessionalProfileView({
                 accessibilityRole="link"
               >
                 <Text style={[Typography.outfitRegular16, styles.pillText]}>
-                  {bookingSite.replace(/^https?:\/\//i, "").replace(/\/$/, "")}
+                  {safeBookingUrl.replace(/^https?:\/\//i, "").replace(/\/$/, "")}
                 </Text>
               </Pressable>
             </View>
@@ -441,7 +484,7 @@ export function PublicProfessionalProfileView({
                       key={`${url}-${index}`}
                       style={styles.pillWithIcon}
                       onPress={() => {
-                        if (mode === "client" && lane && profileUserId) {
+                        if (shouldTrackAnalytics) {
                           void recordProfessionalAnalyticsEvent({
                             subjectProfileId: profileUserId,
                             professionCode: lane,
@@ -449,10 +492,7 @@ export function PublicProfessionalProfileView({
                             socialPlatform: kind,
                           });
                         }
-                        void openExternalUrl(
-                          normalizeWebUrl(url),
-                          t("common.cannotOpenLink")
-                        );
+                        void openSafeWebUrl(url, t("common.cannotOpenLink"));
                       }}
                       accessibilityRole="link"
                       accessibilityLabel={label}
@@ -596,6 +636,12 @@ const styles = StyleSheet.create({
   addHairdresserBtnLabel: {
     color: primaryWhite,
     textAlign: "center",
+  },
+  addHairdresserBtnPressable: {
+    paddingVertical: responsivePadding(16),
+    paddingHorizontal: responsivePadding(32),
+    justifyContent: "center",
+    minHeight: responsiveScale(52),
   },
   addedGhost: {
     backgroundColor: "transparent",

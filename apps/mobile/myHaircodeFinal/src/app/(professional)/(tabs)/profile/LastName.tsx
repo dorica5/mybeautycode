@@ -7,7 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
 import {
   MintProfileScreenShell,
@@ -18,15 +18,21 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
-import { Profile } from "@/src/constants/types";
 import { validatePersonName } from "@/src/lib/profileFieldValidation";
+import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { resolveProfessionalNameParts } from "@/src/lib/professionalDisplayName";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 const LastName = () => {
   const { t } = useI18n();
   const { profile, setProfile } = useAuth();
-  const original = profile.last_name ?? "";
+  const { activeProfessionCode } = useActiveProfessionState(profile);
   const id = profile.id;
+  const nameParts = useMemo(
+    () => resolveProfessionalNameParts(profile, activeProfessionCode),
+    [profile, activeProfessionCode]
+  );
+  const original = nameParts.lastName;
 
   const [lastName, setLastName] = useState(original);
   const [changed, setChanged] = useState(false);
@@ -69,13 +75,16 @@ const LastName = () => {
     }
     setLoading(true);
     updateProfile(
-      { id, last_name: result.value },
       {
-        onSuccess: () => {
-          setProfile((prev: Profile) => ({
-            ...prev,
-            last_name: result.value,
-          }));
+        id,
+        pro_last_name: result.value,
+        ...(activeProfessionCode
+          ? { profession_code: activeProfessionCode }
+          : {}),
+      },
+      {
+        onSuccess: (fresh) => {
+          setProfile(fresh);
           setChanged(false);
           setLoading(false);
           setError(false);
@@ -88,6 +97,10 @@ const LastName = () => {
       }
     );
   };
+
+  useEffect(() => {
+    setLastName(original);
+  }, [original]);
 
   useEffect(() => {
     setChanged(lastName !== original);
