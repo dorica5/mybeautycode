@@ -159,7 +159,10 @@ const ManageProfessionals = () => {
 
   return (
     <MintProfileScreenShell>
-      <TopNav title={t("profile.manageProfessionals")} />
+      <TopNav
+        title={t("profile.manageProfessionalsLine1")}
+        titleLine2={t("profile.manageProfessionalsLine2")}
+      />
 
       {hasRows ? (
         <View style={styles.filtersRow}>
@@ -361,8 +364,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsivePadding(12),
   },
   noHairdresserText: {
-    ...Typography.h3,
-    fontSize: responsiveFontSize(18, 16),
+    ...Typography.bodyLarge,
     color: primaryBlack,
     textAlign: "center",
     marginBottom: responsiveScale(24, 16),

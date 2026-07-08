@@ -40,6 +40,7 @@ import {
   responsiveMargin,
   responsivePadding,
   responsiveScale,
+  responsiveFontSize,
   scalePercent,
   isTablet,
   contentCardMaxWidth,
@@ -578,6 +579,7 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: "center",
     marginTop: responsiveMargin(4),
+    paddingTop: responsivePadding(4),
     paddingBottom: responsivePadding(6),
   },
   avatar: {
@@ -588,18 +590,22 @@ const styles = StyleSheet.create({
     color: primaryBlack,
     textAlign: "center",
     marginBottom: responsiveMargin(4),
+    lineHeight: Math.round(responsiveFontSize(36) * 1.38),
+    paddingTop: responsivePadding(4),
   },
   username: {
     color: primaryBlack,
     textAlign: "center",
     marginBottom: responsiveMargin(20),
+    lineHeight: Math.round(responsiveFontSize(24) * 1.38),
+    paddingTop: responsivePadding(3),
   },
-  /** Do not override `Typography.anton20` lineHeight — a fixed responsiveScale (28)
-   * mismatches scaled font on tablets and clips Anton caps for the salon line. */
   businessName: {
     color: primaryBlack,
     textAlign: "center",
     marginTop: 0,
+    lineHeight: Math.round(responsiveFontSize(20) * 1.38),
+    paddingTop: responsivePadding(4),
   },
   /** Extra vertical room so the salon line clears the username block on large tiles. */
   businessNameTablet: {

@@ -57,7 +57,6 @@ export default function BillingScreen() {
     () =>
       t("profile.billingSubtitle", {
         limit: billing?.freeVisitLimit ?? mobileBillingConfig.FREE_VISIT_LIMIT,
-        price: billing?.monthlyPriceNok ?? mobileBillingConfig.MONTHLY_PRICE_NOK,
       }),
     [billing, t]
   );

@@ -1,7 +1,6 @@
 import Purchases, {
   CustomerInfo,
   Offerings,
-  PACKAGE_TYPE,
   PurchasesPackage,
 } from "react-native-purchases";
 import RevenueCatUI, {
@@ -64,19 +63,12 @@ export async function getOfferingsSafe(): Promise<Offerings | null> {
 
 export function findPackage(
   offerings: Offerings | null,
-  plan: "monthly" | "annual" | "lifetime"
+  plan: "monthly" | "annual"
 ): PurchasesPackage | null {
   if (!offerings?.current) return null;
 
   if (plan === "monthly") return offerings.current.monthly ?? null;
-  if (plan === "annual") return offerings.current.annual ?? null;
-
-  const lifetime =
-    offerings.current.availablePackages?.find(
-      (p) => p.packageType === PACKAGE_TYPE.LIFETIME
-    ) ?? null;
-
-  return lifetime;
+  return offerings.current.annual ?? null;
 }
 
 export function hasActiveEntitlement(info: CustomerInfo | null) {

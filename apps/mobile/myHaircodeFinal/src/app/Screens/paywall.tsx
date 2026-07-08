@@ -33,6 +33,7 @@ import {
   MintBrandModalSecondaryButton,
 } from "@/src/components/MintBrandModal";
 import { NavBackRow } from "@/src/components/NavBackRow";
+import { ProVisitQuotaChip } from "@/src/components/ProVisitQuotaChip";
 import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
 import { useBilling } from "@/src/providers/BillingProvider";
 import { mobileBillingConfig } from "@/src/constants/billingConfig";
@@ -56,9 +57,12 @@ const Paywall = () => {
   const { from } = useLocalSearchParams<{ from?: string }>();
   const { billing, syncFromRevenueCat, refreshBilling, revenueCatReady } =
     useBilling();
-  const [selectedPlan, setSelectedPlan] = useState<Plan>("monthly");
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [busy, setBusy] = useState(false);
   const [offerings, setOfferings] = useState<Offerings | null>(null);
+
+  const isOnFreePlan = billing != null && !billing.hasActiveSubscription;
+  const purchasePlan: Plan = selectedPlan ?? "monthly";
 
   const freeLimit =
     billing?.freeVisitLimit ?? mobileBillingConfig.FREE_VISIT_LIMIT;
@@ -85,29 +89,32 @@ const Paywall = () => {
   );
 
   const primaryCta = useMemo(() => {
-    if (selectedPlan === "annual") {
+    if (purchasePlan === "annual") {
       return t("paywall.startSubscriptionAnnual", { price: annualPrice });
     }
-    return t("paywall.startSubscriptionMonthly", { price: monthlyPrice });
-  }, [annualPrice, monthlyPrice, selectedPlan, t]);
+    return t("paywall.startSubscription", { price: monthlyPrice });
+  }, [annualPrice, monthlyPrice, purchasePlan, t]);
 
   const afterTrialLine = useMemo(() => {
-    if (selectedPlan === "annual") {
+    if (purchasePlan === "annual") {
       return t("paywall.afterTrialAnnual", { price: annualPrice });
     }
     return t("paywall.afterTrialMonthly", { price: monthlyPrice });
-  }, [annualPrice, monthlyPrice, selectedPlan, t]);
+  }, [annualPrice, monthlyPrice, purchasePlan, t]);
 
-  const freeFeatures = useMemo(
-    () => [t("paywall.featureDiscovery")],
-    [t]
+  const freemiumFeatures = useMemo(
+    () => [
+      t("paywall.freemiumFeatureVisits", { limit: freeLimit }),
+      t("paywall.featureDiscovery"),
+    ],
+    [freeLimit, t]
   );
 
-  const proFeatures = useMemo(
+  const monthlyFeatures = useMemo(
     () => [
-      t("paywall.featureManageClients"),
-      t("paywall.featureGallery"),
-      t("paywall.featureHistory"),
+      t("paywall.monthlyFeatureUnlimited"),
+      t("paywall.monthlyFeatureClientHistory"),
+      t("paywall.featureDiscovery"),
     ],
     [t]
   );
@@ -152,7 +159,7 @@ const Paywall = () => {
       const loadedOfferings = offerings ?? (await getOfferingsSafe());
       if (!offerings && loadedOfferings) setOfferings(loadedOfferings);
 
-      const pkg = findPackage(loadedOfferings, selectedPlan);
+      const pkg = findPackage(loadedOfferings, purchasePlan);
       if (!pkg) {
         Alert.alert(t("common.comingSoon"), t("paywall.productsNotAvailable"));
         return;
@@ -207,14 +214,24 @@ const Paywall = () => {
     plan,
     title,
     subtitle,
+    bullets,
+    badge,
     disabled,
   }: {
     plan: Plan;
     title: string;
-    subtitle: string;
+    subtitle?: string;
+    bullets?: string[];
+    badge?: string;
     disabled?: boolean;
   }) => {
     const selected = selectedPlan === plan;
+    const a11yDetail = [
+      badge,
+      ...(bullets?.length ? bullets : subtitle ? [subtitle] : []),
+    ]
+      .filter(Boolean)
+      .join(". ");
     return (
       <Pressable
         onPress={() => !disabled && setSelectedPlan(plan)}
@@ -226,32 +243,86 @@ const Paywall = () => {
         ]}
         accessibilityRole="button"
         accessibilityState={{ selected, disabled: !!disabled }}
-        accessibilityLabel={`${title}. ${subtitle}`}
+        accessibilityLabel={`${title}. ${a11yDetail}`}
       >
-        <View style={styles.planRow}>
-          <View style={styles.planLeft}>
-            <CheckCircle
-              size={responsiveScale(22)}
-              weight={selected ? "fill" : "regular"}
-              color={selected ? primaryBlack : `${primaryBlack}55`}
-            />
-            <View style={styles.planText}>
-              <Text style={styles.planTitle}>{title}</Text>
-              <Text style={styles.planSubtitle}>{subtitle}</Text>
+        {badge ? (
+          <View style={styles.planCornerBadge}>
+            <Text style={styles.planCornerBadgeLabel}>{badge}</Text>
+          </View>
+        ) : null}
+        {bullets?.length ? (
+          <>
+            <View style={styles.planHeaderRow}>
+              <CheckCircle
+                size={responsiveScale(22)}
+                weight={selected ? "fill" : "regular"}
+                color={selected ? primaryBlack : `${primaryBlack}55`}
+              />
+              <View style={styles.planTitleBlock}>
+                <Text style={styles.planTitle}>{title}</Text>
+              </View>
+              <Text style={[styles.planPrice, badge && styles.planPriceWithBadge]}>
+                {pricesNok[plan]}
+              </Text>
             </View>
-          </View>
-          <Text style={styles.planPrice}>{pricesNok[plan]}</Text>
-        </View>
-
-        {plan === "monthly" ? (
-          <View style={styles.trialChip}>
-            <Text style={styles.trialChipLabel}>
-              {t("paywall.freeVisitsChip", { limit: freeLimit })}
-            </Text>
-          </View>
+            <View style={styles.planBulletsBlock}>
+              {bullets.map((line) => (
+                <View key={line} style={styles.planBulletRow}>
+                  <View style={styles.planBulletDot} />
+                  <Text style={styles.cardBulletText}>{line}</Text>
+                </View>
+              ))}
+            </View>
+          </>
         ) : (
-          <View style={styles.trialChip} />
+          <View style={styles.planRow}>
+            <View style={styles.planLeft}>
+              <CheckCircle
+                size={responsiveScale(22)}
+                weight={selected ? "fill" : "regular"}
+                color={selected ? primaryBlack : `${primaryBlack}55`}
+              />
+              <View style={styles.planText}>
+                <Text style={styles.planTitle}>{title}</Text>
+                {subtitle ? (
+                  <Text style={styles.planSubtitle}>{subtitle}</Text>
+                ) : null}
+              </View>
+            </View>
+            <Text style={styles.planPrice}>{pricesNok[plan]}</Text>
+          </View>
         )}
+      </Pressable>
+    );
+  };
+
+  const FreemiumCard = () => {
+    const highlighted = isOnFreePlan && selectedPlan === null;
+    return (
+      <Pressable
+        onPress={() => isOnFreePlan && setSelectedPlan(null)}
+        style={({ pressed }) => [
+          styles.freemiumCard,
+          highlighted && styles.planCardSelected,
+          isOnFreePlan && pressed && { opacity: 0.92 },
+        ]}
+        accessibilityRole="button"
+        accessibilityState={{ selected: highlighted, disabled: !isOnFreePlan }}
+        accessibilityLabel={t("paywall.freemiumTitle")}
+      >
+        <View style={styles.freemiumHeader}>
+          <Text style={styles.planTitle}>{t("paywall.freemiumTitle")}</Text>
+          <View style={styles.freemiumBadge}>
+            <Text style={styles.freemiumBadgeLabel}>{t("paywall.freemiumBadge")}</Text>
+          </View>
+        </View>
+        <Text style={styles.cardSubtitle}>{t("paywall.freemiumSubtitle")}</Text>
+        {freemiumFeatures.map((line) => (
+          <View key={line} style={styles.freemiumBulletRow}>
+            <View style={styles.bulletDot} />
+            <Text style={styles.cardBulletText}>{line}</Text>
+          </View>
+        ))}
       </Pressable>
     );
   };
@@ -279,57 +350,27 @@ const Paywall = () => {
           <Text style={[Typography.h3, styles.h1]}>
             {t("paywall.tryProTitle")}
           </Text>
-          <Text style={[Typography.bodyMedium, styles.subhead]}>
-            {t("paywall.tryProSubtitle", { limit: freeLimit })}
-          </Text>
-          {billing && !billing.hasActiveSubscription ? (
-            <Text style={[Typography.bodySmall, styles.usageLine]}>
-              {t("billing.visitUsage", {
-                used: billing.visitCount,
-                limit: billing.freeVisitLimit,
-              })}
-            </Text>
-          ) : null}
         </View>
 
+        {billing && !billing.hasActiveSubscription ? (
+          <ProVisitQuotaChip variant="banner" style={styles.quotaBanner} />
+        ) : null}
+
         <View style={styles.section}>
+          <FreemiumCard />
           <PlanCard
             plan="monthly"
             title={t("paywall.monthly")}
-            subtitle={t("paywall.monthlySubtitle")}
+            bullets={monthlyFeatures}
             disabled={revenueCatReady && !monthlyPkg}
           />
           <PlanCard
             plan="annual"
             title={t("paywall.yearly")}
-            subtitle={t("paywall.yearlySubtitle")}
+            bullets={monthlyFeatures}
+            badge={t("paywall.annualFreeMonthsBadge")}
             disabled={revenueCatReady && !annualPkg}
           />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={[Typography.label, styles.sectionTitle]}>
-            {t("paywall.includedTitle")}
-          </Text>
-          {freeFeatures.map((line) => (
-            <View key={line} style={styles.bulletRow}>
-              <View style={styles.bulletDot} />
-              <Text style={[Typography.bodyMedium, styles.bulletText]}>
-                {line}
-              </Text>
-            </View>
-          ))}
-          <Text style={[Typography.label, styles.sectionTitle, styles.sectionTitleSpaced]}>
-            {t("paywall.subscribePro")}
-          </Text>
-          {proFeatures.map((line) => (
-            <View key={line} style={styles.bulletRow}>
-              <View style={[styles.bulletDot, styles.bulletDotPro]} />
-              <Text style={[Typography.bodyMedium, styles.bulletText]}>
-                {line}
-              </Text>
-            </View>
-          ))}
         </View>
 
         <View style={styles.ctaBlock}>
@@ -394,21 +435,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: responsiveMargin(6),
     marginBottom: responsiveMargin(22),
+    overflow: "visible",
   },
   h1: {
     textAlign: "center",
     marginTop: responsiveMargin(18),
+    /** Anton + Nordic diacritics (e.g. å in «Lås») need extra vertical room. */
+    lineHeight: Math.round(responsiveFontSize(36) * 1.38),
+    paddingTop: responsiveScale(4),
+    paddingHorizontal: responsivePadding(4),
   },
-  subhead: {
-    textAlign: "center",
-    marginTop: responsiveMargin(10),
-    maxWidth: 360,
-    opacity: 0.82,
-  },
-  usageLine: {
-    textAlign: "center",
-    marginTop: responsiveMargin(10),
-    opacity: 0.7,
+  quotaBanner: {
+    marginBottom: responsiveMargin(18),
   },
   section: {
     width: "100%",
@@ -416,21 +454,15 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: responsiveMargin(22),
   },
-  sectionTitle: {
-    color: primaryBlack,
-    marginBottom: responsiveMargin(12),
-  },
-  sectionTitleSpaced: {
-    marginTop: responsiveMargin(16),
-  },
   planCard: {
     backgroundColor: primaryWhite,
     borderRadius: responsiveBorderRadius(18),
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: `${primaryBlack}18`,
     padding: responsivePadding(16),
-    marginBottom: responsiveMargin(12),
+    marginBottom: responsiveMargin(18),
     overflow: "hidden",
+    position: "relative",
   },
   planCardSelected: {
     borderColor: primaryBlack,
@@ -439,21 +471,114 @@ const styles = StyleSheet.create({
   planCardDisabled: {
     opacity: 0.55,
   },
+  freemiumCard: {
+    backgroundColor: primaryWhite,
+    borderRadius: responsiveBorderRadius(18),
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderColor: `${primaryBlack}18`,
+    padding: responsivePadding(16),
+    marginBottom: responsiveMargin(18),
+  },
+  freemiumHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: responsiveMargin(10),
+  },
+  freemiumBadge: {
+    borderRadius: responsiveScale(999),
+    paddingHorizontal: responsivePadding(10),
+    paddingVertical: responsivePadding(5),
+    backgroundColor: `${secondaryGreen}CC`,
+  },
+  freemiumBadgeLabel: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
+    opacity: 0.85,
+  },
+  cardSubtitle: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
+    marginTop: responsiveMargin(6),
+    marginBottom: responsiveMargin(12),
+  },
+  cardBulletText: {
+    ...Typography.bodySmall,
+    flex: 1,
+    color: primaryBlack,
+    lineHeight: responsiveScale(20),
+  },
+  freemiumBulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: responsiveMargin(10),
+    marginBottom: responsiveMargin(8),
+  },
+  bulletDot: {
+    width: responsiveScale(5),
+    height: responsiveScale(5),
+    borderRadius: responsiveScale(3),
+    backgroundColor: primaryBlack,
+    marginTop: responsiveMargin(8),
+  },
   planRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: responsiveMargin(12),
   },
+  planHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: responsiveMargin(10),
+  },
+  planCornerBadge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    backgroundColor: primaryBlack,
+    paddingHorizontal: responsivePadding(12),
+    paddingVertical: responsivePadding(7),
+    borderBottomLeftRadius: responsiveBorderRadius(14),
+    borderTopRightRadius: responsiveBorderRadius(18),
+    zIndex: 1,
+  },
+  planCornerBadgeLabel: {
+    ...Typography.bodySmall,
+    color: primaryWhite,
+    fontWeight: "600",
+    letterSpacing: 0.2,
+  },
+  planTitleBlock: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+  },
   planLeft: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: responsiveMargin(10),
     flex: 1,
     paddingRight: responsivePadding(6),
   },
   planText: {
     flex: 1,
+  },
+  planBulletsBlock: {
+    marginTop: responsiveMargin(10),
+    gap: responsiveMargin(6),
+  },
+  planBulletRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: responsiveMargin(8),
+  },
+  planBulletDot: {
+    width: responsiveScale(5),
+    height: responsiveScale(5),
+    borderRadius: responsiveScale(3),
+    backgroundColor: primaryBlack,
+    marginTop: responsiveMargin(8),
   },
   planTitle: {
     ...Typography.bodyLarge,
@@ -462,49 +587,17 @@ const styles = StyleSheet.create({
   planSubtitle: {
     ...Typography.bodySmall,
     color: primaryBlack,
-    opacity: 0.65,
     marginTop: responsiveMargin(4),
     lineHeight: responsiveScale(20),
   },
   planPrice: {
     ...Typography.bodyMedium,
     color: primaryBlack,
+    flexShrink: 0,
+    marginLeft: responsiveMargin(8),
   },
-  trialChip: {
-    marginTop: responsiveMargin(12),
-    alignSelf: "flex-start",
-    borderRadius: responsiveScale(999),
-    paddingHorizontal: responsivePadding(10),
-    paddingVertical: responsivePadding(6),
-    backgroundColor: `${secondaryGreen}CC`,
-  },
-  trialChipLabel: {
-    ...Typography.bodySmall,
-    color: primaryBlack,
-    opacity: 0.85,
-  },
-  bulletRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: responsiveMargin(10),
-    marginBottom: responsiveMargin(10),
-  },
-  bulletDot: {
-    width: responsiveScale(6),
-    height: responsiveScale(6),
-    borderRadius: responsiveScale(3),
-    backgroundColor: primaryBlack,
-    marginTop: responsiveMargin(8),
-    opacity: 0.6,
-  },
-  bulletDotPro: {
-    opacity: 0.35,
-  },
-  bulletText: {
-    flex: 1,
-    color: primaryBlack,
-    opacity: 0.9,
-    lineHeight: responsiveScale(22),
+  planPriceWithBadge: {
+    marginTop: responsiveMargin(28),
   },
   ctaBlock: {
     width: "100%",

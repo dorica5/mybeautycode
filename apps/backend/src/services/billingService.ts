@@ -16,6 +16,36 @@ function subscriptionIsActive(row: {
   return row.entitlementExpiresAt.getTime() > Date.now();
 }
 
+type SubscriptionRow = {
+  entitlementActive: boolean;
+  entitlementExpiresAt: Date | null;
+  plan: string | null;
+} | null;
+
+/** Tolerates stale Prisma client or missing migration for `professional_subscriptions`. */
+async function fetchProfessionalSubscription(
+  profileId: string
+): Promise<SubscriptionRow> {
+  try {
+    const delegate = (
+      prisma as {
+        professionalSubscription?: {
+          findUnique: (args: {
+            where: { profileId: string };
+          }) => Promise<SubscriptionRow>;
+        };
+      }
+    ).professionalSubscription;
+    if (!delegate?.findUnique) {
+      return null;
+    }
+    return await delegate.findUnique({ where: { profileId } });
+  } catch (err) {
+    console.warn("professionalSubscription lookup skipped:", err);
+    return null;
+  }
+}
+
 async function professionalProfileIdFor(profileId: string): Promise<string | null> {
   const pp = await prisma.professionalProfile.findUnique({
     where: { profileId },
@@ -55,13 +85,10 @@ export const billingService = {
       };
     }
 
-    const [visitCount, subRow] = await Promise.all([
+    const [visitCount, sub] = await Promise.all([
       countProfessionalVisits(ppId),
-      prisma.professionalSubscription
-        .findUnique({ where: { profileId } })
-        .catch(() => null),
+      fetchProfessionalSubscription(profileId),
     ]);
-    const sub = subRow;
 
     const hasActiveSubscription = subscriptionIsActive(sub);
     const freeVisitLimit = billingConfig.FREE_VISIT_LIMIT;
@@ -126,7 +153,23 @@ export const billingService = {
         : null;
     const now = new Date();
 
-    await prisma.professionalSubscription.upsert({
+    const delegate = (
+      prisma as {
+        professionalSubscription?: {
+          upsert: (args: unknown) => Promise<unknown>;
+        };
+      }
+    ).professionalSubscription;
+    if (!delegate?.upsert) {
+      throw Object.assign(
+        new Error(
+          "Subscription storage is unavailable. Run prisma generate and migrate in the backend."
+        ),
+        { statusCode: 503 as const }
+      );
+    }
+
+    await delegate.upsert({
       where: { profileId },
       create: {
         profileId,

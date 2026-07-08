@@ -54,7 +54,7 @@ const Splash = () => {
             </View>
 
             <Text style={[Typography.bodyLarge, styles.textOnGreen, styles.body]}>
-              {t("auth.tagline")}
+              my care, my way
             </Text>
 
             <PaddedLabelButton
