@@ -23,7 +23,7 @@ function PlanCard({
   features: string[];
 }) {
   return (
-    <article className="relative flex h-full flex-col overflow-hidden rounded-[18px] border-2 border-foreground/10 bg-primary-white p-4 text-foreground md:p-5">
+    <article className="relative flex flex-col overflow-hidden rounded-[18px] border-2 border-foreground/10 bg-primary-white p-4 text-foreground md:h-full md:p-5">
       {cornerBadge ? (
         <span className="absolute right-0 top-0 rounded-bl-[14px] rounded-tr-[18px] bg-foreground px-3 py-1.5 text-xs font-semibold tracking-wide text-primary-white">
           {cornerBadge}
@@ -45,7 +45,7 @@ function PlanCard({
         ) : null}
       </div>
 
-      <ul className="mt-4 flex-1 space-y-2">
+      <ul className="mt-4 space-y-2 md:flex-1">
         {features.map((feature) => (
           <li key={feature} className="flex items-start gap-2 text-sm">
             <span
@@ -85,7 +85,7 @@ export function PaymentPlans() {
         {t.paymentIntro}
       </p>
 
-      <div className="grid grid-cols-3 items-stretch gap-3 md:gap-5">
+      <div className="flex flex-col gap-4 md:grid md:grid-cols-3 md:items-stretch md:gap-5">
         <PlanCard
           title={plans.freemium.title}
           badge={plans.freemium.badge}
@@ -106,16 +106,16 @@ export function PaymentPlans() {
         />
       </div>
 
-      <p className="text-center text-sm text-foreground md:text-base">
-        {t.paymentFootnote}
-      </p>
-
-      <div className="flex flex-col items-center gap-3">
+      <div className="relative z-10 flex flex-col items-center gap-3 max-md:mt-10 md:mt-0">
         <p className="text-center text-sm text-foreground">
           {t.paymentDownloadHint}
         </p>
         <AppDownloadBadges />
       </div>
+
+      <p className="relative z-10 max-w-md self-center text-center text-sm text-foreground max-md:mt-8 md:max-w-none md:text-base">
+        {t.paymentFootnote}
+      </p>
     </div>
   );
 }

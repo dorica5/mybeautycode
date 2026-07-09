@@ -18,6 +18,7 @@ import {
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { mobileBillingConfig } from "@/src/constants/billingConfig";
 
 const TermsAndConditionsScreen = () => {
   const { t } = useI18n();
@@ -81,6 +82,15 @@ const TermsAndConditionsScreen = () => {
             {t("termsLegal.privacyBodyPro")}
             {"\n"}
             {t("termsLegal.privacyBodyClient")}
+          </Text>
+
+          <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>
+            {t("termsLegal.subscriptions")}
+          </Text>
+          <Text style={[styles.textContent, {fontSize: responsiveFontSize(16, 10)}]}>
+            {t("termsLegal.subscriptionsBody", {
+              limit: mobileBillingConfig.FREE_VISIT_LIMIT,
+            })}
           </Text>
 
           <Text style={[styles.header, {fontSize: responsiveFontSize(20, 14)}]}>

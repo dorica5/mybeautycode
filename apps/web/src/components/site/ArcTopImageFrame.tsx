@@ -1,11 +1,15 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 
-/** Shared arc-top frame used by the hero carousel and about-us photo. */
+/** Krusedull-inspired organic blob frame — aspect matches reference mask (477×416). */
 export const arcTopImageFrameClassName =
-  "relative aspect-[4/5] w-[320px] shrink-0 overflow-hidden rounded-t-[10rem] sm:w-[360px] sm:rounded-t-[11.25rem] md:w-[480px] md:rounded-t-[15rem] lg:w-[520px] lg:rounded-t-[16.25rem]";
+  "relative aspect-[477/416] w-[320px] shrink-0 overflow-hidden sm:w-[360px] md:w-[480px] lg:w-[520px]";
 
 export const compactArcTopImageFrameClassName =
-  "relative aspect-[4/5] w-[160px] shrink-0 overflow-hidden rounded-t-[5rem] sm:w-[180px] sm:rounded-t-[5.625rem] md:w-[200px] md:rounded-t-[6.25rem] lg:w-[220px] lg:rounded-t-[6.875rem]";
+  "relative aspect-[477/416] w-[160px] shrink-0 overflow-hidden sm:w-[180px] md:w-[200px] lg:w-[220px]";
+
+const krusedullClipStyle: CSSProperties = {
+  clipPath: "url(#krusedull-image-frame)",
+};
 
 type ArcTopImageFrameProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
@@ -16,6 +20,7 @@ export function ArcTopImageFrame({
   children,
   className,
   size = "hero",
+  style,
   ...rest
 }: ArcTopImageFrameProps) {
   const baseClassName =
@@ -24,6 +29,7 @@ export function ArcTopImageFrame({
   return (
     <div
       className={className ? `${baseClassName} ${className}` : baseClassName}
+      style={{ ...krusedullClipStyle, ...style }}
       {...rest}
     >
       {children}

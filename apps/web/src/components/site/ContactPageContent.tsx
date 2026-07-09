@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { SectionShell } from "@/components/site/SectionShell";
 import { useSiteLanguage } from "@/providers/LanguageProvider";
 
-const CONTACT_EMAIL = "hello@myne.com";
+const CONTACT_EMAIL = "hello@myne.no";
 
 export function ContactPageContent() {
   const { t } = useSiteLanguage();

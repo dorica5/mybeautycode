@@ -890,7 +890,7 @@ export const da: AppLocaleMessages = {
       "Velkommen til {{brand}}! Ved at bruge appen accepterer du disse vilkår. Læs dem omhyggeligt før brug.",
     generalInfo: "Generel information",
     generalInfoBody:
-      "{{brand}} er et journalsystem for skønhedsydelser, der forbinder kunder og fagpersoner, så kunder kan dele behandlingshistorik og finde den rette professionelle. Tilgængelig på iOS og Android.",
+      "{{brand}} er et journalsystem til skønhedsydelser, der forbinder kunder og skønhedsprofessionelle, så kunder kan dele deres fulde behandlingshistorik med fagfolk og finde præcis den professionelle, de leder efter, via kortsøgning. Tilgængelig på både iOS og Android.",
     eligibility: "Berettigelse og kontooprettelse",
     eligibilityBody:
       "Opret først en kundekonto, og tilføj derefter en professionel konto.",
@@ -902,6 +902,9 @@ export const da: AppLocaleMessages = {
       "For professionelle:\nIndsamlede data: Fornavn, efternavn, brugernavn, profilbillede, e-mail, om mig, salontelefon, salongnavn og salonadresse. Vi sporer også kunderelationer. Behandlingspriser gemmes, men er kun synlige for den professionelle, der skrev dem.",
     privacyBodyClient:
       "For kunder:\nIndsamlede data: Fornavn, efternavn, telefonnummer, profilbillede, om mig.",
+    subscriptions: "Abonnement og betaling",
+    subscriptionsBody:
+      "Kundekonti er gratis. Professionelle konti inkluderer {{limit}} gratis besøg. Kortsøgning og opdagelse er gratis. Efter gratisgrænsen kræves abonnement for at oprette og se besøg. Abonnement tilbydes som måneds- eller årsplan, fornyes automatisk, indtil det opsiges, og købes via App Store eller Google Play. Pris vises i appen før køb og kan ændres. Opsig når som helst i kontoindstillingerne i App Store eller Google Play. Abonnenter får ubegrænsede besøg og adgang til abonnentfunktioner beskrevet i appen (inklusive kundehistorik delt af kunden, hvor det er relevant). Refusion for abonnement følger Apples eller Googles retningslinjer. Udelukkelse giver ikke ret til refusion for allerede betalt abonnementsperiode.",
     liability: "Ansvarsfraskrivelse",
     liabilityBody:
       "{{brand}} tilbyder en platform til journalføring og at finde professionelle, men vi garanterer ikke specifikke resultater.",
@@ -910,7 +913,7 @@ export const da: AppLocaleMessages = {
       "Brugere, der overtræder vilkårene, kan blive permanent udelukket. Ingen refusion gives til udelukkede brugere.",
     changes: "Ændringer af vilkår",
     changesBody:
-      "Vi kan ændre vilkårene når som helst. Fortsat brug efter ændringer betyder accept af de nye vilkår. Spørgsmål eller support: hello@myne.com.",
+      "Vi kan ændre vilkårene når som helst. Fortsat brug efter ændringer betyder accept af de nye vilkår. Spørgsmål eller support: hello@myne.no.",
   },
   authPassword: {
     currentPassword: "Nuværende kodeord",

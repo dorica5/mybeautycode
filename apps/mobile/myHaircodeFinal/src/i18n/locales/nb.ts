@@ -291,7 +291,7 @@ export const nb: AppLocaleMessages = {
     brow_tinting: "Brynfarging",
     lash_tinting: "Vippfarging",
     lash_lift: "Vippeløft",
-    lash_extensions: "Vipeextensions",
+    lash_extensions: "Vippe extentions",
     makeup_brows_lane: "Sminke",
     manicure: "Manicure",
     pedicure: "Pedikyr",
@@ -894,7 +894,7 @@ export const nb: AppLocaleMessages = {
       "Velkommen til {{brand}}! Ved å bruke appen vår godtar du disse vilkårene. Les dem nøye før du bruker appen.",
     generalInfo: "Generell informasjon",
     generalInfoBody:
-      "{{brand}} er et journalsystem for skjønnhetstjenester som kobler kunder og fagpersoner, slik at kunder kan dele behandlingshistorikk med profesjonelle og finne akkurat den de leter etter. Tilgjengelig på iOS og Android.",
+      "{{brand}} er et journalsystem for skjønnhetstjenester som kobler kunder og skjønnhetsfagfolk, slik at kunder kan dele full behandlingshistorikk med fagfolk, og finne akkurat den fagpersonen de leter etter via kartsøk. Tilgjengelig på både iOS og Android.",
     eligibility: "Kvalifikasjon og kontoopprettelse",
     eligibilityBody:
       "Opprett en kundekonto først, deretter kan du legge til en profesjonell konto.",
@@ -906,6 +906,9 @@ export const nb: AppLocaleMessages = {
       "For profesjonelle:\nInnsamlet data: Fornavn, etternavn, brukernavn, profilbilde, e-post, om meg, salongtelefon, salongnavn og salongadresse. Vi sporer også kundeforhold (hvilke kunder som har delt tilgang). Behandlingspriser lagres, men er bare synlige for den profesjonelle som skrev dem.",
     privacyBodyClient:
       "For kunder:\nInnsamlet data: Fornavn, etternavn, telefonnummer, profilbilde, om meg.",
+    subscriptions: "Abonnement og betaling",
+    subscriptionsBody:
+      "Kundekontoer er gratis. Profesjonelle kontoer inkluderer {{limit}} gratis besøk. Kartsøk og oppdagelse er gratis. Etter gratisgrensen kreves abonnement for å opprette og se besøk. Abonnement tilbys som måneds- eller årsplan, fornyes automatisk til det sies opp, og kjøpes via App Store eller Google Play. Pris vises i appen før kjøp og kan endres. Si opp når som helst i kontoinnstillingene i App Store eller Google Play. Abonnenter får ubegrensede besøk og tilgang til abonnentfunksjoner beskrevet i appen (inkludert kundehistorikk delt av kunden, der det er aktuelt). Refusjon for abonnement følger Apples eller Googles retningslinjer. Utestengelse gir ikke refusjon for allerede betalt abonnementsperiode.",
     liability: "Ansvarsfraskrivelse",
     liabilityBody:
       "{{brand}} tilbyr en plattform for journalføring og å finne profesjonelle, men vi garanterer ikke spesifikke resultater.",
@@ -914,7 +917,7 @@ export const nb: AppLocaleMessages = {
       "Brukere som bryter vilkårene kan bli permanent utestengt. Ingen refusjon gis til utestengte brukere.",
     changes: "Endringer i vilkår",
     changesBody:
-      "Vi kan endre vilkårene når som helst. Fortsatt bruk etter endringer betyr at du godtar de nye vilkårene. Spørsmål eller support: hello@myne.com.",
+      "Vi kan endre vilkårene når som helst. Fortsatt bruk etter endringer betyr at du godtar de nye vilkårene. Spørsmål eller support: hello@myne.no.",
   },
   authPassword: {
     currentPassword: "Nåværende passord",

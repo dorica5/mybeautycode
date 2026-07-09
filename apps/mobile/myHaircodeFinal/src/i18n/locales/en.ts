@@ -890,9 +890,9 @@ export const en = {
   termsLegal: {
     welcome:
       "Welcome to {{brand}}! By accessing or using our app, you agree to comply with these Terms and Conditions. Please read them carefully before using the app.",
-    generalInfo: "General information",
+    generalInfo: "General Information",
     generalInfoBody:
-      "{{brand}} is a journal system for beauty services that connects clients and beauty practitioners, allowing clients to share their complete treatment history with professionals, and let clients find the exact professional they are looking for. Available on both iOS and Android.",
+      "{{brand}} is a journal system for beauty services that connects clients and beauty practitioners, allowing clients to share their complete treatment history with professionals, and let clients find the exact professional they are looking for through map search. Available on both iOS and Android.",
     eligibility: "Eligibility & account creation",
     eligibilityBody:
       "Create a client account first, then add another account for professional use.",
@@ -904,6 +904,9 @@ export const en = {
       "For professionals:\nCollected data: First name, last name, username, profile picture, email, about me, salon phone number, salon name, and salon location. We also track client relationships (i.e., which clients have shared access with them). Treatment prices are stored but are only visible to that specific professional who wrote it.",
     privacyBodyClient:
       "For clients:\nCollected data: First name, last name, phone number, profile picture, about me.",
+    subscriptions: "Subscriptions & billing",
+    subscriptionsBody:
+      "Client accounts are free. Professional accounts include {{limit}} free visit records. Map search and discovery are free. After the free visit limit, a subscription is required to create and view visit records. Subscriptions are offered as monthly or annual plans, renew automatically until cancelled, and are purchased through the Apple App Store or Google Play. Prices are shown in the app before purchase and may change. Cancel anytime in your App Store or Google Play account settings. Subscribers get unlimited visits and access to subscriber features described in the app (including client history shared by clients, where applicable). Refund requests for subscriptions follow Apple or Google policies. Account bans do not entitle users to a refund of amounts already paid for a subscription period.",
     liability: "Liability disclaimer",
     liabilityBody:
       "{{brand}} provides a platform for journaling treatments and finding professionals, but we do not guarantee specific results or outcomes.",
@@ -912,7 +915,7 @@ export const en = {
       "Users who violate these Terms may have their accounts permanently banned. No refunds will be issued to banned users.",
     changes: "Changes to terms",
     changesBody:
-      "We reserve the right to modify these terms at any time. Continued use of the app after changes constitutes acceptance of the new terms. For questions or support, contact us at hello@myne.com.",
+      "We reserve the right to modify these terms at any time. Continued use of the app after changes constitutes acceptance of the new terms. For questions or support, contact us at hello@myne.no.",
   },
   authPassword: {
     currentPassword: "Current password",

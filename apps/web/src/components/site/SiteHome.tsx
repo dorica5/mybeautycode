@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AppDownloadBadges } from "@/components/site/AppDownloadBadges";
 import { HeroImageCarousel } from "@/components/site/HeroImageCarousel";
 import { ArcTopImageFrame } from "@/components/site/ArcTopImageFrame";
+import { KrusedullClipDefs } from "@/components/site/KrusedullClipDefs";
 import { SiteLanguageDropdown } from "@/components/site/SiteLanguageDropdown";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SectionBand } from "@/components/site/SectionBand";
@@ -33,6 +34,7 @@ export function SiteHome() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      <KrusedullClipDefs />
       <header className="sticky top-0 z-20 border-b border-foreground/10 bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-6 gap-y-3 px-6 py-4">
           <Link

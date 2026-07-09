@@ -888,7 +888,7 @@ export const sv: AppLocaleMessages = {
       "Välkommen till {{brand}}! Genom att använda appen godkänner du dessa villkor. Läs dem noggrant innan du använder appen.",
     generalInfo: "Allmän information",
     generalInfoBody:
-      "{{brand}} är ett journalsystem för skönhetstjänster som kopplar kunder och proffs, så att kunder kan dela behandlingshistorik och hitta rätt professionell. Tillgängligt på iOS och Android.",
+      "{{brand}} är ett journalsystem för skönhetstjänster som kopplar samman kunder och skönhetsproffs, så att kunder kan dela sin fullständiga behandlingshistorik med proffs och hitta exakt den proffs de söker via kartsökning. Tillgängligt på både iOS och Android.",
     eligibility: "Behörighet och kontoskapande",
     eligibilityBody:
       "Skapa först ett kundkonto och lägg sedan till ett professionellt konto.",
@@ -900,6 +900,9 @@ export const sv: AppLocaleMessages = {
       "För proffs:\nInsamlad data: Förnamn, efternamn, användarnamn, profilbild, e-post, om mig, salongtelefon, salongnamn och salongsadress. Vi spårar även kundrelationer. Behandlingspriser lagras men är endast synliga för den proffs som skrev dem.",
     privacyBodyClient:
       "För kunder:\nInsamlad data: Förnamn, efternamn, telefonnummer, profilbild, om mig.",
+    subscriptions: "Abonnemang och betalning",
+    subscriptionsBody:
+      "Kundkonton är gratis. Professionella konton inkluderar {{limit}} gratis besök. Kartsökning och upptäckt är gratis. Efter gratisgränsen krävs abonnemang för att skapa och se besök. Abonnemang erbjuds som månads- eller årsplan, förnyas automatiskt tills det sägs upp och köps via App Store eller Google Play. Pris visas i appen före köp och kan ändras. Säg upp när som helst i kontoinställningarna i App Store eller Google Play. Abonnenter får obegränsade besök och tillgång till abonnentfunktioner som beskrivs i appen (inklusive kundhistorik som delats av kunden, där det är tillämpligt). Återbetalning för abonnemang följer Apples eller Googles riktlinjer. Avstängning ger inte rätt till återbetalning för redan betald abonnemangsperiod.",
     liability: "Ansvarsfriskrivning",
     liabilityBody:
       "{{brand}} tillhandahåller en plattform för journalföring och att hitta proffs, men vi garanterar inte specifika resultat.",
@@ -908,7 +911,7 @@ export const sv: AppLocaleMessages = {
       "Användare som bryter mot villkoren kan bli permanent avstängda. Ingen återbetalning ges till avstängda användare.",
     changes: "Ändringar av villkor",
     changesBody:
-      "Vi kan ändra villkoren när som helst. Fortsatt användning efter ändringar innebär att du accepterar de nya villkoren. Frågor eller support: hello@myne.com.",
+      "Vi kan ändra villkoren när som helst. Fortsatt användning efter ändringar innebär att du accepterar de nya villkoren. Frågor eller support: hello@myne.no.",
   },
   authPassword: {
     currentPassword: "Nuvarande lösenord",
