@@ -122,8 +122,9 @@ const ProfessionalProfileScreen = () => {
 
   const isRelated =
     linkJustAdded ||
-    isRelatedFromApi ||
-    relatedFromRoute === true;
+    (relFetched
+      ? isRelatedFromApi
+      : isRelatedFromApi || relatedFromRoute === true);
   const relationshipStatusLoading =
     !linkJustAdded &&
     !isRelatedFromApi &&

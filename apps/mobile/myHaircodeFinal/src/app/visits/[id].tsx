@@ -8,7 +8,7 @@ import {
   Dimensions,
   useWindowDimensions,
 } from "react-native";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CaretRight, Plus, Eye, DotsThree } from "phosphor-react-native";
 import { ViewGalleryRowIcon } from "@/src/components/ViewGalleryRowIcon";
@@ -19,7 +19,7 @@ import {
   useModerationDetailCopy,
   reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { BlockedInlineNotice } from "@/src/components/BlockedProfileScreen";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
@@ -158,13 +158,17 @@ const VisitList = () => {
       navProfessionReady &&
       navProfessionCode
   );
-  const { data: isRelated = false, isFetching: relLoading } =
-    useRelationshipCheck(
-      client_id as string,
-      hairdresser_id ?? undefined,
-      navProfessionCode,
-      { enabled: relationshipQueryEnabled }
-    );
+  const {
+    data: isRelated = false,
+    isFetching: relLoading,
+    isFetched: relFetched,
+  } = useRelationshipCheck(
+    client_id as string,
+    hairdresser_id ?? undefined,
+    navProfessionCode,
+    { enabled: relationshipQueryEnabled }
+  );
+  const relReady = !relationshipQueryEnabled || relFetched;
 
   const normalizedPhoneNumber = Array.isArray(phone_number)
     ? phone_number[0]
@@ -218,6 +222,35 @@ const VisitList = () => {
     );
   const profileUnavailable =
     isBlockedUser || isBlockedByClient;
+
+  const shouldUseClientAddProfile =
+    relationshipQueryEnabled && !profileUnavailable && !isRelated;
+
+  useEffect(() => {
+    if (!shouldUseClientAddProfile) return;
+    const cid =
+      typeof client_id === "string"
+        ? client_id
+        : Array.isArray(client_id)
+          ? client_id[0]
+          : undefined;
+    if (!cid) return;
+    router.replace({
+      pathname: "/(professional)/clientProfile/[id]" as Href,
+      params: {
+        id: cid,
+        client_id: cid,
+        full_name: displayFullName,
+        relationship: "false",
+        ...(navProfessionCode ? { professionCode: navProfessionCode } : {}),
+      },
+    });
+  }, [
+    shouldUseClientAddProfile,
+    client_id,
+    displayFullName,
+    navProfessionCode,
+  ]);
 
   /** Pro must not open Safety & privacy against their own client profile. */
   const isSelfClientProfile = Boolean(
@@ -339,7 +372,14 @@ const VisitList = () => {
           ? moderationDetailCopy.report
           : null;
 
-  if (relLoading || !navProfessionReady || !blockStateReady || !blockedByReady) {
+  if (
+    relLoading ||
+    !relReady ||
+    !navProfessionReady ||
+    !blockStateReady ||
+    !blockedByReady ||
+    shouldUseClientAddProfile
+  ) {
     return <MintFullScreenSpinner />;
   }
 

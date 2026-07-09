@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet, Alert, Pressable } from "react-native";
-import { useLocalSearchParams, router, type Href } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import { api } from "@/src/lib/apiClient";
 import {
   getNotification,
@@ -33,6 +33,11 @@ import { useI18n } from "@/src/providers/LanguageProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { clientAddedPushBody } from "@/src/i18n/pushCopy";
+import {
+  pushNotificationProfileNav,
+  resolveClientToProProfileNav,
+  resolveProToClientProfileNav,
+} from "@/src/lib/notificationProfileNavigation";
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   if (typeof value === "string") return value;
@@ -80,23 +85,31 @@ export const FriendRequest = () => {
     brand: BRAND_DISPLAY_NAME,
   });
 
-  const openClientHub = () => {
+  const openClientHub = async () => {
     const clientId = senderIdParam;
-    if (isBlockedBySender || !clientId) return;
+    if (isBlockedBySender || !clientId || !profile?.id) return;
     const lane =
       firstParam(professionCode)?.trim() ||
       firstParam(profession_code)?.trim() ||
       activeProfessionCode ||
       undefined;
-    router.push({
-      pathname: "/visits/[id]" as Href,
-      params: {
-        id: clientId,
-        full_name: firstParam(senderName) ?? "",
-        relationship: "true",
-        ...(lane ? { professionCode: lane } : {}),
-      },
-    });
+    const resolved = await resolveProToClientProfileNav(
+      profile.id,
+      clientId,
+      lane ?? null,
+      { fullName: firstParam(senderName) ?? "" }
+    );
+    pushNotificationProfileNav(resolved, t);
+  };
+
+  const openProProfile = async () => {
+    if (isBlockedBySender || !senderIdParam || !profile?.id) return;
+    const resolved = await resolveClientToProProfileNav(
+      profile.id,
+      senderIdParam,
+      requestLane ?? null
+    );
+    pushNotificationProfileNav(resolved, t);
   };
 
   useEffect(() => {
@@ -247,16 +260,7 @@ export const FriendRequest = () => {
           {showSenderProfile ? (
             <Pressable
               style={styles.profileColumn}
-              onPress={() =>
-                router.push({
-                  pathname: `../(client)/(tabs)/userList/professionalProfile/${senderId}`,
-                  params: {
-                    id: senderId,
-                    relationship: isHandled ? "true" : "false",
-                    ...(requestLane ? { profession: requestLane } : {}),
-                  },
-                })
-              }
+              onPress={openProProfile}
             >
               <AvatarWithSpinner
                 uri={profile_pic}

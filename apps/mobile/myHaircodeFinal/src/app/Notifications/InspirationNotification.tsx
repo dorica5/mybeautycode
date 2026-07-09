@@ -45,6 +45,11 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import {
+  pushNotificationProfileNav,
+  resolveClientToProProfileNav,
+  resolveProToClientProfileNav,
+} from "@/src/lib/notificationProfileNavigation";
 
 type SharedInspirationRow = { path: string; displayUri: string };
 
@@ -256,27 +261,21 @@ const InspirationNotification = () => {
 
   const showSenderProfile = !isBlockedBySender;
 
-  const openSenderProfile = () => {
-    if (!senderIdParam || isBlockedBySender) return;
-    if (user_type === "HAIRDRESSER") {
-      router.push({
-        pathname: `../(professional)/clientProfile/${senderIdParam}`,
-        params: {
-          id: senderIdParam,
-          relationship: "true",
-          ...(inspirationLane ? { professionCode: inspirationLane } : {}),
-        },
-      });
-      return;
-    }
-    router.push({
-      pathname: `../(client)/(tabs)/userList/professionalProfile/${senderIdParam}`,
-      params: {
-        id: senderIdParam,
-        relationship: "true",
-        ...(inspirationLane ? { profession: inspirationLane } : {}),
-      },
-    });
+  const openSenderProfile = async () => {
+    if (!senderIdParam || !profile?.id || isBlockedBySender) return;
+    const resolved =
+      user_type === "HAIRDRESSER"
+        ? await resolveProToClientProfileNav(
+            profile.id,
+            senderIdParam,
+            inspirationLane ?? null
+          )
+        : await resolveClientToProProfileNav(
+            profile.id,
+            senderIdParam,
+            inspirationLane ?? null
+          );
+    pushNotificationProfileNav(resolved, t);
   };
 
   return (

@@ -127,7 +127,6 @@ const UserProfile = () => {
   const navFullName = paramStr(params.full_name);
   const navPhone = paramStr(params.phone_number);
   const navLinkPending = paramStr(params.link_pending) === "true";
-  const navRelationshipActive = paramStr(params.relationship) === "true";
 
   const linkStatusQueryEnabled = Boolean(
     storedProfessionReady &&
@@ -137,11 +136,9 @@ const UserProfile = () => {
       isUuid(client_id)
   );
 
-  const initialLinkStatus: ClientLinkUiStatus | undefined = navRelationshipActive
-    ? "active"
-    : navLinkPending
-      ? "pending"
-      : undefined;
+  const initialLinkStatus: ClientLinkUiStatus | undefined = navLinkPending
+    ? "pending"
+    : undefined;
 
   const {
     data: linkState,
