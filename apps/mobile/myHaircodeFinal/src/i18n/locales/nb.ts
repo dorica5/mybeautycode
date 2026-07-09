@@ -255,6 +255,7 @@ export const nb: AppLocaleMessages = {
     couldNotLoadProsPin:
       "Kunne ikke laste profesjonelle. Sjekk tilkoblingen og prøv pinnen igjen.",
     noProsAtLocation: "Ingen profesjonelle på dette stedet ennå.",
+    subscriberStarA11y: "Abonnent",
     useMyCurrentLocation: "Bruk min nåværende posisjon",
     prosAtLocation: "{{count}} {{role}} på dette stedet",
     mapWebFallback: "Kartet er tilgjengelig i appen på iOS og Android.",
@@ -540,6 +541,8 @@ export const nb: AppLocaleMessages = {
     superpowerPlaceholder: "Fortell kundene dine om ferdighetene dine",
     workSectionTitle: "{{name}}s arbeid",
     yourFallback: "Din",
+    subscriberBadgeNote:
+      "Fagfolk med stjerne kan se din tidligere historikk dersom du deler",
   },
   profile: {
     myProfile: "Min profil",

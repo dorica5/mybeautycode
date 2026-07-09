@@ -12,6 +12,7 @@ import {
 } from "../utils/responsive";
 import { ResponsiveText } from "./ResponsiveText";
 import { LinearGradient } from "expo-linear-gradient";
+import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 
 interface ProfileRectangleProps {
   phone_number?: string | string[]; // Optional prop
@@ -25,6 +26,7 @@ const ProfileRectangle = ({ phone_number, full_name }: ProfileRectangleProps) =>
   const normalizedPhoneNumber = Array.isArray(phone_number)
     ? phone_number[0]
     : phone_number;
+  const phoneDisplay = formatPhoneForDisplay(normalizedPhoneNumber);
 
   useEffect(() => {
     if (profile) {
@@ -72,7 +74,7 @@ const ProfileRectangle = ({ phone_number, full_name }: ProfileRectangleProps) =>
               adjustsFontSizeToFit
               numberOfLines={1}
             >
-              {normalizedPhoneNumber}
+              {phoneDisplay}
             </ResponsiveText>
           </View>
         )}

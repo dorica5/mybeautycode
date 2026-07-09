@@ -16,6 +16,15 @@ function subscriptionIsActive(row: {
   return row.entitlementExpiresAt.getTime() > Date.now();
 }
 
+export function subscriptionEntitlementIsActive(
+  row: {
+    entitlementActive: boolean;
+    entitlementExpiresAt: Date | null;
+  } | null
+): boolean {
+  return subscriptionIsActive(row);
+}
+
 type SubscriptionRow = {
   entitlementActive: boolean;
   entitlementExpiresAt: Date | null;
@@ -61,6 +70,59 @@ async function countProfessionalVisits(professionalProfileId: string): Promise<n
 }
 
 export const billingService = {
+  async profileIdsWithActiveSubscription(
+    profileIds: string[]
+  ): Promise<Set<string>> {
+    const unique = [...new Set(profileIds.filter(Boolean))];
+    if (unique.length === 0) return new Set();
+
+    if (billingConfig.DEV_BYPASS) {
+      return new Set(unique);
+    }
+
+    try {
+      const delegate = (
+        prisma as {
+          professionalSubscription?: {
+            findMany: (args: {
+              where: { profileId: { in: string[] } };
+              select: {
+                profileId: true;
+                entitlementActive: true;
+                entitlementExpiresAt: true;
+              };
+            }) => Promise<
+              {
+                profileId: string;
+                entitlementActive: boolean;
+                entitlementExpiresAt: Date | null;
+              }[]
+            >;
+          };
+        }
+      ).professionalSubscription;
+      if (!delegate?.findMany) return new Set();
+
+      const rows = await delegate.findMany({
+        where: { profileId: { in: unique } },
+        select: {
+          profileId: true,
+          entitlementActive: true,
+          entitlementExpiresAt: true,
+        },
+      });
+
+      const active = new Set<string>();
+      for (const row of rows) {
+        if (subscriptionIsActive(row)) active.add(row.profileId);
+      }
+      return active;
+    } catch (err) {
+      console.warn("profileIdsWithActiveSubscription skipped:", err);
+      return new Set();
+    }
+  },
+
   async isProfessional(profileId: string): Promise<boolean> {
     const ppId = await professionalProfileIdFor(profileId);
     return ppId != null;

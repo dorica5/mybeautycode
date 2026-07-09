@@ -21,6 +21,7 @@ import { VisitTimelineCard } from "@/src/components/visits/VisitTimelineCard";
 import { useResolvedListProfessionCode } from "@/src/hooks/useResolvedListProfessionCode";
 import { useI18n, formatVisitListDateForLocale } from "@/src/providers/LanguageProvider";
 import { useVisitScreenGate } from "@/src/hooks/useVisitScreenGate";
+import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 
 type ClientHaircodeRow = {
   id: string;
@@ -73,10 +74,11 @@ const SeeVisits = () => {
 
   const normalizedPhoneNumber =
     (Array.isArray(phone_number) ? phone_number[0] : phone_number) ?? "";
-  const displayPhone =
+  const rawPhone =
     normalizedPhoneNumber && !normalizedPhoneNumber.startsWith("+")
       ? `+47${normalizedPhoneNumber}`
       : normalizedPhoneNumber;
+  const displayPhone = formatPhoneForDisplay(rawPhone);
 
   const displayClientName =
     (Array.isArray(full_name) ? full_name.join(" ") : full_name)?.trim() ||

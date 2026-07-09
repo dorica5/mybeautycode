@@ -18,7 +18,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
-import { parseProfilePhone } from "@/src/lib/profileFieldValidation";
+import { formatPhoneForDisplay, parseProfilePhone } from "@/src/lib/profileFieldValidation";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { establishmentNoun } from "@/src/constants/professionCodes";
@@ -34,7 +34,9 @@ const PhoneNumber = () => {
   const userId = profile.id;
   const countryHint = profile.country?.trim() || null;
 
-  const [phoneNumber, setPhoneNumber] = useState(originalPhoneNumber || "");
+  const [phoneNumber, setPhoneNumber] = useState(
+    () => formatPhoneForDisplay(originalPhoneNumber, countryHint) || ""
+  );
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
@@ -118,8 +120,11 @@ const PhoneNumber = () => {
   };
 
   useEffect(() => {
-    setChanged(phoneNumber !== (originalPhoneNumber || ""));
-  }, [phoneNumber, originalPhoneNumber]);
+    setChanged(
+      phoneNumber !==
+        (formatPhoneForDisplay(originalPhoneNumber, countryHint) || "")
+    );
+  }, [phoneNumber, originalPhoneNumber, countryHint]);
 
   return (
     <MintProfileScreenShell>

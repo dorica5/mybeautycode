@@ -66,6 +66,7 @@ import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { coerceRouteParam, isUuid } from "@/src/utils/isUuid";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 import { resolveClientAboutMe } from "@/src/lib/clientAboutMe";
 
 const screenHeight = Dimensions.get("window").height;
@@ -441,7 +442,9 @@ const UserProfile = () => {
               style={[Typography.h3, styles.nameMint]}
               accessibilityRole="header"
             >
-              {data?.full_name?.trim() || data?.phone_number || t("common.client")}
+              {data?.full_name?.trim() ||
+                formatPhoneForDisplay(data?.phone_number) ||
+                t("common.client")}
             </Text>
             {displayUsername ? (
               <Text style={[Typography.anton26, styles.usernameMint]}>

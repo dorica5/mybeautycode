@@ -193,6 +193,9 @@ export const visitService = {
       professionalProfileId,
       professionId: scope.professionId,
       clientUserId: { in: allowedClientIds },
+      createdAt: {
+        gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      },
     };
 
     const records = await prisma.serviceRecord.findMany({

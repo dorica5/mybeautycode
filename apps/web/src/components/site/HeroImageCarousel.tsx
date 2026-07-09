@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { ArcTopImageFrame } from "@/components/site/ArcTopImageFrame";
 
 const HERO_IMAGES = [
   {
@@ -31,8 +32,7 @@ export function HeroImageCarousel() {
   }, []);
 
   return (
-    <div
-      className="relative aspect-[4/5] w-[320px] shrink-0 overflow-hidden rounded-t-[10rem] sm:w-[360px] sm:rounded-t-[11.25rem] md:w-[480px] md:rounded-t-[15rem] lg:w-[520px] lg:rounded-t-[16.25rem]"
+    <ArcTopImageFrame
       aria-roledescription="carousel"
       aria-label="Beauty highlights"
     >
@@ -55,6 +55,6 @@ export function HeroImageCarousel() {
           />
         </div>
       ))}
-    </div>
+    </ArcTopImageFrame>
   );
 }

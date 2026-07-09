@@ -123,3 +123,34 @@ export function parseProfilePhone(
     country,
   };
 }
+
+/** Human-readable phone for UI — single space between country code and subscriber number. */
+export function formatPhoneForDisplay(
+  raw: string | null | undefined,
+  defaultCountry?: string | null
+): string {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return "";
+
+  let parsed = parsePhoneNumberFromString(trimmed);
+  const iso =
+    typeof defaultCountry === "string" && /^[A-Z]{2}$/i.test(defaultCountry)
+      ? (defaultCountry.trim().toUpperCase() as CountryCode)
+      : undefined;
+
+  if ((!parsed || !parsed.isValid()) && iso) {
+    parsed = parsePhoneNumberFromString(trimmed, iso) ?? undefined;
+  }
+
+  if (parsed?.isValid()) {
+    return `+${parsed.countryCallingCode} ${parsed.nationalNumber}`;
+  }
+
+  const compact = trimmed.replace(/\s/g, "");
+  const fallback = compact.match(/^(\+\d{1,3})(\d+)$/);
+  if (fallback) {
+    return `${fallback[1]} ${fallback[2]}`;
+  }
+
+  return trimmed;
+}

@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 import { Image, type ImageLoadEventData } from "expo-image";
-import { ResizeMode, Video, type AVPlaybackStatus } from "expo-av";
+import { Audio, ResizeMode, Video, type AVPlaybackStatus } from "expo-av";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -220,16 +220,39 @@ export function VisitPreviewSizedVideo({
   const trimmedUri = uri?.trim() ?? "";
   const videoRef = useRef<Video>(null);
   const wasActiveRef = useRef(false);
-  const autoPlayedRef = useRef(false);
+  const isActiveRef = useRef(isActive);
   const wasPlayingRef = useRef(false);
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
+
+  useEffect(() => {
     setNatural(null);
     wasActiveRef.current = false;
-    autoPlayedRef.current = false;
     wasPlayingRef.current = false;
   }, [trimmedUri]);
+
+  useEffect(() => {
+    if (!isActive) return;
+    void Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    }).catch(() => {});
+  }, [isActive]);
+
+  const startPlayback = useCallback(async () => {
+    if (!isActiveRef.current) return;
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      await video.playAsync();
+    } catch {
+      // Retry when load callbacks fire.
+    }
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -240,7 +263,6 @@ export function VisitPreviewSizedVideo({
     if (!video) return;
 
     if (becameInactive) {
-      autoPlayedRef.current = false;
       wasPlayingRef.current = false;
       void (async () => {
         try {
@@ -258,17 +280,10 @@ export function VisitPreviewSizedVideo({
       return;
     }
 
-    if (becameActive && !autoPlayedRef.current) {
-      autoPlayedRef.current = true;
-      void video.playAsync().catch(() => {});
+    if (becameActive) {
+      void startPlayback();
     }
-  }, [isActive, trimmedUri]);
-
-  const tryAutoPlay = useCallback(() => {
-    if (!isActive || autoPlayedRef.current) return;
-    autoPlayedRef.current = true;
-    void videoRef.current?.playAsync().catch(() => {});
-  }, [isActive]);
+  }, [isActive, trimmedUri, startPlayback]);
 
   const onPlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
     if (!status.isLoaded) return;
@@ -331,6 +346,7 @@ export function VisitPreviewSizedVideo({
           style={{ width: dw, height: dh }}
           useNativeControls
           resizeMode={ResizeMode.CONTAIN}
+          shouldPlay={isActive}
           isLooping={false}
           progressUpdateIntervalMillis={250}
           onPlaybackStatusUpdate={onPlaybackStatusUpdate}
@@ -339,7 +355,10 @@ export function VisitPreviewSizedVideo({
             if (width > 0 && height > 0) {
               setNatural({ w: width, h: height });
             }
-            tryAutoPlay();
+            void startPlayback();
+          }}
+          onLoad={() => {
+            void startPlayback();
           }}
         />
       </View>

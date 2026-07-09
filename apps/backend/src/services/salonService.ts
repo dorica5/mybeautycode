@@ -9,6 +9,7 @@ import {
   storedDiscoveryCategoriesNonEmpty,
 } from "../lib/profDiscoveryCategories";
 import { professionalProfileIdsHiddenFromViewer } from "../lib/blockDiscoveryHelpers";
+import { billingService } from "./billingService";
 
 export type DiscoveryMatchMode = "any" | "all";
 
@@ -371,6 +372,7 @@ export const salonService = {
       has_relationship: boolean;
       link_pending: boolean;
       business_name: string | null;
+      has_active_subscription: boolean;
     }>
   > {
     const professionIdPromise =
@@ -514,6 +516,10 @@ export const salonService = {
       else if (l.status === "pending") pendingSet.add(l.professionalProfileId);
     }
 
+    const profileIds = merged.map((r) => r.professionalProfile.profile.id);
+    const subscribedProfileIds =
+      await billingService.profileIdsWithActiveSubscription(profileIds);
+
     return merged.map((r) => {
       const pp = r.professionalProfile;
       return {
@@ -525,6 +531,7 @@ export const salonService = {
         has_relationship: activeSet.has(pp.id),
         link_pending: pendingSet.has(pp.id),
         business_name: r.businessName,
+        has_active_subscription: subscribedProfileIds.has(pp.profile.id),
       };
     });
   },

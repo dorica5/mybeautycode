@@ -21,6 +21,7 @@ export type SalonProfessional = {
   has_relationship: boolean;
   link_pending: boolean;
   business_name: string | null;
+  has_active_subscription?: boolean;
 };
 
 export type SalonBounds = {

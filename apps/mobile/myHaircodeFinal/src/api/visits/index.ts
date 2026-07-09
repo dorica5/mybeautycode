@@ -239,8 +239,8 @@ export const useLatestHaircodes = (
   const ready = options?.activeProfessionReady !== false;
 
   return useQuery({
-    /** `v3`: latest visits require an active client link (same release as backend filter). */
-    queryKey: ["latest_visits", "v3", hairdresserId, code ?? "pending"],
+    /** `v4`: latest visits limited to the last 7 days. */
+    queryKey: ["latest_visits", "v4", hairdresserId, code ?? "pending"],
     queryFn: async () => {
       const q = code
         ? `?professionCode=${encodeURIComponent(code)}`

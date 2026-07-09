@@ -411,6 +411,7 @@ const OtherProfessionalProfileScreen = () => {
         businessAddress={data.business_address ?? null}
         aboutMe={data.about_me ?? null}
         salonPhone={data.salon_phone_number ?? null}
+        hasActiveSubscription={Boolean(p?.has_active_subscription)}
         bookingSite={data.booking_site ?? null}
         socialMediaRaw={data.social_media ?? null}
         colorBrandRaw={data.color_brand ?? null}

@@ -4,12 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { AppDownloadBadges } from "@/components/site/AppDownloadBadges";
 import { HeroImageCarousel } from "@/components/site/HeroImageCarousel";
+import { ArcTopImageFrame } from "@/components/site/ArcTopImageFrame";
 import { SiteLanguageDropdown } from "@/components/site/SiteLanguageDropdown";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SectionBand } from "@/components/site/SectionBand";
 import { SectionShell } from "@/components/site/SectionShell";
 import { PaymentPlans } from "@/components/site/PaymentPlans";
 import { StepCircle } from "@/components/site/StepCircle";
+import { StarBadgeNote } from "@/components/site/StarBadgeNote";
 import type { StepIllustrationId } from "@/components/site/StepIllustration";
 import { BRAND_NAME } from "@/lib/brand";
 import { useSiteLanguage } from "@/providers/LanguageProvider";
@@ -98,6 +100,7 @@ export function SiteHome() {
               />
             ))}
           </ul>
+          <StarBadgeNote text={t.badgeNotes.clients} />
         </SectionBand>
 
         <SectionBand
@@ -115,6 +118,7 @@ export function SiteHome() {
               />
             ))}
           </ul>
+          <StarBadgeNote text={t.badgeNotes.professionals} />
         </SectionBand>
 
         <SectionBand id="payment" tone="secondary" title={t.sections.payment}>
@@ -127,6 +131,18 @@ export function SiteHome() {
               <p key={index}>{paragraph}</p>
             ))}
             <p className="mt-2 font-medium">{t.aboutSignOff}</p>
+            <div className="mt-2 flex justify-center">
+              <ArcTopImageFrame size="compact">
+                <Image
+                  src="/images/about/team-dorcas-cecilie-v2.png"
+                  alt={t.aboutTeamPhotoAlt}
+                  fill
+                  unoptimized
+                  sizes="(max-width: 768px) 180px, 220px"
+                  className="object-cover object-center"
+                />
+              </ArcTopImageFrame>
+            </div>
           </div>
         </SectionBand>
       </main>
