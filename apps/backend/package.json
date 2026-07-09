@@ -16,7 +16,8 @@
     "prisma:seed": "npx tsx prisma/seed.ts",
     "prisma:studio": "prisma studio",
     "slack:feedback:test": "tsx scripts/test-slack-feedback.ts",
-    "slack:reports:test": "tsx scripts/test-slack-report.ts"
+    "slack:reports:test": "tsx scripts/test-slack-report.ts",
+    "billing:grant-test": "tsx scripts/grant-test-subscription.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
