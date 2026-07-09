@@ -50,6 +50,7 @@ import {
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { IMAGE_CROP_VIEWPORT_HEIGHT_RATIO } from "@/src/components/ImageCropModal";
 import { ModerationSheetHeading } from "@/src/components/moderation/ModerationSheetParts";
+import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { useVisitScreenGate } from "@/src/hooks/useVisitScreenGate";
 
@@ -228,7 +229,7 @@ const SingleVisit = () => {
   const rawNumber = Array.isArray(number) ? number[0] : number;
   const phoneLine =
     rawNumber && String(rawNumber).trim().length > 0
-      ? `Tlf: ${String(rawNumber).trim()}`
+      ? `Tlf: ${formatPhoneForDisplay(String(rawNumber).trim())}`
       : "";
 
   const proName =

@@ -24,6 +24,7 @@ import {
 } from "../utils/responsive";
 import { isUuid } from "../utils/isUuid";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 
 type SearchResultProps = {
   item: {
@@ -131,7 +132,9 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
   const linkPending = Boolean(item.link_pending);
 
   const displayName =
-    item.full_name?.trim() || item.phone_number || t("common.client");
+    item.full_name?.trim() ||
+    formatPhoneForDisplay(item.phone_number) ||
+    t("common.client");
 
   if (isProClientRow) {
     const clientId = item.client_id ?? item.id;

@@ -16,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { PublicProfileWorkGrid } from "@/src/components/PublicProfileWorkGrid";
+import { ProSubscriberStarBadgeNote } from "@/src/components/ProSubscriberStarBadgeNote";
 import { SocialStrokeIcon20 } from "@/src/components/icons/GetDiscoveredStrokeIcons";
 import { inferSocialFromUrl } from "@/src/lib/inferSocialFromUrl";
 import {
@@ -23,6 +24,7 @@ import {
   socialLinkRowLabel,
 } from "@/src/lib/socialMediaStorage";
 import { normalizeExternalUrlString } from "@/src/lib/safeExternalUrl";
+import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 import { parseColorBrands } from "@/src/lib/colorBrandStorage";
 import {
   profileHasHairProfession,
@@ -146,6 +148,8 @@ export type PublicProfessionalProfileViewProps = {
   businessAddress?: string | null;
   aboutMe?: string | null;
   salonPhone?: string | null;
+  /** Active RevenueCat / pro subscription — shown to clients below salon name. */
+  hasActiveSubscription?: boolean;
   bookingSite?: string | null;
   socialMediaRaw?: string | null;
   colorBrandRaw?: string | null;
@@ -183,6 +187,7 @@ export function PublicProfessionalProfileView({
   businessAddress: _businessAddress,
   aboutMe,
   salonPhone,
+  hasActiveSubscription = false,
   bookingSite,
   socialMediaRaw,
   colorBrandRaw,
@@ -290,6 +295,8 @@ export function PublicProfessionalProfileView({
       ? activeProfessionCode === "hair"
       : viewerIsHairdresser);
 
+  const salonPhoneDisplay = formatPhoneForDisplay(salonPhone);
+
   const handleCall = useCallback(() => {
     const p = salonPhone?.trim();
     if (!p) return;
@@ -367,6 +374,11 @@ export function PublicProfessionalProfileView({
             >
               {businessName}
             </Text>
+          ) : null}
+          {mode === "client" && hasActiveSubscription ? (
+            <ProSubscriberStarBadgeNote
+              text={t("publicProfile.subscriberBadgeNote")}
+            />
           ) : null}
         </View>
 
@@ -447,7 +459,7 @@ export function PublicProfessionalProfileView({
                 accessibilityRole="button"
               >
                 <Text style={[Typography.outfitRegular16, styles.pillText]}>
-                  {salonPhone.trim()}
+                  {salonPhoneDisplay}
                 </Text>
               </Pressable>
             </View>
@@ -621,35 +633,35 @@ const styles = StyleSheet.create({
     backgroundColor: primaryBlack,
     borderRadius: responsiveBorderRadius(999),
     alignItems: "center",
+    alignSelf: "center",
   },
-  /** Full-width bar on phone (max readable width). */
+  /** Compact pill on phone — not full-width. */
   addHairdresserBtnPhone: {
-    alignSelf: "stretch",
-    maxWidth: 400,
-    width: "100%",
+    maxWidth: responsiveScale(320),
   },
   /** Fills `columnShell`, which already applies the tablet content max width. */
   addHairdresserBtnTablet: {
-    alignSelf: "stretch",
-    width: "100%",
+    maxWidth: responsiveScale(400),
   },
   addHairdresserBtnLabel: {
     color: primaryWhite,
     textAlign: "center",
   },
   addHairdresserBtnPressable: {
-    paddingVertical: responsivePadding(16),
-    paddingHorizontal: responsivePadding(32),
+    paddingVertical: responsivePadding(14),
+    paddingHorizontal: responsivePadding(28),
     justifyContent: "center",
-    minHeight: responsiveScale(52),
+    minHeight: responsiveScale(48),
   },
   addedGhost: {
     backgroundColor: "transparent",
     borderWidth: 2,
     borderColor: primaryBlack,
     opacity: 0.55,
-    paddingVertical: responsivePadding(16),
-    paddingHorizontal: responsivePadding(32),
+    paddingVertical: responsivePadding(14),
+    paddingHorizontal: responsivePadding(28),
+    minHeight: responsiveScale(48),
+    justifyContent: "center",
   },
   addedGhostLabel: {
     color: primaryBlack,

@@ -40,6 +40,8 @@ import { useClearOnProfessionChange } from "@/src/hooks/useClearOnProfessionChan
 import { useI18n, formatVisitListDateForLocale } from "@/src/providers/LanguageProvider";
 import { useVisitLimitGate } from "@/src/hooks/useVisitLimitGate";
 
+const LATEST_VISITS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 type VisitListItem = {
   id: string;
   created_at?: string | null;
@@ -109,7 +111,7 @@ function visitClientPhone(item: VisitListItem): string {
 const HomeScreen = () => {
   const { t, locale } = useI18n();
   const { guard: guardViewVisits } = useVisitLimitGate("view");
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -186,10 +188,13 @@ const HomeScreen = () => {
   const latestVisitsSorted = useMemo(() => {
     const raw = latestHaircodes as VisitListItem[];
     if (!Array.isArray(raw)) return [];
+    const cutoff = Date.now() - LATEST_VISITS_MAX_AGE_MS;
     const withDates = raw.filter((item) => {
       const ts = visitCreatedAtIso(item);
       if (!ts) return false;
-      return !Number.isNaN(new Date(ts).getTime());
+      const createdMs = new Date(ts).getTime();
+      if (Number.isNaN(createdMs)) return false;
+      return createdMs >= cutoff;
     });
     return [...withDates].sort(
       (a, b) =>
@@ -197,6 +202,51 @@ const HomeScreen = () => {
         new Date(visitCreatedAtIso(a)!).getTime()
     );
   }, [latestHaircodes]);
+
+  const clients = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { name: string; phone: string }[] = [];
+    for (const item of latestVisitsSorted) {
+      const norm = visitClientProfileNormalized(item);
+      if (!norm) continue;
+      const key = `${norm.phone}|${norm.displayName}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ name: norm.displayName, phone: norm.phone });
+    }
+    return out;
+  }, [latestVisitsSorted]);
+
+  useEffect(() => {
+    const searchText = debouncedQuery;
+    const trimmed = searchText.trim();
+    if (!trimmed || !profile?.id || !activeProfessionCode) return;
+
+    const hairdresserId = profile.id;
+    const q = trimmed.toLowerCase();
+    const filteredClients = clients.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.phone.replace(/\s/g, "").includes(trimmed.replace(/\s/g, ""))
+    );
+
+    console.log("AUTH USER ID:", session?.user?.id);
+    console.log("PROFILE ID USED:", profile?.id);
+    console.log("HAIRDRESSER ID USED:", hairdresserId);
+    console.log("SEARCH TEXT RAW:", searchText);
+    console.log(
+      "SEARCH TEXT CHARS:",
+      [...searchText].map((c) => c.charCodeAt(0))
+    );
+    console.log("ALL CLIENTS BEFORE SEARCH:", clients);
+    console.log("FILTERED CLIENTS:", filteredClients);
+  }, [
+    debouncedQuery,
+    profile?.id,
+    activeProfessionCode,
+    session?.user?.id,
+    clients,
+  ]);
 
   const hasLatestVisits = latestVisitsSorted.length > 0;
 

@@ -25,6 +25,7 @@ import {
   contentCardMaxWidth,
 } from "@/src/utils/responsive";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 
 function displayFirstName(
   first: string | null | undefined,
@@ -102,6 +103,7 @@ export function PublicClientProfileView({
   }, [windowWidth, windowHeight]);
 
   const phone = phoneNumber?.trim() ?? "";
+  const phoneDisplay = formatPhoneForDisplay(phone);
   const aboutTrimmed = aboutMe?.trim() ?? "";
 
   return (
@@ -164,7 +166,7 @@ export function PublicClientProfileView({
                     accessibilityRole="button"
                   >
                     <Text style={[Typography.outfitRegular16, styles.pillText]}>
-                      {phone}
+                      {phoneDisplay}
                     </Text>
                   </Pressable>
                 ) : (

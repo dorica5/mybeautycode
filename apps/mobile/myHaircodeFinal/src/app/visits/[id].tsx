@@ -63,6 +63,7 @@ import { NavBackRow, navBackChromeBarCombined } from "@/src/components/NavBackRo
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { reportReasonLabel } from "@/src/i18n/moderationLabels";
 import { useVisitLimitGate } from "@/src/hooks/useVisitLimitGate";
+import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -181,8 +182,8 @@ const VisitList = () => {
   const displayFullName =
     data?.full_name?.trim() ||
     navFullName?.trim() ||
-    data?.phone_number?.trim() ||
-    normalizedPhoneNumber?.trim() ||
+    formatPhoneForDisplay(data?.phone_number) ||
+    formatPhoneForDisplay(normalizedPhoneNumber) ||
     t("common.client");
   const relParam = navRelationship ?? "true";
 
@@ -225,11 +226,14 @@ const VisitList = () => {
       String(hairdresser_id) === String(client_id)
   );
 
+  const rawPhoneNumber =
+    data?.phone_number?.trim() || normalizedPhoneNumber?.trim() || "";
+
   const displayPhonePill = profileUnavailable
     ? null
-    : data?.phone_number?.trim() ||
-      normalizedPhoneNumber?.trim() ||
-      null;
+    : rawPhoneNumber
+      ? formatPhoneForDisplay(rawPhoneNumber)
+      : null;
 
   // Handlers
   const toggleModal = () => {
@@ -481,8 +485,7 @@ const VisitList = () => {
                       pathname: "/visits/see_visits",
                       params: {
                         id: client_id,
-                        phone_number:
-                          displayPhonePill ?? normalizedPhoneNumber ?? "",
+                        phone_number: rawPhoneNumber,
                         full_name: displayFullName,
                         relationship: relParam,
                         price: navPrice ?? "",

@@ -74,6 +74,7 @@ export type Profile = {
   social_media: string | null;
   booking_site: string | null;
   color_brand: string | null;
+  has_active_subscription?: boolean;
   push_token: string | null;
   hair_structure: string | null;
   hair_thickness: string | null;

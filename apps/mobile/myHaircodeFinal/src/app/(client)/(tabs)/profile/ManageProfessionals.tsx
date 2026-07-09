@@ -216,8 +216,8 @@ const ManageProfessionals = () => {
                   </Text>
                   <PaddedLabelButton
                     title={t("profile.addProfessional")}
-                    horizontalPadding={32}
-                    verticalPadding={16}
+                    horizontalPadding={28}
+                    verticalPadding={14}
                     onPress={() => {
                       router.replace(
                         "/(client)/(tabs)/userList/filter-before-map" as Href

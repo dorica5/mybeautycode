@@ -9,6 +9,7 @@ import {
 } from "../lib/serializeProfileForApi";
 import { profileService } from "../services/profileService";
 import { professionService } from "../services/professionService";
+import { billingService } from "../services/billingService";
 import { publicProfileWorkService } from "../services/publicProfileWorkService";
 import { readProfessionCodeQuery } from "../lib/readProfessionCodeQuery";
 
@@ -30,15 +31,19 @@ export const profileController = {
       const exposeColorBrandToViewer = req.userId
         ? await profileService.hasHairProfession(req.userId)
         : false;
-      res.json(
-        serializeProfileForApi(profile, {
+      const subscribedIds = profile.professionalProfile
+        ? await billingService.profileIdsWithActiveSubscription([id])
+        : new Set<string>();
+      res.json({
+        ...serializeProfileForApi(profile, {
           professionCodesSqlFallback,
           exposeColorBrandToViewer,
           activeProfessionCode: readProfessionCodeQuery(
             req.query as Record<string, unknown>
           ),
-        })
-      );
+        }),
+        has_active_subscription: subscribedIds.has(id),
+      });
     } catch (err) {
       console.error("profile getById error:", err);
       res.status(500).json({ error: "Failed to fetch profile" });

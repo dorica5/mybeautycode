@@ -253,6 +253,7 @@ export const en = {
     couldNotLoadProsPin:
       "Couldn't load professionals. Check your connection and try the pin again.",
     noProsAtLocation: "No professionals at this location yet.",
+    subscriberStarA11y: "Subscriber",
     useMyCurrentLocation: "Use my current location",
     prosAtLocation: "{{count}} {{role}} at this location",
     mapWebFallback: "The map is available in the app on iOS and Android.",
@@ -542,6 +543,8 @@ export const en = {
     superpowerPlaceholder: "Tell your clients about your skills",
     workSectionTitle: "{{name}}'s work",
     yourFallback: "Your",
+    subscriberBadgeNote:
+      "Professionals with a star can see your previous history if you share it",
   },
   profile: {
     myProfile: "My profile",

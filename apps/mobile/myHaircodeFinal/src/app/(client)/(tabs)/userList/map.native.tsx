@@ -37,6 +37,7 @@ import {
   usePathname,
 } from "expo-router";
 import { CaretRight, X } from "phosphor-react-native";
+import { ProSubscriberStarBadge } from "@/src/components/ProSubscriberStarBadge";
 import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import { StatusBar } from "expo-status-bar";
 import MapView, {
@@ -1419,9 +1420,21 @@ const MapLocationScreen = () => {
                                   accessibilityLabel={pro.full_name ?? t("common.professional")}
                                 >
                                   <View style={styles.clusterRowTextWrap}>
-                                    <Text style={styles.clusterRowName}>
-                                      {pro.full_name ?? t("common.professional")}
-                                    </Text>
+                                    <View style={styles.clusterRowNameLine}>
+                                      <Text
+                                        style={styles.clusterRowName}
+                                        numberOfLines={1}
+                                      >
+                                        {pro.full_name ?? t("common.professional")}
+                                      </Text>
+                                      {pro.has_active_subscription ? (
+                                        <ProSubscriberStarBadge
+                                          accessibilityLabel={t(
+                                            "discover.subscriberStarA11y"
+                                          )}
+                                        />
+                                      ) : null}
+                                    </View>
                                     {pro.business_name ? (
                                       <Text style={styles.clusterRowAddress}>
                                         {pro.business_name}
@@ -1774,9 +1787,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  clusterRowNameLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveMargin(8),
+    minWidth: 0,
+  },
   clusterRowName: {
     ...Typography.agLabel16,
     color: primaryBlack,
+    flexShrink: 1,
   },
   clusterRowAddress: {
     ...Typography.outfitRegular16,

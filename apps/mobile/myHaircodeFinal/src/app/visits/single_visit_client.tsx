@@ -26,6 +26,7 @@ import {
 } from "@/src/components/MintBrandModal";
 import { ModerationSheetHeading } from "@/src/components/moderation/ModerationSheetParts";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 import { VisitRecordScreenHeader } from "@/src/components/visits/VisitRecordScreenHeader";
 import {
   useDeleteHaircodeClient,
@@ -180,7 +181,9 @@ const SingleVisitClient = () => {
     [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
     "Me";
   const clientPhone = profile?.phone_number?.trim() ?? "";
-  const phoneLine = clientPhone ? `Tlf: ${clientPhone}` : "";
+  const phoneLine = clientPhone
+    ? `Tlf: ${formatPhoneForDisplay(clientPhone)}`
+    : "";
 
   /**
    * One scroll after the keyboard has finished opening (`keyboardDidShow`), so we

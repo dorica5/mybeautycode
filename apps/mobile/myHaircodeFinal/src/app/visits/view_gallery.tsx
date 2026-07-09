@@ -18,9 +18,11 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import Carousel from "react-native-reanimated-carousel";
+import { ResizeMode, Video } from "expo-av";
 import InspirationTopNav from "@/src/components/InspirationTopNav";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import OptimizedImage from "@/src/components/OptimizedImage";
+import { VisitPreviewSizedVideo } from "@/src/components/visits/VisitPreviewModalContent";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/src/lib/apiClient";
 import { prefetchHaircodeWithMedia } from "@/src/api/visits";
@@ -40,7 +42,7 @@ import {
   responsiveBorderRadius,
   responsiveMargin,
 } from "@/src/utils/responsive";
-import { Images } from "phosphor-react-native";
+import { Images, Play } from "phosphor-react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { useVisitScreenGate } from "@/src/hooks/useVisitScreenGate";
 
@@ -52,8 +54,50 @@ type GalleryRow = {
   media_type: string;
 };
 
-function isImageMedia(row: GalleryRow): boolean {
-  return (row.media_type ?? "").toLowerCase() === "image";
+function isVideoMedia(row: GalleryRow): boolean {
+  return (row.media_type ?? "").toLowerCase() === "video";
+}
+
+function GalleryGridVideoThumb({
+  signedUrl,
+  cellSize,
+}: {
+  signedUrl?: string;
+  cellSize: number;
+}) {
+  if (!signedUrl) {
+    return (
+      <View
+        style={[
+          styles.image,
+          styles.videoThumbPlaceholder,
+          { width: cellSize, height: cellSize },
+        ]}
+      >
+        <ActivityIndicator size="small" color={primaryBlack} />
+      </View>
+    );
+  }
+
+  return (
+    <>
+      <Video
+        source={{ uri: signedUrl }}
+        style={[styles.image, { width: cellSize, height: cellSize }]}
+        resizeMode={ResizeMode.COVER}
+        useNativeControls={false}
+        isMuted
+        shouldPlay={false}
+      />
+      <View style={styles.videoPlayOverlay} pointerEvents="none">
+        <Play
+          size={responsiveScale(28)}
+          color={primaryWhite}
+          weight="fill"
+        />
+      </View>
+    </>
+  );
 }
 
 const ViewGallery = () => {
@@ -91,15 +135,13 @@ const ViewGallery = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [startingIndex, setStartingIndex] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [carouselFullUrls, setCarouselFullUrls] = useState<Record<string, string>>(
-    {}
-  );
+  const [signedUrlMap, setSignedUrlMap] = useState<Record<string, string>>({});
   const [detailForHaircodeId, setDetailForHaircodeId] = useState<string | null>(
     null
   );
 
-  const imageItems = useMemo(
-    () => rows.filter((r) => r.media_url && isImageMedia(r)),
+  const galleryItems = useMemo(
+    () => rows.filter((r) => Boolean(r.media_url)),
     [rows]
   );
 
@@ -108,8 +150,8 @@ const ViewGallery = () => {
   }, []);
 
   const carouselBatchKey = useMemo(() => {
-    return imageItems.map(carouselKeyForItem).join("|");
-  }, [imageItems, carouselKeyForItem]);
+    return galleryItems.map(carouselKeyForItem).join("|");
+  }, [galleryItems, carouselKeyForItem]);
 
   useEffect(() => {
     const run = async () => {
@@ -143,18 +185,14 @@ const ViewGallery = () => {
   }, [clientIdStr, galleryProfessionCode, galleryProfessionReady]);
 
   useEffect(() => {
-    if (!modalVisible) {
-      setCarouselFullUrls({});
-      return;
-    }
-    const items = imageItems.filter(
+    const items = galleryItems.filter(
       (it) =>
         it.media_url &&
         !String(it.media_url).startsWith("http") &&
         !String(it.media_url).startsWith("temp_")
     );
     if (items.length === 0) {
-      setCarouselFullUrls({});
+      setSignedUrlMap({});
       return;
     }
     let cancelled = false;
@@ -168,12 +206,12 @@ const ViewGallery = () => {
         const u = urls[i];
         if (u) map[carouselKeyForItem(g)] = u;
       });
-      setCarouselFullUrls(map);
+      setSignedUrlMap(map);
     })();
     return () => {
       cancelled = true;
     };
-  }, [modalVisible, carouselBatchKey, imageItems, carouselKeyForItem]);
+  }, [carouselBatchKey, galleryItems, carouselKeyForItem]);
 
   /** Warm visit detail for single_visit — never blocks the modal button. */
   useEffect(() => {
@@ -187,14 +225,14 @@ const ViewGallery = () => {
   };
 
   const handleGridPress = (item: GalleryRow) => {
-    const index = imageItems.findIndex(
+    const index = galleryItems.findIndex(
       (it) =>
         it.haircode_id === item.haircode_id && it.media_url === item.media_url
     );
     const start = index >= 0 ? index : 0;
     setStartingIndex(start);
     setCurrentIndex(start);
-    const first = imageItems[start];
+    const first = galleryItems[start];
     if (first?.haircode_id) {
       setDetailForHaircodeId(first.haircode_id);
       void prefetchHaircodeWithMedia(queryClient, first.haircode_id);
@@ -236,7 +274,7 @@ const ViewGallery = () => {
           <FlatList
             key="visit-gallery-grid"
             style={styles.galleryList}
-            data={imageItems}
+            data={galleryItems}
             initialNumToRender={8}
             maxToRenderPerBatch={8}
             windowSize={7}
@@ -253,34 +291,48 @@ const ViewGallery = () => {
                 return null;
               }
 
+              const itemKey = carouselKeyForItem(item);
+              const signedUrl =
+                signedUrlMap[itemKey] ||
+                (String(item.media_url).startsWith("http")
+                  ? item.media_url
+                  : undefined);
+
               return (
                 <Pressable
                   onPress={() => handleGridPress(item)}
                   style={[styles.imageContainer, { width: cellSize }]}
                 >
-                  <OptimizedImage
-                    directUrl={
-                      String(item.media_url).startsWith("http")
-                        ? item.media_url
-                        : undefined
-                    }
-                    path={
-                      !String(item.media_url).startsWith("http")
-                        ? item.media_url
-                        : undefined
-                    }
-                    bucket="haircode_images"
-                    sizePreset="inspiration-grid"
-                    width={Math.ceil(cellSize)}
-                    recyclingKey={carouselKeyForItem(item)}
-                    style={[
-                      styles.image,
-                      styles.imageRounded,
-                      { width: cellSize, height: cellSize },
-                    ]}
-                    contentFit="cover"
-                    priority="low"
-                  />
+                  {isVideoMedia(item) ? (
+                    <GalleryGridVideoThumb
+                      signedUrl={signedUrl}
+                      cellSize={cellSize}
+                    />
+                  ) : (
+                    <OptimizedImage
+                      directUrl={
+                        String(item.media_url).startsWith("http")
+                          ? item.media_url
+                          : undefined
+                      }
+                      path={
+                        !String(item.media_url).startsWith("http")
+                          ? item.media_url
+                          : undefined
+                      }
+                      bucket="haircode_images"
+                      sizePreset="inspiration-grid"
+                      width={Math.ceil(cellSize)}
+                      recyclingKey={itemKey}
+                      style={[
+                        styles.image,
+                        styles.imageRounded,
+                        { width: cellSize, height: cellSize },
+                      ]}
+                      contentFit="cover"
+                      priority="low"
+                    />
+                  )}
                 </Pressable>
               );
             }}
@@ -291,7 +343,7 @@ const ViewGallery = () => {
               gap: columnGap,
               marginBottom: columnGap,
             }}
-            contentContainerStyle={imageItems.length === 0 ? styles.contentContainerEmpty : styles.contentContainer}
+            contentContainerStyle={galleryItems.length === 0 ? styles.contentContainerEmpty : styles.contentContainer}
             ListEmptyComponent={
               <View
                 style={[
@@ -352,7 +404,7 @@ const ViewGallery = () => {
                 <InspirationTopNav title={displayName} onBack={closeModal} />
               </View>
 
-              {modalVisible && imageItems.length > 0 ? (
+              {modalVisible && galleryItems.length > 0 ? (
                 <View style={styles.detailCarouselSection}>
                   <View
                     style={[
@@ -366,16 +418,16 @@ const ViewGallery = () => {
                       width={width}
                       height={detailCarouselViewportHeight}
                       autoPlay={false}
-                      data={imageItems}
+                      data={galleryItems}
                       onSnapToItem={(index) => {
                         setCurrentIndex(index);
-                        const snapped = imageItems[index];
+                        const snapped = galleryItems[index];
                         if (snapped?.haircode_id) {
                           setDetailForHaircodeId(snapped.haircode_id);
                         }
                       }}
                       defaultIndex={startingIndex}
-                      renderItem={({ item }) => {
+                      renderItem={({ item, index }) => {
                         if (!item) {
                           return <View style={{ width, height: "100%" }} />;
                         }
@@ -383,7 +435,7 @@ const ViewGallery = () => {
                         const imageBlockHeight = detailCarouselViewportHeight;
 
                         const key = carouselKeyForItem(item);
-                        const fullSigned = carouselFullUrls[key];
+                        const fullSigned = signedUrlMap[key];
                         const thumb = String(item.media_url ?? "");
                         const rawPath =
                           item.media_url &&
@@ -402,29 +454,56 @@ const ViewGallery = () => {
                               { width, height: "100%" },
                             ]}
                           >
-                            <View
-                              style={[
-                                styles.detailImageFrame,
-                                {
-                                  width: detailW,
-                                  height: imageBlockHeight,
-                                },
-                              ]}
-                            >
-                              <OptimizedImage
-                                directUrl={displayUrl || undefined}
-                                path={
-                                  !displayUrl && rawPath ? rawPath : undefined
-                                }
-                                bucket="haircode_images"
-                                sizePreset="fullscreen"
-                                width={Math.ceil(detailW)}
-                                style={styles.detailOptimizedImage}
-                                contentFit="cover"
-                                priority="high"
-                                transition={0}
-                              />
-                            </View>
+                            {isVideoMedia(item) ? (
+                              displayUrl ? (
+                                <VisitPreviewSizedVideo
+                                  uri={displayUrl}
+                                  maxWidth={detailW}
+                                  maxHeight={imageBlockHeight}
+                                  cornerRadius={responsiveBorderRadius(24)}
+                                  isActive={index === currentIndex}
+                                />
+                              ) : (
+                                <View
+                                  style={[
+                                    styles.detailImageFrame,
+                                    {
+                                      width: detailW,
+                                      height: imageBlockHeight,
+                                    },
+                                  ]}
+                                >
+                                  <ActivityIndicator
+                                    size="large"
+                                    color={primaryBlack}
+                                  />
+                                </View>
+                              )
+                            ) : (
+                              <View
+                                style={[
+                                  styles.detailImageFrame,
+                                  {
+                                    width: detailW,
+                                    height: imageBlockHeight,
+                                  },
+                                ]}
+                              >
+                                <OptimizedImage
+                                  directUrl={displayUrl || undefined}
+                                  path={
+                                    !displayUrl && rawPath ? rawPath : undefined
+                                  }
+                                  bucket="haircode_images"
+                                  sizePreset="fullscreen"
+                                  width={Math.ceil(detailW)}
+                                  style={styles.detailOptimizedImage}
+                                  contentFit="cover"
+                                  priority="high"
+                                  transition={0}
+                                />
+                              </View>
+                            )}
                           </View>
                         );
                       }}
@@ -480,6 +559,19 @@ const styles = StyleSheet.create({
   },
   image: { resizeMode: "cover" },
   imageRounded: {
+    borderRadius: responsiveBorderRadius(18),
+  },
+  videoThumbPlaceholder: {
+    borderRadius: responsiveBorderRadius(18),
+    backgroundColor: `${primaryBlack}12`,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  videoPlayOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.28)",
     borderRadius: responsiveBorderRadius(18),
   },
   contentContainer: {

@@ -254,6 +254,7 @@ export const sv: AppLocaleMessages = {
     couldNotLoadProsPin:
       "Kunde inte läsa in professionella. Kontrollera anslutningen och försök med nålen igen.",
     noProsAtLocation: "Inga professionella på den här platsen ännu.",
+    subscriberStarA11y: "Prenumerant",
     useMyCurrentLocation: "Använd min nuvarande plats",
     prosAtLocation: "{{count}} {{role}} på den här platsen",
     mapWebFallback: "Kartan är tillgänglig i appen på iOS och Android.",
@@ -536,6 +537,8 @@ export const sv: AppLocaleMessages = {
     superpowerPlaceholder: "Berätta för dina kunder om dina färdigheter",
     workSectionTitle: "{{name}}s arbete",
     yourFallback: "Din",
+    subscriberBadgeNote:
+      "Fagfolk med stjärna kan se din tidigare historik om du delar",
   },
   profile: {
     myProfile: "Min profil",
