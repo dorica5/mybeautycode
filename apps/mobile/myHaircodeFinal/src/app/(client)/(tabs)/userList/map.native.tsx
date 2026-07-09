@@ -1421,12 +1421,6 @@ const MapLocationScreen = () => {
                                 >
                                   <View style={styles.clusterRowTextWrap}>
                                     <View style={styles.clusterRowNameLine}>
-                                      <Text
-                                        style={styles.clusterRowName}
-                                        numberOfLines={1}
-                                      >
-                                        {pro.full_name ?? t("common.professional")}
-                                      </Text>
                                       {pro.has_active_subscription ? (
                                         <ProSubscriberStarBadge
                                           accessibilityLabel={t(
@@ -1434,6 +1428,12 @@ const MapLocationScreen = () => {
                                           )}
                                         />
                                       ) : null}
+                                      <Text
+                                        style={styles.clusterRowName}
+                                        numberOfLines={1}
+                                      >
+                                        {pro.full_name ?? t("common.professional")}
+                                      </Text>
                                     </View>
                                     {pro.business_name ? (
                                       <Text style={styles.clusterRowAddress}>

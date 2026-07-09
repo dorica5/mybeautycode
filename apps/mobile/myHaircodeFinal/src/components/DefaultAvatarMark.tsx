@@ -9,5 +9,14 @@ export type DefaultAvatarMarkProps = {
 
 /** Default user avatar when `avatar_url` / local image is missing (brand mark, scales to any square). */
 export function DefaultAvatarMark({ size, style }: DefaultAvatarMarkProps) {
-  return <DefaultAvatarSvg width={size} height={size} style={style} />;
+  const renderSize = Math.round(size * 1.06);
+
+  return (
+    <DefaultAvatarSvg
+      width={renderSize}
+      height={renderSize}
+      viewBox="0 0 200 200"
+      style={style}
+    />
+  );
 }
