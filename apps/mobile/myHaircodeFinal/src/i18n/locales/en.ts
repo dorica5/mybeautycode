@@ -486,10 +486,22 @@ export const en = {
       "They won't be able to reach you through {{brand}}. Blocking ends your active client link. If you unblock later, you will need to add or request a connection again to work together.",
     reportTitle: "Report to {{brand}}",
     reportSubtitle:
-      "Our team reviews every report. Details you provide stay private to you and moderators.",
+      "Our team reviews every report. You can add details to help us investigate. What you share stays private.",
     reportReceived: "Report received",
     reportAutoBlocked:
-      "Thanks for letting us know. This account was restricted after repeated reports.",
+      "Thanks for letting us know. This account has been restricted after repeated reports.",
+    reportSuccessWithBlock:
+      "Your report was sent to our team. We've also blocked this account for you on {{brand}}.",
+    reportDetailsOptionalHint:
+      "Optional — tell us what happened so we can review faster.",
+    reportDetailsRequiredHint:
+      "Please describe what happened (at least a few words).",
+    reportDetailsPlaceholder: "What happened? Include dates or context if you can.",
+    reportDetailsRequiredTitle: "Add a few details",
+    reportDetailsRequiredMessage:
+      "For “Other”, please briefly describe the issue so our team can review it.",
+    submitReport: "Submit report",
+    chooseDifferentReason: "Choose a different reason",
     alreadyReported: "Already reported",
     alreadyReportedMessage:
       "You have already submitted a report for this account.",
@@ -614,13 +626,14 @@ export const en = {
     reachFooterNote:
       "Totals for the profession you have selected with Switch account. Change account there to view another lane.",
     billingSubtitle:
-      "Your first {{limit}} visits are free. Map search and discovery stay free for everyone.\n\nAfter that, subscribe for unlimited visits.",
+      "Your first {{limit}} visits are free. Map search and discovery stay free for everyone.\n\nYou can upgrade anytime for unlimited visits, or wait until you've used your free visits.",
     manageCancelSubscription: "Manage / cancel subscription",
     manageCancelSoon:
       "Manage/cancel subscription will be available when billing is integrated.",
     manageCancelFailed:
       "Could not open subscription management. Try again from Settings in the App Store.",
     changePlan: "Change plan",
+    upgradePlan: "Upgrade to Pro",
     changePlanSoon: "Plan changes will be available when billing is integrated.",
     restorePurchases: "Restore purchases",
     restorePurchasesSoon: "Restore will be enabled when billing is integrated.",
@@ -710,7 +723,7 @@ export const en = {
     emptyBoard: "No ideas on the board yet. Be the first to suggest something below.",
     haveSuggestion: "Have a suggestion?",
     formHint:
-      "Send an idea, improvement, or bug. We'll add it to the board for others to vote on.",
+      "Send an idea, improvement, or bug. Our team is notified right away; your idea appears on the board for others to vote on.",
     titleLabel: "Title",
     titlePlaceholder: "e.g. Filter map by price range",
     descriptionLabel: "Description",
@@ -729,7 +742,7 @@ export const en = {
     missingTitleMessage: "Please add a short title for your idea.",
     thanksTitle: "Thanks!",
     thanksMessage:
-      "Your suggestion is on the board. Vote for other ideas you'd like us to prioritise.",
+      "Your suggestion was sent to our team. It's on the board — vote for other ideas you'd like us to prioritise.",
     somethingWentWrong: "Something went wrong",
     couldNotSendSuggestion: "Could not send your suggestion.",
     couldNotUploadScreenshot: "Could not upload a screenshot. Please try again.",
@@ -803,7 +816,7 @@ export const en = {
     yearlySubtitle: "Unlimited visits. Billed once per year.",
     annualFreeMonthsBadge: "2 months free",
     monthly: "Monthly",
-    monthlySubtitle: "Unlimited visits — cancel anytime",
+    monthlySubtitle: "Unlimited visits. Cancel anytime.",
     monthlyFeatureUnlimited: "Unlimited visits - cancel anytime",
     monthlyFeatureClientHistory:
       "See what other professionals have done with your clients before",
@@ -821,9 +834,9 @@ export const en = {
     featureGallery: "Client visit gallery and photos",
     featureHistory: "Full visit history across salons",
     unlockLifetime: "Unlock lifetime access",
-    startSubscription: "Subscribe — NOK {{price}} / month",
+    startSubscription: "Subscribe, NOK {{price}} / month",
     startSubscriptionMonthly: "Subscribe, NOK {{price}} / month",
-    startSubscriptionAnnual: "Subscribe — NOK {{price}} / year",
+    startSubscriptionAnnual: "Subscribe, NOK {{price}} / year",
     subscribeMonthly: "Subscribe monthly",
     subscribePro: "With subscription",
     afterTrialLifetime: "One-time payment. No subscription.",
@@ -849,16 +862,17 @@ export const en = {
     visitUsage: "{{used}} of {{limit}} free visits used",
     visitsRemaining: "{{count}} free visits left",
     visitsRemainingOne: "1 free visit left",
-    subscribedVisitsUnlimited: "Pro active — unlimited visits",
+    subscribedVisitsUnlimited: "Pro active, unlimited visits",
     limitReachedTitle: "Visit limit reached",
     limitReachedCreate:
       "You've used all {{limit}} free visits. Subscribe to add more visits.",
     limitReachedView:
       "You've used all {{limit}} free visits. Subscribe to view visit history.",
     subscribeToContinue: "View plans",
+    upgradeAnytimeHint: "Tap to view plans and upgrade early",
     discoveryFreeNote: "Map search and discovery stay free.",
     usageTitle: "Visit usage",
-    monthlyPlanHint: "NOK {{price}} / month — pricing may change",
+    monthlyPlanHint: "NOK {{price}} / month, pricing may change",
   },
   camera: {
     permissionMessage: "We need your permission to show the camera",

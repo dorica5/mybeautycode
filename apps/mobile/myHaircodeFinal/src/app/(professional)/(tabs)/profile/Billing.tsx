@@ -97,7 +97,6 @@ export default function BillingScreen() {
   };
 
   const handleChangePlan = () => {
-    if (!ensureRevenueCat()) return;
     router.push({
       pathname: "/Screens/paywall",
       params: { from: "billing" },
@@ -126,6 +125,8 @@ export default function BillingScreen() {
       setBusy(false);
     }
   };
+
+  const onFreePlan = billing != null && !billing.hasActiveSubscription;
 
   return (
     <>
@@ -162,20 +163,26 @@ export default function BillingScreen() {
               ]}
             >
               <Profile
-                title={t("profile.manageCancelSubscription")}
-                Icon={CreditCard}
-                tileStyle="light"
-                groupPosition="first"
-                onPress={busy ? undefined : handleManageCancel}
-              />
-              <View style={styles.cardDivider} />
-              <Profile
-                title={t("profile.changePlan")}
+                title={
+                  onFreePlan ? t("profile.upgradePlan") : t("profile.changePlan")
+                }
                 Icon={ArrowsLeftRight}
                 tileStyle="light"
-                groupPosition="middle"
+                groupPosition="first"
                 onPress={busy ? undefined : handleChangePlan}
               />
+              {!onFreePlan ? (
+                <>
+                  <View style={styles.cardDivider} />
+                  <Profile
+                    title={t("profile.manageCancelSubscription")}
+                    Icon={CreditCard}
+                    tileStyle="light"
+                    groupPosition="middle"
+                    onPress={busy ? undefined : handleManageCancel}
+                  />
+                </>
+              ) : null}
               <View style={styles.cardDivider} />
               <Profile
                 title={t("profile.restorePurchases")}
