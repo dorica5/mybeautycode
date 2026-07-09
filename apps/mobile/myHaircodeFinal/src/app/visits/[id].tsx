@@ -8,7 +8,7 @@ import {
   Dimensions,
   useWindowDimensions,
 } from "react-native";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CaretRight, Plus, Eye, DotsThree } from "phosphor-react-native";
 import { ViewGalleryRowIcon } from "@/src/components/ViewGalleryRowIcon";
@@ -17,9 +17,9 @@ import {
   ModerationSheetHeading,
   ModerationReasonRow,
   useModerationDetailCopy,
-  reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
-import { router, useLocalSearchParams } from "expo-router";
+import { ReportReasonPicker } from "@/src/components/moderation/ReportReasonPicker";
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import { BlockedInlineNotice } from "@/src/components/BlockedProfileScreen";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
@@ -33,9 +33,6 @@ import {
 } from "@/src/components/MintBrandModal";
 import {
   blockUser,
-  reportUserEnhanced,
-  REPORT_REASONS,
-  type ReportReason,
   unblockUser,
   useViewerBlockedTarget,
   useBlockedBySender,
@@ -61,7 +58,6 @@ import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { MintFullScreenSpinner } from "@/src/components/MintSpinningWheel";
 import { NavBackRow, navBackChromeBarCombined } from "@/src/components/NavBackRow";
 import { useI18n } from "@/src/providers/LanguageProvider";
-import { reportReasonLabel } from "@/src/i18n/moderationLabels";
 import { useVisitLimitGate } from "@/src/hooks/useVisitLimitGate";
 import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 
@@ -158,13 +154,17 @@ const VisitList = () => {
       navProfessionReady &&
       navProfessionCode
   );
-  const { data: isRelated = false, isFetching: relLoading } =
-    useRelationshipCheck(
-      client_id as string,
-      hairdresser_id ?? undefined,
-      navProfessionCode,
-      { enabled: relationshipQueryEnabled }
-    );
+  const {
+    data: isRelated = false,
+    isFetching: relLoading,
+    isFetched: relFetched,
+  } = useRelationshipCheck(
+    client_id as string,
+    hairdresser_id ?? undefined,
+    navProfessionCode,
+    { enabled: relationshipQueryEnabled }
+  );
+  const relReady = !relationshipQueryEnabled || relFetched;
 
   const normalizedPhoneNumber = Array.isArray(phone_number)
     ? phone_number[0]
@@ -219,6 +219,35 @@ const VisitList = () => {
   const profileUnavailable =
     isBlockedUser || isBlockedByClient;
 
+  const shouldUseClientAddProfile =
+    relationshipQueryEnabled && !profileUnavailable && !isRelated;
+
+  useEffect(() => {
+    if (!shouldUseClientAddProfile) return;
+    const cid =
+      typeof client_id === "string"
+        ? client_id
+        : Array.isArray(client_id)
+          ? client_id[0]
+          : undefined;
+    if (!cid) return;
+    router.replace({
+      pathname: "/(professional)/clientProfile/[id]" as Href,
+      params: {
+        id: cid,
+        client_id: cid,
+        full_name: displayFullName,
+        relationship: "false",
+        ...(navProfessionCode ? { professionCode: navProfessionCode } : {}),
+      },
+    });
+  }, [
+    shouldUseClientAddProfile,
+    client_id,
+    displayFullName,
+    navProfessionCode,
+  ]);
+
   /** Pro must not open Safety & privacy against their own client profile. */
   const isSelfClientProfile = Boolean(
     hairdresser_id &&
@@ -270,39 +299,6 @@ const VisitList = () => {
     setIsModalVisible(false);
   };
 
-  const handleReport = async (reason: ReportReason) => {
-    try {
-      const result = await reportUserEnhanced(
-        hairdresser_id,
-        client_id,
-        reason,
-        queryClient
-      );
-
-      if (result.autoBlocked) {
-        Alert.alert(
-          t("moderation.reportReceived"),
-          t("moderation.reportAutoBlocked")
-        );
-      } else {
-        Alert.alert(t("moderation.reportReceived"), t("moderation.reportSuccess"));
-      }
-
-      setActiveAction(null);
-    } catch (error) {
-      if (error.message === "You have already reported this user") {
-        Alert.alert(
-          t("moderation.alreadyReported"),
-          t("moderation.alreadyReportedMessage")
-        );
-      } else {
-        console.error("Error reporting user:", error);
-        Alert.alert(t("common.error"), t("moderation.reportUserFailed"));
-      }
-      setActiveAction(null);
-    }
-  };
-
   const modalContent = (
     <View>
       <ModerationSheetHeading
@@ -339,7 +335,14 @@ const VisitList = () => {
           ? moderationDetailCopy.report
           : null;
 
-  if (relLoading || !navProfessionReady || !blockStateReady || !blockedByReady) {
+  if (
+    relLoading ||
+    !relReady ||
+    !navProfessionReady ||
+    !blockStateReady ||
+    !blockedByReady ||
+    shouldUseClientAddProfile
+  ) {
     return <MintFullScreenSpinner />;
   }
 
@@ -605,18 +608,17 @@ const VisitList = () => {
                       )
                     )}
                   {activeAction === "Report" &&
-                    REPORT_REASONS.map((reason) => (
-                      <ModerationReasonRow
-                        key={reason.value}
-                        label={reportReasonLabel(t, reason.value)}
-                        style={
-                          reason.value === "other"
-                            ? reportOtherReasonRowStyle
-                            : undefined
-                        }
-                        onPress={() => handleReport(reason.value)}
+                    hairdresser_id &&
+                    client_id &&
+                    navProfessionCode ? (
+                      <ReportReasonPicker
+                        reporterId={hairdresser_id}
+                        reportedId={String(client_id)}
+                        professionCode={navProfessionCode}
+                        context="pro_client_hub"
+                        onDone={() => setActiveAction(null)}
                       />
-                    ))}
+                    ) : null}
                 </View>
               </View>
             ) : null

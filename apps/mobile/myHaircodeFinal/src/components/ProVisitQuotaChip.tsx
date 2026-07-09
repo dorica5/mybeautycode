@@ -100,10 +100,11 @@ export function ProVisitQuotaChip({
 
   if (variant === "pill") {
     return (
-      <View
+      <Pressable
         style={[styles.pill, style]}
-        accessibilityRole="text"
-        accessibilityLabel={remainingLabel}
+        onPress={openPaywall}
+        accessibilityRole="button"
+        accessibilityLabel={`${remainingLabel}. ${t("billing.subscribeToContinue")}`}
       >
         <Ticket
           size={responsiveScale(18)}
@@ -111,15 +112,20 @@ export function ProVisitQuotaChip({
           weight="duotone"
         />
         <Text style={styles.pillLabel}>{remainingLabel}</Text>
-      </View>
+      </Pressable>
     );
   }
 
   return (
-    <View style={[styles.bannerCompact, style]} accessibilityRole="text">
+    <Pressable
+      style={[styles.bannerCompact, style]}
+      onPress={openPaywall}
+      accessibilityRole="button"
+      accessibilityLabel={`${remainingLabel}. ${t("billing.subscribeToContinue")}`}
+    >
       <Ticket size={responsiveScale(18)} color={primaryBlack} weight="duotone" />
       <Text style={styles.bannerRemaining}>{remainingLabel}</Text>
-    </View>
+    </Pressable>
   );
 }
 

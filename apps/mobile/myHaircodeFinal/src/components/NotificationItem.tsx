@@ -16,6 +16,10 @@ import {
   useI18n,
 } from "@/src/providers/LanguageProvider";
 import { localizedNotificationMessage } from "@/src/i18n/notificationCopy";
+import {
+  pushNotificationProfileNav,
+  resolveProToClientProfileNav,
+} from "@/src/lib/notificationProfileNavigation";
 
 const CLIENT_CARD_READ_BG = "#FFFFFF";
 
@@ -317,17 +321,26 @@ export const NotificationItem = ({
           typeof professionFromData === "string" && professionFromData.trim()
             ? professionFromData.trim()
             : undefined;
-        router.push({
-          pathname: "/visits/[id]" as Href,
-          params: {
-            id: clientId,
-            full_name: senderName ?? notification.sender?.full_name ?? "",
-            relationship: "true",
-            ...(professionCodeNav
-              ? { professionCode: professionCodeNav }
-              : {}),
-          },
-        });
+        if (!profile?.id) {
+          Alert.alert(
+            t("notifications.cannotOpen"),
+            t("notifications.cannotOpenMissingProfessional")
+          );
+          break;
+        }
+        const resolved = await resolveProToClientProfileNav(
+          profile.id,
+          clientId,
+          professionCodeNav ?? null,
+          {
+            fullName:
+              senderName ??
+              (typeof notification.sender?.full_name === "string"
+                ? notification.sender.full_name
+                : ""),
+          }
+        );
+        pushNotificationProfileNav(resolved, t);
         break;
       }
 

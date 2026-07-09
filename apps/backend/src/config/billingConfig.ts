@@ -7,6 +7,21 @@ function readInt(name: string, fallback: number): number {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+function readBool(name: string): boolean {
+  const raw = process.env[name];
+  return raw === "1" || raw === "true";
+}
+
+function readProfileIdList(name: string): ReadonlySet<string> {
+  const raw = process.env[name]?.trim();
+  if (!raw) return new Set();
+  const ids = raw
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return new Set(ids);
+}
+
 export const billingConfig = {
   /** Free visits before subscription is required (per professional account). */
   FREE_VISIT_LIMIT: readInt("BILLING_FREE_VISIT_LIMIT", 10),
@@ -15,9 +30,14 @@ export const billingConfig = {
   /** RevenueCat entitlement identifier (must match dashboard). */
   ENTITLEMENT_ID: process.env.REVENUECAT_ENTITLEMENT_ID?.trim() || "premium",
   /** Dev / QA: skip all visit limits when true. */
-  DEV_BYPASS:
-    process.env.BILLING_DEV_BYPASS === "1" ||
-    process.env.BILLING_DEV_BYPASS === "true",
+  DEV_BYPASS: readBool("BILLING_DEV_BYPASS"),
+  /**
+   * Comma-separated profile UUIDs treated as subscribed (badge + unlimited visits).
+   * For QA only — does not write to the database.
+   */
+  TEST_SUBSCRIBED_PROFILE_IDS: readProfileIdList(
+    "BILLING_TEST_SUBSCRIBED_PROFILE_IDS"
+  ),
 } as const;
 
 export type ProBillingStatusPayload = {

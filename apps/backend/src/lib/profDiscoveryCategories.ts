@@ -11,6 +11,7 @@ export const DISCOVERY_OPTIONS_HAIR = [
   { code: "afro_hair", label: "Afro hair" },
   { code: "perms", label: "Perms" },
   { code: "bridal_hair", label: "Bridal hair" },
+  { code: "kids_haircut", label: "Kids haircut" },
   { code: "makeup_hair_lane", label: "Makeup" },
 ] as const;
 

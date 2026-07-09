@@ -482,10 +482,22 @@ export const sv: AppLocaleMessages = {
       "De kommer inte att kunna nå dig via {{brand}}. Blockering avslutar den aktiva anslutningen. Om du häver blockeringen senare måste du lägga till eller be om anslutning igen för att arbeta tillsammans.",
     reportTitle: "Rapportera till {{brand}}",
     reportSubtitle:
-      "Vårt team granskar alla rapporter. Detaljerna du lämnar är privata för dig och moderatorer.",
+      "Vårt team granskar alla rapporter. Du kan lägga till detaljer som hjälper oss att utreda. Det du delar är privat.",
     reportReceived: "Rapport mottagen",
     reportAutoBlocked:
-      "Tack för att du meddelade oss. Det här kontot begränsades efter upprepade rapporter.",
+      "Tack för att du meddelade oss. Det här kontot har begränsats efter upprepade rapporter.",
+    reportSuccessWithBlock:
+      "Din rapport skickades till vårt team. Vi har också blockerat kontot för dig på {{brand}}.",
+    reportDetailsOptionalHint:
+      "Valfritt — berätta vad som hände så vi kan granska snabbare.",
+    reportDetailsRequiredHint:
+      "Beskriv kort vad som hände (minst några ord).",
+    reportDetailsPlaceholder: "Vad hände? Inkludera datum eller sammanhang om du kan.",
+    reportDetailsRequiredTitle: "Lägg till några detaljer",
+    reportDetailsRequiredMessage:
+      "För «Annat», beskriv kort problemet så vårt team kan granska det.",
+    submitReport: "Skicka rapport",
+    chooseDifferentReason: "Välj en annan anledning",
     alreadyReported: "Redan rapporterad",
     alreadyReportedMessage: "Du har redan skickat in en rapport för det här kontot.",
     reportUserFailed: "Kunde inte rapportera användaren",
@@ -610,13 +622,14 @@ export const sv: AppLocaleMessages = {
     reachFooterNote:
       "Totaler för yrket du har valt med Byt konto. Byt konto där för att se en annan profil.",
     billingSubtitle:
-      "Dina första {{limit}} besök är gratis. Kartsökning och upptäckt är gratis för alla.\n\nDärefter kan du prenumerera för obegränsade besök.",
+      "Dina första {{limit}} besök är gratis. Kartsökning och upptäckt är gratis för alla.\n\nDu kan uppgradera när som helst för obegränsade besök, eller vänta tills du har använt dina gratisbesök.",
     manageCancelSubscription: "Hantera / avsluta abonnemang",
     manageCancelSoon:
       "Hantera/avsluta abonnemang blir tillgängligt när fakturering är integrerad.",
     manageCancelFailed:
       "Kunde inte öppna abonnemangsinställningar. Försök igen via Inställningar i App Store.",
     changePlan: "Byt plan",
+    upgradePlan: "Uppgradera till Pro",
     changePlanSoon: "Planändringar blir tillgängliga när fakturering är integrerad.",
     restorePurchases: "Återställ köp",
     restorePurchasesSoon:
@@ -799,7 +812,7 @@ export const sv: AppLocaleMessages = {
     yearlySubtitle: "Obegränsade besök. Faktureras en gång per år.",
     annualFreeMonthsBadge: "2 månader gratis",
     monthly: "Månadsvis",
-    monthlySubtitle: "Obegränsade besök — avsluta när som helst",
+    monthlySubtitle: "Obegränsade besök. Avsluta när som helst.",
     monthlyFeatureUnlimited: "Obegränsade besök - avsluta när som helst",
     monthlyFeatureClientHistory:
       "Se vad andra proffs har gjort med dina kunder tidigare",
@@ -817,9 +830,9 @@ export const sv: AppLocaleMessages = {
     featureGallery: "Besöksgalleri och bilder per kund",
     featureHistory: "Full besökshistorik över salonger",
     unlockLifetime: "Lås upp livstidsåtkomst",
-    startSubscription: "Prenumerera — NOK {{price}} / månad",
+    startSubscription: "Prenumerera, NOK {{price}} / månad",
     startSubscriptionMonthly: "Prenumerera, NOK {{price}} / månad",
-    startSubscriptionAnnual: "Prenumerera — NOK {{price}} / år",
+    startSubscriptionAnnual: "Prenumerera, NOK {{price}} / år",
     subscribeMonthly: "Prenumerera månadsvis",
     subscribePro: "Med abonnemang",
     afterTrialLifetime: "Engångsbetalning. Inget abonnemang.",
@@ -845,7 +858,7 @@ export const sv: AppLocaleMessages = {
     visitUsage: "{{used}} av {{limit}} gratis besök använda",
     visitsRemaining: "{{count}} gratis besök kvar",
     visitsRemainingOne: "1 gratis besök kvar",
-    subscribedVisitsUnlimited: "Pro aktiv — obegränsade besök",
+    subscribedVisitsUnlimited: "Pro aktiv, obegränsade besök",
     limitReachedTitle: "Besöksgräns nådd",
     limitReachedCreate:
       "Du har använt alla {{limit}} gratis besök. Prenumerera för att lägga till fler.",
@@ -854,7 +867,7 @@ export const sv: AppLocaleMessages = {
     subscribeToContinue: "Se planer",
     discoveryFreeNote: "Kartsökning och upptäckt förblir gratis.",
     usageTitle: "Besöksanvändning",
-    monthlyPlanHint: "NOK {{price}} / månad — pris kan ändras",
+    monthlyPlanHint: "NOK {{price}} / månad, pris kan ändras",
   },
   camera: {
     permissionMessage: "Vi behöver ditt tillstånd för att visa kameran",

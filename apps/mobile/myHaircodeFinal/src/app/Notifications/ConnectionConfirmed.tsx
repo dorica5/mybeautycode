@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
-import { useLocalSearchParams, router, type Href } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { NavBackRow } from "@/src/components/NavBackRow";
@@ -21,6 +21,10 @@ import {
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { professionRoleLabelFromCode } from "@/src/i18n/notificationCopy";
+import {
+  pushNotificationProfileNav,
+  resolveClientToProProfileNav,
+} from "@/src/lib/notificationProfileNavigation";
 
 function firstParam(value: string | string[] | undefined): string | undefined {
   if (typeof value === "string") return value;
@@ -70,17 +74,14 @@ export default function ConnectionConfirmed() {
     }
   }, [notificationId]);
 
-  const openProfessionalProfile = () => {
-    if (!proId || isBlockedBySender) return;
-    router.push({
-      pathname:
-        "/(client)/(tabs)/userList/professionalProfile/[id]" as Href,
-      params: {
-        id: proId,
-        relationship: "true",
-        ...(lane ? { profession: lane } : {}),
-      },
-    });
+  const openProfessionalProfile = async () => {
+    if (!proId || !profile?.id || isBlockedBySender) return;
+    const resolved = await resolveClientToProProfileNav(
+      profile.id,
+      proId,
+      lane ?? null
+    );
+    pushNotificationProfileNav(resolved, t);
   };
 
   if (!blockStateReady) {

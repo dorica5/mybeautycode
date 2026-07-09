@@ -34,9 +34,6 @@ import {
 import {
   unblockUser,
   blockUser,
-  reportUserEnhanced,
-  REPORT_REASONS,
-  type ReportReason,
   useViewerBlockedTarget,
 } from "@/src/api/moderation";
 import { UnblockSuccessModal } from "@/src/components/UnblockSuccessModal";
@@ -46,8 +43,8 @@ import {
   ModerationSheetHeading,
   ModerationReasonRow,
   useModerationDetailCopy,
-  reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
+import { ReportReasonPicker } from "@/src/components/moderation/ReportReasonPicker";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { ClientLinkRequestSentModal } from "@/src/components/ClientLinkRequestSentModal";
@@ -127,7 +124,6 @@ const UserProfile = () => {
   const navFullName = paramStr(params.full_name);
   const navPhone = paramStr(params.phone_number);
   const navLinkPending = paramStr(params.link_pending) === "true";
-  const navRelationshipActive = paramStr(params.relationship) === "true";
 
   const linkStatusQueryEnabled = Boolean(
     storedProfessionReady &&
@@ -137,11 +133,9 @@ const UserProfile = () => {
       isUuid(client_id)
   );
 
-  const initialLinkStatus: ClientLinkUiStatus | undefined = navRelationshipActive
-    ? "active"
-    : navLinkPending
-      ? "pending"
-      : undefined;
+  const initialLinkStatus: ClientLinkUiStatus | undefined = navLinkPending
+    ? "pending"
+    : undefined;
 
   const {
     data: linkState,
@@ -224,39 +218,6 @@ const UserProfile = () => {
   const handleModalOption = (action: string) => {
     setPendingAction(action);
     setIsModalVisible(false);
-  };
-
-  const handleReport = async (reason: ReportReason) => {
-    if (!client_id || !hairdresser_id) return;
-    try {
-      const result = await reportUserEnhanced(
-        hairdresser_id,
-        client_id,
-        reason,
-        queryClient
-      );
-      if (result.autoBlocked) {
-        Alert.alert(
-          t("moderation.reportReceived"),
-          t("moderation.reportAutoBlocked")
-        );
-      } else {
-        Alert.alert(t("moderation.reportReceived"), t("moderation.reportSuccess"));
-      }
-      setActiveAction(null);
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : "";
-      if (msg === "You have already reported this user") {
-        Alert.alert(
-          t("moderation.alreadyReported"),
-          t("moderation.alreadyReportedMessage")
-        );
-      } else {
-        console.error("Error reporting user:", error);
-        Alert.alert(t("common.error"), t("moderation.reportUserFailed"));
-      }
-      setActiveAction(null);
-    }
   };
 
   const modalContent = (
@@ -349,16 +310,17 @@ const UserProfile = () => {
           )}
 
         {activeAction === "Report" &&
-          REPORT_REASONS.map((reason) => (
-            <ModerationReasonRow
-              key={reason.value}
-              label={reportReasonLabel(t, reason.value)}
-              style={
-                reason.value === "other" ? reportOtherReasonRowStyle : undefined
-              }
-              onPress={() => handleReport(reason.value)}
+          hairdresser_id &&
+          client_id &&
+          activeProfessionCode ? (
+            <ReportReasonPicker
+              reporterId={hairdresser_id}
+              reportedId={client_id}
+              professionCode={activeProfessionCode}
+              context="pro_client_profile"
+              onDone={() => setActiveAction(null)}
             />
-          ))}
+          ) : null}
       </View>
     );
   };

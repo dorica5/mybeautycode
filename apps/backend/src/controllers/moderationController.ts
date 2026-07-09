@@ -105,7 +105,20 @@ export const moderationController = {
 
   async report(req: Request, res: Response) {
     const reporterId = req.userId!;
-    const { reported_id, reason, additional_details } = req.body;
+    const {
+      reported_id,
+      reason,
+      additional_details,
+      profession_code,
+      professionCode,
+      context,
+    } = req.body;
+    const laneRaw =
+      typeof profession_code === "string"
+        ? profession_code
+        : typeof professionCode === "string"
+          ? professionCode
+          : null;
     if (!reported_id || !reason) {
       return res.status(400).json({ error: "reported_id and reason required" });
     }
@@ -114,7 +127,9 @@ export const moderationController = {
         reporterId,
         reported_id,
         reason,
-        additional_details
+        typeof additional_details === "string" ? additional_details : undefined,
+        laneRaw,
+        typeof context === "string" ? context : undefined
       );
       res.json(result);
     } catch (err: unknown) {

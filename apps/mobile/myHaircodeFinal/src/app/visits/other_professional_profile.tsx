@@ -12,14 +12,11 @@ import {
   ModerationSheetHeading,
   ModerationReasonRow,
   useModerationDetailCopy,
-  reportOtherReasonRowStyle,
 } from "@/src/components/moderation/ModerationSheetParts";
+import { ReportReasonPicker } from "@/src/components/moderation/ReportReasonPicker";
 import SmallDraggableModal from "@/src/components/SmallDraggableModal";
 import {
   blockUser,
-  REPORT_REASONS,
-  ReportReason,
-  reportUserEnhanced,
   unblockUser,
   useViewerBlockedTarget,
 } from "@/src/api/moderation";
@@ -40,7 +37,6 @@ import {
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 import { buildPublicProfessionalProfileFields } from "@/src/lib/publicProfessionalProfileFields";
 import { useI18n } from "@/src/providers/LanguageProvider";
-import { reportReasonLabel } from "@/src/i18n/moderationLabels";
 
 /**
  * Same public profile UI as `(client)/(tabs)/userList/professionalProfile/[id]` and
@@ -222,49 +218,6 @@ const OtherProfessionalProfileScreen = () => {
     }
   };
 
-  const handleReport = async (reason: ReportReason) => {
-    if (!client_id || !hairdresser_id) return;
-    try {
-      const result = await reportUserEnhanced(
-        client_id,
-        hairdresser_id,
-        reason,
-        undefined,
-        queryClient as unknown as {
-          invalidateQueries: (opts: unknown) => void;
-        }
-      );
-
-      const autoBlocked =
-        "autoBlocked" in result &&
-        Boolean((result as { autoBlocked?: boolean }).autoBlocked);
-      if (autoBlocked) {
-        Alert.alert(
-          t("moderation.reportReceived"),
-          t("moderation.reportAutoBlocked")
-        );
-      } else {
-        Alert.alert(t("moderation.reportReceived"), t("moderation.reportSuccess"));
-      }
-
-      setActiveAction(null);
-    } catch (error: unknown) {
-      if (
-        error instanceof Error &&
-        error.message === "You have already reported this user"
-      ) {
-        Alert.alert(
-          t("moderation.alreadyReported"),
-          t("moderation.alreadyReportedMessage")
-        );
-      } else {
-        console.error("Error reporting user:", error);
-        Alert.alert(t("common.error"), t("moderation.reportUserFailed"));
-      }
-      setActiveAction(null);
-    }
-  };
-
   const moderationPrimaryContent = (
     <View>
       <ModerationSheetHeading
@@ -341,16 +294,17 @@ const OtherProfessionalProfileScreen = () => {
           )}
 
         {activeAction === "Report" &&
-          REPORT_REASONS.map((reason) => (
-            <ModerationReasonRow
-              key={reason.value}
-              label={reportReasonLabel(t, reason.value)}
-              style={
-                reason.value === "other" ? reportOtherReasonRowStyle : undefined
-              }
-              onPress={() => handleReport(reason.value)}
+          client_id &&
+          hairdresser_id &&
+          professionCodeFromVisit ? (
+            <ReportReasonPicker
+              reporterId={client_id}
+              reportedId={hairdresser_id}
+              professionCode={professionCodeFromVisit}
+              context="visit_other_pro_profile"
+              onDone={() => setActiveAction(null)}
             />
-          ))}
+          ) : null}
       </View>
     );
   };

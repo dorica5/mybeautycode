@@ -16,6 +16,18 @@ function subscriptionIsActive(row: {
   return row.entitlementExpiresAt.getTime() > Date.now();
 }
 
+function isTestSubscribedProfile(profileId: string): boolean {
+  return billingConfig.TEST_SUBSCRIBED_PROFILE_IDS.has(profileId);
+}
+
+function profileHasActiveSubscription(
+  profileId: string,
+  sub: SubscriptionRow
+): boolean {
+  if (isTestSubscribedProfile(profileId)) return true;
+  return subscriptionIsActive(sub);
+}
+
 export function subscriptionEntitlementIsActive(
   row: {
     entitlementActive: boolean;
@@ -116,6 +128,9 @@ export const billingService = {
       for (const row of rows) {
         if (subscriptionIsActive(row)) active.add(row.profileId);
       }
+      for (const id of unique) {
+        if (isTestSubscribedProfile(id)) active.add(id);
+      }
       return active;
     } catch (err) {
       console.warn("profileIdsWithActiveSubscription skipped:", err);
@@ -152,7 +167,7 @@ export const billingService = {
       fetchProfessionalSubscription(profileId),
     ]);
 
-    const hasActiveSubscription = subscriptionIsActive(sub);
+    const hasActiveSubscription = profileHasActiveSubscription(profileId, sub);
     const freeVisitLimit = billingConfig.FREE_VISIT_LIMIT;
     const atVisitLimit = visitCount >= freeVisitLimit;
     const canUseVisits = hasActiveSubscription || !atVisitLimit;
@@ -169,7 +184,9 @@ export const billingService = {
       atVisitLimit,
       monthlyPriceNok: billingConfig.MONTHLY_PRICE_NOK,
       entitlementExpiresAt: sub?.entitlementExpiresAt?.toISOString() ?? null,
-      plan: sub?.plan ?? null,
+      plan: isTestSubscribedProfile(profileId)
+        ? "test_subscribed"
+        : sub?.plan ?? null,
       discoveryAlwaysFree: true,
     };
   },

@@ -484,10 +484,22 @@ export const nb: AppLocaleMessages = {
       "De vil ikke kunne nå deg via {{brand}}. Blokkering avslutter den aktive koblingen. Hvis du opphever blokkeringen senere, må du legge til eller be om kobling på nytt for å jobbe sammen.",
     reportTitle: "Rapporter til {{brand}}",
     reportSubtitle:
-      "Teamet vårt gjennomgår alle rapporter. Detaljene du oppgir er private for deg og moderatorer.",
+      "Teamet vårt gjennomgår alle rapporter. Du kan legge til detaljer som hjelper oss å undersøke. Det du deler er privat.",
     reportReceived: "Rapport mottatt",
     reportAutoBlocked:
-      "Takk for at du sa fra. Denne kontoen ble begrenset etter gjentatte rapporter.",
+      "Takk for at du sa fra. Denne kontoen er begrenset etter gjentatte rapporter.",
+    reportSuccessWithBlock:
+      "Rapporten er sendt til teamet vårt. Vi har også blokkert kontoen for deg på {{brand}}.",
+    reportDetailsOptionalHint:
+      "Valgfritt — fortell hva som skjedde, så vi kan gjennomgå raskere.",
+    reportDetailsRequiredHint:
+      "Beskriv kort hva som skjedde (minst noen ord).",
+    reportDetailsPlaceholder: "Hva skjedde? Inkluder dato eller kontekst om du kan.",
+    reportDetailsRequiredTitle: "Legg til noen detaljer",
+    reportDetailsRequiredMessage:
+      "For «Annet», beskriv kort problemet slik at teamet vårt kan gjennomgå det.",
+    submitReport: "Send rapport",
+    chooseDifferentReason: "Velg en annen grunn",
     alreadyReported: "Allerede rapportert",
     alreadyReportedMessage:
       "Du har allerede sendt inn en rapport for denne kontoen.",
@@ -614,13 +626,14 @@ export const nb: AppLocaleMessages = {
     reachFooterNote:
       "Totaler for yrket du har valgt med Bytt konto. Bytt konto der for å se en annen profil.",
     billingSubtitle:
-      "Dine første {{limit}} besøk er gratis. Kartsøk og oppdagelse er gratis for alle.\n\nEtter det kan du abonnere for ubegrensede besøk.",
+      "Dine første {{limit}} besøk er gratis. Kartsøk og oppdagelse er gratis for alle.\n\nDu kan oppgradere når som helst for ubegrensede besøk, eller vente til du har brukt de gratis besøkene.",
     manageCancelSubscription: "Administrer / avslutt abonnement",
     manageCancelSoon:
       "Administrer/avslutt abonnement blir tilgjengelig når fakturering er integrert.",
     manageCancelFailed:
       "Kunne ikke åpne abonnementsinnstillinger. Prøv igjen via Innstillinger i App Store.",
     changePlan: "Bytt plan",
+    upgradePlan: "Oppgrader til Pro",
     changePlanSoon: "Planendringer blir tilgjengelig når fakturering er integrert.",
     restorePurchases: "Gjenopprett kjøp",
     restorePurchasesSoon:
@@ -712,7 +725,7 @@ export const nb: AppLocaleMessages = {
     emptyBoard: "Ingen idéer på tavlen ennå. Vær den første til å foreslå noe nedenfor.",
     haveSuggestion: "Har du et forslag?",
     formHint:
-      "Send en idé, forbedring eller feil. Vi legger den til på tavlen slik at andre kan stemme.",
+      "Send en idé, forbedring eller feil. Teamet vårt varsles med en gang; ideen din vises på tavlen slik at andre kan stemme.",
     titleLabel: "Tittel",
     titlePlaceholder: "f.eks. Filtrer kart etter pris",
     descriptionLabel: "Beskrivelse",
@@ -805,7 +818,7 @@ export const nb: AppLocaleMessages = {
     yearlySubtitle: "Ubegrensede besøk. Faktureres én gang per år.",
     annualFreeMonthsBadge: "2 måneder gratis",
     monthly: "Månedlig",
-    monthlySubtitle: "Ubegrensede besøk — avslutt når som helst",
+    monthlySubtitle: "Ubegrensede besøk. Avslutt når som helst.",
     monthlyFeatureUnlimited: "Ubegrensede besøk - avslutt når som helst",
     monthlyFeatureClientHistory:
       "Se hva andre profesjonelle har gjort med kundene dine tidligere",
@@ -823,9 +836,9 @@ export const nb: AppLocaleMessages = {
     featureGallery: "Besøksgalleri og bilder per kunde",
     featureHistory: "Full besøkshistorikk på tvers av salonger",
     unlockLifetime: "Lås opp livstidsabonnement",
-    startSubscription: "Abonner — NOK {{price}} / måned",
+    startSubscription: "Abonner, NOK {{price}} / måned",
     startSubscriptionMonthly: "Abonner, NOK {{price}} / måned",
-    startSubscriptionAnnual: "Abonner — NOK {{price}} / år",
+    startSubscriptionAnnual: "Abonner, NOK {{price}} / år",
     subscribeMonthly: "Abonner månedlig",
     subscribePro: "Med abonnement",
     afterTrialLifetime: "Engangsbetaling. Ingen abonnement.",
@@ -851,7 +864,7 @@ export const nb: AppLocaleMessages = {
     visitUsage: "{{used}} av {{limit}} gratis besøk brukt",
     visitsRemaining: "{{count}} gratis besøk igjen",
     visitsRemainingOne: "1 gratis besøk igjen",
-    subscribedVisitsUnlimited: "Pro aktiv — ubegrensede besøk",
+    subscribedVisitsUnlimited: "Pro aktiv, ubegrensede besøk",
     limitReachedTitle: "Besøksgrense nådd",
     limitReachedCreate:
       "Du har brukt alle {{limit}} gratis besøk. Abonner for å legge til flere.",
@@ -860,7 +873,7 @@ export const nb: AppLocaleMessages = {
     subscribeToContinue: "Se planer",
     discoveryFreeNote: "Kartsøk og oppdagelse forblir gratis.",
     usageTitle: "Besøksbruk",
-    monthlyPlanHint: "NOK {{price}} / måned — pris kan endres",
+    monthlyPlanHint: "NOK {{price}} / måned, pris kan endres",
   },
   camera: {
     permissionMessage: "Vi trenger tillatelse til å vise kameraet",

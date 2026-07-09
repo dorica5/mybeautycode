@@ -37,29 +37,57 @@ export const getUserModerationStatus = async (userId: string) => {
   return status;
 };
 
+export type ReportUserOptions = {
+  additionalDetails?: string;
+  professionCode?: string | null;
+  context?: string;
+  queryClient?: { invalidateQueries: (opts: unknown) => void };
+};
+
 export const reportUserEnhanced = async (
   reporter_id: string,
   reported_id: string,
   reason: ReportReason,
-  additionalDetails?: string,
-  queryClient?: { invalidateQueries: (opts: unknown) => void }
+  options?: ReportUserOptions
 ) => {
   const result = await api.post<{
     success: boolean;
     totalReports: number;
     userStatus: string;
+    autoBlocked?: boolean;
+    blockedForReporter?: boolean;
+    reportId?: string;
   }>("/api/moderation/report", {
     reported_id,
     reason,
-    additional_details: additionalDetails,
+    additional_details: options?.additionalDetails,
+    profession_code: options?.professionCode?.trim() || undefined,
+    context: options?.context,
   });
+  const queryClient = options?.queryClient;
   if (queryClient) {
     queryClient.invalidateQueries({ queryKey: ["latest_visits", reporter_id] });
     queryClient.invalidateQueries({ queryKey: ["latest_visits", reported_id] });
+    queryClient.invalidateQueries({ queryKey: ["relationship"] });
+    queryClient.invalidateQueries({ queryKey: ["clientLinkUiStatus"] });
+    queryClient.invalidateQueries({
+      queryKey: ["moderation", "blockedIdList", reporter_id],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["moderation", "blockerIdsForUser"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["listAllClientSearch", reporter_id],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["listAllClientSearch", reported_id],
+    });
   }
   return {
     ...result,
     reportCount: result.totalReports,
+    autoBlocked: Boolean(result.autoBlocked),
+    blockedForReporter: Boolean(result.blockedForReporter),
     message: "report_success",
   };
 };
