@@ -146,7 +146,6 @@ function shouldCompletedUserLeaveForHome(pathname: string): boolean {
     "/Splash",
     "/SignUp",
     "/SignIn",
-    "Onboarding",
   ];
   if (bootstrap.some((x) => p.includes(x))) return true;
   if (p === "/" || p === "") return true;
@@ -174,6 +173,9 @@ type AuthData = {
   /** Mirrors AsyncStorage last visit; `undefined` while loading for dual-role users. */
   lastAppSurfacePref: LastAppSurface | null | undefined;
   profileConnectionError: boolean;
+  isFirstLaunch: boolean;
+  firstLaunchLoading: boolean;
+  markOnboardingSeen: () => Promise<void>;
   setProfile: (profile: any) => void;
   signOut: () => void;
   clearProfile: () => void;
@@ -191,6 +193,9 @@ export const AuthContext = createContext<AuthData>({
   userStatus: null,
   lastAppSurfacePref: undefined,
   profileConnectionError: false,
+  isFirstLaunch: false,
+  firstLaunchLoading: true,
+  markOnboardingSeen: async () => {},
   setProfile: () => {},
   signOut: () => {},
   clearProfile: () => {},
@@ -204,7 +209,11 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
-  const { loading: firstLaunchLoading, isFirstLaunch } = useFirstLaunch();
+  const {
+    loading: firstLaunchLoading,
+    isFirstLaunch,
+    markSeen: markOnboardingSeen,
+  } = useFirstLaunch();
   const [expoPushToken, setExpoPushToken] = useState(null);
   const { imagesLoading } = useImageContext();
   const [isSignUp, setIsSignUp] = useState(false);
@@ -240,6 +249,9 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     isFirstLaunchRef.current = isFirstLaunch;
     firstLaunchLoadingRef.current = firstLaunchLoading;
     onboardingPathRef.current = pathname.includes("Onboarding");
+    if (!isFirstLaunch) {
+      firstLaunchHandled.current = false;
+    }
   }, [isFirstLaunch, firstLaunchLoading, pathname]);
 
   useEffect(() => {
@@ -642,10 +654,8 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       console.log("First launch: showing onboarding");
       firstLaunchHandled.current = true;
       setIsNavigating(true);
-      setTimeout(() => {
-        router.replace("/(auth)/Onboarding");
-        setTimeout(() => setIsNavigating(false), 600);
-      }, 50);
+      router.replace("/(auth)/Onboarding");
+      setTimeout(() => setIsNavigating(false), 400);
       return;
     }
 
@@ -1021,6 +1031,9 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         userStatus,
         lastAppSurfacePref,
         profileConnectionError,
+        isFirstLaunch,
+        firstLaunchLoading,
+        markOnboardingSeen,
         setProfile,
         signOut,
         clearProfile,
