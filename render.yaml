@@ -1,0 +1,21 @@
+# Deploy apps/backend to Render (Starter ~$7/mo, always-on).
+# Dashboard: New → Blueprint → connect repo, or New Web Service with root directory apps/backend.
+#
+# After deploy, set env vars in Render dashboard (from apps/backend/.env):
+#   DATABASE_URL, DIRECT_URL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+#   SUPABASE_JWT_SECRET, PORT=3001, and optional Slack / billing vars.
+
+services:
+  - type: web
+    name: myne-api
+    runtime: node
+    rootDir: apps/backend
+    plan: starter
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001

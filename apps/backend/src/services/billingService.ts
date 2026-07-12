@@ -43,24 +43,19 @@ type SubscriptionRow = {
   plan: string | null;
 } | null;
 
-/** Tolerates stale Prisma client or missing migration for `professional_subscriptions`. */
+/** Tolerates missing migration for `professional_subscriptions`. */
 async function fetchProfessionalSubscription(
   profileId: string
 ): Promise<SubscriptionRow> {
   try {
-    const delegate = (
-      prisma as {
-        professionalSubscription?: {
-          findUnique: (args: {
-            where: { profileId: string };
-          }) => Promise<SubscriptionRow>;
-        };
-      }
-    ).professionalSubscription;
-    if (!delegate?.findUnique) {
-      return null;
-    }
-    return await delegate.findUnique({ where: { profileId } });
+    return await prisma.professionalSubscription.findUnique({
+      where: { profileId },
+      select: {
+        entitlementActive: true,
+        entitlementExpiresAt: true,
+        plan: true,
+      },
+    });
   } catch (err) {
     console.warn("professionalSubscription lookup skipped:", err);
     return null;
@@ -93,29 +88,7 @@ export const billingService = {
     }
 
     try {
-      const delegate = (
-        prisma as {
-          professionalSubscription?: {
-            findMany: (args: {
-              where: { profileId: { in: string[] } };
-              select: {
-                profileId: true;
-                entitlementActive: true;
-                entitlementExpiresAt: true;
-              };
-            }) => Promise<
-              {
-                profileId: string;
-                entitlementActive: boolean;
-                entitlementExpiresAt: Date | null;
-              }[]
-            >;
-          };
-        }
-      ).professionalSubscription;
-      if (!delegate?.findMany) return new Set();
-
-      const rows = await delegate.findMany({
+      const rows = await prisma.professionalSubscription.findMany({
         where: { profileId: { in: unique } },
         select: {
           profileId: true,
@@ -232,14 +205,27 @@ export const billingService = {
         : null;
     const now = new Date();
 
-    const delegate = (
-      prisma as {
-        professionalSubscription?: {
-          upsert: (args: unknown) => Promise<unknown>;
-        };
-      }
-    ).professionalSubscription;
-    if (!delegate?.upsert) {
+    try {
+      await prisma.professionalSubscription.upsert({
+        where: { profileId },
+        create: {
+          profileId,
+          entitlementActive: input.entitlementActive,
+          entitlementExpiresAt: expiresAt,
+          plan: input.plan?.trim() || null,
+          revenueCatAppUserId: input.revenueCatAppUserId?.trim() || profileId,
+          lastSyncedAt: now,
+        },
+        update: {
+          entitlementActive: input.entitlementActive,
+          entitlementExpiresAt: expiresAt,
+          plan: input.plan?.trim() || null,
+          revenueCatAppUserId: input.revenueCatAppUserId?.trim() || profileId,
+          lastSyncedAt: now,
+          updatedAt: now,
+        },
+      });
+    } catch {
       throw Object.assign(
         new Error(
           "Subscription storage is unavailable. Run prisma generate and migrate in the backend."
@@ -247,26 +233,6 @@ export const billingService = {
         { statusCode: 503 as const }
       );
     }
-
-    await delegate.upsert({
-      where: { profileId },
-      create: {
-        profileId,
-        entitlementActive: input.entitlementActive,
-        entitlementExpiresAt: expiresAt,
-        plan: input.plan?.trim() || null,
-        revenueCatAppUserId: input.revenueCatAppUserId?.trim() || profileId,
-        lastSyncedAt: now,
-      },
-      update: {
-        entitlementActive: input.entitlementActive,
-        entitlementExpiresAt: expiresAt,
-        plan: input.plan?.trim() || null,
-        revenueCatAppUserId: input.revenueCatAppUserId?.trim() || profileId,
-        lastSyncedAt: now,
-        updatedAt: now,
-      },
-    });
 
     return this.getProBillingStatus(profileId);
   },

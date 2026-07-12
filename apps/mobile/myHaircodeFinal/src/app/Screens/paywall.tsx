@@ -46,6 +46,7 @@ import {
   restorePurchasesSafe,
 } from "@/src/lib/revenuecat";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { privacyPolicyUrl, termsOfServiceUrl } from "@/src/lib/legalLinks";
 import type { Offerings } from "react-native-purchases";
 
 type Plan = "monthly" | "annual";
@@ -346,14 +347,14 @@ const Paywall = () => {
 
           <View style={styles.linkRow}>
             <Pressable
-              onPress={() => openLink("https://example.com/terms")}
+              onPress={() => openLink(termsOfServiceUrl())}
               accessibilityRole="link"
             >
               <Text style={styles.link}>{t("paywall.termsLink")}</Text>
             </Pressable>
             <Text style={styles.linkSep}>·</Text>
             <Pressable
-              onPress={() => openLink("https://example.com/privacy")}
+              onPress={() => openLink(privacyPolicyUrl())}
               accessibilityRole="link"
             >
               <Text style={styles.link}>{t("paywall.privacyLink")}</Text>

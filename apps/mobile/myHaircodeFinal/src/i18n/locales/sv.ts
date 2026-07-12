@@ -121,8 +121,11 @@ export const sv: AppLocaleMessages = {
     forgotPasswordTitle: "Glömt lösenord",
     sendNewPassword: "Skicka ett nytt lösenord till mig",
     sending: "Skickar…",
-    passwordSent: "Lösenord skickat",
-    checkEmail: "Kontrollera din e-post",
+    invalidEmail: "Ange en giltig e-postadress.",
+    resetRequestFailed: "Något gick fel. Försök igen.",
+    passwordSent: "Kontrollera din e-post",
+    checkEmail:
+      "Om det finns ett konto för den här e-posten har vi skickat en länk för att återställa lösenordet.",
     strongPassword: "Starkt lösenord!",
   },
   onboarding: {
@@ -954,6 +957,16 @@ export const sv: AppLocaleMessages = {
     devPreviewMessage:
       "Öppna den här skärmen från länken i e-postmeddelandet för att spara ett nytt lösenord. Endast layout i dev utan tokens.",
     devPreviewBanner: "Dev-förhandsvisning — använd e-postlänken för fungerande återställning.",
+    devPasteTitle: "Testar? Klistra in återställningslänk",
+    devPasteHint:
+      "Kopiera hela länken från e-postmeddelandet om appen inte öppnades automatiskt.",
+    devPasteLabel: "Återställningslänk",
+    devPastePlaceholder: "https://… eller myhaircode://reset-password#access_token=…",
+    devPasteContinue: "Fortsätt till nytt lösenord",
+    devPasteOpening: "Öppnar…",
+    devPasteInvalidTitle: "Kunde inte läsa länken",
+    devPasteInvalidMessage:
+      "Klistra in hela URL:en från e-postmeddelandet, inklusive access_token och refresh_token.",
     failedUpdatePassword: "Kunde inte uppdatera lösenord",
     newPasswordHeadline: "Nytt lösenord",
     repeatPassword: "Upprepa lösenord",

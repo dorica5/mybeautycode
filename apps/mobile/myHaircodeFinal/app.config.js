@@ -8,6 +8,9 @@ export default ({ config }) => {
     ...config,
     android: {
       ...config.android,
+      ...(process.env.GOOGLE_SERVICES_JSON
+        ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
+        : {}),
       config: {
         ...config.android?.config,
         ...(androidMapsKey ? { googleMaps: { apiKey: androidMapsKey } } : {}),
@@ -32,7 +35,7 @@ export default ({ config }) => {
         process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_KEY ||
         "",
       eas: {
-        projectId: "88667b8c-f786-4a66-aa68-d9b4ee0c7c8e",
+        projectId: "4b757cda-0041-447c-95f9-0b36c1d70c6c",
       },
     },
   };

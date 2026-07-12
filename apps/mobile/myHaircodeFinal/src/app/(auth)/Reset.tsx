@@ -3,7 +3,7 @@ import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { PrimaryOutlineTextField } from "@/src/components/PrimaryOutlineTextField";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
-import { supabase } from "@/src/lib/supabase";
+import { api } from "@/src/lib/apiClient";
 import {
   responsiveMargin,
   responsivePadding,
@@ -36,16 +36,15 @@ const Reset = () => {
     setLoading(true);
     setErrorMessage("");
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "myhaircode://reset-password",
-      });
-      if (error) {
-        setErrorMessage(error.message);
-        return;
-      }
+      await api.post("/api/auth/forgot-password", { email: email.trim() });
       router.replace("/CheckMail");
     } catch (e) {
-      setErrorMessage("Something went wrong. Please try again.");
+      const err = e as Error & { code?: string };
+      if (err.code === "invalid_email") {
+        setErrorMessage(t("auth.invalidEmail"));
+      } else {
+        setErrorMessage(err.message || t("auth.resetRequestFailed"));
+      }
       console.error("Reset password error:", e);
     } finally {
       setLoading(false);

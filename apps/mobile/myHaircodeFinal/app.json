@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "myne",
-    "slug": "myHaircodeFinal",
+    "slug": "mybeautycode",
     "newArchEnabled": true,
     "version": "1.0.4",
     "orientation": "portrait",
@@ -18,12 +18,16 @@
       "requireFullScreen": true,
       "bundleIdentifier": "com.dorica.myne",
       "infoPlist": {
-        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait"
+        ],
         "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationPortrait"
         ],
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
         "NSCameraUsageDescription": "myne uses the camera to take photos of your hair and inspiration images for your hair journal.",
         "NSPhotoLibraryUsageDescription": "myne needs access to your photo library so you can choose and upload hair inspiration and profile photos.",
         "NSPhotoLibraryAddUsageDescription": "myne saves edited or captured photos to your library when you choose to."
@@ -39,7 +43,9 @@
       "versionCode": 1,
       "package": "com.dorica.myne",
       "googleServicesFile": "./google-services.json",
-      "permissions": ["NOTIFICATIONS"]
+      "permissions": [
+        "NOTIFICATIONS"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -52,7 +58,9 @@
       "expo-secure-store",
       [
         "expo-screen-orientation",
-        { "initialOrientation": "PORTRAIT" }
+        {
+          "initialOrientation": "PORTRAIT"
+        }
       ],
       [
         "expo-location",
@@ -81,11 +89,12 @@
       "./plugins/removeEnableBundleCompression",
       "./plugins/withAndroidPortraitOnly"
     ],
-
     "experiments": {
       "typedRoutes": true
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "extra": {
       "SUPABASE_URL": "${SUPABASE_URL}",
       "SUPABASE_FUNCTION_URL": "${SUPABASE_FUNCTION_URL}",
@@ -94,7 +103,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "88667b8c-f786-4a66-aa68-d9b4ee0c7c8e"
+        "projectId": "4b757cda-0041-447c-95f9-0b36c1d70c6c"
       }
     },
     "owner": "dorica"

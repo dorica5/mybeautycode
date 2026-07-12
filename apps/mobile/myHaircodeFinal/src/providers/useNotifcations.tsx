@@ -1,13 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
-import Constants from "expo-constants";
-import { Alert, Platform } from "react-native";
 import { api } from "@/src/lib/apiClient";
 import { supabase } from "@/src/lib/supabase";
 import { router } from "expo-router";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
-import { defaultAppLocale, translate } from "@/src/i18n";
+import { getExpoPushTokenSafe } from "@/src/lib/pushRegistration";
 
 export interface PushNotification {
   notification: Notifications.Notification;
@@ -27,61 +24,13 @@ export const saveTokenToDatabase = async (
 };
 
 export const registerForPushNotificationAsync = async (userId: string) => {
-  console.log("STARTING registration for user:", userId);
-  
-  try {
-    if (!userId) {
-      console.log("No userId provided");
-      return;
-    }
+  if (!userId) return null;
 
-    if (!Device.isDevice) {
-      console.log("Must use physical device for Push Notifications");
-      return;
-    }
+  const token = await getExpoPushTokenSafe();
+  if (!token) return null;
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    console.log("Existing notification permission status:", existingStatus);
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== "granted") {
-      console.log("Requesting notification permissions...");
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-      console.log("Permission request result:", status);
-    }
-
-    if (finalStatus !== "granted") {
-      console.log("Permission denied");
-      Alert.alert(translate(defaultAppLocale(), "push.tokenFailed"));
-      return;
-    }
-
-    console.log("Getting Expo push token with projectId:", Constants.expoConfig?.extra?.eas?.projectId);
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId: Constants.expoConfig?.extra?.eas?.projectId,
-    });
-
-    console.log("Got Expo push token:", token);
-    
-    // Save token to database
-    await saveTokenToDatabase(token, userId);
-
-    if (Platform.OS === "android") {
-      console.log("Setting up Android notification channel");
-      await Notifications.setNotificationChannelAsync("default", {
-        name: "default",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF231F7C",
-      });
-    }
-
-    return token;
-  } catch (error) {
-    console.error("Error registering for push notifications:", error);
-    throw error;
-  }
+  await saveTokenToDatabase(token, userId);
+  return token;
 };
 
 /**

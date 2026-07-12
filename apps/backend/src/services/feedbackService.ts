@@ -179,9 +179,7 @@ export const feedbackService = {
       statusLabel: FEEDBACK_STATUS_LABELS.reviewing,
       title,
       description,
-      submitterName: submitter
-        ? profileDisplayName(submitter)
-        : "Unknown user",
+      submitterName: profileDisplayName(submitter ?? {}) ?? "Unknown user",
       submitterEmail: submitter?.email ?? null,
       itemId: item.id,
       screenshotUrls:
@@ -241,7 +239,7 @@ export const feedbackService = {
     void notifySlackFeedbackVote({
       title: item.title,
       voteCount,
-      voterName: voter ? profileDisplayName(voter) : "Someone",
+      voterName: profileDisplayName(voter ?? {}) ?? "Someone",
       voted,
     });
 

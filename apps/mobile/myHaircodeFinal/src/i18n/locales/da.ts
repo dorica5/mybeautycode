@@ -121,8 +121,11 @@ export const da: AppLocaleMessages = {
     forgotPasswordTitle: "Glemt kodeord",
     sendNewPassword: "Send mig et nyt kodeord",
     sending: "Sender…",
-    passwordSent: "Kodeord sendt",
-    checkEmail: "Tjek din e-mail",
+    invalidEmail: "Indtast en gyldig e-mailadresse.",
+    resetRequestFailed: "Noget gik galt. Prøv igen.",
+    passwordSent: "Tjek din e-mail",
+    checkEmail:
+      "Hvis der findes en konto for denne e-mail, har vi sendt et link til at nulstille kodeordet.",
     strongPassword: "Stærkt kodeord!",
   },
   onboarding: {
@@ -956,6 +959,16 @@ export const da: AppLocaleMessages = {
     devPreviewMessage:
       "Åbn denne skærm fra linket i din e-mail for at gemme et nyt kodeord. Kun layout i dev uden tokens.",
     devPreviewBanner: "Dev-forhåndsvisning — brug e-maillinket for fungerende nulstilling.",
+    devPasteTitle: "Tester? Indsæt gendannelseslink",
+    devPasteHint:
+      "Kopiér hele linket fra e-mailen, hvis appen ikke åbnede automatisk.",
+    devPasteLabel: "Gendannelseslink",
+    devPastePlaceholder: "https://… eller myhaircode://reset-password#access_token=…",
+    devPasteContinue: "Fortsæt til nyt kodeord",
+    devPasteOpening: "Åbner…",
+    devPasteInvalidTitle: "Kunne ikke læse linket",
+    devPasteInvalidMessage:
+      "Indsæt hele URL'en fra e-mailen, inkl. access_token og refresh_token.",
     failedUpdatePassword: "Kunne ikke opdatere kodeord",
     newPasswordHeadline: "Nyt kodeord",
     repeatPassword: "Gentag kodeord",

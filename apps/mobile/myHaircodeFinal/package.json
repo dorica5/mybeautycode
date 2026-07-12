@@ -11,7 +11,17 @@
     "web": "expo start --web",
     "test": "jest --watchAll",
     "lint": "expo lint",
-    "generate-splash": "node scripts/generate-splash.js"
+    "generate-splash": "node scripts/generate-splash.js",
+    "build:dev:ios": "eas build --profile development --platform ios",
+    "build:dev:android": "eas build --profile development --platform android",
+    "build:preview:ios": "eas build --profile preview --platform ios",
+    "build:preview:android": "eas build --profile preview --platform android",
+    "build:preview:all": "eas build --profile preview --platform all",
+    "build:production:ios": "eas build --profile production --platform ios",
+    "build:production:android": "eas build --profile production --platform android",
+    "build:production:all": "eas build --profile production --platform all",
+    "submit:android": "eas submit --profile production --platform android",
+    "submit:ios": "eas submit --profile production --platform ios"
   },
   "jest": {
     "preset": "jest-expo"

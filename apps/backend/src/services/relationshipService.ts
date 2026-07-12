@@ -185,7 +185,8 @@ export const relationshipService = {
             where: { id: clientUserId },
             select: { firstName: true, lastName: true, avatarUrl: true },
           });
-          const clientName = profileDisplayName(clientProfile ?? {});
+          const clientName =
+            profileDisplayName(clientProfile ?? {}) ?? "A client";
 
           await notificationService.send(clientUserId, proProfileUserId, {
             type: "FRIEND_REQUEST",

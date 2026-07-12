@@ -13,7 +13,7 @@ import {
 import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Keyboard,
@@ -28,6 +28,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import LoadingScreen from "./(setup)/LoadingScreen";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import {
+  isPasswordResetDevToolsEnabled,
+  parsePasswordResetTokensFromUrl,
+} from "@/src/lib/passwordResetTokens";
 
 /**
  * In development, you can open `/reset-password` with no query params to preview the layout.
@@ -59,6 +63,74 @@ const PasswordReset = () => {
   const [buttonDisabled, setButtonDisabled] = useState(true);
   const [alertVisible, setAlertVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [recoveryLink, setRecoveryLink] = useState("");
+
+  const showDevTools = isPasswordResetDevToolsEnabled();
+  const tokensResolvedRef = useRef(false);
+
+  const paramAccessToken = useMemo(() => {
+    const raw = urlParams as Record<string, string | string[] | undefined>;
+    const a = raw.access_token;
+    return typeof a === "string" ? a : Array.isArray(a) ? a[0] : undefined;
+  }, [urlParams.access_token]);
+
+  const paramRefreshToken = useMemo(() => {
+    const raw = urlParams as Record<string, string | string[] | undefined>;
+    const r = raw.refresh_token;
+    return typeof r === "string" ? r : Array.isArray(r) ? r[0] : undefined;
+  }, [urlParams.refresh_token]);
+
+  const applyTokens = useCallback((access_token?: string, refresh_token?: string) => {
+    if (!access_token || !refresh_token) return;
+    setAuthTokens((prev) => {
+      if (
+        prev.access_token === access_token &&
+        prev.refresh_token === refresh_token
+      ) {
+        return prev;
+      }
+      return { access_token, refresh_token };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (tokensResolvedRef.current) return;
+
+    const resolveTokens = async () => {
+      if (paramAccessToken && paramRefreshToken) {
+        applyTokens(paramAccessToken, paramRefreshToken);
+        tokensResolvedRef.current = true;
+        setTokensExtracted(true);
+        return;
+      }
+
+      const url = await Linking.getInitialURL();
+      if (url) {
+        const parsed = parsePasswordResetTokensFromUrl(url);
+        if (parsed) {
+          applyTokens(parsed.access_token, parsed.refresh_token);
+        }
+      }
+
+      tokensResolvedRef.current = true;
+      setTokensExtracted(true);
+    };
+
+    void resolveTokens();
+  }, [paramAccessToken, paramRefreshToken, applyTokens]);
+
+  useEffect(() => {
+    const onUrl = (event: { url: string }) => {
+      const parsed = parsePasswordResetTokensFromUrl(event.url);
+      if (parsed) {
+        applyTokens(parsed.access_token, parsed.refresh_token);
+        setTokensExtracted(true);
+      }
+    };
+
+    const sub = Linking.addEventListener("url", onUrl);
+    return () => sub.remove();
+  }, [applyTokens]);
 
   const [passwordStrength, setPasswordStrength] = useState<{
     level: PasswordStrengthLevel;
@@ -105,70 +177,40 @@ const PasswordReset = () => {
   );
 
   useEffect(() => {
-    const extractTokens = async () => {
-      let access_token: string | undefined;
-      let refresh_token: string | undefined;
-      const raw = urlParams as Record<string, string | string[] | undefined>;
-      const a = raw.access_token;
-      const r = raw.refresh_token;
-      access_token =
-        typeof a === "string" ? a : Array.isArray(a) ? a[0] : undefined;
-      refresh_token =
-        typeof r === "string" ? r : Array.isArray(r) ? r[0] : undefined;
-
-      if (!access_token || !refresh_token) {
-        const url = await Linking.getInitialURL();
-        if (url) {
-          const hash = url.split("#")[1];
-          if (hash) {
-            const params = new URLSearchParams(hash);
-            access_token = params.get("access_token") || undefined;
-            refresh_token = params.get("refresh_token") || undefined;
-          }
-        }
-      }
-
-      if (access_token && refresh_token) {
-        setAuthTokens({ access_token, refresh_token });
-      }
-
-      setTokensExtracted(true);
-    };
-
-    extractTokens();
-  }, [urlParams]);
-
-  useEffect(() => {
-    if (newPassword) {
-      setPasswordStrength(checkPasswordStrength(newPassword));
-    } else {
-      setPasswordStrength({
-        level: "weak",
-        color: "red",
-        feedback: t("authPassword.passwordMinLength"),
-      });
-    }
-
+    const strength = newPassword
+      ? checkPasswordStrength(newPassword)
+      : {
+          level: "weak" as PasswordStrengthLevel,
+          color: "red",
+          feedback: t("authPassword.passwordMinLength"),
+        };
+    setPasswordStrength(strength);
     setButtonDisabled(
       isLoading ||
         !newPassword ||
         !confirmPassword ||
         newPassword !== confirmPassword ||
-        passwordStrength.level === "weak",
+        strength.level === "weak",
     );
-  }, [
-    newPassword,
-    confirmPassword,
-    passwordStrength.level,
-    isLoading,
-    checkPasswordStrength,
-    t,
-  ]);
+  }, [newPassword, confirmPassword, isLoading, checkPasswordStrength, t]);
 
   const hasValidTokens = Boolean(
     authTokens.access_token && authTokens.refresh_token,
   );
   const isDevPreview = DEV_PREVIEW_PASSWORD_RESET && !hasValidTokens;
+
+  const applyPastedRecoveryLink = () => {
+    const tokens = parsePasswordResetTokensFromUrl(recoveryLink);
+    if (!tokens) {
+      Alert.alert(
+        t("authPassword.devPasteInvalidTitle"),
+        t("authPassword.devPasteInvalidMessage")
+      );
+      return;
+    }
+    setAuthTokens(tokens);
+    setTokensExtracted(true);
+  };
 
   const updatePassword = async () => {
     if (isLoading) return;
@@ -241,6 +283,32 @@ const PasswordReset = () => {
           <Text style={[Typography.bodyMedium, styles.invalidBody]}>
             {t("authPassword.invalidResetLinkBody")}
           </Text>
+          {showDevTools ? (
+            <View style={styles.devPasteBlock}>
+              <Text style={[Typography.bodySmall, styles.devPasteHint]}>
+                {t("authPassword.devPasteHint")}
+              </Text>
+              <PrimaryOutlineTextField
+                label={t("authPassword.devPasteLabel")}
+                value={recoveryLink}
+                onChangeText={setRecoveryLink}
+                placeholder={t("authPassword.devPastePlaceholder")}
+                autoCapitalize="none"
+                autoCorrect={false}
+                multiline
+                containerStyle={styles.devPasteField}
+              />
+              <PaddedLabelButton
+                title={t("authPassword.devPasteContinue")}
+                horizontalPadding={24}
+                verticalPadding={14}
+                disabled={!recoveryLink.trim()}
+                onPress={applyPastedRecoveryLink}
+                style={styles.primaryButton}
+                textStyle={styles.primaryButtonLabel}
+              />
+            </View>
+          ) : null}
           <PaddedLabelButton
             title={t("authPassword.goToSignIn")}
             horizontalPadding={32}
@@ -414,6 +482,20 @@ const styles = StyleSheet.create({
     color: primaryBlack,
     textAlign: "center",
     marginBottom: responsiveMargin(28),
+  },
+  devPasteBlock: {
+    width: "100%",
+    marginBottom: responsiveMargin(20),
+  },
+  devPasteHint: {
+    color: primaryBlack,
+    textAlign: "center",
+    opacity: 0.85,
+    marginBottom: responsiveMargin(12),
+  },
+  devPasteField: {
+    width: "100%",
+    marginBottom: responsiveMargin(12),
   },
 });
 
