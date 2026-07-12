@@ -219,8 +219,14 @@ const VisitList = () => {
   const profileUnavailable =
     isBlockedUser || isBlockedByClient;
 
+  const navSaysConnected = navRelationship === "true";
   const shouldUseClientAddProfile =
-    relationshipQueryEnabled && !profileUnavailable && !isRelated;
+    relationshipQueryEnabled &&
+    !profileUnavailable &&
+    relReady &&
+    !relLoading &&
+    !isRelated &&
+    !navSaysConnected;
 
   useEffect(() => {
     if (!shouldUseClientAddProfile) return;

@@ -1,4 +1,4 @@
-/** Aligned with `apps/mobile/myHaircodeFinal/src/constants` — keep in sync when brand shifts. */
+/** Aligned with `apps/mobile/myne/src/constants` — keep in sync when brand shifts. */
 export const BRAND_NAME = "myne";
 
 export const colors = {

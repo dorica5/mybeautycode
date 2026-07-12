@@ -62,7 +62,7 @@ export async function notifySlackUserReport(
         type: "header",
         text: {
           type: "plain_text",
-          text: "User report — myHaircode",
+          text: "User report — myne",
           emoji: true,
         },
       },

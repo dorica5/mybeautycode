@@ -143,7 +143,7 @@ const NEW_SERVICE_KEY = process.env.NEW_SUPABASE_SERVICE_KEY
 ### Run it
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 $env:OLD_SUPABASE_URL="https://your-old-project.supabase.co"
 $env:OLD_SUPABASE_SERVICE_KEY="your-old-service-role-key"
 $env:NEW_SUPABASE_URL="https://your-new-project.supabase.co"
@@ -162,7 +162,7 @@ For many files, use the [Supabase Storage migration script](https://supabase.com
 ### Deploy to new project
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 supabase link --project-ref YOUR_NEW_PROJECT_REF
 supabase functions deploy send-notification
 supabase functions deploy deleteUser
@@ -189,7 +189,7 @@ SUPABASE_SERVICE_ROLE_KEY=[new service role key]
 SUPABASE_JWT_SECRET=[same as old if you copied it, else new]
 ```
 
-### Mobile (`apps/mobile/myHaircodeFinal/.env`)
+### Mobile (`apps/mobile/myne/.env`)
 
 ```
 SUPABASE_PROJECTID=[NEW_PROJECT_REF]

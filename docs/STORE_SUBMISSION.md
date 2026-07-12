@@ -75,17 +75,17 @@ Copy from your working `.env` — all must be set on **production** (and rebuilt
 
 ### Android Firebase file
 
-Package must be **`com.dorica.myne`** (your current `google-services.json` still says `com.dorica.myHaircodeFinal` — fix in Firebase first).
+Package must be **`com.dorica.myne`** (your current `google-services.json` still says `com.dorica.myne` — fix in Firebase first).
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment production --environment preview
 ```
 
 ### Build for stores
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 npm run build:production:android   # AAB for Play Store
 npm run build:production:ios       # IPA for App Store
 ```
@@ -103,7 +103,7 @@ npm run submit:ios
 
 Dashboard → Authentication → URL Configuration:
 
-- **Redirect URLs:** `myhaircode://reset-password`
+- **Redirect URLs:** `myne://reset-password`
 - **Site URL:** can stay as-is; redirect URL is what matters
 
 Test on a **production** build: request reset → open email on device → app opens → new password → sign in. No paste-link UI should appear.
@@ -163,7 +163,7 @@ Do **not** rely on `BILLING_TEST_SUBSCRIBED_PROFILE_IDS` for reviewers — that 
 - [ ] API live at HTTPS URL; `/health` works from phone on cellular
 - [ ] EAS **production** env complete (API, Supabase, RevenueCat, Google)
 - [ ] `google-services.json` package = `com.dorica.myne`, uploaded to EAS
-- [ ] Supabase redirect `myhaircode://reset-password` added
+- [ ] Supabase redirect `myne://reset-password` added
 - [ ] RevenueCat offerings load on production build (real device)
 - [ ] Test purchase + restore on iOS sandbox and Android license tester
 - [ ] myne.no/terms and /privacy live

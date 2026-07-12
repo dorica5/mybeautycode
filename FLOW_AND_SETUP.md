@@ -1,4 +1,4 @@
-# myHaircode – Flow and Setup Guide
+# myne – Flow and Setup Guide
 
 This document explains how the entire project works, step by step, and what you need to do when cloning the repo on a new machine or adding features yourself.
 
@@ -22,12 +22,12 @@ This document explains how the entire project works, step by step, and what you 
 ### Structure (Monorepo)
 
 ```
-myHaircode/
+mybeautycode/
 ├── package.json              # Workspace root (npm workspaces)
 ├── apps/
 │   ├── backend/              # Express API + Prisma + PostgreSQL
 │   └── mobile/
-│       └── myHaircodeFinal/  # React Native / Expo app
+│       └── myne/  # React Native / Expo app
 └── packages/                 # (empty – for shared code if needed)
 ```
 
@@ -131,7 +131,7 @@ From the **project root**:
 npm install
 ```
 
-This installs dependencies for the workspace and all apps (`backend`, `mobile/myHaircodeFinal`).
+This installs dependencies for the workspace and all apps (`backend`, `mobile/myne`).
 
 ### 4.3 Backend Setup
 
@@ -175,7 +175,7 @@ This installs dependencies for the workspace and all apps (`backend`, `mobile/my
 
 ### 4.4 Mobile Setup
 
-1. **Create `.env` in `apps/mobile/myHaircodeFinal/`** (no `.env.example` in repo; create from scratch):
+1. **Create `.env` in `apps/mobile/myne/`** (no `.env.example` in repo; create from scratch):
 
    ```env
    SUPABASE_PROJECTID=your-project-id
@@ -204,7 +204,7 @@ This installs dependencies for the workspace and all apps (`backend`, `mobile/my
 3. **Start the mobile app**:
 
    ```bash
-   cd apps/mobile/myHaircodeFinal
+   cd apps/mobile/myne
    npm start
    ```
 
@@ -219,10 +219,10 @@ This installs dependencies for the workspace and all apps (`backend`, `mobile/my
 - [ ] `npm install` at root
 - [ ] `apps/backend/.env` created and filled
 - [ ] `npm run prisma:generate` and `npm run prisma:migrate` in backend
-- [ ] `apps/mobile/myHaircodeFinal/.env` created and filled
+- [ ] `apps/mobile/myne/.env` created and filled
 - [ ] `EXPO_PUBLIC_API_URL` matches your setup (localhost / emulator / LAN IP)
 - [ ] Backend running (`npm run dev` in `apps/backend`)
-- [ ] Mobile running (`npm start` in `apps/mobile/myHaircodeFinal`)
+- [ ] Mobile running (`npm start` in `apps/mobile/myne`)
 
 ---
 
@@ -340,7 +340,7 @@ Opens Prisma Studio at `http://localhost:5555` to browse and edit data.
 
 ### 6.3 Adding a New API Module in the Mobile App
 
-1. Create `apps/mobile/myHaircodeFinal/src/api/myFeature/index.ts`:
+1. Create `apps/mobile/myne/src/api/myFeature/index.ts`:
 
    ```typescript
    import { api } from "@/lib/apiClient";
@@ -362,7 +362,7 @@ Opens Prisma Studio at `http://localhost:5555` to browse and edit data.
 
 ### 6.4 Adding a New Screen (Expo Router)
 
-1. Add a file under `apps/mobile/myHaircodeFinal/src/app/`, e.g. `my-screen.tsx`.
+1. Add a file under `apps/mobile/myne/src/app/`, e.g. `my-screen.tsx`.
 2. It becomes a route automatically (e.g. `/my-screen`).
 3. Use `router.push("/my-screen")` or `<Link href="/my-screen">` to navigate.
 
@@ -376,7 +376,7 @@ Opens Prisma Studio at `http://localhost:5555` to browse and edit data.
 
 **Mobile**
 
-1. Add to `apps/mobile/myHaircodeFinal/.env`.
+1. Add to `apps/mobile/myne/.env`.
 2. Expose in `app.config.js` if needed at runtime:
 
    ```javascript
@@ -402,7 +402,7 @@ Opens Prisma Studio at `http://localhost:5555` to browse and edit data.
 | `SUPABASE_JWT_SECRET` | Yes | JWT secret for verifying Supabase tokens |
 | `PORT` | No | Server port (default 3000) |
 
-### Mobile (`apps/mobile/myHaircodeFinal/.env`)
+### Mobile (`apps/mobile/myne/.env`)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -458,12 +458,12 @@ Opens Prisma Studio at `http://localhost:5555` to browse and edit data.
 |--------|--------------------|
 | Install deps | `npm install` (root) |
 | Backend env | `apps/backend/.env` |
-| Mobile env | `apps/mobile/myHaircodeFinal/.env` |
+| Mobile env | `apps/mobile/myne/.env` |
 | DB migrations | `cd apps/backend && npm run prisma:migrate` |
 | Prisma Client | `cd apps/backend && npm run prisma:generate` |
 | DB GUI | `cd apps/backend && npm run prisma:studio` |
 | Start backend | `cd apps/backend && npm run dev` |
-| Start mobile | `cd apps/mobile/myHaircodeFinal && npm start` |
+| Start mobile | `cd apps/mobile/myne && npm start` |
 | Schema | `apps/backend/prisma/schema.prisma` |
 | Routes | `apps/backend/src/index.ts` + `src/routes/*` |
-| API client | `apps/mobile/myHaircodeFinal/src/lib/apiClient.ts` |
+| API client | `apps/mobile/myne/src/lib/apiClient.ts` |

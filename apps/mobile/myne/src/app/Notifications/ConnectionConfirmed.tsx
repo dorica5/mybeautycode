@@ -21,6 +21,7 @@ import {
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { professionRoleLabelFromCode } from "@/src/i18n/notificationCopy";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   pushNotificationProfileNav,
   resolveClientToProProfileNav,
@@ -39,6 +40,7 @@ function firstParam(value: string | string[] | undefined): string | undefined {
 export default function ConnectionConfirmed() {
   const { t } = useI18n();
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const {
     notificationId,
     senderId,
@@ -81,7 +83,10 @@ export default function ConnectionConfirmed() {
       proId,
       lane ?? null
     );
-    pushNotificationProfileNav(resolved, t);
+    pushNotificationProfileNav(resolved, t, {
+      queryClient,
+      viewerId: profile.id,
+    });
   };
 
   if (!blockStateReady) {

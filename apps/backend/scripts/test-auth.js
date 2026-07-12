@@ -5,7 +5,7 @@
  * (SUPABASE_ANON comes from mobile .env if missing in backend)
  */
 require("dotenv").config();
-require("dotenv").config({ path: require("path").join(__dirname, "../../mobile/myHaircodeFinal/.env") });
+require("dotenv").config({ path: require("path").join(__dirname, "../../mobile/myne/.env") });
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON = process.env.SUPABASE_ANON || process.env.SUPABASE_SERVICE_ROLE_KEY;
 const API_URL = process.env.EXPO_PUBLIC_API_URL || process.env.API_URL || "http://localhost:3001";

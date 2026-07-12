@@ -1,8 +1,11 @@
 import { Alert } from "react-native";
 import { router, type Href } from "expo-router";
+import type { QueryClient } from "@tanstack/react-query";
 import {
   checkRelationship,
+  clientLinkUiStatusQueryKey,
   getClientLinkUiStatus,
+  relationshipCheckQueryKey,
 } from "@/src/api/relationships";
 import {
   allBlockerIds,
@@ -105,14 +108,65 @@ export async function resolveClientToProProfileNav(
   };
 }
 
+/** Keep destination screens from reading stale relationship cache on first paint. */
+export function seedNotificationProfileNavCache(
+  queryClient: QueryClient,
+  resolved: NotificationProfileNavResult,
+  viewerId: string
+): void {
+  if (resolved.kind !== "route") return;
+
+  const { pathname, params } = resolved;
+  const professionCode =
+    params.professionCode?.trim() || params.profession?.trim() || null;
+  const relationship =
+    params.relationship === "true" || params.relationship === "1";
+
+  if (pathname === "/visits/[id]" && relationship) {
+    const clientId = params.client_id ?? params.id;
+    if (!clientId) return;
+    queryClient.setQueryData(
+      relationshipCheckQueryKey(clientId, viewerId, professionCode),
+      true
+    );
+    queryClient.setQueryData(
+      clientLinkUiStatusQueryKey(viewerId, clientId, professionCode),
+      "active"
+    );
+    return;
+  }
+
+  if (
+    pathname === "/(client)/(tabs)/userList/professionalProfile/[id]" &&
+    relationship
+  ) {
+    const proId = params.id;
+    if (!proId) return;
+    queryClient.setQueryData(
+      relationshipCheckQueryKey(viewerId, proId, professionCode),
+      true
+    );
+  }
+}
+
 export function pushNotificationProfileNav(
   resolved: NotificationProfileNavResult,
-  t: (key: string) => string
+  t: (key: string) => string,
+  options?: { queryClient?: QueryClient; viewerId?: string }
 ): boolean {
   if (resolved.kind === "blocked") {
     Alert.alert(t("notifications.profileUnavailableBlocked"));
     return false;
   }
+
+  if (options?.queryClient && options.viewerId) {
+    seedNotificationProfileNavCache(
+      options.queryClient,
+      resolved,
+      options.viewerId
+    );
+  }
+
   router.push({
     pathname: resolved.pathname as Href,
     params: resolved.params,

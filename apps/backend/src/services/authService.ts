@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { getSupabaseAdmin } from "../lib/supabaseAdmin";
 
-const PASSWORD_RESET_REDIRECT = "myhaircode://reset-password";
+const PASSWORD_RESET_REDIRECT = "myne://reset-password";
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();

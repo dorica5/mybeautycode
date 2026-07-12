@@ -8,6 +8,10 @@ import { FONT_FAMILY, Typography } from "@/src/constants/Typography";
 import { primaryBlack } from "@/src/constants/Colors";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  clientLinkUiStatusQueryKey,
+  relationshipCheckQueryKey,
+} from "@/src/api/relationships";
 import { requestClientLink } from "@/src/api/profiles";
 import {
   isBlockedOnLane,
@@ -173,6 +177,17 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
       if (!isUuid(clientId)) return;
       prefetchBlockedList();
       if (hasRelationship) {
+        const lane = professionCode?.trim() || null;
+        if (hairdresserId) {
+          queryClient.setQueryData(
+            relationshipCheckQueryKey(clientId, hairdresserId, lane),
+            true
+          );
+          queryClient.setQueryData(
+            clientLinkUiStatusQueryKey(hairdresserId, clientId, lane),
+            "active"
+          );
+        }
         router.push({
           pathname: "/visits/[id]" as Href,
           params: {

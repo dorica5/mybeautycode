@@ -16,6 +16,7 @@ import {
   useI18n,
 } from "@/src/providers/LanguageProvider";
 import { localizedNotificationMessage } from "@/src/i18n/notificationCopy";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   pushNotificationProfileNav,
   resolveProToClientProfileNav,
@@ -46,6 +47,7 @@ export const NotificationItem = ({
 }: NotificationItemProps) => {
   const { t, locale } = useI18n();
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const [visitUnavailableVisible, setVisitUnavailableVisible] = useState(false);
   const [isRead, setIsRead] = useState(notification.read);
   const senderAvatar = notification.sender?.avatar_url;
@@ -340,7 +342,10 @@ export const NotificationItem = ({
                 : ""),
           }
         );
-        pushNotificationProfileNav(resolved, t);
+        pushNotificationProfileNav(resolved, t, {
+          queryClient,
+          viewerId: profile.id,
+        });
         break;
       }
 

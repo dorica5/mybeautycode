@@ -15,7 +15,7 @@ import { useClientSearch, requestClientLink } from "@/src/api/profiles";
 import { BlockedInlineNotice } from "@/src/components/BlockedProfileScreen";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import {
   Colors,
@@ -24,7 +24,7 @@ import {
   primaryWhite,
 } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import {
   removeRelationship,
   useClientLinkUiStatus,
@@ -151,6 +151,27 @@ const UserProfile = () => {
     (linkStatusQueryEnabled && linkStateFetched ? ("none" as const) : null);
 
   const isRelated = linkStateResolved === "active";
+
+  useEffect(() => {
+    if (!isRelated || !client_id || !activeProfessionCode) return;
+    router.replace({
+      pathname: "/visits/[id]" as Href,
+      params: {
+        id: client_id,
+        client_id,
+        relationship: "true",
+        ...(navFullName ? { full_name: navFullName } : {}),
+        ...(navPhone ? { phone_number: navPhone } : {}),
+        professionCode: activeProfessionCode,
+      },
+    });
+  }, [
+    isRelated,
+    client_id,
+    activeProfessionCode,
+    navFullName,
+    navPhone,
+  ]);
 
   const { isBlocked: isBlockedUser, ready: blockStateReady } =
     useViewerBlockedTarget(hairdresser_id, client_id, activeProfessionCode);
@@ -356,6 +377,12 @@ const UserProfile = () => {
     !activeProfessionCode ||
     !blockStateReady
   ) {
+    return (
+      <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />
+    );
+  }
+
+  if (isRelated) {
     return (
       <ThemedRouteLoading accessibilityLabel={t("profile.loadingProfile")} />
     );

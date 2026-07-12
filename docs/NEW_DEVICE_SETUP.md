@@ -18,7 +18,7 @@ Use this checklist after you already have the repo on disk (for example after `g
 
 ## 2. Install dependencies
 
-From the **repository root** (`myHaircode` / monorepo root):
+From the **repository root** (`mybeautycode` monorepo):
 
 ```bash
 npm install
@@ -87,7 +87,7 @@ If `/health/db` returns **503**, the API cannot reach Postgres: resume the Supab
 
 ---
 
-## 6. Mobile environment (`apps/mobile/myHaircodeFinal/.env`)
+## 6. Mobile environment (`apps/mobile/myne/.env`)
 
 Create or copy env for Expo (see existing teammates’ `.env` **names** only; do not commit secrets).
 
@@ -115,7 +115,7 @@ Use the IP of the machine that runs `npm run dev` for the backend.
 ## 7. Start the mobile app
 
 ```bash
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 npm install
 npm start
 ```
@@ -151,6 +151,6 @@ Then open in Expo Go or run a native build (`npm run android` / `npm run ios`) p
 
 ## 10. Security reminder
 
-- Never commit `apps/backend/.env` or `apps/mobile/myHaircodeFinal/.env`.
+- Never commit `apps/backend/.env` or `apps/mobile/myne/.env`.
 - **Service role** key must only live on the server/backend, not in the mobile app.
 - Rotate keys if they were ever committed or leaked.

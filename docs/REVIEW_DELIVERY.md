@@ -26,7 +26,7 @@ Password reset is **Supabase-only** (no backend endpoint).
 1. [Supabase Dashboard](https://supabase.com/dashboard) → your project → **Authentication** → **URL Configuration**
 2. Add to **Redirect URLs**:
    ```
-   myhaircode://reset-password
+   myne://reset-password
    ```
 3. Confirm **Email** provider is enabled (Authentication → Providers → Email).
 4. Optional: configure custom SMTP if default rate limits are too low for testing.
@@ -44,18 +44,18 @@ Preview/development builds set `EXPO_PUBLIC_DEV_PASSWORD_RESET=true` in `eas.jso
 
 ## 3. Firebase — Android push + `google-services.json`
 
-**Critical:** your local `google-services.json` uses package `com.dorica.myHaircodeFinal`, but the app uses `com.dorica.myne`. They must match.
+**Critical:** your local `google-services.json` uses package `com.dorica.myne`, but the app uses `com.dorica.myne`. They must match.
 
-1. [Firebase Console](https://console.firebase.google.com/) → project **myhaircode**
+1. [Firebase Console](https://console.firebase.google.com/) → project **myne-mycare**
 2. Add Android app with package **`com.dorica.myne`** (or update existing app)
 3. Download new `google-services.json` → save to:
    ```
-   apps/mobile/myHaircodeFinal/google-services.json
+   apps/mobile/myne/google-services.json
    ```
 4. Upload to EAS (file is gitignored and won't upload automatically):
 
    ```powershell
-   cd apps/mobile/myHaircodeFinal
+   cd apps/mobile/myne
    eas secret:create --scope project --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json
    ```
 
@@ -102,7 +102,7 @@ Replace the `goog_xxxxxxxx` placeholder in your local `.env`.
 Set once per EAS project (values from your `.env`, but **API URL must be public**):
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 
 eas env:create --name SUPABASE_URL --value "https://znwlrfogoczqsaaqvjqv.supabase.co" --environment preview --environment production
 eas env:create --name SUPABASE_ANON --value "YOUR_ANON_KEY" --environment preview --environment production --visibility secret
@@ -123,7 +123,7 @@ eas env:list --environment preview
 
 ## 6. Build commands
 
-Logged in as **dorica** on EAS. From `apps/mobile/myHaircodeFinal`:
+Logged in as **dorica** on EAS. From `apps/mobile/myne`:
 
 | Goal | Command |
 |------|---------|
@@ -186,6 +186,6 @@ Configure Play service account and App Store Connect API key in EAS (`eas creden
 If time is short, do these four things:
 
 1. Fix `google-services.json` package → `com.dorica.myne` + upload EAS file secret
-2. Add `myhaircode://reset-password` in Supabase redirect URLs
+2. Add `myne://reset-password` in Supabase redirect URLs
 3. Set EAS env vars (especially `EXPO_PUBLIC_API_URL` + RevenueCat Android key)
 4. Run `npm run build:preview:android` and install the APK on your phone

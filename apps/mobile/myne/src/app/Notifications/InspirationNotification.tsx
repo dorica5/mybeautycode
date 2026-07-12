@@ -45,6 +45,7 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { fetchSignedStorageUrls } from "@/src/lib/storageSignedUrl";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   pushNotificationProfileNav,
   resolveClientToProProfileNav,
@@ -58,6 +59,7 @@ const InspirationNotification = () => {
   const { senderName, batch_id, profile_pic, senderId, professionCode, profession_code } =
     useLocalSearchParams();
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const { activeProfessionCode } = useActiveProfessionState(profile);
   const [images, setImages] = useState<SharedInspirationRow[]>([]);
   const [selectedImage, setSelectedImage] = useState<SharedInspirationRow | null>(
@@ -275,7 +277,10 @@ const InspirationNotification = () => {
             senderIdParam,
             inspirationLane ?? null
           );
-    pushNotificationProfileNav(resolved, t);
+    pushNotificationProfileNav(resolved, t, {
+      queryClient,
+      viewerId: profile.id,
+    });
   };
 
   return (

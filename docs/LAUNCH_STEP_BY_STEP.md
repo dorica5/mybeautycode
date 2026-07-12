@@ -51,7 +51,7 @@ git push origin main
 ### 1.3 Create the web service
 
 1. Render Dashboard → **New +** → **Web Service**.
-2. Connect repository **myHaircode** (or your repo name).
+2. Connect repository **mybeautycode** (or your repo name).
 3. Settings:
 
 | Field | Value |
@@ -141,7 +141,7 @@ eas login
 ### 2.2 Confirm project
 
 ```powershell
-cd "c:\Users\dorca\OneDrive\Dokumenter\myHaircode\apps\mobile\myHaircodeFinal"
+cd "c:\Users\dorca\OneDrive\Dokumenter\myHaircode\apps\mobile\myne"
 eas project:info
 ```
 
@@ -154,7 +154,7 @@ ID        4b757cda-0041-447c-95f9-0b36c1d70c6c
 
 ### 2.3 Set environment variables on EAS
 
-Run from `apps/mobile/myHaircodeFinal`. Replace values with yours.
+Run from `apps/mobile/myne`. Replace values with yours.
 
 **For local dev + preview + production** (use `--environment` flags as shown):
 
@@ -186,23 +186,23 @@ eas env:list --environment preview
 
 ### 2.4 Fix Firebase + upload `google-services.json`
 
-Your file still has package `com.dorica.myHaircodeFinal` — must be `com.dorica.myne`.
+Your file still has package `com.dorica.myne` — must be `com.dorica.myne`.
 
-1. [Firebase Console](https://console.firebase.google.com/) → project **myhaircode**
+1. [Firebase Console](https://console.firebase.google.com/) → project **myne-mycare**
 2. **Add app** → Android → package name **`com.dorica.myne`**
 3. Download **`google-services.json`**
-4. Save to: `apps/mobile/myHaircodeFinal/google-services.json`
+4. Save to: `apps/mobile/myne/google-services.json`
 
 Upload to EAS (file is gitignored):
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment development --environment preview --environment production
 ```
 
 ### 2.5 Update local `.env` for day-to-day dev
 
-Edit `apps/mobile/myHaircodeFinal/.env`:
+Edit `apps/mobile/myne/.env`:
 
 ```env
 EXPO_PUBLIC_API_URL=https://YOUR-RENDER-URL.onrender.com
@@ -220,7 +220,7 @@ This is **not Expo Go**. You build a custom app shell once, install it on your p
 ### 3.1 Option A — EAS development build (recommended)
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 npm run build:dev:android
 ```
 
@@ -232,7 +232,7 @@ npm run build:dev:android
 ### 3.2 Option B — USB build (Android only, if you have Android Studio)
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 npm run android
 ```
 
@@ -241,7 +241,7 @@ npm run android
 **After** the dev build is installed on your phone:
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 npm start
 ```
 
@@ -271,7 +271,7 @@ npx expo start --dev-client -c
 2. **Authentication** → **URL Configuration**
 3. **Redirect URLs** → add:
    ```
-   myhaircode://reset-password
+   myne://reset-password
    ```
 4. Save
 
@@ -309,7 +309,7 @@ RevenueCat’s Android app needs your app registered in **Google Play** with at 
 ### 5.2 Build preview APK (install on your phone for testing)
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 npm run build:preview:android
 ```
 
@@ -473,7 +473,7 @@ See [`STORE_SUBMISSION.md`](./STORE_SUBMISSION.md) for the final checklist.
 Quick commands:
 
 ```powershell
-cd apps/mobile/myHaircodeFinal
+cd apps/mobile/myne
 npm run build:production:all
 npm run submit:android
 npm run submit:ios
@@ -506,7 +506,7 @@ PHASE 3 — DEV CLIENT + QR
 [ ] Sign in + API works against Render
 
 PHASE 4 — PASSWORD
-[ ] Supabase redirect myhaircode://reset-password added
+[ ] Supabase redirect myne://reset-password added
 [ ] Forgot password works (link or paste on dev build)
 [ ] Change password while logged in works
 

@@ -33,6 +33,7 @@ import { useI18n } from "@/src/providers/LanguageProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { clientAddedPushBody } from "@/src/i18n/pushCopy";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   pushNotificationProfileNav,
   resolveClientToProProfileNav,
@@ -58,6 +59,7 @@ export const FriendRequest = () => {
   } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const { activeProfessionCode } = useActiveProfessionState(profile);
   const [isHandled, setIsHandled] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
@@ -99,7 +101,10 @@ export const FriendRequest = () => {
       lane ?? null,
       { fullName: firstParam(senderName) ?? "" }
     );
-    pushNotificationProfileNav(resolved, t);
+    pushNotificationProfileNav(resolved, t, {
+      queryClient,
+      viewerId: profile.id,
+    });
   };
 
   const openProProfile = async () => {
@@ -109,7 +114,10 @@ export const FriendRequest = () => {
       senderIdParam,
       requestLane ?? null
     );
-    pushNotificationProfileNav(resolved, t);
+    pushNotificationProfileNav(resolved, t, {
+      queryClient,
+      viewerId: profile.id,
+    });
   };
 
   useEffect(() => {
