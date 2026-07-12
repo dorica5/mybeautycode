@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  FlatList,
   Modal,
   Platform,
   Pressable,
@@ -17,6 +18,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import InspirationTopNav from "@/src/components/InspirationTopNav";
 import OptimizedImage from "@/src/components/OptimizedImage";
+import { PreviewDots } from "@/src/components/visits/VisitPreviewModalContent";
 import { Typography } from "@/src/constants/Typography";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
@@ -40,12 +42,9 @@ import {
 const NUM_COLS = 2;
 const GRID_MAX_W = 400;
 
-function chunkRows<T>(items: T[], size: number): T[][] {
-  const rows: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    rows.push(items.slice(i, i + size));
-  }
-  return rows;
+function gridThumbPath(item: PublicProfileWorkRow): string {
+  const low = item.lowResImageUrl?.trim();
+  return (low && low.length > 0 ? low : item.imageUrl) ?? "";
 }
 
 type Props = {
@@ -100,7 +99,6 @@ export function PublicProfileWorkGrid({
     rowInner = Math.min(cap, Math.max(120, windowWidth - scrollPad * 2));
   }
   const cell = (rowInner - gap * (NUM_COLS - 1)) / NUM_COLS;
-  const pairRows = useMemo(() => chunkRows(rows, NUM_COLS), [rows]);
 
   const horizontalPadding = scalePercent(5);
   const detailCarouselViewportHeight = Math.min(
@@ -216,54 +214,41 @@ export function PublicProfileWorkGrid({
       {heading ? (
         <Text style={[Typography.label, styles.label]}>{heading}</Text>
       ) : null}
-      <View style={[styles.grid, { width: rowInner }]}>
-        {pairRows.map((row, rowIndex) => (
-          <View
-            key={`pf-row-${rowIndex}-${row[0]?.id ?? ""}`}
-            style={[
-              styles.row,
-              rowIndex < pairRows.length - 1 ? { marginBottom: gap } : null,
-            ]}
-          >
-            {row.map((cellItem, colIndex) => {
-              const idx = rows.findIndex((r) => r.id === cellItem.id);
-              const path =
-                (cellItem.lowResImageUrl?.trim() &&
-                cellItem.lowResImageUrl.length > 0
-                  ? cellItem.lowResImageUrl
-                  : cellItem.imageUrl) ?? "";
-              return (
-                <Pressable
-                  key={cellItem.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open work image ${idx + 1} of ${rows.length}`}
-                  onPress={() => openCarouselAt(idx)}
-                  style={[
-                    styles.thumbWrap,
-                    {
-                      width: cell,
-                      height: cell,
-                      marginRight:
-                        colIndex === 0 && row.length > 1 ? gap : 0,
-                    },
-                  ]}
-                >
-                  <OptimizedImage
-                    path={path}
-                    bucket="public_profile_work"
-                    sizePreset="inspiration-grid"
-                    width={Math.ceil(cell)}
-                    recyclingKey={cellItem.id}
-                    style={[styles.thumb, { width: cell, height: cell }]}
-                    contentFit="cover"
-                    priority="low"
-                  />
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
-      </View>
+      <FlatList
+        data={rows}
+        keyExtractor={(item) => item.id}
+        numColumns={NUM_COLS}
+        scrollEnabled={false}
+        style={[styles.grid, { width: rowInner }]}
+        columnWrapperStyle={{ gap, marginBottom: gap }}
+        renderItem={({ item, index }) => {
+          const path = gridThumbPath(item);
+          if (!path) return null;
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open work image ${index + 1} of ${rows.length}`}
+              onPress={() => openCarouselAt(index)}
+              style={[styles.thumbWrap, { width: cell }]}
+            >
+              <OptimizedImage
+                path={path}
+                bucket="public_profile_work"
+                sizePreset="inspiration-grid"
+                width={Math.ceil(cell)}
+                recyclingKey={item.id}
+                style={[
+                  styles.thumb,
+                  styles.thumbRounded,
+                  { width: cell, height: cell },
+                ]}
+                contentFit="cover"
+                priority="low"
+              />
+            </Pressable>
+          );
+        }}
+      />
 
       <Modal
         animationType="slide"
@@ -367,7 +352,7 @@ export function PublicProfileWorkGrid({
                               sizePreset="fullscreen"
                               width={Math.ceil(detailW)}
                               style={styles.detailOptimizedImage}
-                              contentFit="contain"
+                              contentFit="cover"
                               priority="high"
                               transition={0}
                             />
@@ -380,11 +365,11 @@ export function PublicProfileWorkGrid({
               </View>
             ) : null}
 
-            <View style={styles.carouselFooter}>
-              <Text style={styles.carouselCounter}>
-                {currentIndex + 1} / {rows.length}
-              </Text>
-            </View>
+            {rows.length > 1 ? (
+              <View style={styles.carouselFooter}>
+                <PreviewDots length={rows.length} active={currentIndex} />
+              </View>
+            ) : null}
           </SafeAreaView>
         </View>
       </Modal>
@@ -408,16 +393,13 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   grid: { marginBottom: responsiveMargin(4) },
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    width: "100%",
-  },
   thumbWrap: {
+    position: "relative",
     borderRadius: responsiveBorderRadius(18),
     overflow: "hidden",
   },
-  thumb: {
+  thumb: { resizeMode: "cover" },
+  thumbRounded: {
     borderRadius: responsiveBorderRadius(18),
   },
   detailModalRoot: {
@@ -460,11 +442,7 @@ const styles = StyleSheet.create({
   },
   carouselFooter: {
     paddingBottom: responsiveScale(20),
-    paddingTop: responsiveScale(8),
+    paddingTop: responsiveScale(12),
     alignItems: "center",
-  },
-  carouselCounter: {
-    ...Typography.bodySmall,
-    color: `${primaryBlack}cc`,
   },
 });
