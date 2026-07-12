@@ -3,7 +3,13 @@ import React, { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import TopNav from "@/src/components/TopNav";
 import MyButton from "@/src/components/MyButton";
-import { Colors } from "@/src/constants/Colors";
+import {
+  primaryBlack,
+  primaryGreen,
+  primaryWhite,
+  secondaryGreen,
+  setupSageBackground,
+} from "@/src/constants/Colors";
 import { router } from "expo-router";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { ResponsiveText } from "@/src/components/ResponsiveText";
@@ -99,7 +105,7 @@ const ChooseRole = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.light,
+    backgroundColor: setupSageBackground,
   },
   mainContainer: {
     alignItems: "center",
@@ -107,8 +113,8 @@ const styles = StyleSheet.create({
     paddingBottom: scale(20),
   },
   roleBtn: {
-    backgroundColor: Colors.dark.yellowish,
-    borderColor: Colors.dark.warmGreen,
+    backgroundColor: primaryWhite,
+    borderColor: primaryBlack,
     borderWidth: scale(2),
     borderRadius: responsiveScale(20, 28),
     padding: responsiveScale(20, 28),
@@ -124,15 +130,15 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   selectedRoleBtn: {
-    backgroundColor: Colors.dark.warmGreen,
-    borderColor: Colors.dark.yellowish,
+    backgroundColor: secondaryGreen,
+    borderColor: primaryBlack,
   },
   roleText: {
-    color: Colors.dark.dark,
+    color: primaryBlack,
     textAlign: "center",
   },
   selectedRoleText: {
-    color: Colors.dark.dark,
+    color: primaryBlack,
   },
   nextBtn: {
     width: scalePercent(25),

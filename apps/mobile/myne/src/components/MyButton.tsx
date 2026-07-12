@@ -1,6 +1,6 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { Pressable, StyleSheet, View } from "react-native";
-import { Colors } from "@/src/constants/Colors";
+import { primaryBlack, secondaryGreen } from "@/src/constants/Colors";
 import { forwardRef } from "react";
 import { IconProps, Trash } from "phosphor-react-native";
 import { responsiveScale, responsiveMargin, responsivePadding } from "@/src/utils/responsive";
@@ -55,7 +55,7 @@ const MyButton = forwardRef<View | null, ButtonProps>(
             weight="SemiBold" 
             size={textSize} 
             tabletSize={textTabletSize}
-            style={[styles.text, {color: reject? "red" : Colors.dark.dark}, textStyle]} 
+            style={[styles.text, {color: reject? "red" : primaryBlack}, textStyle]} 
           >
             {text}
           </ResponsiveText>
@@ -67,7 +67,7 @@ const MyButton = forwardRef<View | null, ButtonProps>(
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.light.warmGreen,
+    backgroundColor: secondaryGreen,
     paddingVertical: responsivePadding(14, 8),
     paddingHorizontal: responsivePadding(24),
     alignItems: "center",

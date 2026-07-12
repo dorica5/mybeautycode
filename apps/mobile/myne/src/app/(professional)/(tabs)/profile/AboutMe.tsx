@@ -1001,7 +1001,7 @@ const AboutMe = () => {
                             >
                               <XCircle
                                 size={responsiveScale(22)}
-                                color={Colors.light.light}
+                                color={primaryWhite}
                               />
                             </Pressable>
                           </View>
@@ -1039,7 +1039,7 @@ const AboutMe = () => {
                           >
                             <XCircle
                               size={responsiveScale(22)}
-                              color={Colors.light.light}
+                              color={primaryWhite}
                             />
                           </Pressable>
                         </View>

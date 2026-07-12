@@ -7,7 +7,7 @@ import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { coerceProfessionCode, type ProfessionChoiceCode } from "@/src/constants/professionCodes";
-import { Colors, primaryBlack } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
@@ -364,7 +364,7 @@ const ProfessionalProfileScreen = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
+      <StatusBar style="dark" backgroundColor={primaryGreen} />
       <PublicProfessionalProfileView
         mode="client"
         profileUserId={String(hairdresser_id)}

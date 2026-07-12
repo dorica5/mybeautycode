@@ -45,7 +45,7 @@ import {
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRelationshipCheck, removeRelationship } from "@/src/api/relationships";
+import { useRelationshipCheck, removeRelationship, relationshipCheckQueryKey, clientLinkUiStatusQueryKey } from "@/src/api/relationships";
 import {
   contentCardMaxWidth,
   isTablet,
@@ -291,10 +291,33 @@ const VisitList = () => {
       queryClient.invalidateQueries({
         queryKey: ["client_visits", clientId],
       });
+      if (hairdresser_id && navProfessionCode) {
+        queryClient.setQueryData(
+          relationshipCheckQueryKey(clientId, hairdresser_id, navProfessionCode),
+          false
+        );
+        queryClient.setQueryData(
+          clientLinkUiStatusQueryKey(
+            hairdresser_id,
+            clientId,
+            navProfessionCode
+          ),
+          "none"
+        );
+      }
       await queryClient.refetchQueries({
         queryKey: ["latest_visits", hairdresser_id],
       });
-      router.replace({ pathname: `/(professional)/clientProfile/${clientId}` });
+      router.replace({
+        pathname: "/(professional)/clientProfile/[id]" as Href,
+        params: {
+          id: clientId,
+          client_id: clientId,
+          relationship: "false",
+          full_name: displayFullName,
+          ...(navProfessionCode ? { professionCode: navProfessionCode } : {}),
+        },
+      });
     } catch (error) {
       Alert.alert(t("common.error"), t("profile.failedDeleteUser"));
     }

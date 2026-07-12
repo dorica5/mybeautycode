@@ -124,7 +124,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.firstName")}
                 Icon={ProfileMenuNameIcon}
-                tileStyle="light"
                 top
                 onPress={() =>
                   router.push("/(client)/(tabs)/profile/FirstName")
@@ -133,7 +132,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.lastName")}
                 Icon={ProfileMenuNameIcon}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(client)/(tabs)/profile/LastName")
                 }
@@ -141,7 +139,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.username")}
                 Icon={At}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(client)/(tabs)/profile/Username")
                 }
@@ -149,7 +146,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.phoneNumber")}
                 Icon={ProfileMenuPhoneIcon}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(client)/(tabs)/profile/PhoneNumber")
                 }
@@ -157,7 +153,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.aboutMe")}
                 Icon={ProfileMenuAboutIcon}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(client)/(tabs)/profile/AboutMe")
                 }
@@ -165,7 +160,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.profilePicture")}
                 Icon={ProfileMenuPictureIcon}
-                tileStyle="light"
                 bottom
                 lightMarginBottom={46}
                 onPress={() =>
@@ -182,7 +176,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.manageProfessionals")}
                 Icon={ProfileMenuManageProfessionalsIcon}
-                tileStyle="light"
                 top
                 onPress={() =>
                   router.push("/(client)/(tabs)/profile/ManageProfessionals")
@@ -191,13 +184,11 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.changePassword")}
                 Icon={ProfileMenuChangePasswordIcon}
-                tileStyle="light"
                 onPress={() => router.push("/(auth)/ChangePassword")}
               />
               <Profile
                 title={t("profile.deleteAccount")}
                 Icon={ProfileMenuDeleteAccountIcon}
-                tileStyle="light"
                 bottom
                 lightMarginBottom={46}
                 onPress={() =>
@@ -216,14 +207,12 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.termsAndPrivacyLink")}
                 Icon={ProfileMenuTermsIcon}
-                tileStyle="light"
                 top
                 onPress={() => router.push("/(setup)/TermsAndPrivacy")}
               />
               <Profile
                 title={t("profile.giveFeedback")}
                 Icon={ProfileMenuFeedbackIcon}
-                tileStyle="light"
                 bottom
                 onPress={() => {
                   router.push("/Screens/feedback");

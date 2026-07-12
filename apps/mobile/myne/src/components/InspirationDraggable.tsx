@@ -9,7 +9,7 @@ import {
   TouchableWithoutFeedback,
   PanResponderGestureState,
 } from "react-native";
-import { Colors } from "../constants/Colors";
+import { primaryWhite } from "../constants/Colors";
 
 const screenHeight = Dimensions.get("window").height;
 
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: Colors.light.light,
+    backgroundColor: primaryWhite,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: "hidden",
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   handleContainer: {
     paddingVertical: 20,
     alignItems: "center",
-    backgroundColor: Colors.light.light,
+    backgroundColor: primaryWhite,
     zIndex: 1,
   },
   handle: {

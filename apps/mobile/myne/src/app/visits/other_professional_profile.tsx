@@ -353,7 +353,7 @@ const OtherProfessionalProfileScreen = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
+      <StatusBar style="dark" backgroundColor={primaryGreen} />
       <PublicProfessionalProfileView
         mode="client"
         profileUserId={String(hairdresser_id)}

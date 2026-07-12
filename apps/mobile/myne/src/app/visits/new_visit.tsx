@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen, primaryWhite, secondaryGreen } from "@/src/constants/Colors";
 import { coerceProfessionCode, type ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import {
   canonicalizeVisitServiceCodesFromStrings,
@@ -915,7 +915,7 @@ const styles = StyleSheet.create({
   options: {
     marginTop: scalePercent(2),
     padding: responsivePadding(12),
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
     borderRadius: responsiveBorderRadius(20),
     margin: 0,
     justifyContent: "center",
@@ -926,7 +926,7 @@ const styles = StyleSheet.create({
   optionHaircut: {
     marginTop: scalePercent(3),
     padding: responsivePadding(12),
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
     borderRadius: responsiveBorderRadius(20),
     margin: 0,
     justifyContent: "center",
@@ -935,7 +935,7 @@ const styles = StyleSheet.create({
     width: scalePercent(90),
   },
   selectedOption: {
-    backgroundColor: Colors.dark.warmGreen,
+    backgroundColor: secondaryGreen,
   },
   optionText: {
     fontFamily: "Inter-SemiBold",
@@ -951,7 +951,7 @@ const styles = StyleSheet.create({
   inputDescribe: {
     marginTop: scalePercent(5),
     padding: responsivePadding(20),
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
     borderRadius: responsiveBorderRadius(20),
     margin: "0%",
     fontFamily: "Inter-Regular",
@@ -960,7 +960,7 @@ const styles = StyleSheet.create({
     height: responsiveScale(150, 180),
     alignSelf: "center",
     textAlignVertical: "top",
-    color: Colors.dark.dark,
+    color: primaryBlack,
   },
   iosInput: {
     padding: responsivePadding(20),
@@ -973,14 +973,14 @@ const styles = StyleSheet.create({
   },
   inputPrice: {
     marginTop: scalePercent(4),
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
     borderRadius: responsiveBorderRadius(20),
     margin: "0%",
     fontFamily: "Inter-Regular",
     width: scalePercent(90),
     height: responsiveScale(50, 60),
     alignSelf: "center",
-    color: Colors.dark.dark,
+    color: primaryBlack,
     fontSize: responsiveFontSize(14, 10)
   },
 
@@ -1004,7 +1004,7 @@ const styles = StyleSheet.create({
   infoIcon: {
     marginTop: responsiveScale(17, 35),
     marginLeft: responsiveScale(-5),
-    color: Colors.dark.dark,
+    color: primaryBlack,
   },
   iconContainer: {
     marginLeft: responsiveScale(-20),
@@ -1030,7 +1030,7 @@ const styles = StyleSheet.create({
     marginTop: scalePercent(8),
     paddingVertical: responsiveScale(12),
     borderWidth: responsiveScale(2),
-    borderColor: Colors.light.warmGreen,
+    borderColor: secondaryGreen,
     backgroundColor: "transparent",
     width: scalePercent(88),
     height: responsiveScale(50, 60),
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
     fontSize: responsiveFontSize(14, 12),
     paddingHorizontal: responsiveScale(15),
     marginTop: responsiveScale(10),
-    color: Colors.dark.dark,
+    color: primaryBlack,
   },
   hairdresserRow: {
     flexDirection: "row",
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
   hairdresserText: {
     flex: 1,
     fontSize: responsiveFontSize(16, 14),
-    color: Colors.dark.dark,
+    color: primaryBlack,
     fontFamily: "Inter-SemiBold",
     marginLeft: responsiveScale(10),
   },
@@ -1091,7 +1091,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: responsiveScale(15),
   },
   camera: {
-    backgroundColor: Colors.light.yellowish,
+    backgroundColor: primaryWhite,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: responsiveBorderRadius(10),
@@ -1138,7 +1138,7 @@ const styles = StyleSheet.create({
     width: responsiveScale(50),
     height: responsiveScale(50),
     borderRadius: responsiveScale(25),
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1158,7 +1158,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#00000066",
   },
   timePickerContainer: {
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
     borderRadius: responsiveBorderRadius(20),
     marginTop: responsiveScale(10),
     paddingVertical: responsiveScale(10),
@@ -1175,7 +1175,7 @@ const styles = StyleSheet.create({
   timePickerButton: {
     paddingHorizontal: responsiveScale(20),
     paddingVertical: responsiveScale(8),
-    backgroundColor: Colors.dark.warmGreen,
+    backgroundColor: secondaryGreen,
     borderRadius: responsiveBorderRadius(10),
   },
   timePickerButtonText: {

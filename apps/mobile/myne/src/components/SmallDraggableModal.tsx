@@ -129,8 +129,8 @@ const SmallDraggableModal: React.FC<SmallDraggableModalProps> = ({
   const heightResolved = resolveModalHeight(modalHeight);
 
   const isBrand = sheetVariant === "brand";
-  const sheetSurface = isBrand ? primaryGreen : Colors.light.light;
-  const closeIconColor = isBrand ? primaryBlack : Colors.dark.dark;
+  const sheetSurface = isBrand ? primaryGreen : primaryWhite;
+  const closeIconColor = primaryBlack;
   const handleColor = isBrand ? `${primaryBlack}28` : `${primaryBlack}18`;
 
   const chromePanResponder = useRef(

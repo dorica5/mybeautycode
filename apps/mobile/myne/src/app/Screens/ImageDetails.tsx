@@ -3,7 +3,7 @@ import React from "react";
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Colors } from "@/src/constants/Colors";
+import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import TopNavGallery from "@/src/components/TopNavGallery";
 
 type ImageDetailsParams = {
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     height: "20%",
     paddingHorizontal: "5%",
     paddingTop: "5%",
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
   },
   hairdresser: {
     fontFamily: "Inter-SemiBold",

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Colors } from "@constants/Colors";
+import { primaryBlack, secondaryGreen } from "@constants/Colors";
 import { forwardRef } from "react";
 import {
   responsiveScale,
@@ -46,13 +46,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderRadius: responsiveBorderRadius(100),
     borderWidth: responsiveScale(2),
-    borderColor: Colors.light.warmGreen,
+    borderColor: primaryBlack,
     backgroundColor: "transparent",
     width: responsiveScale(150, 180),
   },
   text: {
     fontSize: responsiveFontSize(16, 12),
-    color: Colors.dark.dark,
+    color: primaryBlack,
     fontFamily: "Inter-SemiBold",
     textAlign: "center",
   },

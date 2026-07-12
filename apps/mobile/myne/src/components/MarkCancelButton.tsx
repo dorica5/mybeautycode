@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Colors } from "@constants/Colors";
+import { primaryBlack, primaryWhite } from "@constants/Colors";
 import { forwardRef } from "react";
 import { useMark } from "@/src/providers/MarkProvider";
 import { useI18n } from "@/src/providers/LanguageProvider";
@@ -38,7 +38,7 @@ const MarkCancelButton = forwardRef<View | null, ButtonProps>(
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#B1B7B7",
+    backgroundColor: primaryBlack,
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 100,
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 12,
-    color: Colors.light.light,
+    color: primaryWhite,
     fontFamily: "Inter-Regular",
     textAlign: "center",
   },

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { Colors } from "@constants/Colors";
+import { primaryWhite } from "@constants/Colors";
 import { forwardRef } from "react";
 import { VideoCamera } from "phosphor-react-native";
 import { router } from "expo-router";
@@ -21,7 +21,7 @@ const VideoButton = forwardRef<View | null, { icon: typeof VideoCamera }>(
 
 const styles = StyleSheet.create({
   videoCamera: {
-    backgroundColor: Colors.light.yellowish,
+    backgroundColor: primaryWhite,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 10,

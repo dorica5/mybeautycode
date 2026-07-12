@@ -6,7 +6,7 @@ import {
   TextInputProps,
 } from "react-native";
 import React, { useState } from "react";
-import { Colors } from "../constants/Colors";
+import { primaryBlack, primaryWhite } from "../constants/Colors";
 import { CheckCircle, Eye, EyeClosed } from "phosphor-react-native";
 import {
   moderateScale,
@@ -63,9 +63,9 @@ const MyTextinput = ({
             style={styles.eyeIcon}
           >
             {!showPassword ? (
-              <EyeClosed size={scale(20)} color={Colors.dark.dark} />
+              <EyeClosed size={scale(20)} color={primaryBlack} />
             ) : (
-              <Eye size={scale(20)} color={Colors.dark.dark} />
+              <Eye size={scale(20)} color={primaryBlack} />
             )}
           </TouchableOpacity>
         ) : null}
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   container: {
     marginTop: scalePercent(5),
     width: "100%",
-    backgroundColor: Colors.light.light,
+    backgroundColor: primaryWhite,
     height: verticalScale(40),
     borderRadius: scale(22),
     justifyContent: "center",

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { MagnifyingGlass, XCircle } from "phosphor-react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
-import { Colors, primaryBlack } from "../constants/Colors";
+import { primaryBlack, primaryWhite } from "../constants/Colors";
 import Delete2Streamline from "../../assets/icons/delete_2_streamline.svg";
 
 /** Mint off-white fill for brand search bar (matches design). */
@@ -205,7 +205,7 @@ export default SearchInput;
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    backgroundColor: Colors.light.yellowish,
+    backgroundColor: primaryWhite,
     marginHorizontal: responsivePadding(16),
     marginVertical: responsiveMargin(20),
     borderRadius: responsiveBorderRadius(30),

@@ -11,7 +11,7 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Colors } from "../constants/Colors";
+import { primaryWhite } from "../constants/Colors";
 
 const screenHeight = Dimensions.get("window").height;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -32,7 +32,7 @@ const DraggableModal: React.FC<DraggableModalProps> = ({
   onClose,
   modalHeight,
   renderContent,
-  sheetBackgroundColor = Colors.light.light,
+  sheetBackgroundColor = primaryWhite,
 }) => {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(screenHeight)).current;

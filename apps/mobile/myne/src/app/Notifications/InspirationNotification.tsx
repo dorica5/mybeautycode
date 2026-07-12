@@ -25,7 +25,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import TopNav from "@/src/components/TopNav";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import RemoteImage from "@/src/components/RemoteImage";
-import { Colors } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import NoImageVisit from "@/src/components/no_image_visit";
 import { 
   responsiveScale, 
@@ -285,8 +285,8 @@ const InspirationNotification = () => {
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      <StatusBar style="dark" backgroundColor={primaryGreen} />
+      <View style={{ flex: 1, backgroundColor: primaryGreen }}>
         <SafeAreaView style={styles.container}>
           <TopNav title={t("notifications.inspirationShared")} />
           <View style={styles.subContainer}>
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: scalePercent(95),
-    backgroundColor: Colors.dark.light,
+    backgroundColor: primaryWhite,
     borderRadius: responsiveBorderRadius(10),
     alignItems: "center",
     paddingBottom: responsivePadding(20),
@@ -544,13 +544,13 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
     borderRadius: responsiveBorderRadius(30),
     borderWidth: responsiveScale(2),
-    borderColor: Colors.dark.warmGreen,
+    borderColor: primaryBlack,
   },
   modalRejectButton: {
     backgroundColor: "transparent",
     borderRadius: responsiveBorderRadius(30),
     borderWidth: responsiveScale(2),
-    borderColor: Colors.dark.warmGreen,
+    borderColor: primaryBlack,
     marginLeft: responsiveMargin(9),
   },
   profileImage: {
@@ -588,13 +588,13 @@ const styles = StyleSheet.create({
     marginHorizontal: responsiveMargin(16),
     marginBottom: responsiveMargin(10),
     borderWidth: responsiveScale(1),
-    borderColor: Colors.dark.warmGreen,
+    borderColor: primaryBlack,
     alignItems: "center",
     justifyContent: "center",
     marginTop: responsiveMargin(30),
   },
   statusText: {
-    color: Colors.dark.dark,
+    color: primaryBlack,
     fontFamily: "Inter-Medium",
     textAlign: "center",
   },

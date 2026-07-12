@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from "react-native";
 import React, { useCallback } from "react";
-import { Colors } from "../constants/Colors";
+import { primaryBlack, primaryWhite, secondaryGreen } from "../constants/Colors";
 
 type OpenURLProps = {
   url: string;
@@ -35,14 +35,14 @@ const OpenUrl = ({ url, children }: OpenURLProps) => {
 const styles = StyleSheet.create({
   buttonStyle: {
     marginTop: "10%",
-    backgroundColor: Colors.light.warmGreen,
+    backgroundColor: secondaryGreen,
     padding: 10,
     width: "100%",
     borderRadius: 20,
     alignItems: "center",
   },
   buttonText: {
-    color: Colors.dark.light,
+    color: primaryBlack,
     fontSize: 16,
   },
 });

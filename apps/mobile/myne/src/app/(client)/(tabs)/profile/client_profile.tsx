@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { PublicClientProfileView } from "@/src/components/PublicClientProfileView";
-import { Colors } from "@/src/constants/Colors";
+import { primaryGreen } from "@/src/constants/Colors";
 import { resolveClientAboutMe } from "@/src/lib/clientAboutMe";
 
 const ClientPublicProfile = () => {
@@ -15,7 +15,7 @@ const ClientPublicProfile = () => {
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
+      <StatusBar style="dark" backgroundColor={primaryGreen} />
       <PublicClientProfileView
         mode="self"
         fullName={profile.full_name}

@@ -21,7 +21,12 @@ import { UploadSimple } from "phosphor-react-native";
 import * as ImagePicker from "expo-image-picker";
 import RemoteImage from "@/src/components/RemoteImage";
 import MyButton from "@/src/components/MyButton";
-import { Colors } from "@/src/constants/Colors";
+import {
+  primaryBlack,
+  primaryWhite,
+  secondaryGreen,
+  setupSageBackground,
+} from "@/src/constants/Colors";
 import Dropdown from "@/src/components/Dropdown";
 import { Info } from "phosphor-react-native";
 import CustomAlert from "@/src/components/CustomAlert";
@@ -539,7 +544,7 @@ const ClientSetup = () => {
                 attemptedSubmit && errors.profilePicture && styles.errorInput,
               ]}
             >
-              <UploadSimple size={scale(32)} color={Colors.dark.dark} />
+              <UploadSimple size={scale(32)} color={primaryBlack} />
             </View>
           )}
         </Pressable>
@@ -561,13 +566,13 @@ export default ClientSetup;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.light,
+    backgroundColor: setupSageBackground,
   },
   scrollContainer: {
     padding: scale(20),
   },
   label: {
-    color: Colors.dark.dark,
+    color: primaryBlack,
     marginTop: scale(5),
     fontSize: responsiveFontSize(16, 12),
   },
@@ -575,25 +580,25 @@ const styles = StyleSheet.create({
     height: responsiveScale(50, 42),
     marginRight: scale(-20),
     borderRadius: responsiveScale(20, 16),
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
     marginBottom: responsiveScale(10, 6),
     marginTop: responsiveScale(7, 2),
   },
   countryCodeText: {
-    color: Colors.dark.dark,
+    color: primaryBlack,
     opacity: 0.7,
   },
   infoIcon: {
     alignSelf: "center",
-    color: Colors.dark.dark,
+    color: primaryBlack,
   },
   textArea: {
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
     padding: responsiveScale(10, 8),
     borderRadius: responsiveScale(10, 8),
     height: responsiveScale(100, 80),
     textAlignVertical: "top",
-    color: Colors.dark.dark,
+    color: primaryBlack,
     lineHeight: responsiveScale(20, 18),
     fontSize: responsiveFontSize(16, 14),
   },
@@ -609,7 +614,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   pickerText: {
-    color: Colors.dark.dark,
+    color: primaryBlack,
     textAlign: "center",
     marginTop: scale(17),
   },
@@ -618,8 +623,8 @@ const styles = StyleSheet.create({
     width: responsiveScale(130, 100),
     height: responsiveScale(130, 100),
     borderRadius: responsiveScale(75, 55),
-    backgroundColor: Colors.light.yellowish,
-    borderColor: Colors.dark.warmGreen,
+    backgroundColor: primaryWhite,
+    borderColor: primaryBlack,
     borderWidth: scale(2),
     justifyContent: "center",
     alignItems: "center",
@@ -646,7 +651,7 @@ const styles = StyleSheet.create({
   },
   SelectionTextHeader: {
     marginVertical: responsiveScale(10, 6),
-    color: Colors.dark.dark,
+    color: primaryBlack,
     fontSize: responsiveFontSize(14, 12),
   },
   pressableAlert: {

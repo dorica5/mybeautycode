@@ -9,7 +9,7 @@ import React, { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SetUpNav from "@/src/components/SetUpNav";
 import SetUpTextInput from "@/src/components/SetUpTextInput";
-import { Colors } from "@/src/constants/Colors";
+import { setupSageBackground } from "@/src/constants/Colors";
 import MyButton from "@/src/components/MyButton";
 import { router } from "expo-router";
 import { useSetup } from "@/src/providers/SetUpProvider";
@@ -61,7 +61,7 @@ export default FullName;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.light,
+    backgroundColor: setupSageBackground,
   },
   btnContainer: {
     width: "25%",

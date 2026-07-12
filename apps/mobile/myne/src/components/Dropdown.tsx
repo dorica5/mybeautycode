@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import DropDownPicker from "react-native-dropdown-picker";
-import { Colors } from "../constants/Colors";
+import { primaryBlack, primaryWhite, secondaryGreen } from "../constants/Colors";
 
 const Dropdown = ({ onSelect, listMode, initialValue = null, zIndex, zIndexInverse, item }) => {
   const [open, setOpen] = useState(false);
@@ -37,8 +37,8 @@ const styles = StyleSheet.create({
     marginBottom: 20, 
   },
   dropdown: {
-    backgroundColor: Colors.dark.yellowish,
-    borderColor: Colors.dark.warmGreen,
+    backgroundColor: primaryWhite,
+    borderColor: primaryBlack,
     borderWidth: 2,
     borderRadius: 20,
     height: 50,

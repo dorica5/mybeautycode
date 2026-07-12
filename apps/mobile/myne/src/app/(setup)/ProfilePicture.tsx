@@ -14,7 +14,7 @@ import SetUpNav from "@/src/components/SetUpNav";
 import MyButton from "@/src/components/MyButton";
 import { router } from "expo-router";
 import { useSetup } from "@/src/providers/SetUpProvider";
-import { Colors } from "@/src/constants/Colors";
+import { primaryBlack, primaryWhite, secondaryGreen, setupSageBackground } from "@/src/constants/Colors";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { uploadAvatarToStorage } from "@/src/lib/uploadHelpers";
 import { useAuth } from "@/src/providers/AuthProvider";
@@ -159,7 +159,7 @@ export default ProfilePicture;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.dark.light,
+    backgroundColor: setupSageBackground,
   },
   pickerContainer: {
     alignItems: "center",
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   pickerText: {
     fontSize: 22,
     fontFamily: "Inter-SemiBold",
-    color: Colors.dark.dark,
+    color: primaryBlack,
     textAlign: "center",
     marginTop: "5%",
   },
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: Colors.dark.warmGreen,
+    backgroundColor: secondaryGreen,
     justifyContent: "center",
     alignItems: "center",
   },

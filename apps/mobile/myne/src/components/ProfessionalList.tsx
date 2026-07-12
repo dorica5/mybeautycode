@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { CheckBox } from "react-native-elements";
 import { CheckCircle, Circle } from "phosphor-react-native";
-import { Colors } from "../constants/Colors";
+import { primaryBlack, primaryWhite, secondaryGreen } from "../constants/Colors";
 import { Typography } from "../constants/Typography";
 import {
   responsiveFontSize,
@@ -62,13 +62,13 @@ const ProfessionalList = ({ item, isChecked, onCheck }) => {
           checkedIcon={
             <CheckCircle
               size={responsiveScale(28, 22)}
-              color={Colors.dark.dark}
+              color={primaryBlack}
             />
           }
           uncheckedIcon={
             <Circle
               size={responsiveScale(28, 22)}
-              color={Colors.dark.dark}
+              color={primaryBlack}
             />
           }
         />
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   professionChip: {
     ...Typography.bodySmall,
     marginTop: scale(2),
-    color: Colors.dark.dark,
+    color: primaryBlack,
     opacity: 0.85,
   },
   checkboxContainer: {
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     width: scale(50),
     height: scale(50),
     borderRadius: scale(25),
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: secondaryGreen,
     justifyContent: "center",
     alignItems: "center",
   },

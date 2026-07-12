@@ -28,7 +28,6 @@ import {
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import { ProfileMenuNameIcon } from "@/src/components/profileMenuIcons";
 import {
-  Colors,
   primaryBlack,
   primaryGreen,
   primaryWhite,
@@ -139,7 +138,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.firstName")}
                 Icon={ProfileMenuNameIcon}
-                tileStyle="light"
                 top
                 onPress={() =>
                   router.push("/(professional)/(tabs)/profile/FirstName")
@@ -148,7 +146,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.lastName")}
                 Icon={ProfileMenuNameIcon}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(professional)/(tabs)/profile/LastName")
                 }
@@ -156,7 +153,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.username")}
                 Icon={At}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(professional)/(tabs)/profile/Username")
                 }
@@ -164,7 +160,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.placePhoneNumber", { place: placeNoun })}
                 Icon={Phone}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(professional)/(tabs)/profile/PhoneNumber")
                 }
@@ -172,7 +167,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.placeName", { place: placeNoun })}
                 Icon={HouseLine}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(professional)/(tabs)/profile/salon_name")
                 }
@@ -180,7 +174,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.placeAddress", { place: placeNoun })}
                 Icon={MapPin}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(professional)/(tabs)/profile/salon_address")
                 }
@@ -188,7 +181,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.aboutMeGetDiscovered")}
                 Icon={PencilSimple}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(professional)/(tabs)/profile/AboutMe")
                 }
@@ -196,7 +188,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.profilePicture")}
                 Icon={UserCircle}
-                tileStyle="light"
                 bottom
                 lightMarginBottom={46}
                 onPress={() =>
@@ -213,7 +204,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.yourReachAndStats")}
                 Icon={ChartLineUp}
-                tileStyle="light"
                 top
                 bottom
                 lightMarginBottom={46}
@@ -231,14 +221,12 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.changePassword")}
                 Icon={LockKey}
-                tileStyle="light"
                 top
                 onPress={() => router.push("/(auth)/ChangePassword")}
               />
               <Profile
                 title={t("profile.addAccount")}
                 Icon={PlusCircle}
-                tileStyle="light"
                 onPress={() =>
                   router.push("/(setup)/AddProfession" as Href)
                 }
@@ -246,7 +234,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.deleteAccount")}
                 Icon={MinusCircle}
-                tileStyle="light"
                 bottom
                 lightMarginBottom={46}
                 onPress={() => {
@@ -273,7 +260,6 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.subscription")}
                 Icon={CreditCard}
-                tileStyle="light"
                 top
                 bottom
                 lightMarginBottom={46}
@@ -291,14 +277,12 @@ const ProfileScreen = () => {
               <Profile
                 title={t("profile.termsAndPrivacyLink")}
                 Icon={FileText}
-                tileStyle="light"
                 top
                 onPress={() => router.push("/(setup)/TermsAndPrivacy")}
               />
               <Profile
                 title={t("profile.giveFeedback")}
                 Icon={ChatCircleText}
-                tileStyle="light"
                 bottom
                 onPress={() => {
                   router.push("/Screens/feedback");
@@ -362,7 +346,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   profilePic: {
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: primaryWhite,
     width: scalePercent(25),
     aspectRatio: 1,
     borderRadius: scalePercent(25) / 2,

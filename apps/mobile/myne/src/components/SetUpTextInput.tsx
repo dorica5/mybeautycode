@@ -1,6 +1,6 @@
 import { StyleSheet, View, TextInput } from "react-native";
 import { useState } from "react";
-import { Colors } from "../constants/Colors";
+import { primaryBlack, primaryWhite } from "../constants/Colors";
 
 type SetUpTextInputProps = {
   title: string;
@@ -37,7 +37,7 @@ export default SetUpTextInput;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.light.yellowish,
+    backgroundColor: primaryWhite,
     height: "7%",
     borderRadius: 20,
     justifyContent: "center",
@@ -54,6 +54,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: "8%",
     fontSize: 16,
     fontFamily: "Inter-Regular",
-    color: Colors.light.dark,
+    color: primaryBlack,
   },
 });

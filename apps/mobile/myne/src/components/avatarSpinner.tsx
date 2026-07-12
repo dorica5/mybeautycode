@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import OptimizedImage from "@/src/components/OptimizedImage";
 import { DefaultAvatarMark } from "@/src/components/DefaultAvatarMark";
-import { Colors, primaryWhite } from "@/src/constants/Colors";
+import { primaryWhite, secondaryGreen } from "@/src/constants/Colors";
 import { scale } from "@/src/utils/responsive";
 
 interface AvatarWithSpinnerProps {
@@ -87,7 +87,7 @@ export const AvatarWithSpinner: React.FC<AvatarWithSpinnerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: secondaryGreen,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden", // keeps image inside circle

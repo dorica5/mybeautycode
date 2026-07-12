@@ -379,7 +379,7 @@ export function NailVisitForm({
                         >
                           <XCircle
                             size={responsiveScale(22)}
-                            color={Colors.light.light}
+                            color={primaryWhite}
                           />
                         </Pressable>
                       </View>

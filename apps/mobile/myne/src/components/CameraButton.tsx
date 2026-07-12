@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View, Image } from "react-native";
-import { Colors } from "@constants/Colors";
+import { primaryWhite } from "@constants/Colors";
 import { forwardRef, useEffect, useState } from "react";
 import { Camera } from "phosphor-react-native";
 import { router } from "expo-router";
@@ -51,7 +51,7 @@ const CameraButton = forwardRef<View | null, CameraButtonProps>(
 
 const styles = StyleSheet.create({
   camera: {
-    backgroundColor: Colors.light.yellowish,
+    backgroundColor: primaryWhite,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 10,

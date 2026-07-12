@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
-import { Colors } from "@/src/constants/Colors";
+import { primaryGreen } from "@/src/constants/Colors";
 import type { ProfessionDetailApi } from "@/src/constants/types";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
@@ -89,7 +89,7 @@ const ProfessionalProfile = () => {
 
   return (
     <>
-      <StatusBar style="dark" backgroundColor={Colors.dark.warmGreen} />
+      <StatusBar style="dark" backgroundColor={primaryGreen} />
       <PublicProfessionalProfileView
         mode="self"
         profileUserId={profile.id}

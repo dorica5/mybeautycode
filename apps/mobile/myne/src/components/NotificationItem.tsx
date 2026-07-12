@@ -2,14 +2,13 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { router, type Href } from "expo-router";
-import { Colors, primaryBlack, primaryWhite } from "../constants/Colors";
+import { primaryBlack, primaryWhite, secondaryGreen } from "../constants/Colors";
 import { markNotificationAsRead } from "@/src/providers/useNotifcations";
 import { fetchHaircodeWithMedia } from "@/src/api/visits";
 import { useAuth } from "@/src/providers/AuthProvider";
 import CustomAlert from "@/src/components/CustomAlert";
-import { UserCircle, Users } from "phosphor-react-native";
-import { responsiveScale, responsiveFontSize, scalePercent, responsiveBorderRadius } from "../utils/responsive";
-import { StatusBar } from "expo-status-bar";
+import { Users } from "phosphor-react-native";
+import { responsiveScale, responsiveFontSize, responsiveBorderRadius } from "../utils/responsive";
 import { AvatarWithSpinner } from "./avatarSpinner";
 import {
   formatVisitListDateForLocale,
@@ -97,12 +96,8 @@ export const NotificationItem = ({
     setIsRead(Boolean(notification.read));
   }, [notification.id, notification.read]);
 
-  /** Mint inbox: unread = primary black, read = white (ignore date section). */
-  const displayCardTone: NotificationCardTone | undefined = cardTone
-    ? isRead
-      ? "light"
-      : "dark"
-    : undefined;
+  /** Mint inbox: unread = black card, read = white card. */
+  const displayCardTone: NotificationCardTone = isRead ? "light" : "dark";
 
   const markAsRead = async () => {
     if (!isRead) {
@@ -464,11 +459,7 @@ export const NotificationItem = ({
         effectiveTone === "dark" && styles.iconPlaceholderDark,
       ]}
     >
-      {cardTone ? (
-        <Users size={responsiveScale(26)} color={iconColor} weight="duotone" />
-      ) : (
-        <UserCircle size={responsiveScale(32)} color={Colors.dark.dark} />
-      )}
+      <Users size={responsiveScale(26)} color={iconColor} weight="duotone" />
     </View>
   );
 
@@ -478,20 +469,13 @@ export const NotificationItem = ({
       style={[
         displayCardTone === "light" && styles.clientCardLight,
         displayCardTone === "dark" && styles.clientCardDark,
-        !cardTone && styles.container,
-        !cardTone && !isRead && styles.unread,
       ]}
       onPress={handlePress}
       disabled={isRejectedLink}
       activeOpacity={isRejectedLink ? 1 : 0.85}
     >
-      <View
-        style={[
-          styles.contentContainer,
-          cardTone && styles.contentContainerClient,
-        ]}
-      >
-        <View style={[styles.row, cardTone && styles.rowClient]}>
+      <View style={[styles.contentContainer, styles.contentContainerClient]}>
+        <View style={[styles.row, styles.rowClient]}>
           {avatarOrIcon}
           <Text
             style={[
@@ -516,16 +500,7 @@ export const NotificationItem = ({
     </>
   );
 
-  if (cardTone) {
-    return inner;
-  }
-
-  return (
-    <>
-      <StatusBar style="dark" backgroundColor="#fff" />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>{inner}</View>
-    </>
-  );
+  return inner;
 };
 
 const styles = StyleSheet.create({
@@ -546,6 +521,16 @@ const styles = StyleSheet.create({
     backgroundColor: primaryBlack,
     borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: primaryBlack,
+  },
+  contentContainer: {
+    gap: responsiveScale(10),
+    borderRadius: responsiveBorderRadius(30),
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: responsiveScale(12),
+    borderRadius: responsiveBorderRadius(30),
   },
   contentContainerClient: {
     gap: 0,
@@ -572,48 +557,14 @@ const styles = StyleSheet.create({
   messageDark: {
     color: primaryWhite,
   },
-  container: {
-    paddingVertical: scalePercent(2),
-    paddingHorizontal: scalePercent(5),
-    borderBottomWidth: responsiveScale(1),
-    borderBottomColor: "#eee",
-    marginBottom: scalePercent(3),
-    marginHorizontal: scalePercent(5),
-    backgroundColor: Colors.dark.yellowish,
-    borderRadius: responsiveBorderRadius(10),
-  },
-  unread: {
-    backgroundColor: Colors.dark.warmGreen,
-  },
-  contentContainer: {
-    gap: responsiveScale(10),
-    borderRadius: responsiveBorderRadius(30),
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: responsiveScale(12),
-    borderRadius: responsiveBorderRadius(30),
-  },
   profileImage: {
     width: responsiveScale(40),
     height: responsiveScale(40),
     borderRadius: responsiveScale(20),
-    backgroundColor: Colors.dark.yellowish,
+    backgroundColor: secondaryGreen,
   },
   message: {
     fontFamily: "Inter-Regular",
     flex: 1,
-  },
-  profilePic: {
-    backgroundColor: Colors.dark.yellowish,
-    position: "absolute",
-    width: scalePercent(25),
-    aspectRatio: 1,
-    borderRadius: responsiveScale(100),
-    justifyContent: "center",
-    alignItems: "center",
-    alignSelf: "center",
-    marginTop: scalePercent(15),
   },
 });

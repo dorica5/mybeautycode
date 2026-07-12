@@ -167,7 +167,6 @@ export default function BillingScreen() {
                   onFreePlan ? t("profile.upgradePlan") : t("profile.changePlan")
                 }
                 Icon={ArrowsLeftRight}
-                tileStyle="light"
                 groupPosition="first"
                 onPress={busy ? undefined : handleChangePlan}
               />
@@ -177,7 +176,6 @@ export default function BillingScreen() {
                   <Profile
                     title={t("profile.manageCancelSubscription")}
                     Icon={CreditCard}
-                    tileStyle="light"
                     groupPosition="middle"
                     onPress={busy ? undefined : handleManageCancel}
                   />
@@ -187,7 +185,6 @@ export default function BillingScreen() {
               <Profile
                 title={t("profile.restorePurchases")}
                 Icon={ArrowCounterClockwise}
-                tileStyle="light"
                 groupPosition="last"
                 onPress={busy ? undefined : handleRestore}
               />
