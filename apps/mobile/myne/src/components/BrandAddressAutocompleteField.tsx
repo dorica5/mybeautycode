@@ -9,6 +9,7 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   Platform,
   Pressable,
   StyleSheet,
@@ -158,6 +159,7 @@ export function BrandAddressAutocompleteField({
       }
     } finally {
       setPicking(false);
+      Keyboard.dismiss();
       // Release on the next tick so the effect tied to `value` sees the flag.
       requestAnimationFrame(() => {
         applyingPickRef.current = false;
@@ -213,6 +215,7 @@ export function BrandAddressAutocompleteField({
     blurTimer.current = setTimeout(() => {
       setPredictions([]);
       setFieldFocused(false);
+      Keyboard.dismiss();
     }, 220);
   };
 

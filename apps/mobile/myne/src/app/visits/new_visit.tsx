@@ -19,10 +19,10 @@ import {
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import {
   NailVisitForm,
-  VISIT_DESCRIPTION_MAX_CHARS,
   VISIT_MAX_PHOTOS,
   VISIT_MAX_VIDEOS,
 } from "@/src/components/visits/NailVisitForm";
+import { clampVisitTextInput } from "@/src/lib/visitTextInput";
 import { router, useLocalSearchParams } from "expo-router";
 import DraggableModal from "@/src/components/DraggableModal";
 import { VisitPreviewModalContent } from "@/src/components/visits/VisitPreviewModalContent";
@@ -200,8 +200,7 @@ const NewVisit = () => {
   const { clientId } = useLocalSearchParams();
 
   const [newHaircode, setNewHaircode] = useState(() => {
-    const raw = params.description?.toString() ?? "";
-    return raw.slice(0, VISIT_DESCRIPTION_MAX_CHARS);
+    return clampVisitTextInput(params.description?.toString() ?? "");
   });
   const [price, setPrice] = useState(params.price?.toString() || "");
   const [selectedOptions, setSelectedOptions] = useState<string[]>(() =>
@@ -483,9 +482,12 @@ const NewVisit = () => {
     }
   };
 
-  const pickImage = async () => {
+  const pickMedia = async () => {
     const queued = pendingImages.length + (imageToCrop ? 1 : 0);
-    if (visitImageCount(capturedMedia) + queued >= VISIT_MAX_PHOTOS) {
+    const imageSlots = VISIT_MAX_PHOTOS - visitImageCount(capturedMedia) - queued;
+    const videoSlots = VISIT_MAX_VIDEOS - visitVideoCount(capturedMedia);
+
+    if (imageSlots <= 0 && videoSlots <= 0) {
       Alert.alert(
         t("visits.photoLimitTitle"),
         t("visits.photoLimitMessage", { count: String(VISIT_MAX_PHOTOS) })
@@ -499,33 +501,87 @@ const NewVisit = () => {
       return;
     }
 
-    const remaining =
-      VISIT_MAX_PHOTOS - visitImageCount(capturedMedia) - queued;
+    const mediaTypes: ImagePicker.MediaType[] =
+      imageSlots > 0 && videoSlots > 0
+        ? ["images", "videos"]
+        : imageSlots > 0
+          ? ["images"]
+          : ["videos"];
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsMultipleSelection: true,
-      quality: 1,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes,
+        allowsMultipleSelection: imageSlots > 0,
+        quality: 1,
+        ...(Platform.OS === "ios" && videoSlots > 0
+          ? {
+              videoExportPreset: ImagePicker.VideoExportPreset.MediumQuality,
+              preferredAssetRepresentationMode:
+                ImagePicker.UIImagePickerPreferredAssetRepresentationMode
+                  .Compatible,
+            }
+          : {}),
+      });
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      const picked = result.assets.slice(0, remaining);
-      if (result.assets.length > remaining) {
+      if (result.canceled || !result.assets?.length) return;
+
+      const videoItems: {
+        uri: string;
+        type: "video";
+        mimeType?: string | null;
+      }[] = [];
+      const imageUris: string[] = [];
+      let videoRejectedForDuration = false;
+      let videoRejectedForLimit = false;
+
+      for (const asset of result.assets) {
+        if (isVideoPickerAsset(asset)) {
+          if (videoSlots <= 0 || videoItems.length > 0) {
+            videoRejectedForLimit = true;
+            continue;
+          }
+          const uri = asset.uri?.trim();
+          if (!uri) continue;
+          const durationSec =
+            asset.duration != null ? asset.duration / 1000 : null;
+          if (
+            durationSec != null &&
+            durationSec > VISIT_MAX_VIDEO_DURATION_SEC
+          ) {
+            videoRejectedForDuration = true;
+            continue;
+          }
+          videoItems.push({
+            uri,
+            type: "video",
+            mimeType: asset.mimeType ?? null,
+          });
+        } else {
+          if (imageUris.length >= imageSlots) continue;
+          imageUris.push(asset.uri);
+        }
+      }
+
+      if (videoRejectedForDuration) {
+        Alert.alert(
+          t("visits.videoLimitTitle"),
+          t("visits.videoTooLongMessage", {
+            seconds: String(VISIT_MAX_VIDEO_DURATION_SEC),
+          })
+        );
+      } else if (videoRejectedForLimit && videoSlots <= 0) {
+        Alert.alert(
+          t("visits.videoLimitTitle"),
+          t("visits.videoLimitMessage", { count: String(VISIT_MAX_VIDEOS) })
+        );
+      }
+
+      if (result.assets.length > imageUris.length + videoItems.length) {
         Alert.alert(
           t("visits.photoLimitTitle"),
           t("visits.photoLimitMessage", { count: String(VISIT_MAX_PHOTOS) })
         );
       }
-      if (picked.length === 0) {
-        return;
-      }
-
-      const videoItems = picked
-        .filter(isVideoPickerAsset)
-        .map((asset) => ({ uri: asset.uri, type: "video" as const }));
-      const imageUris = picked
-        .filter((asset) => !isVideoPickerAsset(asset))
-        .map((asset) => asset.uri);
 
       if (videoItems.length > 0) {
         setCapturedMedia((prevMedia) => [...prevMedia, ...videoItems]);
@@ -544,82 +600,14 @@ const NewVisit = () => {
       if (imageUris.length > 1) {
         setPendingImages((prev) => [...prev, ...imageUris.slice(1)]);
       }
-    }
-  };
-
-  const pickVideo = async () => {
-    if (visitVideoCount(capturedMedia) >= VISIT_MAX_VIDEOS) {
-      Alert.alert(
-        t("visits.videoLimitTitle"),
-        t("visits.videoLimitMessage", { count: String(VISIT_MAX_VIDEOS) })
-      );
-      return;
-    }
-
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(t("common.permissionNeeded"), t("visits.cameraRollRequired"));
-      return;
-    }
-
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["videos"],
-        allowsMultipleSelection: false,
-        quality: 1,
-        ...(Platform.OS === "ios"
-          ? {
-              // Passthrough fails for iCloud-offloaded videos (PHPhotosErrorDomain 3164).
-              // Export presets download from iCloud before returning a local file.
-              videoExportPreset: ImagePicker.VideoExportPreset.MediumQuality,
-              preferredAssetRepresentationMode:
-                ImagePicker.UIImagePickerPreferredAssetRepresentationMode
-                  .Compatible,
-            }
-          : {}),
-      });
-
-      if (result.canceled || !result.assets?.[0]) return;
-
-      const asset = result.assets[0];
-      const uri = asset.uri?.trim();
-      if (!uri) {
+    } catch (error) {
+      console.warn("pickMedia failed", error);
+      if (mediaTypes.includes("videos") && !mediaTypes.includes("images")) {
         Alert.alert(
           t("visits.videoPickFailedTitle"),
           t("visits.videoPickFailedMessage")
         );
-        return;
       }
-
-      const durationSec =
-        asset.duration != null ? asset.duration / 1000 : null;
-      if (
-        durationSec != null &&
-        durationSec > VISIT_MAX_VIDEO_DURATION_SEC
-      ) {
-        Alert.alert(
-          t("visits.videoLimitTitle"),
-          t("visits.videoTooLongMessage", {
-            seconds: String(VISIT_MAX_VIDEO_DURATION_SEC),
-          })
-        );
-        return;
-      }
-
-      setCapturedMedia((prev) => [
-        ...prev,
-        {
-          uri,
-          type: "video",
-          mimeType: asset.mimeType ?? null,
-        },
-      ]);
-    } catch (error) {
-      console.warn("pickVideo failed", error);
-      Alert.alert(
-        t("visits.videoPickFailedTitle"),
-        t("visits.videoPickFailedMessage")
-      );
     }
   };
 
@@ -828,7 +816,7 @@ const NewVisit = () => {
           selectedOptions={selectedOptions}
           onToggleService={handleOptionPress}
           newHaircode={newHaircode}
-          onChangeDescription={setNewHaircode}
+          onChangeDescription={(text) => setNewHaircode(clampVisitTextInput(text))}
           durationMinutes={durationMinutes}
           showTimePicker={showTimePicker}
           onTimePickerOpen={() => setShowTimePicker(true)}
@@ -840,10 +828,8 @@ const NewVisit = () => {
           onChangePrice={setPrice}
           professionCode={activeProfessionCode}
           capturedMedia={capturedMedia}
-          pickImage={pickImage}
-          pickVideo={pickVideo}
-          pickImageDisabled={imageToCrop !== null || isUploadingMedia}
-          pickVideoDisabled={imageToCrop !== null || isUploadingMedia}
+          pickMedia={pickMedia}
+          pickMediaDisabled={imageToCrop !== null || isUploadingMedia}
           removeMedia={removeMedia}
           isPending={isPending}
           isUploadingMedia={isUploadingMedia}

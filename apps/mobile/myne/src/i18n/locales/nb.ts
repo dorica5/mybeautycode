@@ -254,6 +254,11 @@ export const nb: AppLocaleMessages = {
     checkLocation: "Sjekk min posisjon",
     searchLocation: "Eller søk etter sted",
     allSpecialties: "Alle spesialiteter",
+    expertiseRequired: "Velg minst én spesialitet.",
+    expertiseInfoTitle: "Synlig i søk",
+    expertiseInfoMessage:
+      "Velg minst én spesialitet for å vises på kartet og i søk. Velg alt som passer. Du kan endre dette når som helst under Bli oppdaget.",
+    expertiseInfoA11y: "Om synlighet i søk",
     matchAllSelected: "Må tilby alle valgte",
     matchAllSelectedA11y:
       "Vis bare profesjonelle som tilbyr alle valgte spesialiteter, ikke bare én",
@@ -402,7 +407,7 @@ export const nb: AppLocaleMessages = {
     personalNote: "Personlig notat",
     personalNoteAdd: "Legg til personlig notat",
     personalNoteAddHint: "Bare du kan se dette · trykk for å legge til",
-    personalNotePlaceholder: "Hårmål, produkter å prøve, hvordan det føltes…",
+    personalNotePlaceholder: "Hva synes jeg om resultatet/behandlingen?",
     personalNoteSave: "Lagre",
     personalNoteSaved: "Lagret",
     personalNoteSaving: "Lagrer…",
@@ -420,6 +425,7 @@ export const nb: AppLocaleMessages = {
     maxPhotosReached: "Maks antall bilder nådd",
     addImage: "Legg til bilde",
     addVideo: "Legg til video",
+    addPhotoOrVideo: "Legg til bilde eller video",
     saveVisit: "Lagre besøk",
     visitNotFound: "Besøk ikke funnet.",
     missingVisitId: "Mangler besøks-ID",

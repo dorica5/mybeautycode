@@ -5,6 +5,7 @@ import { Session } from "@supabase/supabase-js";
 import {
   createContext,
   PropsWithChildren,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -26,7 +27,7 @@ import { router, usePathname, useSegments, type Href } from "expo-router";
 
 /** Cross-group route so replace() leaves (auth)/Splash and lands in the setup stack. */
 const SETUP_ENTRY: Href = "/(setup)/Setup";
-import { Alert } from "react-native";
+import { Alert, AppState } from "react-native";
 import { Profile } from "../constants/types";
 import { useImageContext } from "./ImageProvider";
 import LoadingScreen from "../app/(setup)/LoadingScreen";
@@ -181,6 +182,8 @@ type AuthData = {
   clearProfile: () => void;
   setLoadingSetup: (loadingSetup: boolean) => void;
   retryProfileFetch: () => void;
+  /** Lightweight `/api/auth/me` refresh — no global loading shell (cross-device account sync). */
+  refreshProfile: (opts?: { bypassDebounce?: boolean }) => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthData>({
@@ -201,6 +204,7 @@ export const AuthContext = createContext<AuthData>({
   clearProfile: () => {},
   setLoadingSetup: () => {},
   retryProfileFetch: () => {},
+  refreshProfile: async () => {},
 });
 
 export default function AuthProvider({ children }: PropsWithChildren) {
@@ -226,6 +230,9 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const prevLoadingSetupRef = useRef<boolean | null>(null);
   /** Serializes overlapping fetchSession runs so loaders always clear without generation races. */
   const fetchSessionTailRef = useRef<Promise<void | undefined>>(Promise.resolve(undefined));
+  const profileRefreshInFlightRef = useRef<Promise<void> | null>(null);
+  const lastProfileRefreshAtRef = useRef(0);
+  const appStateRef = useRef(AppState.currentState);
   const isSigningOut = useRef(false);
   const isChangingPassword = useRef(false);
   const pathname = usePathname();
@@ -566,6 +573,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         const setupComplete = profileSetupIsComplete(profileData as Profile);
         setIsSignUp(!setupComplete);
         await writeCachedProfile(sessionSnap.user.id as string, profileData as Profile);
+        lastProfileRefreshAtRef.current = Date.now();
         await syncSignupDate(sessionSnap, profileData);
         try {
           postHog.capture("App Opened", {
@@ -588,6 +596,43 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     fetchSessionTailRef.current = queued.catch(() => undefined);
     return queued;
   };
+
+  const refreshProfile = useCallback(
+    async (opts?: { bypassDebounce?: boolean }) => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+
+      const now = Date.now();
+      if (
+        !opts?.bypassDebounce &&
+        now - lastProfileRefreshAtRef.current < 3000
+      ) {
+        return;
+      }
+
+      if (profileRefreshInFlightRef.current) {
+        return profileRefreshInFlightRef.current;
+      }
+
+      const run = (async () => {
+        try {
+          let data = (await api.get("/api/auth/me")) as Profile;
+          data = await ensureSetupStatusPersisted(userId, data);
+          setProfile(data);
+          await writeCachedProfile(userId, data);
+          lastProfileRefreshAtRef.current = Date.now();
+        } catch (err) {
+          console.error("Error refreshing profile:", err);
+        } finally {
+          profileRefreshInFlightRef.current = null;
+        }
+      })();
+
+      profileRefreshInFlightRef.current = run;
+      return run;
+    },
+    [session?.user?.id]
+  );
 
   const navigateToSplash = () => {
     console.log("Navigating to splash screen");
@@ -979,18 +1024,32 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     const prev = prevLoadingSetupRef.current;
     prevLoadingSetupRef.current = loadingSetup;
     if (prev !== true || loadingSetup !== false || !session?.user?.id) return;
+    void refreshProfile({ bypassDebounce: true });
+  }, [loadingSetup, session?.user?.id, refreshProfile]);
 
-    const refreshProfile = async () => {
-      try {
-        let data = (await api.get("/api/auth/me")) as Profile;
-        data = await ensureSetupStatusPersisted(session.user.id, data);
-        setProfile(data);
-      } catch (err) {
-        console.error("Error refreshing profile:", err);
+  /** Sync linked profession accounts added on another device (same login). */
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      appStateRef.current = state;
+      if (state === "active" && session?.user?.id) {
+        void refreshProfile({ bypassDebounce: true });
       }
-    };
-    void refreshProfile();
-  }, [loadingSetup, session?.user?.id]);
+    });
+    return () => sub.remove();
+  }, [session?.user?.id, refreshProfile]);
+
+  /** Poll while the app is open so another device’s new profession lanes appear without a reload. */
+  useEffect(() => {
+    if (!session?.user?.id || !profileSetupIsComplete(profile)) return;
+
+    const interval = setInterval(() => {
+      if (appStateRef.current === "active") {
+        void refreshProfile();
+      }
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [session?.user?.id, profile?.setup_status, refreshProfile]);
 
   useSyncSignupDate();
 
@@ -1039,6 +1098,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         clearProfile,
         setLoadingSetup,
         retryProfileFetch,
+        refreshProfile,
       }}
     >
       {shouldHoldTree ? (

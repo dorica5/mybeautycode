@@ -22,7 +22,15 @@ import {
   responsiveScale,
 } from "@/src/utils/responsive";
 
-export const VISIT_CLIENT_PRIVATE_NOTE_MAX_CHARS = 1200;
+import {
+  VISIT_TEXT_MAX_CHARS,
+  VISIT_TEXT_INPUT_HEIGHT_DP,
+  clampVisitTextInput,
+  visitMultilineInputBoxStyle,
+  visitMultilineInputTextStyle,
+} from "@/src/lib/visitTextInput";
+
+export const VISIT_CLIENT_PRIVATE_NOTE_MAX_CHARS = VISIT_TEXT_MAX_CHARS;
 
 type Props = {
   haircodeId: string;
@@ -50,6 +58,10 @@ export function VisitClientPersonalNoteSection({
     setSnapshot(trimmed);
     setExpanded(trimmed.length > 0);
   }, [haircodeId, remoteNote]);
+
+  const handleDraftChange = useCallback((text: string) => {
+    setDraft(clampVisitTextInput(text));
+  }, []);
 
   const saveMutation = useMutation({
     mutationFn: async (text: string) => {
@@ -93,14 +105,6 @@ export function VisitClientPersonalNoteSection({
   const handleBlur = useCallback(() => {
     void flushSave();
   }, [flushSave]);
-
-  const statusLabel = saveMutation.isPending
-    ? t("visits.personalNoteSaving")
-    : isDirty
-      ? t("visits.personalNoteUnsaved")
-      : hasSavedNote
-        ? t("visits.personalNoteSaved")
-        : null;
 
   return (
     <>
@@ -155,29 +159,29 @@ export function VisitClientPersonalNoteSection({
                 {t("visits.personalNote")}
               </Text>
               <View style={styles.labelRowEnd}>
-                {statusLabel ? (
-                  <Text style={[Typography.bodySmall, styles.statusText]}>
-                    {statusLabel}
-                  </Text>
-                ) : null}
-                {saveMutation.isPending ? (
-                  <ActivityIndicator size="small" color={primaryBlack} />
-                ) : isDirty ? (
-                  <Pressable
-                    onPress={() => void flushSave()}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("visits.personalNoteSave")}
-                    style={({ pressed }) => [
-                      styles.saveBtn,
-                      pressed && styles.saveBtnPressed,
-                    ]}
-                  >
-                    <Text style={[Typography.label, styles.saveBtnLabel]}>
-                      {t("visits.personalNoteSave")}
-                    </Text>
-                  </Pressable>
-                ) : null}
+                <View style={styles.saveActionSlot}>
+                  {saveMutation.isPending ? (
+                    <ActivityIndicator size="small" color={primaryBlack} />
+                  ) : (
+                    <Pressable
+                      onPress={() => void flushSave()}
+                      disabled={!isDirty}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("visits.personalNoteSave")}
+                      accessibilityState={{ disabled: !isDirty }}
+                      style={({ pressed }) => [
+                        styles.saveBtn,
+                        !isDirty && styles.saveBtnHidden,
+                        pressed && isDirty && styles.saveBtnPressed,
+                      ]}
+                    >
+                      <Text style={[Typography.label, styles.saveBtnLabel]}>
+                        {t("visits.personalNoteSave")}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
                 <Pressable
                   onPress={() => setInfoVisible(true)}
                   hitSlop={8}
@@ -192,11 +196,17 @@ export function VisitClientPersonalNoteSection({
             <TextInput
               ref={inputRef}
               value={draft}
-              onChangeText={setDraft}
+              onChangeText={handleDraftChange}
               multiline
+              scrollEnabled
               placeholder={t("visits.personalNotePlaceholder")}
               placeholderTextColor={`${primaryBlack}66`}
-              style={[Typography.bodyMedium, styles.noteInput]}
+              style={[
+                visitMultilineInputTextStyle(),
+                visitMultilineInputBoxStyle(VISIT_TEXT_INPUT_HEIGHT_DP, {
+                  flushHorizontal: true,
+                }),
+              ]}
               maxLength={VISIT_CLIENT_PRIVATE_NOTE_MAX_CHARS}
               onBlur={handleBlur}
               onFocus={() => onPersonalNoteFocus?.()}
@@ -302,8 +312,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: responsiveMargin(8),
   },
-  statusText: {
-    color: `${primaryBlack}80`,
+  saveActionSlot: {
+    minWidth: responsiveScale(56),
+    minHeight: responsiveScale(30),
+    alignItems: "center",
+    justifyContent: "center",
   },
   saveBtn: {
     paddingHorizontal: responsivePadding(10),
@@ -316,17 +329,12 @@ const styles = StyleSheet.create({
   saveBtnPressed: {
     opacity: 0.88,
   },
+  saveBtnHidden: {
+    opacity: 0,
+  },
   saveBtnLabel: {
     color: primaryBlack,
     fontSize: responsiveScale(13),
-  },
-  noteInput: {
-    color: primaryBlack,
-    minHeight: responsiveScale(72),
-    maxHeight: responsiveScale(160),
-    paddingTop: responsivePadding(2),
-    paddingBottom: responsivePadding(4),
-    width: "100%",
   },
   footerRow: {
     flexDirection: "row",

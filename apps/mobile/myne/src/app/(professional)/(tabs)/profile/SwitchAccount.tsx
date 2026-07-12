@@ -37,6 +37,7 @@ import { pickActiveProfessionCode } from "@/src/constants/professionCodes";
 import { useQueryClient } from "@tanstack/react-query";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { useI18n, accountSurfaceRoleLabel } from "@/src/providers/LanguageProvider";
+import { useRefreshProfileOnFocus } from "@/src/hooks/useRefreshProfileOnFocus";
 
 function rawParamFirst(
   v: string | string[] | undefined
@@ -94,6 +95,8 @@ const SwitchAccountScreen = () => {
   const [lastProfessionCode, setLastProfessionCodeState] = useState<
     string | null
   >(null);
+
+  useRefreshProfileOnFocus();
 
   useFocusEffect(
     useCallback(() => {

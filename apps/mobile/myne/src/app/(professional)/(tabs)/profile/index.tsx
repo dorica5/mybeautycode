@@ -48,6 +48,7 @@ import { StatusBar } from "expo-status-bar";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
 import { usePostHog } from "posthog-react-native";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
+import { useRefreshProfileOnFocus } from "@/src/hooks/useRefreshProfileOnFocus";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 import { useEstablishmentNoun, useI18n } from "@/src/providers/LanguageProvider";
 import { AppLanguageButton } from "@/src/components/AppLanguageButton";
@@ -59,6 +60,8 @@ const ProfileScreen = () => {
   const { activeProfessionCode } = useActiveProfessionState(profile);
   const { t } = useI18n();
   const placeNoun = useEstablishmentNoun(activeProfessionCode);
+
+  useRefreshProfileOnFocus();
 
   if (loading) {
     return <ActivityIndicator />;

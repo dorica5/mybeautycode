@@ -114,6 +114,59 @@ const CHECK_LOCATION_BTN_W = 194;
 const MAP_CARD_RADIUS = 28;
 const SECTION_GAP = 46;
 
+/** Pin bottom sheet — height grows with pro count up to a scroll cap. */
+const PIN_SHEET_HEADER_DP = 92;
+const PIN_SHEET_ROW_COMPACT_DP = 52;
+const PIN_SHEET_ROW_WITH_BUSINESS_DP = 76;
+const PIN_SHEET_SUMMARY_DP = 32;
+/** Max list viewport before scrolling (~4 rows) */
+const PIN_SHEET_LIST_MAX_DP = 300;
+const PIN_SHEET_MAX_DP = 480;
+const PIN_SHEET_COMPACT_BODY_DP = 48;
+
+type PinSheetBodyState = "loading" | "error" | "empty" | "list";
+
+type PinSheetProRow = { hasBusinessName: boolean };
+
+function pinSheetRowHeight(hasBusinessName: boolean): number {
+  return responsiveScale(
+    hasBusinessName ? PIN_SHEET_ROW_WITH_BUSINESS_DP : PIN_SHEET_ROW_COMPACT_DP
+  );
+}
+
+function pinSheetLayout(
+  proRows: PinSheetProRow[],
+  bodyState: PinSheetBodyState
+): { bottomReserve: number; listHeight: number; listScrollable: boolean } {
+  const header = responsiveScale(PIN_SHEET_HEADER_DP);
+  const summary = responsiveScale(PIN_SHEET_SUMMARY_DP);
+  const maxList = responsiveScale(PIN_SHEET_LIST_MAX_DP);
+  const maxSheet = responsiveScale(PIN_SHEET_MAX_DP);
+  const footer = responsiveMargin(22);
+  const compactBody = responsiveScale(PIN_SHEET_COMPACT_BODY_DP);
+
+  if (bodyState === "loading") {
+    const bottomReserve = header + compactBody + footer;
+    return { bottomReserve, listHeight: 0, listScrollable: false };
+  }
+  if (bodyState === "error" || bodyState === "empty") {
+    const bottomReserve = header + compactBody + footer;
+    return { bottomReserve, listHeight: 0, listScrollable: false };
+  }
+
+  const rawListHeight = proRows.reduce(
+    (sum, row) => sum + pinSheetRowHeight(row.hasBusinessName),
+    0
+  );
+  const listScrollable = rawListHeight > maxList;
+  const listHeight = listScrollable ? maxList : rawListHeight;
+  const bottomReserve = Math.min(
+    maxSheet,
+    header + summary + listHeight + footer
+  );
+  return { bottomReserve, listHeight, listScrollable };
+}
+
 /** Default map (Bergen) if location permission is denied or unavailable. */
 const BERGEN_REGION: Region = {
   latitude: 60.3913,
@@ -873,17 +926,29 @@ const MapLocationScreen = () => {
     setSelectedSalon(null);
   }, [salonDiscoveryFilter]);
 
-  const sheetBottomReserve = useMemo(() => {
-    if (!selectedSalon) return 0;
-    const header = responsiveScale(92);
-    const row = responsiveScale(56);
-    const footer = responsiveScale(36);
-    const rows = Math.max(1, salonProfessionals.length);
-    return Math.min(
-      responsiveScale(420),
-      header + rows * row + footer
-    );
-  }, [selectedSalon, salonProfessionals.length]);
+  const pinSheetBodyState = useMemo((): PinSheetBodyState => {
+    if (salonProsError) return "error";
+    if (salonProsLoading && salonProfessionals.length === 0) return "loading";
+    if (salonProfessionals.length === 0) return "empty";
+    return "list";
+  }, [salonProsError, salonProsLoading, salonProfessionals.length]);
+
+  const pinSheetProRows = useMemo(
+    () =>
+      salonProfessionals.map((pro) => ({
+        hasBusinessName: Boolean(pro.business_name?.trim()),
+      })),
+    [salonProfessionals]
+  );
+
+  const pinSheetMetrics = useMemo(() => {
+    if (!selectedSalon) {
+      return { bottomReserve: 0, listHeight: 0, listScrollable: false };
+    }
+    return pinSheetLayout(pinSheetProRows, pinSheetBodyState);
+  }, [selectedSalon, pinSheetProRows, pinSheetBodyState]);
+
+  const sheetBottomReserve = pinSheetMetrics.bottomReserve;
 
   /** Keep Google legal / logo above the mint bottom sheet when a pin is selected. */
   const mapChromeBottomPad = useMemo(() => {
@@ -1403,9 +1468,19 @@ const MapLocationScreen = () => {
                               )}
                             </Text>
                             <ScrollView
-                              style={styles.clusterListScroll}
+                              style={[
+                                styles.clusterListScroll,
+                                pinSheetMetrics.listHeight > 0 &&
+                                  (pinSheetMetrics.listScrollable
+                                    ? { height: pinSheetMetrics.listHeight }
+                                    : { maxHeight: pinSheetMetrics.listHeight }),
+                              ]}
+                              scrollEnabled={pinSheetMetrics.listScrollable}
+                              nestedScrollEnabled
                               keyboardShouldPersistTaps="handled"
-                              showsVerticalScrollIndicator={false}
+                              showsVerticalScrollIndicator={
+                                pinSheetMetrics.listScrollable
+                              }
                               scrollEventThrottle={16}
                               onScroll={handlePinSheetScroll}
                               bounces={Platform.OS === "ios"}
@@ -1769,7 +1844,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   clusterListScroll: {
-    maxHeight: responsiveScale(220),
     width: "100%",
     alignSelf: "stretch",
   },

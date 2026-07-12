@@ -1,7 +1,9 @@
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -44,6 +46,11 @@ import {
 import { buildProfessionalSetupProfilePutBody } from "@/src/lib/professionalSetupSave";
 import { runProfessionalSetupCompletionSideEffects } from "@/src/lib/professionalSetupCompletion";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { ProfessionalDiscoveryCategoriesSection } from "@/src/components/ProfessionalDiscoveryCategoriesSection";
+import {
+  discoveryOptionsForProfession,
+  sanitizeDiscoveryCategoriesForProfession,
+} from "@/src/constants/profDiscoveryCategories";
 
 const ProfessionalSetup = () => {
   const { t } = useI18n();
@@ -92,7 +99,12 @@ const ProfessionalSetup = () => {
     businessName: "",
     phone_number: "",
     businessAddress: "",
+    discoveryCategories: "",
   });
+  const [discoveryCategories, setDiscoveryCategories] = useState<string[]>([]);
+
+  const requiresDiscoveryCategories =
+    discoveryOptionsForProfession(professionCode).length > 0;
 
   useEffect(() => {
     if (!profile) return;
@@ -231,11 +243,29 @@ const ProfessionalSetup = () => {
   };
 
   const validateFields = () => {
-    const invalid =
-      !validateField("businessName", fields.businessName) ||
-      !validateField("phone_number", fields.businessPhone) ||
-      !validateField("businessAddress", fields.businessAddress);
-    return !invalid;
+    const businessOk =
+      validateField("businessName", fields.businessName) &&
+      validateField("phone_number", fields.businessPhone) &&
+      validateField("businessAddress", fields.businessAddress);
+
+    let discoveryOk = true;
+    if (requiresDiscoveryCategories) {
+      const sanitized = sanitizeDiscoveryCategoriesForProfession(
+        discoveryCategories,
+        professionCode
+      );
+      if (sanitized.length === 0) {
+        setErrorMessages((prev) => ({
+          ...prev,
+          discoveryCategories: t("discover.expertiseRequired"),
+        }));
+        discoveryOk = false;
+      } else {
+        setErrorMessages((prev) => ({ ...prev, discoveryCategories: "" }));
+      }
+    }
+
+    return businessOk && discoveryOk;
   };
 
   const handleFieldChange = (field: string, value: string) => {
@@ -275,6 +305,12 @@ const ProfessionalSetup = () => {
         profileCountry,
         fields,
         placeDetails,
+        discoveryCategories: requiresDiscoveryCategories
+          ? sanitizeDiscoveryCategoriesForProfession(
+              discoveryCategories,
+              professionCode
+            )
+          : undefined,
       });
       await updateProfile(updateBody);
       await runProfessionalSetupCompletionSideEffects({
@@ -328,12 +364,18 @@ const ProfessionalSetup = () => {
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContainer,
-            { paddingBottom: scrollBottomPad, flexGrow: 1 },
+            styles.scrollFill,
+            { paddingBottom: scrollBottomPad },
           ]}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
+          <Pressable
+            style={styles.tapToDismiss}
+            onPress={Keyboard.dismiss}
+            accessible={false}
+          >
           <Text
             style={[Typography.h3, styles.pageTitle]}
             accessibilityRole="header"
@@ -403,6 +445,27 @@ const ProfessionalSetup = () => {
             />
             {showFieldError(errorMessages.businessAddress)}
 
+            {requiresDiscoveryCategories ? (
+              <ProfessionalDiscoveryCategoriesSection
+                professionCode={professionCode}
+                value={discoveryCategories}
+                onChange={(next) => {
+                  setDiscoveryCategories(next);
+                  if (attemptedSubmit && next.length > 0) {
+                    setErrorMessages((prev) => ({
+                      ...prev,
+                      discoveryCategories: "",
+                    }));
+                  }
+                }}
+                showError={
+                  attemptedSubmit &&
+                  Boolean(errorMessages.discoveryCategories)
+                }
+                containerStyle={styles.formFieldSpacing}
+              />
+            ) : null}
+
             {/**
              * Social media + booking site + about me are intentionally NOT collected during
              * onboarding (kept short). They are edited later from the pro profile
@@ -423,6 +486,7 @@ const ProfessionalSetup = () => {
               textStyle={styles.saveButtonLabel}
             />
           </View>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -444,6 +508,12 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     paddingHorizontal: responsivePadding(24),
+  },
+  scrollFill: {
+    flexGrow: 1,
+  },
+  tapToDismiss: {
+    flexGrow: 1,
   },
   backRow: {
     alignSelf: "flex-start",

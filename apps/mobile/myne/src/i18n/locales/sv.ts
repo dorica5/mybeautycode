@@ -252,6 +252,11 @@ export const sv: AppLocaleMessages = {
     checkLocation: "Kontrollera min plats",
     searchLocation: "Eller sök efter plats",
     allSpecialties: "Alla specialiteter",
+    expertiseRequired: "Välj minst en specialitet.",
+    expertiseInfoTitle: "Synlig i sök",
+    expertiseInfoMessage:
+      "Välj minst en specialitet för att synas på kartan och i sök. Välj allt som passar. Du kan uppdatera det när som helst under Bli upptäckt.",
+    expertiseInfoA11y: "Om synlighet i sök",
     matchAllSelected: "Må erbjuda alla valda",
     matchAllSelectedA11y:
       "Visa bara professionella som erbjuder alla valda specialiteter, inte bara en",
@@ -401,7 +406,7 @@ export const sv: AppLocaleMessages = {
     personalNote: "Personlig anteckning",
     personalNoteAdd: "Lägg till personlig anteckning",
     personalNoteAddHint: "Bara du kan se detta · tryck för att lägga till",
-    personalNotePlaceholder: "Hårmål, produkter att testa, hur det kändes…",
+    personalNotePlaceholder: "Vad tycker jag om resultatet/behandlingen?",
     personalNoteSave: "Spara",
     personalNoteSaved: "Sparad",
     personalNoteSaving: "Sparar…",
@@ -419,6 +424,7 @@ export const sv: AppLocaleMessages = {
     maxPhotosReached: "Max antal bilder uppnått",
     addImage: "Lägg till bild",
     addVideo: "Lägg till video",
+    addPhotoOrVideo: "Lägg till bild eller video",
     saveVisit: "Spara besök",
     visitNotFound: "Besök hittades inte.",
     missingVisitId: "Saknar besöks-ID",

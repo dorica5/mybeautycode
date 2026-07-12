@@ -252,6 +252,11 @@ export const en = {
     checkLocation: "Check my location",
     searchLocation: "Or search for location",
     allSpecialties: "All specialties",
+    expertiseRequired: "Select at least one expertise.",
+    expertiseInfoTitle: "Visible in search",
+    expertiseInfoMessage:
+      "Select at least one expertise to appear on the map and in search. Pick everything that applies. You can change these anytime in Get discovered.",
+    expertiseInfoA11y: "About visibility in search",
     matchAllSelected: "Must offer all selected",
     matchAllSelectedA11y:
       "Only show professionals who offer every selected specialty, not just one",
@@ -404,7 +409,7 @@ export const en = {
     personalNote: "Personal note",
     personalNoteAdd: "Add a personal note",
     personalNoteAddHint: "Only you can see this · tap to add",
-    personalNotePlaceholder: "Hair goals, products to try, how it felt…",
+    personalNotePlaceholder: "What do I think about the result/treatment?",
     personalNoteSave: "Save",
     personalNoteSaved: "Saved",
     personalNoteSaving: "Saving…",
@@ -422,6 +427,7 @@ export const en = {
     maxPhotosReached: "Maximum photos reached",
     addImage: "Add image",
     addVideo: "Add video",
+    addPhotoOrVideo: "Add photo or video",
     saveVisit: "Save visit",
     visitNotFound: "Visit not found.",
     missingVisitId: "Missing visit ID",

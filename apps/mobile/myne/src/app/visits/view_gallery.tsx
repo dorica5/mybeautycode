@@ -80,10 +80,17 @@ function GalleryGridVideoThumb({
   }
 
   return (
-    <>
+    <View
+      style={[
+        styles.image,
+        styles.imageRounded,
+        { width: cellSize, height: cellSize },
+      ]}
+    >
       <Video
         source={{ uri: signedUrl }}
-        style={[styles.image, { width: cellSize, height: cellSize }]}
+        style={styles.mediaThumbFill}
+        videoStyle={styles.mediaThumbFill}
         resizeMode={ResizeMode.COVER}
         useNativeControls={false}
         isMuted
@@ -96,7 +103,7 @@ function GalleryGridVideoThumb({
           weight="fill"
         />
       </View>
-    </>
+    </View>
   );
 }
 
@@ -558,6 +565,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   image: { resizeMode: "cover" },
+  mediaThumbFill: {
+    ...StyleSheet.absoluteFillObject,
+  },
   imageRounded: {
     borderRadius: responsiveBorderRadius(18),
   },

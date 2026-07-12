@@ -1,6 +1,7 @@
 import {
   Alert,
   Keyboard,
+  Pressable,
   StyleSheet,
   Text,
   ScrollView,
@@ -261,23 +262,29 @@ const SalonAddress = () => {
       >
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={mintProfileScrollContent}
+          contentContainerStyle={[mintProfileScrollContent, styles.scrollFill]}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          <BrandAddressAutocompleteField
-            label={fieldLabel}
-            value={address}
-            onChangeText={handleAddressChange}
-            onPlaceSelected={setPlaceDetails}
-            countryCode={
-              profileCountry.length === 2 ? profileCountry : undefined
-            }
-          />
-          {attemptedSubmit && error ? (
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          ) : null}
+          <Pressable
+            style={styles.tapToDismiss}
+            onPress={Keyboard.dismiss}
+            accessible={false}
+          >
+            <BrandAddressAutocompleteField
+              label={fieldLabel}
+              value={address}
+              onChangeText={handleAddressChange}
+              onPlaceSelected={setPlaceDetails}
+              countryCode={
+                profileCountry.length === 2 ? profileCountry : undefined
+              }
+            />
+            {attemptedSubmit && error ? (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            ) : null}
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </MintProfileScreenShell>
@@ -289,6 +296,8 @@ export default SalonAddress;
 const styles = StyleSheet.create({
   keyboard: { flex: 1 },
   scroll: { flex: 1 },
+  scrollFill: { flexGrow: 1 },
+  tapToDismiss: { flexGrow: 1 },
   errorText: {
     ...Typography.outfitRegular16,
     color: "#C62828",
