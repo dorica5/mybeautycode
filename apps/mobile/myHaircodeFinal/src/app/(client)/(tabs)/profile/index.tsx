@@ -9,7 +9,8 @@ import {
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { At } from "phosphor-react-native";
-import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
+import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
+import { BrandAccountSurfacePill } from "@/src/components/BrandAccountSurfacePill";
 import {
   ProfileMenuNameIcon,
   ProfileMenuPhoneIcon,
@@ -22,7 +23,6 @@ import {
   ProfileMenuFeedbackIcon,
 } from "@/src/components/profileMenuIcons";
 import {
-  Colors,
   primaryGreen,
   primaryBlack,
   primaryWhite,
@@ -40,8 +40,6 @@ import {
   scalePercent,
 } from "@/src/utils/responsive";
 import { StatusBar } from "expo-status-bar";
-import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
-import { BrandAccountSurfacePill } from "@/src/components/BrandAccountSurfacePill";
 import { usePostHog } from "posthog-react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { AppLanguageButton } from "@/src/components/AppLanguageButton";
@@ -76,22 +74,11 @@ const ProfileScreen = () => {
           >
             <View style={styles.mainView}>
               <AppLanguageButton />
-              {avatarImage ? (
-                <AvatarWithSpinner
-                  uri={avatarImage}
-                  size={profileAvatarSize}
-                  style={styles.profilePic}
-                />
-              ) : (
-                <View
-                  style={[styles.profilePic, styles.profilePicPlaceholder]}
-                >
-                  <OrganicPattern
-                    width={profileAvatarSize}
-                    height={profileAvatarSize}
-                  />
-                </View>
-              )}
+              <AvatarWithSpinner
+                uri={profile.avatar_url ?? avatarImage}
+                size={profileAvatarSize}
+                style={styles.profilePic}
+              />
 
               <Pressable
                 onPress={() =>
@@ -295,18 +282,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   profilePic: {
-    backgroundColor: Colors.dark.yellowish,
     width: scalePercent(25),
     aspectRatio: 1,
-    borderRadius: scalePercent(25) / 2,
-    justifyContent: "center",
-    alignItems: "center",
     alignSelf: "center",
     marginTop: scalePercent(4),
-  },
-  profilePicPlaceholder: {
-    backgroundColor: primaryWhite,
-    overflow: "hidden",
   },
   editImagePressable: {
     alignSelf: "center",
