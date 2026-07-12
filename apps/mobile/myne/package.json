@@ -12,6 +12,7 @@
     "test": "jest --watchAll",
     "lint": "expo lint",
     "generate-splash": "node scripts/generate-splash.js",
+    "generate-app-icons": "node scripts/generate-app-icons.js",
     "build:dev:ios": "eas build --profile development --platform ios",
     "build:dev:android": "eas build --profile development --platform android",
     "build:preview:ios": "eas build --profile preview --platform ios",

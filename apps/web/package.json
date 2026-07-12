@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "generate-site-icons": "node scripts/generate-site-icons.js",
+    "build": "node scripts/generate-site-icons.js && next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -15,6 +16,7 @@
     "react-dom": "19.1.0"
   },
   "devDependencies": {
+    "sharp": "^0.33.5",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

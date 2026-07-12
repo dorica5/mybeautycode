@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Anton, Outfit } from "next/font/google";
 import { LanguageProvider } from "@/providers/LanguageProvider";
 import "./globals.css";
@@ -18,10 +18,21 @@ export const metadata: Metadata = {
   title: "myne — hair & beauty, together",
   description:
     "Connect with professionals, keep your visit history, and own your look — the myne app for clients and stylists.",
+  applicationName: "myne",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "myne",
+    statusBarStyle: "default",
+  },
   openGraph: {
     title: "myne",
     description: "Hair & beauty, together.",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#B2DCC5",
 };
 
 export default function RootLayout({

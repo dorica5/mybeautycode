@@ -37,7 +37,7 @@
       "softwareKeyboardLayoutMode": "resize",
       "screenOrientation": "portrait",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/appstore.png",
+        "foregroundImage": "./assets/android_icon.png",
         "backgroundColor": "#ffffff"
       },
       "versionCode": 1,
@@ -71,7 +71,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/appstore.png",
+          "icon": "./assets/notification-icon.png",
           "color": "#ffffff"
         }
       ],
