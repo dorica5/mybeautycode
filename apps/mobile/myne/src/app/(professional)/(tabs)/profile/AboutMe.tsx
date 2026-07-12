@@ -31,7 +31,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import CustomAlert from "@/src/components/CustomAlert";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
-import { Colors, primaryBlack, primaryWhite } from "@/src/constants/Colors";
+import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
   contentCardMaxWidth,

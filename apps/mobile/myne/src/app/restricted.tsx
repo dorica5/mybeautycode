@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { useAuth } from "../providers/AuthProvider";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 
 export default function RestrictedPage() {
   const { t } = useI18n();
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: primaryGreen,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
     color: "#ef6c00",
   },
   messageContainer: {
-    backgroundColor: "#fff8e1",
+    backgroundColor: primaryWhite,
     padding: 20,
     borderRadius: 12,
     marginBottom: 30,
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: "center",
     marginBottom: 15,
-    color: "#333",
+    color: primaryBlack,
     lineHeight: 22,
   },
   timeInfo: {

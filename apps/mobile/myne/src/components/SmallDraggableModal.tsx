@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   primaryBlack,
   primaryGreen,
+  primaryWhite,
 } from "@/src/constants/Colors";
 import { responsiveMargin, responsivePadding } from "@/src/utils/responsive";
 import { useI18n } from "@/src/providers/LanguageProvider";

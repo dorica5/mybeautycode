@@ -5,7 +5,7 @@ import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
-import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
