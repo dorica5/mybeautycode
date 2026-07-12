@@ -121,8 +121,11 @@ export const en = {
     forgotPasswordTitle: "Forgot password",
     sendNewPassword: "Send me a new password",
     sending: "Sending…",
-    passwordSent: "Password sent",
-    checkEmail: "Please check your e-mail",
+    invalidEmail: "Enter a valid email address.",
+    resetRequestFailed: "Something went wrong. Please try again.",
+    passwordSent: "Check your email",
+    checkEmail:
+      "If an account exists for this email, we've sent a password reset link.",
     strongPassword: "Strong password!",
   },
   onboarding: {

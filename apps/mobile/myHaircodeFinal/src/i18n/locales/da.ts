@@ -121,8 +121,11 @@ export const da: AppLocaleMessages = {
     forgotPasswordTitle: "Glemt kodeord",
     sendNewPassword: "Send mig et nyt kodeord",
     sending: "Sender…",
-    passwordSent: "Kodeord sendt",
-    checkEmail: "Tjek din e-mail",
+    invalidEmail: "Indtast en gyldig e-mailadresse.",
+    resetRequestFailed: "Noget gik galt. Prøv igen.",
+    passwordSent: "Tjek din e-mail",
+    checkEmail:
+      "Hvis der findes en konto for denne e-mail, har vi sendt et link til at nulstille kodeordet.",
     strongPassword: "Stærkt kodeord!",
   },
   onboarding: {

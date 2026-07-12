@@ -85,4 +85,37 @@ export const authController = {
       res.status(500).json({ error: "Failed to fetch status" });
     }
   },
+
+  async forgotPassword(req: Request, res: Response) {
+    const body = req.body as { email?: unknown };
+    const email = typeof body.email === "string" ? body.email : "";
+    if (!email.trim()) {
+      return res.status(400).json({
+        error: "Email is required.",
+        code: "invalid_email",
+      });
+    }
+
+    try {
+      const result = await authService.requestPasswordReset(email);
+      if (!result.ok) {
+        const status = result.code === "invalid_email" ? 400 : 500;
+        const messages: Record<string, string> = {
+          invalid_email: "Enter a valid email address.",
+          send_failed: "Could not send password reset email. Try again later.",
+        };
+        return res.status(status).json({
+          error: messages[result.code] ?? "Request failed.",
+          code: result.code,
+        });
+      }
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("auth forgot-password error:", err);
+      return res.status(500).json({
+        error: "Could not send password reset email. Try again later.",
+        code: "send_failed",
+      });
+    }
+  },
 };

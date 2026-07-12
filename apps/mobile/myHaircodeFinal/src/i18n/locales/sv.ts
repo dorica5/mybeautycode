@@ -121,8 +121,11 @@ export const sv: AppLocaleMessages = {
     forgotPasswordTitle: "Glömt lösenord",
     sendNewPassword: "Skicka ett nytt lösenord till mig",
     sending: "Skickar…",
-    passwordSent: "Lösenord skickat",
-    checkEmail: "Kontrollera din e-post",
+    invalidEmail: "Ange en giltig e-postadress.",
+    resetRequestFailed: "Något gick fel. Försök igen.",
+    passwordSent: "Kontrollera din e-post",
+    checkEmail:
+      "Om det finns ett konto för den här e-posten har vi skickat en länk för att återställa lösenordet.",
     strongPassword: "Starkt lösenord!",
   },
   onboarding: {

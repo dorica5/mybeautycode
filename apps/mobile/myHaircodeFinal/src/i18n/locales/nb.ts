@@ -123,8 +123,11 @@ export const nb: AppLocaleMessages = {
     forgotPasswordTitle: "Glemt passord",
     sendNewPassword: "Send meg et nytt passord",
     sending: "Sender…",
-    passwordSent: "Passord sendt",
-    checkEmail: "Sjekk e-posten din",
+    invalidEmail: "Skriv inn en gyldig e-postadresse.",
+    resetRequestFailed: "Noe gikk galt. Prøv igjen.",
+    passwordSent: "Sjekk e-posten din",
+    checkEmail:
+      "Hvis det finnes en konto for denne e-posten, har vi sendt en lenke for å tilbakestille passordet.",
     strongPassword: "Sterkt passord!",
   },
   onboarding: {
