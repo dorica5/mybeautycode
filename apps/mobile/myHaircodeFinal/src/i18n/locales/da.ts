@@ -956,6 +956,16 @@ export const da: AppLocaleMessages = {
     devPreviewMessage:
       "Åbn denne skærm fra linket i din e-mail for at gemme et nyt kodeord. Kun layout i dev uden tokens.",
     devPreviewBanner: "Dev-forhåndsvisning — brug e-maillinket for fungerende nulstilling.",
+    devPasteTitle: "Tester? Indsæt gendannelseslink",
+    devPasteHint:
+      "Kopiér hele linket fra e-mailen, hvis appen ikke åbnede automatisk.",
+    devPasteLabel: "Gendannelseslink",
+    devPastePlaceholder: "https://… eller myhaircode://reset-password#access_token=…",
+    devPasteContinue: "Fortsæt til nyt kodeord",
+    devPasteOpening: "Åbner…",
+    devPasteInvalidTitle: "Kunne ikke læse linket",
+    devPasteInvalidMessage:
+      "Indsæt hele URL'en fra e-mailen, inkl. access_token og refresh_token.",
     failedUpdatePassword: "Kunne ikke opdatere kodeord",
     newPasswordHeadline: "Nyt kodeord",
     repeatPassword: "Gentag kodeord",

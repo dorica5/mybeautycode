@@ -960,6 +960,16 @@ export const nb: AppLocaleMessages = {
     devPreviewMessage:
       "Åpne denne skjermen fra lenken i e-posten for å lagre et nytt passord. Kun layout i dev uten tokens.",
     devPreviewBanner: "Dev-forhåndsvisning — bruk e-postlenken for fungerende tilbakestilling.",
+    devPasteTitle: "Tester? Lim inn gjenopprettingslenke",
+    devPasteHint:
+      "Kopier hele lenken fra e-posten hvis appen ikke åpnet automatisk.",
+    devPasteLabel: "Gjenopprettingslenke",
+    devPastePlaceholder: "https://… eller myhaircode://reset-password#access_token=…",
+    devPasteContinue: "Fortsett til nytt passord",
+    devPasteOpening: "Åpner…",
+    devPasteInvalidTitle: "Kunne ikke lese lenken",
+    devPasteInvalidMessage:
+      "Lim inn hele URL-en fra e-posten, inkludert access_token og refresh_token.",
     failedUpdatePassword: "Kunne ikke oppdatere passord",
     newPasswordHeadline: "Nytt passord",
     repeatPassword: "Gjenta passord",

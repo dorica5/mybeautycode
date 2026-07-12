@@ -959,6 +959,16 @@ export const en = {
     devPreviewMessage:
       "Open this screen from the link in your reset email to save a new password. Layout-only in dev without tokens.",
     devPreviewBanner: "Dev preview — use the email link for a working reset.",
+    devPasteTitle: "Testing? Paste recovery link",
+    devPasteHint:
+      "Copy the full link from the reset email and paste it here if the app did not open automatically.",
+    devPasteLabel: "Recovery link",
+    devPastePlaceholder: "https://… or myhaircode://reset-password#access_token=…",
+    devPasteContinue: "Continue to new password",
+    devPasteOpening: "Opening…",
+    devPasteInvalidTitle: "Could not read link",
+    devPasteInvalidMessage:
+      "Paste the full URL from the reset email, including access_token and refresh_token.",
     failedUpdatePassword: "Failed to update password",
     newPasswordHeadline: "New password",
     repeatPassword: "Repeat password",

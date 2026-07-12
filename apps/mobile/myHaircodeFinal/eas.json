@@ -10,23 +10,34 @@
       "ios": { "credentialsSource": "remote" },
       "android": {
         "credentialsSource": "remote",
-        "gradleCommand": ":app:assembleDebug"
+        "gradleCommand": ":app:assembleDebug",
+        "buildType": "apk"
       },
-      "env": { "NPM_USE_CI": "false" }
+      "env": {
+        "NPM_USE_CI": "false",
+        "EXPO_PUBLIC_DEV_PASSWORD_RESET": "true"
+      }
     },
     "preview": {
       "distribution": "internal",
       "ios": { "credentialsSource": "remote" },
       "android": {
         "credentialsSource": "remote",
-        "gradleCommand": ":app:assembleRelease"
+        "gradleCommand": ":app:assembleRelease",
+        "buildType": "apk"
       },
-      "env": { "NPM_USE_CI": "false" }
+      "env": {
+        "NPM_USE_CI": "false",
+        "EXPO_PUBLIC_DEV_PASSWORD_RESET": "true"
+      }
     },
     "production": {
       "autoIncrement": true,
       "ios": { "credentialsSource": "remote" },
-      "android": { "credentialsSource": "remote" },
+      "android": {
+        "credentialsSource": "remote",
+        "buildType": "app-bundle"
+      },
       "env": {
         "NPM_USE_CI": "false",
         "EXPO_NO_DEV_CLIENT": "1"
@@ -36,7 +47,7 @@
   "submit": {
     "production": {
       "android": {
-        "serviceAccountKeyPath": "C:\\Users\\dorca\\Documents\\myHaircode\\Important\\myhaircode-b993e4c8ff66.json"
+        "track": "production"
       }
     }
   }
