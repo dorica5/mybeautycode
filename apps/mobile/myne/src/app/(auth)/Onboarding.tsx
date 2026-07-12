@@ -4,14 +4,14 @@ import CheckIcon from "../../../assets/icons/check.svg";
 import LeftArrowIcon from "../../../assets/icons/left_arrow.svg";
 import RightArrowIcon from "../../../assets/icons/right_arrow.svg";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
-import { Typography } from "@/src/constants/Typography";
-import { useFirstLaunch } from "@/src/hooks/useFirstLaunch";
+import { Typography, FONT_FAMILY } from "@/src/constants/Typography";
+import { useAuth } from "@/src/providers/AuthProvider";
 import {
-  getDeviceType,
+  getBreakpoint,
+  responsiveFontSize,
   responsiveMargin,
   responsivePadding,
   responsiveScale,
-  responsiveVerticalScale,
 } from "@/src/utils/responsive";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -37,12 +37,46 @@ import {
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 type OnboardingPage = {
-  title: string;
+  titleLine1: string;
+  titleLine2: string;
   subtitle?: string;
   image: ImageSourcePropType;
 };
 
 const ONBOARDING_HERO_IMAGE = require("@/assets/images/onboarding_image.png");
+
+/** One Anton heading row - never wraps to a second line inside the row. */
+function OnboardingTitleLine({
+  text,
+  fontSize,
+  lineHeight,
+}: {
+  text: string;
+  fontSize: number;
+  lineHeight: number;
+}) {
+  return (
+    <Text
+      numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.72}
+      maxFontSizeMultiplier={1}
+      allowFontScaling={false}
+      style={[
+        styles.heroTitleLine,
+        {
+          fontFamily: FONT_FAMILY.anton,
+          fontSize,
+          lineHeight,
+          paddingTop: Math.max(8, Math.round(fontSize * 0.22)),
+          color: primaryBlack,
+        },
+      ]}
+    >
+      {text}
+    </Text>
+  );
+}
 
 function OnboardingPagerControls({
   index,
@@ -67,7 +101,7 @@ function OnboardingPagerControls({
   return (
     <View style={style}>
       <View style={styles.side}>
-        {index > 0 && (
+        {index > 0 ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={previousLabel}
@@ -76,7 +110,7 @@ function OnboardingPagerControls({
           >
             <LeftArrowIcon width={navSize} height={navSize} />
           </Pressable>
-        )}
+        ) : null}
       </View>
 
       <View pointerEvents="none" style={styles.dots}>
@@ -115,21 +149,24 @@ function OnboardingPagerControls({
 
 export default function Onboarding() {
   const { t } = useI18n();
-  const { markSeen } = useFirstLaunch();
+  const { markOnboardingSeen } = useAuth();
   const pages = useMemo<OnboardingPage[]>(
     () => [
       {
-        title: t("onboarding.page1Title"),
+        titleLine1: t("onboarding.page1TitleLine1"),
+        titleLine2: t("onboarding.page1TitleLine2"),
         subtitle: t("onboarding.page1Subtitle"),
         image: ONBOARDING_HERO_IMAGE,
       },
       {
-        title: t("onboarding.page2Title"),
+        titleLine1: t("onboarding.page2TitleLine1"),
+        titleLine2: t("onboarding.page2TitleLine2"),
         subtitle: t("onboarding.page2Subtitle"),
         image: ONBOARDING_HERO_IMAGE,
       },
       {
-        title: t("onboarding.page3Title"),
+        titleLine1: t("onboarding.page3TitleLine1"),
+        titleLine2: t("onboarding.page3TitleLine2"),
         subtitle: t("onboarding.page3Subtitle"),
         image: ONBOARDING_HERO_IMAGE,
       },
@@ -138,45 +175,59 @@ export default function Onboarding() {
   );
   const [index, setIndex] = useState(0);
   const ref = useRef<FlatList>(null);
-  /** Only drive index from onScroll while the user is dragging — avoids fighting scrollToIndex. */
   const userDragging = useRef(false);
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
 
-  const pageHeight = height - insets.top;
-  const bottomChrome = insets.bottom + responsiveMargin(16, 20);
+  const pageHeight = height - insets.top - insets.bottom;
 
-  /** Same top offset + image height for every slide (text length must not move the image). */
-  const heroLayout = useMemo(() => {
-    const pageH = height - insets.top;
-    const tablet = getDeviceType() === "tablet";
-    const landscape = width > height;
-    const compact = pageH < 740 || width < 360;
+  /** Match Figma/reference: tall hero image, two single-line title rows, dots + nav at bottom. */
+  const layout = useMemo(() => {
+    const pageH = height - insets.top - insets.bottom;
+    const compact = getBreakpoint() === "xxs" || pageH < 700;
 
-    const top = responsiveMargin(16, 22);
-    let ratio = compact ? 0.46 : 0.58;
-    if (tablet) {
-      ratio = landscape ? 0.36 : 0.44;
-    } else if (landscape) {
-      ratio = 0.4;
-    }
-    let imageH = Math.round(pageH * ratio);
-    const reserveForTextAndChrome = responsiveVerticalScale(compact ? 34 : 26, 36);
-    const maxH = Math.max(
-      Math.round(pageH * (compact ? 0.52 : 0.62) - reserveForTextAndChrome),
-      Math.round(pageH * 0.32)
+    const shellPad = responsivePadding(20);
+    const innerW = width - shellPad * 2;
+    const longestTitleChars = Math.max(
+      ...pages.flatMap((p) => [p.titleLine1.length, p.titleLine2.length]),
+      1
     );
-    imageH = Math.min(imageH, maxH);
+    /** Anton is wide - scale so the longest row fits one line on this device width. */
+    const fitByWidth = Math.floor(innerW / (longestTitleChars * 0.56));
+    const titleSize = Math.min(
+      responsiveFontSize(compact ? 40 : 44),
+      Math.max(responsiveFontSize(compact ? 28 : 32), fitByWidth)
+    );
 
-    const imageToTitle = responsiveMargin(compact ? 14 : 22, 28);
+    const imageTop = responsiveMargin(compact ? 8 : 14, 18);
+    const titleGap = responsiveMargin(compact ? 18 : 24, 28);
+    const subtitleGap = responsiveMargin(compact ? 12 : 16);
+
+    const controlsBlock =
+      responsiveScale(48) +
+      responsiveMargin(compact ? 20 : 28) +
+      responsiveMargin(compact ? 8 : 12);
+
+    const textBlock = responsiveMargin(compact ? 108 : 128);
+    const targetRatio = compact ? 0.5 : 0.56;
+    const maxImageH = pageH - imageTop - titleGap - textBlock - controlsBlock;
+    const imageH = Math.max(
+      Math.round(pageH * (compact ? 0.4 : 0.46)),
+      Math.min(Math.round(pageH * targetRatio), maxImageH)
+    );
 
     return {
-      heroImageTop: top,
-      heroImageHeight: Math.max(imageH, Math.round(pageH * 0.28)),
-      heroTitleMarginTop: imageToTitle,
-      compact,
+      shellPad,
+      imageTop,
+      imageH,
+      titleGap,
+      subtitleGap,
+      titleSize,
+      titleLineHeight: Math.round(titleSize * 1.1),
+      controlsPadTop: responsiveMargin(compact ? 16 : 24),
+      controlsPadBottom: responsiveMargin(compact ? 8 : 12),
     };
-  }, [width, height, insets.top]);
+  }, [width, height, insets.top, insets.bottom, pages]);
 
   const syncIndexFromOffset = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -197,7 +248,7 @@ export default function Onboarding() {
   };
 
   const done = async () => {
-    await markSeen();
+    await markOnboardingSeen();
     router.replace("/Splash");
   };
 
@@ -225,8 +276,8 @@ export default function Onboarding() {
 
   return (
     <SafeAreaView
-      edges={["top", "left", "right"]}
-      style={{ flex: 1, backgroundColor: primaryGreen }}
+      edges={["top", "left", "right", "bottom"]}
+      style={styles.safe}
     >
       <StatusBar style="dark" />
       <FlatList
@@ -240,6 +291,7 @@ export default function Onboarding() {
         bounces={false}
         showsHorizontalScrollIndicator={false}
         contentInsetAdjustmentBehavior="never"
+        style={styles.pager}
         getItemLayout={(_, i) => ({
           length: width,
           offset: width * i,
@@ -251,75 +303,73 @@ export default function Onboarding() {
         onMomentumScrollEnd={onMomentumScrollEnd}
         renderItem={({ item }) => (
           <View style={[styles.card, { width, height: pageHeight }]}>
-            <View style={styles.heroCard}>
-              <View style={styles.heroContent}>
-                <View
-                  style={[
-                    styles.heroImageOuter,
-                    { marginTop: heroLayout.heroImageTop },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.heroImageClip,
-                      { height: heroLayout.heroImageHeight },
-                    ]}
-                  >
-                    <Image
-                      source={item.image}
-                      style={styles.heroImageFill}
-                      resizeMode="cover"
-                    />
-                  </View>
-                </View>
-                <View style={styles.textContainer}>
-                  <Text
-                    style={[
-                      Typography.h2,
-                      styles.heroTitle,
-                      heroLayout.compact && styles.heroTitleCompact,
-                      { marginTop: heroLayout.heroTitleMarginTop },
-                    ]}
-                    maxFontSizeMultiplier={1.15}
-                  >
-                    {item.title}
-                  </Text>
-                  {item.subtitle ? (
-                    <Text
-                      style={[
-                        Typography.bodyLarge,
-                        styles.heroSubtitle,
-                        heroLayout.compact && styles.heroSubtitleCompact,
-                      ]}
-                      maxFontSizeMultiplier={1.15}
-                    >
-                      {item.subtitle}
-                    </Text>
-                  ) : null}
-                </View>
-              </View>
-
-              <OnboardingPagerControls
-                index={index}
-                pageCount={pages.length}
-                go={go}
-                done={done}
-                previousLabel={t("onboarding.previousA11y")}
-                nextLabel={t("onboarding.nextA11y")}
-                doneLabel={t("onboarding.doneA11y")}
+            <View
+              style={[styles.pageShell, { paddingHorizontal: layout.shellPad }]}
+            >
+              <View
                 style={[
-                  styles.controls,
-                  styles.controlsLower,
-                  styles.heroControls,
+                  styles.heroImageClip,
                   {
-                    marginTop: heroLayout.compact
-                      ? responsiveMargin(16)
-                      : responsiveMargin(38),
-                    paddingBottom: bottomChrome,
+                    marginTop: layout.imageTop,
+                    height: layout.imageH,
                   },
                 ]}
-              />
+              >
+                <Image
+                  source={item.image}
+                  style={styles.heroImageFill}
+                  resizeMode="cover"
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.heroTitleBlock,
+                  { marginTop: layout.titleGap },
+                ]}
+              >
+                <OnboardingTitleLine
+                  text={item.titleLine1}
+                  fontSize={layout.titleSize}
+                  lineHeight={layout.titleLineHeight}
+                />
+                <OnboardingTitleLine
+                  text={item.titleLine2}
+                  fontSize={layout.titleSize}
+                  lineHeight={layout.titleLineHeight}
+                />
+              </View>
+
+              {item.subtitle ? (
+                <Text
+                  style={[
+                    Typography.bodyLarge,
+                    styles.heroSubtitle,
+                    { marginTop: layout.subtitleGap },
+                  ]}
+                >
+                  {item.subtitle}
+                </Text>
+              ) : null}
             </View>
+
+            <OnboardingPagerControls
+              index={index}
+              pageCount={pages.length}
+              go={go}
+              done={done}
+              previousLabel={t("onboarding.previousA11y")}
+              nextLabel={t("onboarding.nextA11y")}
+              doneLabel={t("onboarding.doneA11y")}
+              style={[
+                styles.controls,
+                {
+                  paddingTop: layout.controlsPadTop,
+                  paddingBottom: layout.controlsPadBottom,
+                  paddingHorizontal: layout.shellPad,
+                },
+              ]}
+            />
           </View>
         )}
       />
@@ -328,79 +378,58 @@ export default function Onboarding() {
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
+  pager: {
+    flex: 1,
+    backgroundColor: primaryGreen,
+  },
   card: {
+    flex: 1,
     backgroundColor: primaryGreen,
   },
-  heroCard: {
+  pageShell: {
     flex: 1,
-    minHeight: 0,
     width: "100%",
-    backgroundColor: primaryGreen,
-  },
-  /** Top-aligned so image top margin is identical on every slide regardless of copy length. */
-  heroContent: {
-    flex: 1,
-    minHeight: 0,
-    justifyContent: "flex-start",
-    paddingHorizontal: responsivePadding(16),
-    paddingBottom: 0,
-  },
-  heroImageOuter: {
-    width: "100%",
-    paddingHorizontal: responsivePadding(4),
-  },
-  heroControls: {
-    marginVertical: 0,
-  },
-  /** Space above pager; bottom padding is applied per-device via safe-area insets. */
-  controlsLower: {
-    marginTop: responsiveMargin(38),
-    marginBottom: 0,
   },
   heroImageClip: {
     width: "100%",
     borderRadius: responsiveScale(21.87),
     overflow: "hidden",
+    alignSelf: "center",
   },
   heroImageFill: {
     width: "100%",
     height: "100%",
   },
-  textContainer: {
-    flex: 1,
-    flexShrink: 1,
-    minHeight: 0,
-    alignItems: "center",
+  heroTitleBlock: {
     width: "100%",
-    justifyContent: "flex-start",
+    alignItems: "center",
   },
-  heroTitle: {
+  heroTitleLine: {
     textAlign: "center",
-    flexShrink: 1,
-  },
-  heroTitleCompact: {
-    fontSize: responsiveScale(36),
-    lineHeight: responsiveScale(40),
+    width: "100%",
   },
   heroSubtitle: {
     textAlign: "center",
-    marginTop: responsiveMargin(16),
-    paddingHorizontal: responsivePadding(12),
-    flexShrink: 1,
-  },
-  heroSubtitleCompact: {
-    marginTop: responsiveMargin(10),
-    fontSize: responsiveScale(17),
-    lineHeight: responsiveScale(22),
+    width: "100%",
+    paddingHorizontal: responsivePadding(4),
   },
   controls: {
     position: "relative",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: responsivePadding(16),
+    flexShrink: 0,
+    backgroundColor: primaryGreen,
   },
-  side: { width: responsiveScale(60) },
+  side: {
+    width: responsiveScale(60),
+    minHeight: responsiveScale(48),
+    justifyContent: "center",
+  },
   dots: {
     position: "absolute",
     left: 0,
