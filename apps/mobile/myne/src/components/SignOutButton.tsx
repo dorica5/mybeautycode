@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { Colors, primaryBlack } from "@constants/Colors";
+import { primaryBlack, primaryGreen } from "@constants/Colors";
 import { forwardRef } from "react";
 import { scale, scalePercent } from "../utils/responsive";
 import { ResponsiveText } from "./ResponsiveText";
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     width: scale(145), 
   },
   text: {
-    color: Colors.dark.dark,
+    color: primaryBlack,
     textAlign: "center",
    
   },

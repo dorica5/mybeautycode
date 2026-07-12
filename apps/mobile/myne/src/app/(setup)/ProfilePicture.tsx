@@ -137,7 +137,7 @@ const ProfilePicture = () => {
           )
         ) : (
           <View style={styles.pickerCircle}>
-            <UploadSimple size={32} color={Colors.dark.dark} />
+            <UploadSimple size={32} color={primaryBlack} />
           </View>
         )}
         <Text style={styles.pickerText}>{t("common.upload")}</Text>

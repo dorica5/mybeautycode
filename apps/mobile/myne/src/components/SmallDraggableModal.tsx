@@ -15,7 +15,6 @@ import {
 } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Colors,
   primaryBlack,
   primaryGreen,
 } from "@/src/constants/Colors";

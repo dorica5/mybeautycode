@@ -2,7 +2,7 @@ import { Text, StyleSheet, ScrollView, View } from "react-native";
 import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
-import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import TopNav from "@/src/components/TopNav";
 import KrusedullLogo from "@assets/logo_2.svg";
@@ -146,12 +146,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(20),
   },
   textContent: {
-    color: Colors.dark.dark,
+    color: primaryBlack,
     lineHeight: moderateScale(24),
     marginTop: scalePercent(2),
   },
   header: {
-    color: Colors.dark.dark,
+    color: primaryBlack,
     fontFamily: "Inter-SemiBold",
     lineHeight: moderateScale(24),
     marginTop: verticalScale(20),

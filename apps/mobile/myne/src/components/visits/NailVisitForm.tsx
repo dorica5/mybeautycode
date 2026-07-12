@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Plus, XCircle } from "phosphor-react-native";
 import { ResizeMode, Video } from "expo-av";
 import {
-  Colors,
   primaryBlack,
   primaryWhite,
   secondaryGreen,

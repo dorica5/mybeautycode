@@ -416,7 +416,7 @@ const InspirationNotification = () => {
                   >
                     <XCircle 
                       size={responsiveScale(30, 36)} 
-                      color={Colors.dark.dark} 
+                      color={primaryBlack} 
                     />
                   </Pressable>
 

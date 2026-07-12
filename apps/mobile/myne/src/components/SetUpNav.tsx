@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import React from "react";
 import { router } from "expo-router";
-import { Colors } from "../constants/Colors";
+import { primaryBlack } from "../constants/Colors";
 import { NavBackRow } from "./NavBackRow";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontFamily: "Inter-SemiBold",
-    color: Colors.dark.dark,
+    color: primaryBlack,
     textAlign: "center",
   },
 });

@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: scalePercent(6),
     fontSize: moderateScale(15),
     fontFamily: "Inter-Regular",
-    color: Colors.light.dark,
+    color: primaryBlack,
   },
   inputWithCheckmark: {
     paddingRight: scale(45),
