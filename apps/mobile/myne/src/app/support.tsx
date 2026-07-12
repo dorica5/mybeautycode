@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import { useAuth } from "../providers/AuthProvider";
 import { sendSupportRequest } from "../api/support";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { SUPPORT_EMAIL } from "@/src/constants/brand";
 
 export default function SupportPage() {
   const { t } = useI18n();
@@ -64,7 +65,7 @@ export default function SupportPage() {
     const body = `User ID: ${profile?.id}\nUser: ${profile?.full_name}\nEmail: ${profile?.email}\n\nMessage: `;
 
     Linking.openURL(
-      `mailto:support@myhaircode.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+      `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     );
   };
 

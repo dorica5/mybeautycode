@@ -6,7 +6,7 @@
     "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/appstore.png",
-    "scheme": "myhaircode",
+    "scheme": "myne",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",

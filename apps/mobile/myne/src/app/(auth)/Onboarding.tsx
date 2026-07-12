@@ -144,35 +144,37 @@ export default function Onboarding() {
   const { width, height } = useWindowDimensions();
 
   const pageHeight = height - insets.top;
+  const bottomChrome = insets.bottom + responsiveMargin(16, 20);
 
   /** Same top offset + image height for every slide (text length must not move the image). */
   const heroLayout = useMemo(() => {
     const pageH = height - insets.top;
     const tablet = getDeviceType() === "tablet";
     const landscape = width > height;
+    const compact = pageH < 740 || width < 360;
 
-    // Breathing room below status bar (safe area handled by SafeAreaView `top` edge).
     const top = responsiveMargin(16, 22);
-    let ratio = 0.62;
+    let ratio = compact ? 0.46 : 0.58;
     if (tablet) {
-      ratio = landscape ? 0.36 : 0.48;
+      ratio = landscape ? 0.36 : 0.44;
     } else if (landscape) {
-      ratio = 0.44;
+      ratio = 0.4;
     }
     let imageH = Math.round(pageH * ratio);
-    const reserveForTextAndChrome = responsiveVerticalScale(26, 36);
+    const reserveForTextAndChrome = responsiveVerticalScale(compact ? 34 : 26, 36);
     const maxH = Math.max(
-      Math.round(pageH * 0.68 - reserveForTextAndChrome),
-      Math.round(pageH * 0.4)
+      Math.round(pageH * (compact ? 0.52 : 0.62) - reserveForTextAndChrome),
+      Math.round(pageH * 0.32)
     );
     imageH = Math.min(imageH, maxH);
 
-    const imageToTitle = responsiveMargin(22, 28);
+    const imageToTitle = responsiveMargin(compact ? 14 : 22, 28);
 
     return {
       heroImageTop: top,
-      heroImageHeight: Math.max(imageH, Math.round(pageH * 0.36)),
+      heroImageHeight: Math.max(imageH, Math.round(pageH * 0.28)),
       heroTitleMarginTop: imageToTitle,
+      compact,
     };
   }, [width, height, insets.top]);
 
@@ -275,13 +277,22 @@ export default function Onboarding() {
                     style={[
                       Typography.h2,
                       styles.heroTitle,
+                      heroLayout.compact && styles.heroTitleCompact,
                       { marginTop: heroLayout.heroTitleMarginTop },
                     ]}
+                    maxFontSizeMultiplier={1.15}
                   >
                     {item.title}
                   </Text>
                   {item.subtitle ? (
-                    <Text style={[Typography.bodyLarge, styles.heroSubtitle]}>
+                    <Text
+                      style={[
+                        Typography.bodyLarge,
+                        styles.heroSubtitle,
+                        heroLayout.compact && styles.heroSubtitleCompact,
+                      ]}
+                      maxFontSizeMultiplier={1.15}
+                    >
                       {item.subtitle}
                     </Text>
                   ) : null}
@@ -300,6 +311,12 @@ export default function Onboarding() {
                   styles.controls,
                   styles.controlsLower,
                   styles.heroControls,
+                  {
+                    marginTop: heroLayout.compact
+                      ? responsiveMargin(16)
+                      : responsiveMargin(38),
+                    paddingBottom: bottomChrome,
+                  },
                 ]}
               />
             </View>
@@ -316,12 +333,14 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     flex: 1,
+    minHeight: 0,
     width: "100%",
     backgroundColor: primaryGreen,
   },
   /** Top-aligned so image top margin is identical on every slide regardless of copy length. */
   heroContent: {
     flex: 1,
+    minHeight: 0,
     justifyContent: "flex-start",
     paddingHorizontal: responsivePadding(16),
     paddingBottom: 0,
@@ -333,10 +352,10 @@ const styles = StyleSheet.create({
   heroControls: {
     marginVertical: 0,
   },
-  /** Space above/below pager; extra bottom margin lifts dots + buttons off the home indicator. */
+  /** Space above pager; bottom padding is applied per-device via safe-area insets. */
   controlsLower: {
     marginTop: responsiveMargin(38),
-    marginBottom: responsiveMargin(30),
+    marginBottom: 0,
   },
   heroImageClip: {
     width: "100%",
@@ -349,6 +368,7 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     flex: 1,
+    flexShrink: 1,
     minHeight: 0,
     alignItems: "center",
     width: "100%",
@@ -356,11 +376,22 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     textAlign: "center",
+    flexShrink: 1,
+  },
+  heroTitleCompact: {
+    fontSize: responsiveScale(36),
+    lineHeight: responsiveScale(40),
   },
   heroSubtitle: {
     textAlign: "center",
     marginTop: responsiveMargin(16),
     paddingHorizontal: responsivePadding(12),
+    flexShrink: 1,
+  },
+  heroSubtitleCompact: {
+    marginTop: responsiveMargin(10),
+    fontSize: responsiveScale(17),
+    lineHeight: responsiveScale(22),
   },
   controls: {
     position: "relative",

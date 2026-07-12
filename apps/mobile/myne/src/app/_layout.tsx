@@ -18,12 +18,17 @@ import useLoadFonts from "@/hooks/useLoadFonts";
 import { PostHogProvider } from "posthog-react-native";
 import LanguageProvider from "../providers/LanguageProvider";
 import { BillingProvider } from "../providers/BillingProvider";
+import { applyAppTextScalingDefaults } from "@/src/lib/textScaling";
+
+applyAppTextScalingDefaults();
 
 export const unstable_settings = {
   initialRouteName: "(auth)",
 };
 
-export const scheme = "myhaircode";
+import { APP_URL_SCHEME } from "@/src/constants/brand";
+
+export const scheme = APP_URL_SCHEME;
 
 const RootLayout = () => {
   const lockPortrait = useCallback(async () => {

@@ -10,15 +10,12 @@ Dimensions.addEventListener("change", ({ window }: { window: ScaledSize }) => {
 });
 
 export const getDeviceType = () => {
-  const deviceRatio = height / width;
   const minDimension = Math.min(width, height);
-  const maxDimension = Math.max(width, height);
   
   if (Platform.OS === 'ios' && minDimension >= 768) {
     return 'tablet';
-  } else if (Platform.OS === 'android' && minDimension >= 600) {
-    return 'tablet';
-  } else if (deviceRatio < 1.6) {
+  }
+  if (Platform.OS === 'android' && minDimension >= 600) {
     return 'tablet';
   }
   

@@ -784,7 +784,7 @@ export const sv: AppLocaleMessages = {
     emailAlternative: "Eller mejla support direkt",
     infoTitle: "Supportinformation",
     infoResponseTime: "• Svarstid: 1–3 vardagar",
-    infoEmail: "• E-post: support@myhaircode.com",
+    infoEmail: "• E-post: support@myne.no",
     infoUserId: "• Inkludera användar-ID: {{id}}...",
   },
   restricted: {
@@ -961,7 +961,7 @@ export const sv: AppLocaleMessages = {
     devPasteHint:
       "Kopiera hela länken från e-postmeddelandet om appen inte öppnades automatiskt.",
     devPasteLabel: "Återställningslänk",
-    devPastePlaceholder: "https://… eller myhaircode://reset-password#access_token=…",
+    devPastePlaceholder: "https://… eller myne://reset-password#access_token=…",
     devPasteContinue: "Fortsätt till nytt lösenord",
     devPasteOpening: "Öppnar…",
     devPasteInvalidTitle: "Kunde inte läsa länken",

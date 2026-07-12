@@ -16,6 +16,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { AppLanguageButton } from "@/src/components/AppLanguageButton";
+import { isOnboardingPreviewEnabled } from "@/src/lib/onboardingPreview";
 
 /** Top inset under safe area matching Sign in / Sign up: scroll `topPad` margin after inset + back row. */
 const splashLogoTopPadding =
@@ -38,7 +39,16 @@ const Splash = () => {
         <AppLanguageButton />
         {/* Upper half: logo aligned with Sign in / Sign up */}
         <View style={styles.upperHalf}>
-          <Logo width={logoSize.width} height={logoSize.height} />
+          <Pressable
+            onLongPress={
+              isOnboardingPreviewEnabled()
+                ? () => router.push("/(auth)/Onboarding")
+                : undefined
+            }
+            delayLongPress={500}
+          >
+            <Logo width={logoSize.width} height={logoSize.height} />
+          </Pressable>
         </View>
 
         {/* Lower half: headline starts ~mid-screen, then body, CTA, footer */}

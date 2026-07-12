@@ -788,7 +788,7 @@ export const en = {
     emailAlternative: "Or Email Support Directly",
     infoTitle: "Support Information",
     infoResponseTime: "• Response time: 1-3 business days",
-    infoEmail: "• Email: support@myhaircode.com",
+    infoEmail: "• Email: support@myne.no",
     infoUserId: "• Include your user ID: {{id}}...",
   },
   restricted: {
@@ -966,7 +966,7 @@ export const en = {
     devPasteHint:
       "Copy the full link from the reset email and paste it here if the app did not open automatically.",
     devPasteLabel: "Recovery link",
-    devPastePlaceholder: "https://… or myhaircode://reset-password#access_token=…",
+    devPastePlaceholder: "https://… or myne://reset-password#access_token=…",
     devPasteContinue: "Continue to new password",
     devPasteOpening: "Opening…",
     devPasteInvalidTitle: "Could not read link",
