@@ -1,6 +1,7 @@
 import { api } from "@/src/lib/apiClient";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
+import { clearClientLinkRelationshipCache } from "@/src/api/relationships";
 
 export const REPORT_REASONS = [
   { value: "spam_fake", label: "Spam or fake profile", severity: "medium" },
@@ -42,6 +43,13 @@ export type ReportUserOptions = {
   professionCode?: string | null;
   context?: string;
   queryClient?: { invalidateQueries: (opts: unknown) => void };
+  /** When set, cached active-link state is cleared if the report blocks the reporter. */
+  clientLink?: { hairdresserId: string; clientId: string };
+};
+
+export type ClientLinkCacheKey = {
+  hairdresserId: string;
+  clientId: string;
 };
 
 export const reportUserEnhanced = async (
@@ -82,6 +90,18 @@ export const reportUserEnhanced = async (
     queryClient.invalidateQueries({
       queryKey: ["listAllClientSearch", reported_id],
     });
+    if (
+      (result.autoBlocked || result.blockedForReporter) &&
+      options?.clientLink &&
+      options.professionCode?.trim()
+    ) {
+      clearClientLinkRelationshipCache(
+        queryClient as QueryClient,
+        options.clientLink.hairdresserId,
+        options.clientLink.clientId,
+        options.professionCode.trim()
+      );
+    }
   }
   return {
     ...result,
@@ -97,7 +117,8 @@ export const blockUser = async (
   blocked_id: string,
   reason: string,
   professionCode: string,
-  queryClient?: { invalidateQueries: (opts: unknown) => void }
+  queryClient?: QueryClient,
+  clientLink?: ClientLinkCacheKey
 ) => {
   await api.post("/api/moderation/block", {
     blocked_id,
@@ -105,9 +126,18 @@ export const blockUser = async (
     profession_code: professionCode,
   });
   if (queryClient) {
+    if (clientLink) {
+      clearClientLinkRelationshipCache(
+        queryClient,
+        clientLink.hairdresserId,
+        clientLink.clientId,
+        professionCode
+      );
+    }
     queryClient.invalidateQueries({ queryKey: ["latest_visits", blocker_id] });
     queryClient.invalidateQueries({ queryKey: ["latest_visits", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["relationship"] });
+    queryClient.invalidateQueries({ queryKey: ["clientLinkUiStatus"] });
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocker_id] });
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["listAllHairdresserSearch"] });
@@ -124,16 +154,26 @@ export const unblockUser = async (
   blocker_id: string,
   blocked_id: string,
   professionCode: string,
-  queryClient?: { invalidateQueries: (opts: unknown) => void }
+  queryClient?: QueryClient,
+  clientLink?: ClientLinkCacheKey
 ) => {
   await api.post("/api/moderation/unblock", {
     blocked_id,
     profession_code: professionCode,
   });
   if (queryClient) {
+    if (clientLink) {
+      clearClientLinkRelationshipCache(
+        queryClient,
+        clientLink.hairdresserId,
+        clientLink.clientId,
+        professionCode
+      );
+    }
     queryClient.invalidateQueries({ queryKey: ["latest_visits", blocker_id] });
     queryClient.invalidateQueries({ queryKey: ["latest_visits", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["relationship"] });
+    queryClient.invalidateQueries({ queryKey: ["clientLinkUiStatus"] });
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocker_id] });
     queryClient.invalidateQueries({ queryKey: ["listAllClientSearch", blocked_id] });
     queryClient.invalidateQueries({ queryKey: ["listAllHairdresserSearch"] });

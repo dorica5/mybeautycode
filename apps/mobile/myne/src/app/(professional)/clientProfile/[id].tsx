@@ -265,7 +265,11 @@ const UserProfile = () => {
                   hairdresser_id,
                   String(client_id),
                   activeProfessionCode,
-                  queryClient
+                  queryClient,
+                  {
+                    hairdresserId: hairdresser_id,
+                    clientId: String(client_id),
+                  }
                 );
                 setUnblockSuccessVisible(true);
               }}

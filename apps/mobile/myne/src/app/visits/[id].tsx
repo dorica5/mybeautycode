@@ -8,7 +8,7 @@ import {
   Dimensions,
   useWindowDimensions,
 } from "react-native";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CaretRight, Plus, Eye, DotsThree } from "phosphor-react-native";
 import { ViewGalleryRowIcon } from "@/src/components/ViewGalleryRowIcon";
@@ -174,6 +174,20 @@ const VisitList = () => {
     : relationship;
   const navPrice = Array.isArray(price) ? price[0] : price;
 
+  const clientIdStr = useMemo(() => {
+    if (typeof client_id === "string") return client_id;
+    if (Array.isArray(client_id) && client_id[0]) return client_id[0];
+    return undefined;
+  }, [client_id]);
+
+  const clientLinkCacheKey = useMemo(() => {
+    if (!hairdresser_id || !clientIdStr || !navProfessionCode) return undefined;
+    return {
+      hairdresserId: hairdresser_id,
+      clientId: clientIdStr,
+    };
+  }, [hairdresser_id, clientIdStr, navProfessionCode]);
+
   const displayUsername =
     typeof data?.username === "string" && data.username.trim()
       ? data.username.trim()
@@ -206,52 +220,43 @@ const VisitList = () => {
   const { isBlocked: isBlockedUser, ready: blockStateReady } =
     useViewerBlockedTarget(
       hairdresser_id,
-      typeof client_id === "string" ? client_id : undefined,
+      clientIdStr,
       navProfessionCode
     );
   const { isBlockedBySender: isBlockedByClient, ready: blockedByReady } =
     useBlockedBySender(
       hairdresser_id,
-      typeof client_id === "string" ? client_id : undefined,
+      clientIdStr,
       navProfessionCode
     );
   const profileUnavailable =
     isBlockedUser || isBlockedByClient;
 
-  const navSaysConnected = navRelationship === "true";
   const shouldUseClientAddProfile =
     relationshipQueryEnabled &&
     !profileUnavailable &&
     relReady &&
     !relLoading &&
-    !isRelated &&
-    !navSaysConnected;
+    !isRelated;
 
-  useEffect(() => {
-    if (!shouldUseClientAddProfile) return;
-    const cid =
-      typeof client_id === "string"
-        ? client_id
-        : Array.isArray(client_id)
-          ? client_id[0]
-          : undefined;
-    if (!cid) return;
+  const navigateToUnlinkedClientProfile = useCallback(() => {
+    if (!clientIdStr) return;
     router.replace({
       pathname: "/(professional)/clientProfile/[id]" as Href,
       params: {
-        id: cid,
-        client_id: cid,
-        full_name: displayFullName,
+        id: clientIdStr,
+        client_id: clientIdStr,
         relationship: "false",
+        full_name: displayFullName,
         ...(navProfessionCode ? { professionCode: navProfessionCode } : {}),
       },
     });
-  }, [
-    shouldUseClientAddProfile,
-    client_id,
-    displayFullName,
-    navProfessionCode,
-  ]);
+  }, [clientIdStr, displayFullName, navProfessionCode]);
+
+  useEffect(() => {
+    if (!shouldUseClientAddProfile) return;
+    navigateToUnlinkedClientProfile();
+  }, [shouldUseClientAddProfile, navigateToUnlinkedClientProfile]);
 
   /** Pro must not open Safety & privacy against their own client profile. */
   const isSelfClientProfile = Boolean(
@@ -307,16 +312,7 @@ const VisitList = () => {
       await queryClient.refetchQueries({
         queryKey: ["latest_visits", hairdresser_id],
       });
-      router.replace({
-        pathname: "/(professional)/clientProfile/[id]" as Href,
-        params: {
-          id: clientId,
-          client_id: clientId,
-          relationship: "false",
-          full_name: displayFullName,
-          ...(navProfessionCode ? { professionCode: navProfessionCode } : {}),
-        },
-      });
+      navigateToUnlinkedClientProfile();
     } catch (error) {
       Alert.alert(t("common.error"), t("profile.failedDeleteUser"));
     }
@@ -462,17 +458,19 @@ const VisitList = () => {
             <BlockedInlineNotice
               style={{ maxWidth: mintContentMaxW }}
               onUnblock={async () => {
-                if (!hairdresser_id || !client_id || !navProfessionCode) return;
+                if (!hairdresser_id || !clientIdStr || !navProfessionCode) return;
                 await unblockUser(
                   hairdresser_id,
-                  client_id,
+                  clientIdStr,
                   navProfessionCode,
-                  queryClient
+                  queryClient,
+                  clientLinkCacheKey
                 );
                 setUnblockSuccessVisible(true);
+                navigateToUnlinkedClientProfile();
               }}
             />
-          ) : (
+          ) : isRelated ? (
             <View style={[styles.actionCard, { maxWidth: mintContentMaxW }]}>
               <View style={styles.actionRowShellFirst}>
                 <Pressable
@@ -620,7 +618,8 @@ const VisitList = () => {
                               client_id,
                               reason,
                               navProfessionCode,
-                              queryClient
+                              queryClient,
+                              clientLinkCacheKey
                             );
                             Alert.alert(
                               t("moderation.accountBlocked"),
@@ -642,6 +641,7 @@ const VisitList = () => {
                         reportedId={String(client_id)}
                         professionCode={navProfessionCode}
                         context="pro_client_hub"
+                        clientLink={clientLinkCacheKey}
                         onDone={() => setActiveAction(null)}
                       />
                     ) : null}

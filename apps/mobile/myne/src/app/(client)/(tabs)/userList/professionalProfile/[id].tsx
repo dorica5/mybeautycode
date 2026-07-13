@@ -218,7 +218,10 @@ const ProfessionalProfileScreen = () => {
   const handleUnblock = async () => {
     if (!client_id || !hairdresser_id || !blockLane) return;
     try {
-      await unblockUser(client_id, hairdresser_id, blockLane, queryClient);
+      await unblockUser(client_id, hairdresser_id, blockLane, queryClient, {
+        hairdresserId: hairdresser_id,
+        clientId: client_id,
+      });
       setUnblockSuccessVisible(true);
     } catch (error) {
       console.error("Error unblocking user:", error);
@@ -234,8 +237,10 @@ const ProfessionalProfileScreen = () => {
         hairdresser_id,
         reason,
         blockLane,
-        queryClient as unknown as {
-          invalidateQueries: (opts: unknown) => void;
+        queryClient,
+        {
+          hairdresserId: hairdresser_id,
+          clientId: client_id,
         }
       );
       Alert.alert(
@@ -333,6 +338,10 @@ const ProfessionalProfileScreen = () => {
               reportedId={hairdresser_id}
               professionCode={relationshipLane}
               context="client_pro_profile"
+              clientLink={{
+                hairdresserId: hairdresser_id,
+                clientId: client_id,
+              }}
               onDone={() => setActiveAction(null)}
             />
           ) : null}
