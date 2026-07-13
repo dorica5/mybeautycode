@@ -268,6 +268,9 @@ export const en = {
     useMyCurrentLocation: "Use my current location",
     prosAtLocation: "{{count}} {{role}} at this location",
     mapWebFallback: "The map is available in the app on iOS and Android.",
+    mapNotConfiguredTitle: "Map unavailable",
+    mapNotConfiguredMessage:
+      "Google Maps is not configured in this build. Add EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY to EAS (development + production), enable Maps SDK for Android, restrict the key to com.dorica.myne, then rebuild the dev client.",
     locationErrorTitle: "Location",
     locationErrorMessage:
       "Could not read your position. Showing the map around Bergen.",

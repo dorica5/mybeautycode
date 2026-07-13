@@ -183,6 +183,19 @@ function iosGoogleMapsConfigured(): boolean {
   return Platform.OS === "ios" && typeof key === "string" && key.length > 0;
 }
 
+function androidGoogleMapsConfigured(): boolean {
+  const android = Constants.expoConfig?.android as
+    | { config?: { googleMaps?: { apiKey?: string } } } }
+    | undefined;
+  const key = android?.config?.googleMaps?.apiKey;
+  return Platform.OS === "android" && typeof key === "string" && key.length > 0;
+}
+
+/** Google Maps provider requires a native API key baked into the dev/production build. */
+function nativeGoogleMapsConfigured(): boolean {
+  return iosGoogleMapsConfigured() || androidGoogleMapsConfigured();
+}
+
 /**
  * Google helpers (key lookup + geocoding) live in `@/src/lib/googlePlaces`.
  * We import the shared versions so there's one implementation of each.
@@ -595,8 +608,7 @@ const MapLocationScreen = () => {
   const restoreMapModalAfterProfileRef = useRef(false);
   const mapModalWasVisibleRef = useRef(false);
 
-  const useStyledGoogleMap =
-    Platform.OS === "android" || iosGoogleMapsConfigured();
+  const useStyledGoogleMap = nativeGoogleMapsConfigured();
 
   const closeMapModal = useCallback(() => {
     restoreMapModalAfterProfileRef.current = false;
@@ -606,6 +618,13 @@ const MapLocationScreen = () => {
   }, []);
 
   const onCheckLocation = useCallback(async () => {
+    if (!nativeGoogleMapsConfigured()) {
+      Alert.alert(
+        t("discover.mapNotConfiguredTitle"),
+        t("discover.mapNotConfiguredMessage")
+      );
+      return;
+    }
     setSelectedSalon(null);
     setShowUserOnMap(false);
     // Show the map immediately; refine the camera when GPS returns (avoids ~multi‑second blank wait).
@@ -1355,6 +1374,7 @@ const MapLocationScreen = () => {
                 <ActivityIndicator size="large" color={primaryBlack} />
               </View>
             ) : mapRegion && Platform.OS !== "web" ? (
+              nativeGoogleMapsConfigured() ? (
               <View style={styles.mapModalMapSection}>
                 <View style={styles.mapCardStack}>
                   <MapView
@@ -1538,6 +1558,13 @@ const MapLocationScreen = () => {
                   ) : null}
                 </View>
               </View>
+              ) : (
+                <View style={styles.mapLoadingWrap}>
+                  <Text style={styles.mapWebFallback}>
+                    {t("discover.mapNotConfiguredMessage")}
+                  </Text>
+                </View>
+              )
             ) : (
               <View style={styles.mapLoadingWrap}>
                 <Text style={styles.mapWebFallback}>

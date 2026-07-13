@@ -559,7 +559,7 @@ const VisitList = () => {
                 </Pressable>
               </View>
             </View>
-          )}
+          ) : null}
         </ScrollView>
 
         <SmallDraggableModal
