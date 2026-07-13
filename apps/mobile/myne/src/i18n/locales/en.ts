@@ -729,17 +729,62 @@ export const en = {
     title: "Feedback",
     sendToTeam: "Send to team",
     intro:
-      "Vote for what we should build next. Submit your own idea below. We review everything and update status as we go.",
-    communityBoard: "Community board",
+      "Vote on new feature ideas below — only features appear on this board. Bug reports and improvements go straight to our team.",
+    communityBoard: "Feature ideas",
+    boardHint:
+      "Top four feature ideas by votes. Bug reports and improvements are sent to the team only — they are not listed here.",
     couldNotLoadBoard: "Could not load the board.",
-    emptyBoard: "No ideas on the board yet. Be the first to suggest something below.",
-    haveSuggestion: "Have a suggestion?",
-    formHint:
-      "Send an idea, improvement, or bug. Our team is notified right away; your idea appears on the board for others to vote on.",
+    emptyBoard: "No feature ideas on the board yet. Suggest one below.",
+    haveSuggestion: "Send feedback",
+    formHeading: {
+      feature: "Suggest a feature",
+      improvement: "Suggest an improvement",
+      bug: "Report a bug",
+      other: "Other feedback",
+    },
+    formHint: {
+      feature:
+        "Describe a feature you'd like. If it earns enough votes, it can appear in the top four on the board.",
+      improvement:
+        "Tell us what we should improve. This goes directly to the team — it won't appear on the voting board.",
+      bug: "Describe what went wrong and how to reproduce it. This goes directly to the team — it won't appear on the voting board.",
+      other: "Share anything else we should know. This goes directly to the team.",
+    },
     titleLabel: "Title",
-    titlePlaceholder: "e.g. Filter map by price range",
+    titlePlaceholder: {
+      feature: "e.g. Filter map by price range",
+      improvement: "e.g. Faster visit photo upload",
+      bug: "e.g. App closes when opening gallery",
+      other: "e.g. Question about my account",
+    },
     descriptionLabel: "Description",
-    descriptionPlaceholder: "What should it do, and why would it help you?",
+    descriptionPlaceholder: {
+      feature: "What should it do, and why would it help you?",
+      improvement: "What's not working well today, and how should it work?",
+      bug: "What happened, what did you expect, and what steps trigger it?",
+      other: "Add any details that help us understand.",
+    },
+    missingTitleMessage: {
+      feature: "Please add a short title for your feature idea.",
+      improvement: "Please add a short title for your improvement.",
+      bug: "Please add a short title for your bug report.",
+      other: "Please add a short title.",
+    },
+    thanksTitle: {
+      feature: "Thanks!",
+      improvement: "Thanks!",
+      bug: "Report received",
+      other: "Thanks!",
+    },
+    thanksMessage: {
+      feature:
+        "Your feature idea was sent to our team. If it earns enough votes, it can appear in the top four on the board.",
+      improvement:
+        "Your improvement was sent to our team. We'll review it — it won't appear on the voting board.",
+      bug: "Your bug report was sent to our team. We'll investigate and follow up if needed.",
+      other: "Your message was sent to our team. We'll review it.",
+    },
+    couldNotSendSuggestion: "Could not send your feedback.",
     screenshotsOptional: "Screenshots (optional)",
     removeScreenshot: "Remove screenshot",
     addScreenshot: "Add screenshot",
@@ -751,12 +796,7 @@ export const en = {
     screenshotLimitMessage: "You can attach up to {{count}} screenshots.",
     couldNotAddScreenshots: "Could not add screenshots.",
     missingTitle: "Missing title",
-    missingTitleMessage: "Please add a short title for your idea.",
-    thanksTitle: "Thanks!",
-    thanksMessage:
-      "Your suggestion was sent to our team. It's on the board — vote for other ideas you'd like us to prioritise.",
     somethingWentWrong: "Something went wrong",
-    couldNotSendSuggestion: "Could not send your suggestion.",
     couldNotUploadScreenshot: "Could not upload a screenshot. Please try again.",
     tapForDetails: "Tap for details",
     voteA11y: "Vote, {{count}} votes",

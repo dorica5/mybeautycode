@@ -731,17 +731,62 @@ export const nb: AppLocaleMessages = {
     title: "Tilbakemelding",
     sendToTeam: "Send til teamet",
     intro:
-      "Stem på hva vi bør bygge neste. Send inn din egen idé nedenfor. Vi gjennomgår alt og oppdaterer status underveis.",
-    communityBoard: "Fellesskapstavle",
+      "Stem på nye funksjonsidéer nedenfor — kun funksjoner vises på tavlen. Feilrapporter og forbedringer går rett til teamet.",
+    communityBoard: "Funksjonsidéer",
+    boardHint:
+      "Topp fire funksjonsidéer etter stemmer. Feilrapporter og forbedringer sendes kun til teamet — de vises ikke her.",
     couldNotLoadBoard: "Kunne ikke laste tavlen.",
-    emptyBoard: "Ingen idéer på tavlen ennå. Vær den første til å foreslå noe nedenfor.",
-    haveSuggestion: "Har du et forslag?",
-    formHint:
-      "Send en idé, forbedring eller feil. Teamet vårt varsles med en gang; ideen din vises på tavlen slik at andre kan stemme.",
+    emptyBoard: "Ingen funksjonsidéer på tavlen ennå. Foreslå en nedenfor.",
+    haveSuggestion: "Send tilbakemelding",
+    formHeading: {
+      feature: "Foreslå en funksjon",
+      improvement: "Foreslå en forbedring",
+      bug: "Rapporter en feil",
+      other: "Annen tilbakemelding",
+    },
+    formHint: {
+      feature:
+        "Beskriv en funksjon du ønsker. Med nok stemmer kan den komme blant topp fire på tavlen.",
+      improvement:
+        "Fortell oss hva vi bør forbedre. Sendes direkte til teamet — vises ikke på stemmetavlen.",
+      bug: "Beskriv hva som gikk galt og hvordan vi kan gjenskape det. Sendes direkte til teamet — vises ikke på stemmetavlen.",
+      other: "Del annet vi bør vite. Sendes direkte til teamet.",
+    },
     titleLabel: "Tittel",
-    titlePlaceholder: "f.eks. Filtrer kart etter pris",
+    titlePlaceholder: {
+      feature: "f.eks. Filtrer kart etter pris",
+      improvement: "f.eks. Raskere opplasting av besøksbilder",
+      bug: "f.eks. Appen lukker seg når jeg åpner galleri",
+      other: "f.eks. Spørsmål om kontoen min",
+    },
     descriptionLabel: "Beskrivelse",
-    descriptionPlaceholder: "Hva skal den gjøre, og hvorfor hjelper det deg?",
+    descriptionPlaceholder: {
+      feature: "Hva skal den gjøre, og hvorfor hjelper det deg?",
+      improvement: "Hva fungerer ikke bra i dag, og hvordan bør det fungere?",
+      bug: "Hva skjedde, hva forventet du, og hvilke steg utløser det?",
+      other: "Legg til detaljer som hjelper oss å forstå.",
+    },
+    missingTitleMessage: {
+      feature: "Legg til en kort tittel for funksjonsidéen.",
+      improvement: "Legg til en kort tittel for forbedringen.",
+      bug: "Legg til en kort tittel for feilrapporten.",
+      other: "Legg til en kort tittel.",
+    },
+    thanksTitle: {
+      feature: "Takk!",
+      improvement: "Takk!",
+      bug: "Rapport mottatt",
+      other: "Takk!",
+    },
+    thanksMessage: {
+      feature:
+        "Funksjonsidéen din er sendt til teamet. Med nok stemmer kan den komme blant topp fire på tavlen.",
+      improvement:
+        "Forbedringen din er sendt til teamet. Vi ser på den — den vises ikke på stemmetavlen.",
+      bug: "Feilrapporten din er sendt til teamet. Vi undersøker og følger opp ved behov.",
+      other: "Meldingen din er sendt til teamet. Vi ser på den.",
+    },
+    couldNotSendSuggestion: "Kunne ikke sende tilbakemeldingen.",
     screenshotsOptional: "Skjermbilder (valgfritt)",
     removeScreenshot: "Fjern skjermbilde",
     addScreenshot: "Legg til skjermbilde",
@@ -753,12 +798,7 @@ export const nb: AppLocaleMessages = {
     screenshotLimitMessage: "Du kan legge ved opptil {{count}} skjermbilder.",
     couldNotAddScreenshots: "Kunne ikke legge til skjermbilder.",
     missingTitle: "Mangler tittel",
-    missingTitleMessage: "Legg til en kort tittel for ideen din.",
-    thanksTitle: "Takk!",
-    thanksMessage:
-      "Forslaget ditt er på tavlen. Stem på andre idéer du vil vi skal prioritere.",
     somethingWentWrong: "Noe gikk galt",
-    couldNotSendSuggestion: "Kunne ikke sende forslaget ditt.",
     couldNotUploadScreenshot: "Kunne ikke laste opp skjermbilde. Prøv igjen.",
     tapForDetails: "Trykk for detaljer",
     voteA11y: "Stem, {{count}} stemmer",

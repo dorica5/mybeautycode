@@ -108,3 +108,8 @@ export const FEEDBACK_TYPE_OPTIONS: readonly FeedbackItemType[] = [
   "bug",
   "other",
 ];
+
+/** Only new features are upvotable on the community board. */
+export const VOTABLE_FEEDBACK_TYPES: ReadonlySet<FeedbackItemType> = new Set([
+  "feature",
+]);

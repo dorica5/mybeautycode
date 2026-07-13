@@ -1,5 +1,5 @@
-import { prisma } from "../lib/prisma";
 import type { FeedbackItemStatus, FeedbackItemType } from "@prisma/client";
+import { prisma } from "../lib/prisma";
 import { profileDisplayName } from "../lib/profileDisplay";
 import {
   FEEDBACK_STATUS_LABELS,
@@ -7,6 +7,14 @@ import {
   formatFeedbackItemForApi,
   parseFeedbackItemType,
 } from "../lib/feedbackLabels";
+import {
+  FEEDBACK_BOARD_VISIBLE_LIMIT,
+  FEEDBACK_MAX_DESCRIPTION,
+  FEEDBACK_MAX_SCREENSHOTS,
+  FEEDBACK_MAX_TITLE,
+  assertFeedbackDescriptionLength,
+  isBoardVotableFeedbackType,
+} from "../lib/feedbackLimits";
 import {
   notifySlackFeedbackVote,
   notifySlackNewFeedback,
@@ -21,9 +29,6 @@ const BOARD_STATUSES: FeedbackItemStatus[] = [
 ];
 
 const FEEDBACK_SCREENSHOT_BUCKET = "feedback_screenshots";
-const MAX_TITLE = 120;
-const MAX_DESCRIPTION = 1000;
-const MAX_SCREENSHOTS = 3;
 
 function parseStoredScreenshotPaths(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
@@ -49,7 +54,7 @@ function normalizeScreenshotPathsForUser(
       continue;
     }
     if (!out.includes(p)) out.push(p);
-    if (out.length >= MAX_SCREENSHOTS) break;
+    if (out.length >= FEEDBACK_MAX_SCREENSHOTS) break;
   }
   return out;
 }
@@ -74,7 +79,10 @@ async function signScreenshotUrls(paths: readonly string[]): Promise<string[]> {
 
 async function loadBoardRows(viewerId: string) {
   const rows = await prisma.feedbackItem.findMany({
-    where: { status: { in: BOARD_STATUSES } },
+    where: {
+      type: "feature",
+      status: { in: BOARD_STATUSES },
+    },
     orderBy: [{ createdAt: "desc" }],
     include: {
       votes: {
@@ -100,10 +108,12 @@ async function loadBoardRows(viewerId: string) {
     })
   );
 
-  return mapped.sort((a, b) => {
-    if (b.voteCount !== a.voteCount) return b.voteCount - a.voteCount;
-    return b.createdAt.getTime() - a.createdAt.getTime();
-  });
+  return mapped
+    .sort((a, b) => {
+      if (b.voteCount !== a.voteCount) return b.voteCount - a.voteCount;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    })
+    .slice(0, FEEDBACK_BOARD_VISIBLE_LIMIT);
 }
 
 export const feedbackService = {
@@ -133,14 +143,10 @@ export const feedbackService = {
     if (!title) {
       throw Object.assign(new Error("Title is required."), { statusCode: 400 });
     }
-    if (title.length > MAX_TITLE) {
+    if (title.length > FEEDBACK_MAX_TITLE) {
       throw Object.assign(new Error("Title is too long."), { statusCode: 400 });
     }
-    if (description && description.length > MAX_DESCRIPTION) {
-      throw Object.assign(new Error("Description is too long."), {
-        statusCode: 400,
-      });
-    }
+    assertFeedbackDescriptionLength(description);
 
     const submitter = await prisma.profile.findUnique({
       where: { id: userId },
@@ -155,8 +161,16 @@ export const feedbackService = {
         status: "reviewing",
         submitterId: userId,
         screenshotPaths,
+        votes: isBoardVotableFeedbackType(type)
+          ? { create: { userId } }
+          : undefined,
+      },
+      include: {
+        votes: { select: { userId: true } },
       },
     });
+
+    const voteCount = item.votes.length;
 
     const screenshotUrls = await signScreenshotUrls(screenshotPaths);
     const slackScreenshotUrls: string[] = [];
@@ -193,8 +207,8 @@ export const feedbackService = {
       type: item.type,
       status: item.status,
       createdAt: item.createdAt,
-      voteCount: 0,
-      viewerHasVoted: false,
+      voteCount,
+      viewerHasVoted: isBoardVotableFeedbackType(type),
       screenshotUrls,
     });
   },
@@ -202,11 +216,16 @@ export const feedbackService = {
   async toggleVote(userId: string, itemId: string) {
     const item = await prisma.feedbackItem.findUnique({
       where: { id: itemId },
-      select: { id: true, title: true, status: true },
+      select: { id: true, title: true, status: true, type: true },
     });
     if (!item || item.status === "declined") {
       throw Object.assign(new Error("Feedback item not found."), {
         statusCode: 404,
+      });
+    }
+    if (!isBoardVotableFeedbackType(item.type)) {
+      throw Object.assign(new Error("Voting is not available for this item."), {
+        statusCode: 400,
       });
     }
 
@@ -244,5 +263,17 @@ export const feedbackService = {
     });
 
     return { voted, vote_count: voteCount };
+  },
+
+  async updateStatusAdmin(
+    itemId: string,
+    status: FeedbackItemStatus
+  ): Promise<{ id: string; title: string; status: FeedbackItemStatus }> {
+    const row = await prisma.feedbackItem.update({
+      where: { id: itemId },
+      data: { status, updatedAt: new Date() },
+      select: { id: true, title: true, status: true },
+    });
+    return row;
   },
 };

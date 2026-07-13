@@ -1,9 +1,10 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   Keyboard,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,7 +19,6 @@ import { randomUUID } from "expo-crypto";
 import TopNav from "@/src/components/TopNav";
 import {
   MintProfileScreenShell,
-  mintProfileScrollContent,
 } from "@/src/components/MintProfileScreenShell";
 import { PrimaryOutlineTextField } from "@/src/components/PrimaryOutlineTextField";
 import MyButton from "@/src/components/MyButton";
@@ -46,10 +46,17 @@ import {
   useFeedbackBoard,
   useSubmitFeedback,
   useToggleFeedbackVote,
+  VOTABLE_FEEDBACK_TYPES,
 } from "@/src/api/feedback";
+import { FeedbackSubmittedModal } from "@/src/components/feedback/FeedbackSubmittedModal";
+import {
+  clampFeedbackDescription,
+  FEEDBACK_DESCRIPTION_MAX_CHARS,
+  FEEDBACK_TEXT_INPUT_HEIGHT_DP,
+} from "@/src/lib/feedbackTextInput";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
-const MAX_DESCRIPTION = 1000;
+const MAX_DESCRIPTION = FEEDBACK_DESCRIPTION_MAX_CHARS;
 const SCREENSHOT_THUMB = responsiveScale(72);
 
 type PendingScreenshot = { localId: string; uri: string };
@@ -81,6 +88,7 @@ function FeedbackBoardRow({
   const chip = statusChipStyle(item.status);
   const hasDetails =
     Boolean(item.description?.trim()) || item.screenshot_urls.length > 0;
+  const canVote = VOTABLE_FEEDBACK_TYPES.has(item.type);
 
   return (
     <View style={styles.boardRow}>
@@ -127,25 +135,27 @@ function FeedbackBoardRow({
           </Text>
         ) : null}
       </Pressable>
-      <Pressable
-        onPress={() => onVote(item.id)}
-        disabled={voting}
-        style={({ pressed }) => [
-          styles.voteButton,
-          item.viewer_has_voted && styles.voteButtonActive,
-          pressed && styles.voteButtonPressed,
-        ]}
-        accessibilityRole="button"
-        accessibilityLabel={t("feedback.voteA11y", { count: item.vote_count })}
-        accessibilityState={{ selected: item.viewer_has_voted }}
-      >
-        <CaretUp
-          size={responsiveScale(18)}
-          color={primaryBlack}
-          weight={item.viewer_has_voted ? "fill" : "regular"}
-        />
-        <Text style={styles.voteCount}>{item.vote_count}</Text>
-      </Pressable>
+      {canVote ? (
+        <Pressable
+          onPress={() => onVote(item.id)}
+          disabled={voting}
+          style={({ pressed }) => [
+            styles.voteButton,
+            item.viewer_has_voted && styles.voteButtonActive,
+            pressed && styles.voteButtonPressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={t("feedback.voteA11y", { count: item.vote_count })}
+          accessibilityState={{ selected: item.viewer_has_voted }}
+        >
+          <CaretUp
+            size={responsiveScale(18)}
+            color={primaryBlack}
+            weight={item.viewer_has_voted ? "fill" : "regular"}
+          />
+          <Text style={styles.voteCount}>{item.vote_count}</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -163,6 +173,27 @@ export default function FeedbackScreen() {
     PendingScreenshot[]
   >([]);
   const [preparingScreenshots, setPreparingScreenshots] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+  const [successSubmittedType, setSuccessSubmittedType] =
+    useState<FeedbackItemType>("feature");
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [keyboardBottomInset, setKeyboardBottomInset] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS === "ios") return;
+
+    const showSub = Keyboard.addListener("keyboardDidShow", (event) => {
+      setKeyboardBottomInset(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardBottomInset(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const descriptionChars = description.length;
   const canSubmit =
@@ -236,7 +267,10 @@ export default function FeedbackScreen() {
   const handleSubmit = useCallback(async () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      Alert.alert(t("feedback.missingTitle"), t("feedback.missingTitleMessage"));
+      Alert.alert(
+        t("feedback.missingTitle"),
+        t(`feedback.missingTitleMessage.${type}`)
+      );
       return;
     }
     Keyboard.dismiss();
@@ -257,19 +291,17 @@ export default function FeedbackScreen() {
 
       await submitMutation.mutateAsync({
         title: trimmedTitle,
-        description: description.trim() || undefined,
+        description: clampFeedbackDescription(description.trim()) || undefined,
         type,
         screenshot_paths:
           screenshotPaths.length > 0 ? screenshotPaths : undefined,
       });
+      setSuccessSubmittedType(type);
+      setSuccessVisible(true);
       setTitle("");
       setDescription("");
       setType("feature");
       setPendingScreenshots([]);
-      Alert.alert(
-        t("feedback.thanksTitle"),
-        t("feedback.thanksMessage")
-      );
     } catch (e) {
       const message =
         e instanceof Error ? e.message : t("feedback.couldNotSendSuggestion");
@@ -282,8 +314,19 @@ export default function FeedbackScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <TopNav title={t("feedback.title")} />
       <ScrollView
+        ref={scrollViewRef}
+        style={styles.scroll}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={mintProfileScrollContent}
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={[
+          styles.scrollContent,
+          Platform.OS === "android" &&
+            keyboardBottomInset > 0 && {
+              paddingBottom: responsiveMargin(32) + keyboardBottomInset,
+            },
+        ]}
+        showsVerticalScrollIndicator={false}
       >
         <Text style={[Typography.body, styles.intro]}>
           {t("feedback.intro")}
@@ -291,6 +334,9 @@ export default function FeedbackScreen() {
 
         <Text style={[Typography.label, styles.sectionTitle]}>
           {t("feedback.communityBoard")}
+        </Text>
+        <Text style={[Typography.bodySmall, styles.boardHint]}>
+          {t("feedback.boardHint")}
         </Text>
 
         {isPending ? (
@@ -322,10 +368,10 @@ export default function FeedbackScreen() {
         <View style={styles.divider} />
 
         <Text style={[Typography.label, styles.sectionTitle]}>
-          {t("feedback.haveSuggestion")}
+          {t(`feedback.formHeading.${type}`)}
         </Text>
         <Text style={[Typography.bodySmall, styles.formHint]}>
-          {t("feedback.formHint")}
+          {t(`feedback.formHint.${type}`)}
         </Text>
 
         <View style={styles.typeRow}>
@@ -359,7 +405,7 @@ export default function FeedbackScreen() {
           label={t("feedback.titleLabel")}
           value={title}
           onChangeText={setTitle}
-          placeholder={t("feedback.titlePlaceholder")}
+          placeholder={t(`feedback.titlePlaceholder.${type}`)}
           maxLength={120}
           singleLineShape="rounded"
         />
@@ -367,12 +413,16 @@ export default function FeedbackScreen() {
         <PrimaryOutlineTextField
           label={t("feedback.descriptionLabel")}
           value={description}
-          onChangeText={setDescription}
-          placeholder={t("feedback.descriptionPlaceholder")}
+          onChangeText={(text) => setDescription(clampFeedbackDescription(text))}
+          placeholder={t(`feedback.descriptionPlaceholder.${type}`)}
           multiline
-          minInputHeight={responsiveScale(120)}
+          maxInputHeight={FEEDBACK_TEXT_INPUT_HEIGHT_DP}
+          scrollEnabled
           maxLength={MAX_DESCRIPTION}
           singleLineShape="rounded"
+          onFocus={() =>
+            scrollViewRef.current?.scrollToEnd({ animated: true })
+          }
         />
         <Text style={[Typography.bodySmall, styles.charCount]}>
           {descriptionChars}/{MAX_DESCRIPTION}
@@ -438,11 +488,24 @@ export default function FeedbackScreen() {
           style={!canSubmit ? styles.submitDisabled : undefined}
         />
       </ScrollView>
+      <FeedbackSubmittedModal
+        visible={successVisible}
+        submittedType={successSubmittedType}
+        onDismiss={() => setSuccessVisible(false)}
+      />
     </MintProfileScreenShell>
   );
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: responsivePadding(24),
+    paddingTop: responsiveMargin(12),
+    paddingBottom: responsiveMargin(32),
+  },
   intro: {
     color: primaryBlack,
     marginBottom: responsiveMargin(16),
@@ -450,6 +513,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: primaryBlack,
     marginBottom: responsiveMargin(10),
+  },
+  boardHint: {
+    color: primaryBlack,
+    opacity: 0.68,
+    marginBottom: responsiveMargin(12),
+    lineHeight: responsiveScale(20),
   },
   loader: {
     marginVertical: responsiveMargin(24),

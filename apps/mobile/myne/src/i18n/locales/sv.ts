@@ -724,18 +724,62 @@ export const sv: AppLocaleMessages = {
     title: "Feedback",
     sendToTeam: "Skicka till teamet",
     intro:
-      "Rösta på vad vi ska bygga härnäst. Skicka in din egen idé nedan. Vi granskar allt och uppdaterar status under tiden.",
-    communityBoard: "Communitytavla",
+      "Rösta på nya funktionsidéer nedan — endast funktioner visas på tavlan. Buggrapporter och förbättringar går direkt till teamet.",
+    communityBoard: "Funktionsidéer",
+    boardHint:
+      "Topp fyra funktionsidéer efter röster. Buggrapporter och förbättringar skickas bara till teamet — de listas inte här.",
     couldNotLoadBoard: "Kunde inte läsa in tavlan.",
-    emptyBoard:
-      "Inga idéer på tavlan ännu. Var först med att föreslå något nedan.",
-    haveSuggestion: "Har du ett förslag?",
-    formHint:
-      "Skicka en idé, förbättring eller bugg. Vi lägger till den på tavlan så att andra kan rösta.",
+    emptyBoard: "Inga funktionsidéer på tavlan ännu. Föreslå en nedan.",
+    haveSuggestion: "Skicka feedback",
+    formHeading: {
+      feature: "Föreslå en funktion",
+      improvement: "Föreslå en förbättring",
+      bug: "Rapportera en bugg",
+      other: "Annan feedback",
+    },
+    formHint: {
+      feature:
+        "Beskriv en funktion du vill ha. Med tillräckligt många röster kan den hamna bland topp fyra på tavlan.",
+      improvement:
+        "Berätta vad vi bör förbättra. Skickas direkt till teamet — visas inte på omröstningstavlan.",
+      bug: "Beskriv vad som gick fel och hur man återskapar det. Skickas direkt till teamet — visas inte på omröstningstavlan.",
+      other: "Dela annat vi bör veta. Skickas direkt till teamet.",
+    },
     titleLabel: "Titel",
-    titlePlaceholder: "t.ex. Filtrera karta efter pris",
+    titlePlaceholder: {
+      feature: "t.ex. Filtrera karta efter pris",
+      improvement: "t.ex. Snabbare uppladdning av besöksbilder",
+      bug: "t.ex. Appen stängs när jag öppnar galleriet",
+      other: "t.ex. Fråga om mitt konto",
+    },
     descriptionLabel: "Beskrivning",
-    descriptionPlaceholder: "Vad ska den göra, och varför hjälper det dig?",
+    descriptionPlaceholder: {
+      feature: "Vad ska den göra, och varför hjälper det dig?",
+      improvement: "Vad fungerar inte bra idag, och hur ska det fungera?",
+      bug: "Vad hände, vad förväntade du dig, och vilka steg utlöser det?",
+      other: "Lägg till detaljer som hjälper oss att förstå.",
+    },
+    missingTitleMessage: {
+      feature: "Lägg till en kort titel för funktionsidén.",
+      improvement: "Lägg till en kort titel för förbättringen.",
+      bug: "Lägg till en kort titel för buggrapporten.",
+      other: "Lägg till en kort titel.",
+    },
+    thanksTitle: {
+      feature: "Tack!",
+      improvement: "Tack!",
+      bug: "Rapport mottagen",
+      other: "Tack!",
+    },
+    thanksMessage: {
+      feature:
+        "Din funktionsidé skickades till teamet. Med tillräckligt många röster kan den hamna bland topp fyra på tavlan.",
+      improvement:
+        "Din förbättring skickades till teamet. Vi granskar den — den visas inte på omröstningstavlan.",
+      bug: "Din buggrapport skickades till teamet. Vi undersöker och följer upp vid behov.",
+      other: "Ditt meddelande skickades till teamet. Vi granskar det.",
+    },
+    couldNotSendSuggestion: "Kunde inte skicka din feedback.",
     screenshotsOptional: "Skärmbilder (valfritt)",
     removeScreenshot: "Ta bort skärmbild",
     addScreenshot: "Lägg till skärmbild",
@@ -747,12 +791,7 @@ export const sv: AppLocaleMessages = {
     screenshotLimitMessage: "Du kan bifoga upp till {{count}} skärmbilder.",
     couldNotAddScreenshots: "Kunde inte lägga till skärmbilder.",
     missingTitle: "Saknar titel",
-    missingTitleMessage: "Lägg till en kort titel för din idé.",
-    thanksTitle: "Tack!",
-    thanksMessage:
-      "Ditt förslag finns på tavlan. Rösta på andra idéer som du vill att vi prioriterar.",
     somethingWentWrong: "Något gick fel",
-    couldNotSendSuggestion: "Kunde inte skicka ditt förslag.",
     couldNotUploadScreenshot: "Kunde inte ladda upp skärmbild. Försök igen.",
     tapForDetails: "Tryck för detaljer",
     voteA11y: "Rösta, {{count}} röster",

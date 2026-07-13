@@ -726,18 +726,62 @@ export const da: AppLocaleMessages = {
     title: "Feedback",
     sendToTeam: "Send til teamet",
     intro:
-      "Stem på, hvad vi skal bygge næste gang. Indsend din egen idé nedenfor. Vi gennemgår alt og opdaterer status løbende.",
-    communityBoard: "Fællesskabstavle",
+      "Stem på nye funktionsidéer nedenfor — kun funktioner vises på tavlen. Fejlrapporter og forbedringer går direkte til teamet.",
+    communityBoard: "Funktionsidéer",
+    boardHint:
+      "Top fire funktionsidéer efter stemmer. Fejlrapporter og forbedringer sendes kun til teamet — de vises ikke her.",
     couldNotLoadBoard: "Kunne ikke indlæse tavlen.",
-    emptyBoard:
-      "Ingen idéer på tavlen endnu. Vær den første til at foreslå noget nedenfor.",
-    haveSuggestion: "Har du et forslag?",
-    formHint:
-      "Send en idé, forbedring eller fejl. Vi lægger den på tavlen, så andre kan stemme.",
+    emptyBoard: "Ingen funktionsidéer på tavlen endnu. Foreslå en nedenfor.",
+    haveSuggestion: "Send feedback",
+    formHeading: {
+      feature: "Foreslå en funktion",
+      improvement: "Foreslå en forbedring",
+      bug: "Rapporter en fejl",
+      other: "Anden feedback",
+    },
+    formHint: {
+      feature:
+        "Beskriv en funktion, du ønsker. Med nok stemmer kan den komme i top fire på tavlen.",
+      improvement:
+        "Fortæl os, hvad vi bør forbedre. Sendes direkte til teamet — vises ikke på afstemningstavlen.",
+      bug: "Beskriv, hvad der gik galt, og hvordan vi kan genskabe det. Sendes direkte til teamet — vises ikke på afstemningstavlen.",
+      other: "Del andet, vi bør vide. Sendes direkte til teamet.",
+    },
     titleLabel: "Titel",
-    titlePlaceholder: "f.eks. Filtrér kort efter pris",
+    titlePlaceholder: {
+      feature: "f.eks. Filtrér kort efter pris",
+      improvement: "f.eks. Hurtigere upload af besøgsbilleder",
+      bug: "f.eks. Appen lukker, når jeg åbner galleri",
+      other: "f.eks. Spørgsmål om min konto",
+    },
     descriptionLabel: "Beskrivelse",
-    descriptionPlaceholder: "Hvad skal den gøre, og hvorfor hjælper det dig?",
+    descriptionPlaceholder: {
+      feature: "Hvad skal den gøre, og hvorfor hjælper det dig?",
+      improvement: "Hvad fungerer ikke godt i dag, og hvordan bør det fungere?",
+      bug: "Hvad skete der, hvad forventede du, og hvilke trin udløser det?",
+      other: "Tilføj detaljer, der hjælper os med at forstå.",
+    },
+    missingTitleMessage: {
+      feature: "Tilføj en kort titel til funktionsidéen.",
+      improvement: "Tilføj en kort titel til forbedringen.",
+      bug: "Tilføj en kort titel til fejlrapporten.",
+      other: "Tilføj en kort titel.",
+    },
+    thanksTitle: {
+      feature: "Tak!",
+      improvement: "Tak!",
+      bug: "Rapport modtaget",
+      other: "Tak!",
+    },
+    thanksMessage: {
+      feature:
+        "Din funktionsidé er sendt til teamet. Med nok stemmer kan den komme i top fire på tavlen.",
+      improvement:
+        "Din forbedring er sendt til teamet. Vi gennemgår den — den vises ikke på afstemningstavlen.",
+      bug: "Din fejlrapport er sendt til teamet. Vi undersøger og følger op ved behov.",
+      other: "Din besked er sendt til teamet. Vi gennemgår den.",
+    },
+    couldNotSendSuggestion: "Kunne ikke sende din feedback.",
     screenshotsOptional: "Skærmbilleder (valgfrit)",
     removeScreenshot: "Fjern skærmbillede",
     addScreenshot: "Tilføj skærmbillede",
@@ -749,12 +793,7 @@ export const da: AppLocaleMessages = {
     screenshotLimitMessage: "Du kan vedhæfte op til {{count}} skærmbilleder.",
     couldNotAddScreenshots: "Kunne ikke tilføje skærmbilleder.",
     missingTitle: "Mangler titel",
-    missingTitleMessage: "Tilføj en kort titel til din idé.",
-    thanksTitle: "Tak!",
-    thanksMessage:
-      "Dit forslag er på tavlen. Stem på andre idéer, du vil have, at vi prioriterer.",
     somethingWentWrong: "Noget gik galt",
-    couldNotSendSuggestion: "Kunne ikke sende dit forslag.",
     couldNotUploadScreenshot: "Kunne ikke uploade skærmbillede. Prøv igen.",
     tapForDetails: "Tryk for detaljer",
     voteA11y: "Stem, {{count}} stemmer",

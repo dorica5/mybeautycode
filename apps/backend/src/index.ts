@@ -21,6 +21,7 @@ import { salonRoutes } from "./routes/salons";
 import { professionalAnalyticsRoutes } from "./routes/professionalAnalytics";
 import { feedbackRoutes } from "./routes/feedback";
 import { billingRoutes } from "./routes/billing";
+import { slackRoutes } from "./routes/slack";
 import { logSlackFeedbackStatus } from "./lib/slackEnv";
 import { billingConfig } from "./config/billingConfig";
 
@@ -37,6 +38,9 @@ const io = new Server(httpServer, {
 setupSocket(io);
 
 app.use(cors());
+
+app.use("/api/slack", slackRoutes);
+
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
