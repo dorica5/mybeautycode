@@ -879,7 +879,7 @@ export const en = {
     limitReachedCreate:
       "You've used all {{limit}} free visits. Subscribe to add more visits.",
     limitReachedView:
-      "You've used all {{limit}} free visits. Subscribe to view visit history.",
+      "You've used all {{limit}} free visits. You can still view visits you created. Subscribe to add more visits and see full client history from other professionals.",
     subscribeToContinue: "View plans",
     upgradeAnytimeHint: "Tap to view plans and upgrade early",
     discoveryFreeNote: "Map search and discovery stay free.",

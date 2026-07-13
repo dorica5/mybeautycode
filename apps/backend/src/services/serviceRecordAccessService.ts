@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { isBlockedPairForLane } from "../lib/blockDiscoveryHelpers";
+import { billingService } from "./billingService";
 import { professionService } from "./professionService";
 
 /** Strip legacy public/signed URL to object path (same idea as mobile `normalizeStorageObjectPath`). */
@@ -100,6 +101,21 @@ export const serviceRecordAccessService = {
         statusCode: 404 as const,
       });
     }
+
+    if (record.clientUserId !== viewerProfileId) {
+      const viewerPP = await prisma.professionalProfile.findUnique({
+        where: { profileId: viewerProfileId },
+        select: { id: true },
+      });
+      const isOwnVisit =
+        viewerPP != null &&
+        record.professionalProfileId != null &&
+        record.professionalProfileId === viewerPP.id;
+      if (viewerPP && !isOwnVisit) {
+        await billingService.assertProCanViewVisits(viewerProfileId);
+      }
+    }
+
     const ok = await this.canAccessServiceRecord(viewerProfileId, record);
     if (!ok) {
       throw Object.assign(new Error("Forbidden"), { statusCode: 403 as const });

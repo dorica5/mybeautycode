@@ -1,5 +1,5 @@
 /* eslint-disable react/react-in-jsx-scope */
-import Logo from "../../../assets/images/myBeautyCode_logo.svg";
+import { BrandLogo } from "@/src/components/BrandLogo";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
@@ -47,7 +47,7 @@ const Splash = () => {
             }
             delayLongPress={500}
           >
-            <Logo width={logoSize.width} height={logoSize.height} />
+            <BrandLogo width={logoSize.width} height={logoSize.height} />
           </Pressable>
         </View>
 

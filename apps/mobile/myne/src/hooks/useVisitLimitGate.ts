@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { useBilling } from "@/src/providers/BillingProvider";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
-export type VisitBillingAction = "create" | "view";
+export type VisitBillingAction = "create" | "view-shared";
 
 export function useVisitLimitGate(action: VisitBillingAction) {
   const { billing, loading } = useBilling();
@@ -12,7 +12,9 @@ export function useVisitLimitGate(action: VisitBillingAction) {
 
   const blocked =
     billing != null &&
-    !(action === "create" ? billing.canCreateVisit : billing.canViewVisits);
+    !(action === "create"
+      ? billing.canCreateVisit
+      : billing.canViewVisits);
 
   const openPaywall = useCallback(() => {
     router.push({

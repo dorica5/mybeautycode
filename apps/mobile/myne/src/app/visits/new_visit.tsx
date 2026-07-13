@@ -192,7 +192,7 @@ const NewVisit = () => {
   const { t } = useI18n();
   const params = useLocalSearchParams();
   const isEditing = Boolean(params.haircodeId);
-  useVisitScreenGate(isEditing ? "view" : "create");
+  useVisitScreenGate("create", !isEditing);
   const editHaircodeId = firstRouteParam(
     params.haircodeId as string | string[] | undefined
   );

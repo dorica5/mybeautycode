@@ -2,16 +2,15 @@ import { useMemo } from "react";
 import { useWindowDimensions } from "react-native";
 import { responsiveScale } from "@/src/utils/responsive";
 
-/** Same dimensions as Splash so auth screens feel continuous. */
+/** appstore.svg / appstore.png — same sizing across Splash, auth, and loading screens. */
 export function useBeautyCodeLogoSize() {
   const { width: windowWidth } = useWindowDimensions();
 
   return useMemo(() => {
-    const w = Math.min(responsiveScale(330, 440), windowWidth * 0.92);
-    const h = Math.round((w * 72) / 200);
+    const size = Math.min(responsiveScale(200, 260), windowWidth * 0.5);
     return {
-      width: w,
-      height: Math.max(h, responsiveScale(108, 138)),
+      width: size,
+      height: size,
     };
   }, [windowWidth]);
 }

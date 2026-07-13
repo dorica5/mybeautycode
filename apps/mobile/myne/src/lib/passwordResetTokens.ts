@@ -3,13 +3,6 @@ export type PasswordResetTokens = {
   refresh_token: string;
 };
 
-/** True in Metro dev or when explicitly enabled on preview/internal builds. */
-export function isPasswordResetDevToolsEnabled(): boolean {
-  return (
-    __DEV__ || process.env.EXPO_PUBLIC_DEV_PASSWORD_RESET === "true"
-  );
-}
-
 /**
  * Extracts Supabase recovery tokens from a reset email link.
  * Supports hash fragments (#access_token=…) and query strings.

@@ -37,8 +37,8 @@
       "softwareKeyboardLayoutMode": "resize",
       "screenOrientation": "portrait",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/android_icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/android_adaptive_foreground.png",
+        "backgroundColor": "#B2DCC5"
       },
       "versionCode": 1,
       "package": "com.dorica.myne",

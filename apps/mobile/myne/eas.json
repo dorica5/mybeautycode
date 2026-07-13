@@ -5,7 +5,6 @@
   },
   "build": {
     "development": {
-      "prebuildCommand": "npm run generate-app-icons",
       "developmentClient": true,
       "distribution": "internal",
       "ios": { "credentialsSource": "remote" },
@@ -20,7 +19,6 @@
       }
     },
     "preview": {
-      "prebuildCommand": "npm run generate-app-icons",
       "distribution": "internal",
       "ios": { "credentialsSource": "remote" },
       "android": {
@@ -34,7 +32,6 @@
       }
     },
     "production": {
-      "prebuildCommand": "npm run generate-app-icons",
       "autoIncrement": true,
       "ios": { "credentialsSource": "remote" },
       "android": {

@@ -1,5 +1,5 @@
 /* eslint-disable react/react-in-jsx-scope */
-import Logo from "../../../assets/images/myBeautyCode_logo.svg";
+import { BrandLogo } from "@/src/components/BrandLogo";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { PrimaryOutlineTextField } from "@/src/components/PrimaryOutlineTextField";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
@@ -237,7 +237,7 @@ const SignUp = () => {
             />
 
             <View style={styles.logoBlock}>
-              <Logo width={logoSize.width} height={logoSize.height} />
+              <BrandLogo width={logoSize.width} height={logoSize.height} />
             </View>
 
             <View style={styles.formBlock}>

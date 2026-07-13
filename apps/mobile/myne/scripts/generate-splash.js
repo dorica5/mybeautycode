@@ -1,6 +1,6 @@
 /**
- * Regenerates assets/images/splash.png for Expo's native splash (Expo Go reload, cold start).
- * Requires: npm install sharp (devDependency or one-off).
+ * Regenerates assets/images/splash.png for Expo's native splash.
+ * Source: assets/android_icon.svg (same as the app icon).
  */
 const path = require("path");
 const sharp = require("sharp");
@@ -12,17 +12,20 @@ const H = 2778;
 
 async function main() {
   const root = path.join(__dirname, "..");
-  const svgPath = path.join(root, "assets/images/myBeautyCode_logo.svg");
+  const svgPath = path.join(root, "assets/android_icon.svg");
   const outPath = path.join(root, "assets/images/splash.png");
 
-  const logoWidth = Math.round(W * 0.72);
-  const logoBuf = await sharp(svgPath).resize({ width: logoWidth }).png().toBuffer();
+  const logoWidth = Math.round(W * 0.42);
+  const logoBuf = await sharp(svgPath)
+    .resize({ width: logoWidth, height: logoWidth, fit: "contain" })
+    .png()
+    .toBuffer();
 
   const meta = await sharp(logoBuf).metadata();
   const lw = meta.width ?? logoWidth;
   const lh = meta.height ?? logoWidth;
   const left = Math.round((W - lw) / 2);
-  const top = Math.round((H - lh) / 2 - H * 0.045);
+  const top = Math.round((H - lh) / 2);
 
   await sharp({
     create: {

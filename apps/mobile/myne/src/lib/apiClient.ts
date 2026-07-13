@@ -59,11 +59,13 @@ async function getBearerToken(): Promise<string | undefined> {
   return session.access_token;
 }
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
+async function getAuthHeaders(
+  accessTokenOverride?: string
+): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  const token = await getBearerToken();
+  const token = accessTokenOverride ?? (await getBearerToken());
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
@@ -94,10 +96,11 @@ async function fetchWithTimeout(
 /** One retry after Supabase refresh — fixes expired JWT ("exp" check failed on backend). */
 async function fetchWithSessionRefresh(
   path: string,
-  init: RequestInit
+  init: RequestInit,
+  accessTokenOverride?: string
 ): Promise<Response> {
   const url = `${API_URL}${path}`;
-  const auth = await getAuthHeaders();
+  const auth = await getAuthHeaders(accessTokenOverride);
   const merged: Record<string, string> = {
     ...auth,
     ...(init.headers as Record<string, string> | undefined),
@@ -172,11 +175,19 @@ export const api = {
     return handleResponse(res) as Promise<T>;
   },
 
-  async post<T = unknown>(path: string, body?: unknown): Promise<T> {
-    const res = await fetchWithSessionRefresh(path, {
-      method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
-    });
+  async post<T = unknown>(
+    path: string,
+    body?: unknown,
+    opts?: { accessToken?: string }
+  ): Promise<T> {
+    const res = await fetchWithSessionRefresh(
+      path,
+      {
+        method: "POST",
+        body: body ? JSON.stringify(body) : undefined,
+      },
+      opts?.accessToken
+    );
     return handleResponse(res) as Promise<T>;
   },
 

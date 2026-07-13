@@ -875,7 +875,7 @@ export const sv: AppLocaleMessages = {
     limitReachedCreate:
       "Du har använt alla {{limit}} gratis besök. Prenumerera för att lägga till fler.",
     limitReachedView:
-      "Du har använt alla {{limit}} gratis besök. Prenumerera för att se besökshistorik.",
+      "Du har använt alla {{limit}} gratis besök. Du kan fortfarande se besök du skapat. Prenumerera för att lägga till fler och se full kundhistorik från andra yrkesutövare.",
     subscribeToContinue: "Se planer",
     discoveryFreeNote: "Kartsökning och upptäckt förblir gratis.",
     usageTitle: "Besöksanvändning",

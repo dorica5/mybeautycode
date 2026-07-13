@@ -940,24 +940,26 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   }, [session?.user?.id, profile?.setup_status]);
 
   useEffect(() => {
-    if (session?.user?.id) {
-      console.log("Registering push notifications for user:", session.user.id);
-      try {
-        registerForPushNotificationAsync(session.user.id)
-          .then((token) => {
-            if (token) {
-              console.log("Successfully registered token:", token);
-              setExpoPushToken(token as any);
-            }
-          })
-          .catch((error) => {
-            console.error("Failed to register for push notifications:", error);
-          });
-      } catch (error) {
-        console.error("Error in push notification registration:", error);
-      }
+    const userId = session?.user?.id;
+    const accessToken = session?.access_token;
+    if (!userId || !accessToken || loading) return;
+
+    console.log("Registering push notifications for user:", userId);
+    try {
+      registerForPushNotificationAsync(userId, accessToken)
+        .then((token) => {
+          if (token) {
+            console.log("Successfully registered token:", token);
+            setExpoPushToken(token as any);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to register for push notifications:", error);
+        });
+    } catch (error) {
+      console.error("Error in push notification registration:", error);
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, session?.access_token, loading]);
 
   useEffect(() => {
     setApiOn401(() => signOut());

@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { CheckCircle } from "phosphor-react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import Logo from "../../../assets/images/myBeautyCode_logo.svg";
+import { BrandLogo } from "@/src/components/BrandLogo";
 import { Typography } from "@/src/constants/Typography";
 import {
   primaryBlack,
@@ -192,6 +192,8 @@ const Paywall = () => {
       await syncFromRevenueCat(info);
       await refreshBilling();
       Alert.alert(t("profile.restorePurchases"), t("paywall.restoreSuccess"));
+      if (router.canGoBack()) router.back();
+      else router.replace("/(professional)/(tabs)/home");
     } catch (e) {
       const msg = e instanceof Error ? e.message : t("paywall.purchaseFailed");
       Alert.alert(t("common.error"), msg);
@@ -279,7 +281,10 @@ const Paywall = () => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Logo width={logoSize.width * 0.72} height={logoSize.height * 0.72} />
+          <BrandLogo
+            width={logoSize.width * 0.72}
+            height={logoSize.height * 0.72}
+          />
 
           <Text style={[Typography.h3, styles.h1]}>
             {t("paywall.tryProTitle")}

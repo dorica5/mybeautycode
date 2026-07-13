@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import * as Notifications from "expo-notifications";
 import { api } from "@/src/lib/apiClient";
 import { supabase } from "@/src/lib/supabase";
-import { router } from "expo-router";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { getExpoPushTokenSafe } from "@/src/lib/pushRegistration";
 
@@ -11,25 +10,82 @@ export interface PushNotification {
   expoPushToken: Notifications.ExpoPushToken;
 }
 
+const ACCESS_TOKEN_RETRY_MS = 400;
+const ACCESS_TOKEN_MAX_ATTEMPTS = 8;
+
+/** Session can lag behind AuthProvider state right after sign-up / permission dialogs. */
+async function resolveAccessToken(
+  hint?: string
+): Promise<string | undefined> {
+  if (hint?.trim()) return hint.trim();
+
+  for (let attempt = 0; attempt < ACCESS_TOKEN_MAX_ATTEMPTS; attempt++) {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (token) return token;
+
+    if (attempt === 2 || attempt === 5) {
+      const { data: refreshed, error } = await supabase.auth.refreshSession();
+      if (!error && refreshed.session?.access_token) {
+        return refreshed.session.access_token;
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, ACCESS_TOKEN_RETRY_MS));
+  }
+
+  return undefined;
+}
+
 export const saveTokenToDatabase = async (
   token: Notifications.ExpoPushToken,
-  _userId: string
+  _userId: string,
+  accessTokenHint?: string
 ) => {
   if (!token?.data) return;
-  try {
-    await api.post("/api/notifications/push-token", { token: token.data });
-  } catch (error) {
-    console.error("Error saving push token:", error);
+
+  let hint = accessTokenHint;
+  for (let attempt = 0; attempt < ACCESS_TOKEN_MAX_ATTEMPTS; attempt++) {
+    const accessToken = await resolveAccessToken(hint);
+    if (!accessToken) {
+      await new Promise((resolve) => setTimeout(resolve, ACCESS_TOKEN_RETRY_MS));
+      hint = undefined;
+      continue;
+    }
+
+    try {
+      await api.post(
+        "/api/notifications/push-token",
+        { token: token.data },
+        { accessToken }
+      );
+      return;
+    } catch (error) {
+      const status = (error as Error & { status?: number }).status;
+      if (status === 401 && attempt < ACCESS_TOKEN_MAX_ATTEMPTS - 1) {
+        await supabase.auth.refreshSession();
+        hint = undefined;
+        await new Promise((resolve) => setTimeout(resolve, ACCESS_TOKEN_RETRY_MS));
+        continue;
+      }
+      console.error("Error saving push token:", error);
+      return;
+    }
   }
+
+  console.error("Error saving push token: no auth session");
 };
 
-export const registerForPushNotificationAsync = async (userId: string) => {
+export const registerForPushNotificationAsync = async (
+  userId: string,
+  accessTokenHint?: string
+) => {
   if (!userId) return null;
 
   const token = await getExpoPushTokenSafe();
   if (!token) return null;
 
-  await saveTokenToDatabase(token, userId);
+  await saveTokenToDatabase(token, userId, accessTokenHint);
   return token;
 };
 
@@ -153,20 +209,22 @@ export const useNotifications = (passedSession?: any) => {
 
   // Register for push notifications if we have a session
   useEffect(() => {
-    if (session?.user?.id) {
-      console.log("Registering push notifications for user:", session.user.id);
-      registerForPushNotificationAsync(session.user.id)
-        .then(token => {
-          if (token) {
-            console.log("Successfully registered token:", token);
-            setExpoPushToken(token);
-          }
-        })
-        .catch(error => {
-          console.error("Failed to register for push notifications:", error);
-        });
-    }
-  }, [session?.user?.id]);
+    const userId = session?.user?.id;
+    const accessToken = session?.access_token;
+    if (!userId || !accessToken) return;
+
+    console.log("Registering push notifications for user:", userId);
+    registerForPushNotificationAsync(userId, accessToken)
+      .then((token) => {
+        if (token) {
+          console.log("Successfully registered token:", token);
+          setExpoPushToken(token);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to register for push notifications:", error);
+      });
+  }, [session?.user?.id, session?.access_token]);
 
   // Set up notification listeners
   useEffect(() => {

@@ -73,7 +73,6 @@ function firstRouteParam(
 const VisitList = () => {
   const { t } = useI18n();
   const { guard: guardCreateVisit } = useVisitLimitGate("create");
-  const { guard: guardViewVisits } = useVisitLimitGate("view");
   const moderationDetailCopy = useModerationDetailCopy();
   const {
     id: client_id,
@@ -512,7 +511,6 @@ const VisitList = () => {
                     !navProfessionReady && { opacity: 0.45 },
                   ]}
                   onPress={() => {
-                    if (!guardViewVisits()) return;
                     router.push({
                       pathname: "/visits/see_visits",
                       params: {
@@ -542,7 +540,6 @@ const VisitList = () => {
                     !navProfessionReady && { opacity: 0.45 },
                   ]}
                   onPress={() => {
-                    if (!guardViewVisits()) return;
                     router.push({
                       pathname: "/visits/view_gallery",
                       params: {

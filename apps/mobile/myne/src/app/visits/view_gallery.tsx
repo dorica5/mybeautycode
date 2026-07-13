@@ -44,7 +44,6 @@ import {
 } from "@/src/utils/responsive";
 import { Images, Play } from "phosphor-react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
-import { useVisitScreenGate } from "@/src/hooks/useVisitScreenGate";
 
 const NUM_COLUMNS = 2;
 
@@ -109,7 +108,6 @@ function GalleryGridVideoThumb({
 
 const ViewGallery = () => {
   const { t } = useI18n();
-  useVisitScreenGate("view");
   const queryClient = useQueryClient();
   const { clientId, clientName, professionCode: professionCodeParam } =
     useLocalSearchParams();

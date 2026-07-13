@@ -4,7 +4,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import Logo from "../../../assets/images/myBeautyCode_logo.svg";
+import { BrandLogo } from "@/src/components/BrandLogo";
 import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import { MintSpinningWheel } from "@/src/components/MintSpinningWheel";
 import { Typography } from "@/src/constants/Typography";
@@ -69,7 +69,7 @@ const LoadingScreen = ({
         {/* Single cluster, optically lifted slightly above geometric center (reads calmer on tall phones). */}
         <View style={styles.centerWrap}>
           <View style={styles.cluster}>
-            <Logo width={logoSize.width} height={logoSize.height} />
+            <BrandLogo width={logoSize.width} height={logoSize.height} />
 
             <View style={styles.copy}>
               <Text style={[Typography.ag20, styles.headline]}>

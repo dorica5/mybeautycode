@@ -33,7 +33,7 @@ export function ProVisitQuotaChip({
 }: ProVisitQuotaChipProps) {
   const { billing, loading } = useBilling();
   const { t } = useI18n();
-  const { openPaywall } = useVisitLimitGate("view");
+  const { openPaywall } = useVisitLimitGate("view-shared");
 
   if (loading || !billing?.isProfessional) return null;
 

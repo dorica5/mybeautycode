@@ -877,7 +877,7 @@ export const da: AppLocaleMessages = {
     limitReachedCreate:
       "Du har brugt alle {{limit}} gratis besøg. Abonner for at tilføje flere.",
     limitReachedView:
-      "Du har brugt alle {{limit}} gratis besøg. Abonner for at se besøgshistorik.",
+      "Du har brugt alle {{limit}} gratis besøg. Du kan stadig se besøg, du har oprettet. Abonner for at tilføje flere og se fuld kundehistorik fra andre professionelle.",
     subscribeToContinue: "Se planer",
     discoveryFreeNote: "Kortsøgning og opdagelse forbliver gratis.",
     usageTitle: "Besøgsforbrug",

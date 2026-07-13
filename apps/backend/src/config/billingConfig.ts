@@ -47,7 +47,10 @@ export type ProBillingStatusPayload = {
   remainingFreeVisits: number;
   hasActiveSubscription: boolean;
   canCreateVisit: boolean;
+  /** Full client history, including visits from other professionals. */
   canViewVisits: boolean;
+  /** Own visits remain readable after the free limit. */
+  canViewOwnVisits: boolean;
   atVisitLimit: boolean;
   monthlyPriceNok: number;
   entitlementExpiresAt: string | null;
