@@ -6,12 +6,13 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { Stack } from "expo-router";
+import { Stack, useFocusEffect } from "expo-router";
 import { CaretUp, Images, X } from "phosphor-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -162,7 +163,8 @@ function FeedbackBoardRow({
 
 export default function FeedbackScreen() {
   const { t } = useI18n();
-  const { data: items = [], isPending, isError, refetch } = useFeedbackBoard();
+  const { data: items = [], isPending, isError, refetch, isRefetching } =
+    useFeedbackBoard();
   const submitMutation = useSubmitFeedback();
   const voteMutation = useToggleFeedbackVote();
 
@@ -194,6 +196,12 @@ export default function FeedbackScreen() {
       hideSub.remove();
     };
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refetch();
+    }, [refetch])
+  );
 
   const descriptionChars = description.length;
   const canSubmit =
@@ -327,6 +335,13 @@ export default function FeedbackScreen() {
             },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefetching && !isPending}
+            onRefresh={() => void refetch()}
+            tintColor={primaryBlack}
+          />
+        }
       >
         <Text style={[Typography.body, styles.intro]}>
           {t("feedback.intro")}

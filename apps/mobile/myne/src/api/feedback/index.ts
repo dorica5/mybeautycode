@@ -54,7 +54,8 @@ export function useFeedbackBoard() {
   return useQuery({
     queryKey: feedbackQueryKey,
     queryFn: fetchFeedbackBoard,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 

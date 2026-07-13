@@ -86,9 +86,10 @@ export const slackController = {
 
     void (async () => {
       try {
-        if (!action?.action_id || !action.value) return;
+        if (!action?.action_id) return;
 
         if (action.action_id === "report_remove_account") {
+          if (!action.value) return;
           const parts = action.value.split("|");
           const reportedId = parts[1]?.trim();
           if (!reportedId) return;
@@ -110,6 +111,7 @@ export const slackController = {
           action.action_id === "report_dismiss" ||
           action.action_id === "report_reviewed"
         ) {
+          if (!action.value) return;
           const reportId = action.value.trim();
           const status =
             action.action_id === "report_dismiss" ? "dismissed" : "reviewed";
@@ -124,8 +126,7 @@ export const slackController = {
         }
 
         if (action.action_id === "feedback_set_status") {
-          const raw =
-            action.selected_option?.value?.trim() ?? action.value?.trim();
+          const raw = action.selected_option?.value?.trim();
           if (!raw) return;
           const [itemId, statusRaw] = raw.split("|");
           if (!itemId || !statusRaw) return;
