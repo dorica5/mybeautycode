@@ -14,14 +14,11 @@
       "backgroundColor": "#B2DCC5"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "requireFullScreen": true,
       "bundleIdentifier": "com.dorica.myne",
       "infoPlist": {
         "UISupportedInterfaceOrientations": [
-          "UIInterfaceOrientationPortrait"
-        ],
-        "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationPortrait"
         ],
         "ITSAppUsesNonExemptEncryption": false,
