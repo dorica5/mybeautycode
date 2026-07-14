@@ -39,7 +39,7 @@ const _layout = () => {
   useEffect(() => {
     loadUnreadNotifications();
 
-    const interval = setInterval(loadUnreadNotifications, 2000);
+    const interval = setInterval(loadUnreadNotifications, 60_000);
 
     return () => clearInterval(interval);
   }, [loadUnreadNotifications]);

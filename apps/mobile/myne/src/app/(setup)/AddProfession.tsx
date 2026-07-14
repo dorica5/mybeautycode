@@ -58,7 +58,7 @@ const AddProfession = () => {
   const { profile, loading } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
 
-  useRefreshProfileOnFocus();
+  useRefreshProfileOnFocus({ eager: true });
   const insets = useSafeAreaInsets();
   const [selected, setSelected] = useState<ProfessionChoiceCode | null>(null);
 

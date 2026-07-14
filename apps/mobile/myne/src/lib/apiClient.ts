@@ -72,7 +72,8 @@ async function getAuthHeaders(
   return headers;
 }
 
-const REQUEST_TIMEOUT_MS = 20_000;
+/** Long enough for cold starts; short enough that retries don't stack into minutes. */
+const REQUEST_TIMEOUT_MS = 10_000;
 
 /** Avoid hanging forever on unreachable API hosts (common wrong localhost on device). */
 async function fetchWithTimeout(

@@ -221,7 +221,7 @@ export const NotificationItem = ({
     if (isRejectedLink) return;
 
     if (isAcceptedLink) {
-      await markAsRead();
+      void markAsRead();
 
       /** Client added this pro — sender is the client, not a hairdresser. */
       if (isClientInitiatedLink) {
@@ -276,7 +276,7 @@ export const NotificationItem = ({
       return;
     }
 
-    await markAsRead();
+    void markAsRead();
     console.log("Handling notification type:", notification.type);
 
     switch (notification.type) {

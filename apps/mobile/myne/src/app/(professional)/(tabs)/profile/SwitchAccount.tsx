@@ -96,7 +96,7 @@ const SwitchAccountScreen = () => {
     string | null
   >(null);
 
-  useRefreshProfileOnFocus();
+  useRefreshProfileOnFocus({ eager: true });
 
   useFocusEffect(
     useCallback(() => {

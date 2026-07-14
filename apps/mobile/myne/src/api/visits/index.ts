@@ -252,12 +252,11 @@ export const useLatestHaircodes = (
         throw e;
       }
     },
-    staleTime: 0,
+    staleTime: 60_000,
     gcTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     refetchOnMount: true,
-    refetchInterval: 30000,
     enabled:
       Boolean(hairdresserId) && Boolean(code) && ready,
     retry: 1,

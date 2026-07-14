@@ -467,13 +467,25 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       return;
     }
 
-    /** Profile/status — runs after session is known; Splash and auth shells can navigate while this resolves. */
-    setLoadingProfile(true);
+    const userId = sessionSnap.user.id as string;
+    const cachedProfile = await readCachedProfile(userId);
+    const hydratedFromCache = Boolean(cachedProfile);
+    if (cachedProfile) {
+      setProfile(cachedProfile);
+      setProfileConnectionError(false);
+      setLoadingProfile(false);
+      initialLoadComplete.current = true;
+    }
+
+    /** Profile/status — cache paints UI first; network refresh runs without blocking tabs. */
+    if (!hydratedFromCache) {
+      setLoadingProfile(true);
+    }
     try {
-      let profileData: Profile | null = null;
+      let profileData: Profile | null = hydratedFromCache ? cachedProfile : null;
       let profileError: unknown = null;
-      /** Retries: 404 (profile row lag), 5xx (cold start / transient DB). */
-      for (let attempt = 0; attempt < 6; attempt++) {
+      /** Retries: 404 (profile row lag), 5xx (cold start). Timeouts fail fast — no retry storm. */
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
           profileData = (await api.get("/api/auth/me")) as Profile;
           profileError = null;
@@ -483,6 +495,12 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           const err = e as Error & { status?: number };
           const status = err.status;
           const msg = (err.message ?? "").toLowerCase();
+          const timedOut =
+            msg.includes("timed out") ||
+            msg.includes("timeout") ||
+            msg.includes("aborted") ||
+            msg.includes("abort");
+          if (timedOut) break;
           const noProfileYet =
             status === 404 ||
             msg.includes("profile not found") ||
@@ -493,11 +511,11 @@ export default function AuthProvider({ children }: PropsWithChildren) {
             status === 503 ||
             msg.includes("failed to fetch profile") ||
             isTransientNetworkFailure(msg);
-          if (isTransientNetworkFailure(msg) && attempt >= 2) {
+          if (isTransientNetworkFailure(msg) && attempt >= 1) {
             break;
           }
-          if ((noProfileYet || transient) && attempt < 5) {
-            const delay = transient ? 650 * (attempt + 1) : 350 * (attempt + 1);
+          if ((noProfileYet || transient) && attempt < 2) {
+            const delay = transient ? 500 * (attempt + 1) : 300 * (attempt + 1);
             await new Promise((r) => setTimeout(r, delay));
             continue;
           }
@@ -506,6 +524,10 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       let profileResolvedMissing = false;
+
+      if (!profileData && profileError && hydratedFromCache) {
+        return;
+      }
 
       if (!profileData && profileError) {
         const err = profileError as Error & { status?: number };
@@ -563,29 +585,44 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       profileRetryCountRef.current = 0;
 
       if (profileData) {
-        const status = await checkUserStatus(sessionSnap.user.id as string);
-        setUserStatus(status);
-
-        if (status && !status.can_act) {
-          const wasHandled = handleRestrictedUser(status);
-          if (wasHandled && status.is_banned) {
-            return;
-          }
-        }
-      }
-
-      if (profileData) {
         setProfileMissingConfirmed(false);
-        profileData = await ensureSetupStatusPersisted(
-          sessionSnap.user.id as string,
-          profileData as Profile
-        );
         setProfile(profileData as Profile);
         const setupComplete = profileSetupIsComplete(profileData as Profile);
         setIsSignUp(!setupComplete);
-        await writeCachedProfile(sessionSnap.user.id as string, profileData as Profile);
+        void writeCachedProfile(sessionSnap.user.id as string, profileData as Profile);
         lastProfileRefreshAtRef.current = Date.now();
-        await syncSignupDate(sessionSnap, profileData);
+
+        void (async () => {
+          try {
+            const status = await checkUserStatus(sessionSnap.user.id as string);
+            setUserStatus(status);
+            if (status && !status.can_act) {
+              handleRestrictedUser(status);
+            }
+          } catch (e) {
+            console.warn("checkUserStatus failed", e);
+          }
+        })();
+
+        void (async () => {
+          try {
+            const synced = await ensureSetupStatusPersisted(
+              sessionSnap.user.id as string,
+              profileData as Profile
+            );
+            if (synced !== profileData) {
+              setProfile(synced);
+              await writeCachedProfile(sessionSnap.user.id as string, synced);
+            }
+          } catch (e) {
+            console.warn("ensureSetupStatusPersisted failed", e);
+          }
+        })();
+
+        void syncSignupDate(sessionSnap, profileData).catch((e) => {
+          console.warn("syncSignupDate failed", e);
+        });
+
         try {
           postHog.capture("App Opened", {
             role:
@@ -617,7 +654,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       const now = Date.now();
       if (
         !opts?.bypassDebounce &&
-        now - lastProfileRefreshAtRef.current < 3000
+        now - lastProfileRefreshAtRef.current < 30_000
       ) {
         return;
       }
@@ -1070,29 +1107,17 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     void refreshProfile({ bypassDebounce: true });
   }, [loadingSetup, session?.user?.id, refreshProfile]);
 
-  /** Sync linked profession accounts added on another device (same login). */
+  /** Sync linked profession accounts when returning from background (debounced). */
   useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       appStateRef.current = state;
-      if (state === "active" && session?.user?.id) {
-        void refreshProfile({ bypassDebounce: true });
-      }
+      if (state !== "active" || !session?.user?.id) return;
+      const since = Date.now() - lastProfileRefreshAtRef.current;
+      if (since < 90_000) return;
+      void refreshProfile();
     });
     return () => sub.remove();
   }, [session?.user?.id, refreshProfile]);
-
-  /** Poll while the app is open so another device’s new profession lanes appear without a reload. */
-  useEffect(() => {
-    if (!session?.user?.id || !profileSetupIsComplete(profile)) return;
-
-    const interval = setInterval(() => {
-      if (appStateRef.current === "active") {
-        void refreshProfile();
-      }
-    }, 30_000);
-
-    return () => clearInterval(interval);
-  }, [session?.user?.id, profile?.setup_status, refreshProfile]);
 
   useSyncSignupDate();
 

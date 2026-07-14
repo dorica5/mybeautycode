@@ -10,6 +10,8 @@ import { isUuid } from "@/src/utils/isUuid";
 const SEARCH_QUERY_OPTIONS = {
   retry: 1,
   retryDelay: 400,
+  staleTime: 120_000,
+  gcTime: 10 * 60 * 1000,
 } as const;
 
 export async function requestClientLink(

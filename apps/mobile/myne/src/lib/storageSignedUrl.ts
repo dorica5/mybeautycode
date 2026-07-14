@@ -24,25 +24,68 @@ export function normalizeStorageObjectPath(
   return s;
 }
 
+type CacheEntry = { url: string; expiresAt: number };
+const signedUrlCache = new Map<string, CacheEntry>();
+const inFlightSigned = new Map<string, Promise<string | null>>();
+/** Reuse signed URLs across list rows; refresh before typical 1h expiry. */
+const SIGNED_URL_CACHE_MS = 50 * 60 * 1000;
+
+function cacheKey(bucket: string, path: string): string {
+  return `${bucket}:${path}`;
+}
+
+function readCachedSignedUrl(key: string): string | null {
+  const hit = signedUrlCache.get(key);
+  if (!hit) return null;
+  if (hit.expiresAt <= Date.now()) {
+    signedUrlCache.delete(key);
+    return null;
+  }
+  return hit.url;
+}
+
+function writeCachedSignedUrl(key: string, url: string): void {
+  signedUrlCache.set(key, {
+    url,
+    expiresAt: Date.now() + SIGNED_URL_CACHE_MS,
+  });
+}
+
 export async function fetchSignedStorageUrl(
   bucket: string,
   path: string
 ): Promise<string | null> {
   const safe = normalizeStorageObjectPath(bucket, path);
   if (!safe) return null;
-  try {
-    const q = new URLSearchParams({
-      bucket,
-      path: safe,
-    });
-    const data = await api.get<{ signedUrl?: string }>(
-      `/api/storage/signed-url?${q.toString()}`
-    );
-    return data?.signedUrl ?? null;
-  } catch (e) {
-    console.warn("fetchSignedStorageUrl:", bucket, e);
-    return null;
-  }
+  const key = cacheKey(bucket, safe);
+  const cached = readCachedSignedUrl(key);
+  if (cached) return cached;
+
+  const pending = inFlightSigned.get(key);
+  if (pending) return pending;
+
+  const run = (async () => {
+    try {
+      const q = new URLSearchParams({
+        bucket,
+        path: safe,
+      });
+      const data = await api.get<{ signedUrl?: string }>(
+        `/api/storage/signed-url?${q.toString()}`
+      );
+      const url = data?.signedUrl ?? null;
+      if (url) writeCachedSignedUrl(key, url);
+      return url;
+    } catch (e) {
+      console.warn("fetchSignedStorageUrl:", bucket, e);
+      return null;
+    } finally {
+      inFlightSigned.delete(key);
+    }
+  })();
+
+  inFlightSigned.set(key, run);
+  return run;
 }
 
 /** Max items per request — must stay within backend /sign-batch limit. */
@@ -56,21 +99,44 @@ export async function fetchSignedStorageUrls(
     bucket,
     path: normalizeStorageObjectPath(bucket, path) ?? "",
   }));
-  const out: (string | null)[] = [];
-  for (let i = 0; i < normalized.length; i += SIGN_BATCH_SIZE) {
-    const chunk = normalized.slice(i, i + SIGN_BATCH_SIZE);
+
+  const out: (string | null)[] = new Array(normalized.length).fill(null);
+  const toFetch: { index: number; bucket: string; path: string }[] = [];
+
+  normalized.forEach((item, index) => {
+    if (!item.path) {
+      out[index] = null;
+      return;
+    }
+    const key = cacheKey(item.bucket, item.path);
+    const cached = readCachedSignedUrl(key);
+    if (cached) {
+      out[index] = cached;
+      return;
+    }
+    toFetch.push({ index, bucket: item.bucket, path: item.path });
+  });
+
+  for (let i = 0; i < toFetch.length; i += SIGN_BATCH_SIZE) {
+    const chunk = toFetch.slice(i, i + SIGN_BATCH_SIZE);
     try {
       const data = await api.post<{ urls?: (string | null)[] }>(
         "/api/storage/sign-batch",
-        { items: chunk }
+        {
+          items: chunk.map((c) => ({ bucket: c.bucket, path: c.path })),
+        }
       );
       const urls = data?.urls ?? chunk.map(() => null);
-      out.push(...urls);
+      chunk.forEach((c, j) => {
+        const url = urls[j] ?? null;
+        out[c.index] = url;
+        if (url) writeCachedSignedUrl(cacheKey(c.bucket, c.path), url);
+      });
     } catch (e) {
       console.warn("fetchSignedStorageUrls:", e);
-      out.push(...chunk.map(() => null));
     }
   }
+
   return out;
 }
 

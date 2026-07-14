@@ -5,8 +5,6 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useImageContext } from "@/src/providers/ImageProvider";
 import { PublicProfessionalProfileView } from "@/src/components/PublicProfessionalProfileView";
 import { primaryGreen } from "@/src/constants/Colors";
-import type { ProfessionDetailApi } from "@/src/constants/types";
-import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import {
   resolveProfessionalFullName,
@@ -15,8 +13,10 @@ import {
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 import { resolveLaneAboutMe } from "@/src/lib/clientAboutMe";
 import {
-  laneScopedNullableField,
-  laneScopedTextField,
+  resolveLaneBusinessName,
+  resolveLaneBusinessPhone,
+  resolveLaneBusinessAddress,
+  professionDetailForCode,
 } from "@/src/lib/professionLaneFields";
 
 const ProfessionalProfile = () => {
@@ -33,17 +33,10 @@ const ProfessionalProfile = () => {
     [profile, activeProfessionCode]
   );
 
-  const detailForActive = useMemo(() => {
-    const rows = profile?.professions_detail;
-    const code = activeProfessionCode;
-    if (!rows?.length || !code) return null;
-    return (
-      rows.find(
-        (r: ProfessionDetailApi) =>
-          coerceProfessionCode(r.profession_code) === code
-      ) ?? null
-    );
-  }, [profile?.professions_detail, activeProfessionCode]);
+  const detailForActive = useMemo(
+    () => professionDetailForCode(profile, activeProfessionCode),
+    [profile, activeProfessionCode]
+  );
 
   const laneAvatarPath = useMemo(
     () => resolveAvatarStoragePath(profile, activeProfessionCode),
@@ -52,40 +45,13 @@ const ProfessionalProfile = () => {
 
   if (!profile?.id) return null;
 
-  const salonName =
-    laneScopedTextField(
-      detailForActive,
-      activeProfessionCode,
-      detailForActive?.business_name,
-      profile.salon_name
-    ) || null;
+  const salonName = resolveLaneBusinessName(profile, activeProfessionCode) || null;
   const aboutMe = resolveLaneAboutMe(detailForActive?.about_me) || null;
-  const salonPhone =
-    laneScopedTextField(
-      detailForActive,
-      activeProfessionCode,
-      detailForActive?.business_number,
-      profile.salon_phone_number
-    ) || null;
-  const bookingSite = laneScopedNullableField(
-    detailForActive,
-    activeProfessionCode,
-    detailForActive?.booking_site,
-    profile.booking_site
-  );
-  const socialMediaRaw = laneScopedNullableField(
-    detailForActive,
-    activeProfessionCode,
-    detailForActive?.social_media,
-    profile.social_media
-  );
-  const businessAddress =
-    laneScopedNullableField(
-      detailForActive,
-      activeProfessionCode,
-      detailForActive?.business_address,
-      profile.business_address
-    );
+  const salonPhone = resolveLaneBusinessPhone(profile, activeProfessionCode);
+  const bookingSite = detailForActive?.booking_site?.trim() || profile.booking_site?.trim() || null;
+  const socialMediaRaw =
+    detailForActive?.social_media?.trim() || profile.social_media?.trim() || null;
+  const businessAddress = resolveLaneBusinessAddress(profile, activeProfessionCode) || null;
 
   return (
     <>

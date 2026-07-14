@@ -23,11 +23,10 @@ import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
-import type { ProfessionDetailApi } from "@/src/constants/types";
 import {
-  coerceProfessionCode,
-  establishmentNoun,
-} from "@/src/constants/professionCodes";
+  resolveLaneBusinessAddress,
+} from "@/src/lib/professionLaneFields";
+import { establishmentNoun } from "@/src/constants/professionCodes";
 import { geocodeAddress, getGooglePlacesKey } from "@/src/lib/googlePlaces";
 
 import { useI18n } from "@/src/providers/LanguageProvider";
@@ -38,25 +37,13 @@ const SalonAddress = () => {
   const { storedProfessionReady, activeProfessionCode } =
     useActiveProfessionState(profile);
 
-  /**
-   * Strictly per-lane value. Do NOT fall back to `profile.business_address`:
-   * that top-level field is serialized from the default (hair-first) profession
-   * row, so using it as a fallback would show the same address across every
-   * lane even when the DB has different ones.
-   */
-  const detailForActive = useMemo(() => {
-    const rows = profile?.professions_detail;
-    const code = activeProfessionCode;
-    if (!rows?.length || !code) return null;
-    return (
-      rows.find(
-        (r: ProfessionDetailApi) =>
-          coerceProfessionCode(r.profession_code) === code
-      ) ?? null
-    );
-  }, [profile?.professions_detail, activeProfessionCode]);
-
-  const originalAddress = detailForActive?.business_address ?? "";
+  const originalAddress = useMemo(
+    () =>
+      profile
+        ? resolveLaneBusinessAddress(profile, activeProfessionCode)
+        : "",
+    [profile, activeProfessionCode]
+  );
   const id = profile?.id;
   const profileCountry = profile?.country?.trim() ?? "";
   const placeNoun = establishmentNoun(activeProfessionCode);

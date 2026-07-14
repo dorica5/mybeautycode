@@ -60,7 +60,7 @@ const _layout = () => {
   useEffect(() => {
     loadUnreadNotifications();
 
-    const interval = setInterval(loadUnreadNotifications, 2000); // Refresh every 2s
+    const interval = setInterval(loadUnreadNotifications, 60_000);
 
     return () => clearInterval(interval);
   }, [loadUnreadNotifications]);
@@ -116,7 +116,7 @@ const _layout = () => {
     () => ({
       tabBarShowLabel: false,
       headerShown: false,
-      lazy: false,
+      lazy: true,
       unmountOnBlur: false,
       tabBarActiveTintColor: primaryBlack,
       tabBarInactiveTintColor: "#5d7168",

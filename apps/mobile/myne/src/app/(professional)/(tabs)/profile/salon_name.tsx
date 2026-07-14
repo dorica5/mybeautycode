@@ -7,7 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
 import {
   MintProfileScreenShell,
@@ -22,18 +22,23 @@ import { validateSalonBusinessName } from "@/src/lib/profileFieldValidation";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { establishmentNoun } from "@/src/constants/professionCodes";
+import { resolveLaneBusinessName } from "@/src/lib/professionLaneFields";
 
 const SalonName = () => {
   const { t } = useI18n();
   const { profile, setProfile } = useAuth();
-  const { activeProfessionCode } = useActiveProfessionState(profile);
+  const { storedProfessionReady, activeProfessionCode } =
+    useActiveProfessionState(profile);
   const placeNoun = establishmentNoun(activeProfessionCode);
   const fieldLabel = t("profile.placeName", { place: placeNoun });
-  const originalName =
-    profile.business_name ?? profile.salon_name ?? "";
+  const originalName = useMemo(
+    () => resolveLaneBusinessName(profile, activeProfessionCode),
+    [profile, activeProfessionCode]
+  );
   const id = profile.id;
 
   const [businessName, setBusinessName] = useState(originalName);
+  const [hasEdited, setHasEdited] = useState(false);
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -53,6 +58,7 @@ const SalonName = () => {
 
   const handleBusinessNameChange = (value: string) => {
     setBusinessName(value);
+    setHasEdited(true);
     setChanged(true);
 
     if (attemptedSubmit) {
@@ -84,8 +90,10 @@ const SalonName = () => {
     updateProfile(
       {
         id,
-        // Prisma: ProfessionalProfile.businessName
         business_name: trimmed,
+        ...(activeProfessionCode
+          ? { profession_code: activeProfessionCode }
+          : {}),
       },
       {
         onSuccess: () => {
@@ -109,8 +117,16 @@ const SalonName = () => {
   };
 
   useEffect(() => {
-    if (!changed) setBusinessName(originalName);
-  }, [originalName, changed]);
+    if (!storedProfessionReady || hasEdited) return;
+    setBusinessName(originalName);
+  }, [storedProfessionReady, originalName, hasEdited]);
+
+  useEffect(() => {
+    setHasEdited(false);
+    setAttemptedSubmit(false);
+    setError(false);
+    setErrorMessage("");
+  }, [activeProfessionCode]);
 
   useEffect(() => {
     setChanged(businessName !== originalName);

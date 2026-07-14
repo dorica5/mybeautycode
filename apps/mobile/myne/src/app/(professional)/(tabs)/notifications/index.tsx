@@ -180,9 +180,6 @@ const Notifications = () => {
 
   useEffect(() => {
     void loadNotifications(false);
-
-    const interval = setInterval(() => loadNotifications(false), 30000);
-    return () => clearInterval(interval);
   }, [loadNotifications]);
 
   useFocusEffect(
