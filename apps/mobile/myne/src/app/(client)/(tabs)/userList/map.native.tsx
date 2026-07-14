@@ -1414,6 +1414,10 @@ const MapLocationScreen = () => {
                     ref={mapViewRef}
                     style={styles.mapView}
                     provider={mapProviderForPlatform()}
+                    mapType="standard"
+                    {...(Platform.OS === "android"
+                      ? { googleRenderer: "LEGACY" as const }
+                      : {})}
                     customMapStyle={
                       useStyledGoogleMap ? SALON_MAP_DARK_STYLE : undefined
                     }

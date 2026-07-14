@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -79,6 +80,14 @@ export default function BillingScreen() {
 
     setBusy(true);
     try {
+      if (Platform.OS === "android") {
+        const opened = await openStoreSubscriptionManagement();
+        if (!opened) {
+          Alert.alert(t("common.error"), t("profile.manageCancelFailed"));
+        }
+        return;
+      }
+
       await presentCustomerCenterSafe({
         onRestoreCompleted: ({ customerInfo }) => {
           void syncFromRevenueCat(customerInfo);
@@ -98,7 +107,17 @@ export default function BillingScreen() {
 
   const handleChangePlan = async () => {
     if (!ensureRevenueCat()) return;
-    if (billing?.hasActiveSubscription) {
+
+    if (!billing?.hasActiveSubscription) {
+      router.push({
+        pathname: "/Screens/paywall",
+        params: { from: "billing" },
+      });
+      return;
+    }
+
+    /** iOS Customer Center supports plan changes; Android RC center only lists/cancels — use our paywall. */
+    if (Platform.OS === "ios") {
       setBusy(true);
       try {
         await presentCustomerCenterSafe({
@@ -118,6 +137,7 @@ export default function BillingScreen() {
       }
       return;
     }
+
     router.push({
       pathname: "/Screens/paywall",
       params: { from: "billing" },

@@ -914,6 +914,14 @@ export const en = {
       "Plans are not available yet. Finish App Store Connect and RevenueCat setup, then try again.",
     currentPlanBadge: "Your plan",
     currentPlanCta: "Current plan",
+    changePlanSubtitle:
+      "Pick a different plan. Your current plan is marked below.",
+    changePlanFootnote:
+      "Plan changes are handled by {{store}}. Timing, proration, and whether a switch takes effect immediately or at renewal follow the store's rules.",
+    storeGooglePlay: "Google Play",
+    storeAppStore: "the App Store",
+    switchToPlan: "Switch to {{plan}}",
+    switchToPlanWithPrice: "Switch to {{plan}} — {{price}}",
     subscribeWithStorePrice: "Subscribe — {{price}}",
     subscriptionSuccessTitle: "You're all set",
     subscriptionSuccessMessage:

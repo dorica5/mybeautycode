@@ -60,7 +60,15 @@
           "backgroundColor": "#B2DCC5",
           "image": "./assets/images/splash.png",
           "resizeMode": "contain",
-          "imageWidth": 280
+          "imageWidth": 300,
+          "android": {
+            "imageWidth": 340,
+            "resizeMode": "contain"
+          },
+          "ios": {
+            "imageWidth": 280,
+            "resizeMode": "contain"
+          }
         }
       ],
       "expo-font",

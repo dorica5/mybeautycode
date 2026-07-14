@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { CheckCircle } from "phosphor-react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { BrandLogo } from "@/src/components/BrandLogo";
 import { Typography } from "@/src/constants/Typography";
 import {
@@ -54,6 +55,14 @@ import type { Offerings } from "react-native-purchases";
 
 type Plan = "monthly" | "annual";
 
+function planFromProductId(productId: string | null | undefined): Plan | null {
+  if (!productId) return null;
+  const id = productId.toLowerCase();
+  if (id.includes("annual") || id.includes("year")) return "annual";
+  if (id.includes("month")) return "monthly";
+  return null;
+}
+
 const Paywall = () => {
   const { t } = useI18n();
   const logoSize = useBeautyCodeLogoSize();
@@ -78,15 +87,16 @@ const Paywall = () => {
   );
   const annualPkg = useMemo(() => findPackage(offerings, "annual"), [offerings]);
 
+  const isChangePlan =
+    billing?.hasActiveSubscription === true && from === "billing";
+
   const activePlan = useMemo((): Plan | null => {
-    if (!activeProductId) return null;
     if (annualPkg?.product.identifier === activeProductId) return "annual";
     if (monthlyPkg?.product.identifier === activeProductId) return "monthly";
-    const id = activeProductId.toLowerCase();
-    if (id.includes("annual") || id.includes("year")) return "annual";
-    if (id.includes("month")) return "monthly";
-    return null;
-  }, [activeProductId, annualPkg, monthlyPkg]);
+    const fromRc = planFromProductId(activeProductId);
+    if (fromRc) return fromRc;
+    return planFromProductId(billing?.plan);
+  }, [activeProductId, annualPkg, billing?.plan, monthlyPkg]);
 
   const pricesNok: Record<Plan, string> = useMemo(
     () => ({
@@ -104,6 +114,19 @@ const Paywall = () => {
     if (activePlan && selectedPlan === activePlan) {
       return t("paywall.currentPlanCta");
     }
+    if (isChangePlan) {
+      const planName =
+        selectedPlan === "annual" ? t("paywall.yearly") : t("paywall.monthly");
+      const pkg = selectedPlan === "annual" ? annualPkg : monthlyPkg;
+      const storePrice = packagePriceLabel(pkg);
+      if (storePrice) {
+        return t("paywall.switchToPlanWithPrice", {
+          plan: planName,
+          price: storePrice,
+        });
+      }
+      return t("paywall.switchToPlan", { plan: planName });
+    }
     const pkg = selectedPlan === "annual" ? annualPkg : monthlyPkg;
     const storePrice = packagePriceLabel(pkg);
     if (storePrice) {
@@ -117,6 +140,7 @@ const Paywall = () => {
     activePlan,
     annualPkg,
     annualPrice,
+    isChangePlan,
     monthlyPkg,
     monthlyPrice,
     selectedPlan,
@@ -127,11 +151,19 @@ const Paywall = () => {
     busy || (activePlan != null && selectedPlan === activePlan);
 
   const afterTrialLine = useMemo(() => {
+    if (isChangePlan) {
+      return t("paywall.changePlanFootnote", {
+        store:
+          Platform.OS === "android"
+            ? t("paywall.storeGooglePlay")
+            : t("paywall.storeAppStore"),
+      });
+    }
     if (selectedPlan === "annual") {
       return t("paywall.afterTrialAnnual", { price: annualPrice });
     }
     return t("paywall.afterTrialMonthly", { price: monthlyPrice });
-  }, [annualPrice, monthlyPrice, selectedPlan, t]);
+  }, [annualPrice, isChangePlan, monthlyPrice, selectedPlan, t]);
 
   const proFeatures = useMemo(
     () => [
@@ -159,22 +191,38 @@ const Paywall = () => {
       ]);
       if (!alive) return;
       setOfferings(next);
-      setActiveProductId(
-        hasActiveEntitlement(info) ? activePremiumProductId(info) : null
-      );
-      if (activePremiumProductId(info)) {
-        const id = activePremiumProductId(info)!.toLowerCase();
-        if (id.includes("annual") || id.includes("year")) {
-          setSelectedPlan("annual");
-        } else if (id.includes("month")) {
-          setSelectedPlan("monthly");
-        }
-      }
+      const productId = hasActiveEntitlement(info)
+        ? activePremiumProductId(info)
+        : null;
+      setActiveProductId(productId);
+      const plan = planFromProductId(productId) ?? planFromProductId(billing?.plan);
+      if (plan) setSelectedPlan(plan);
     })();
     return () => {
       alive = false;
     };
-  }, [revenueCatReady]);
+  }, [billing?.plan, revenueCatReady]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!getRevenueCatApiKey() || !revenueCatReady) return;
+      let alive = true;
+      void (async () => {
+        const info = await getCustomerInfoSafe(true);
+        if (!alive || !info) return;
+        const productId = hasActiveEntitlement(info)
+          ? activePremiumProductId(info)
+          : null;
+        setActiveProductId(productId);
+        const plan =
+          planFromProductId(productId) ?? planFromProductId(billing?.plan);
+        if (plan) setSelectedPlan(plan);
+      })();
+      return () => {
+        alive = false;
+      };
+    }, [billing?.plan, revenueCatReady])
+  );
 
   const openLink = async (url: string) => {
     try {
@@ -345,10 +393,12 @@ const Paywall = () => {
           />
 
           <Text style={[Typography.h3, styles.h1]}>
-            {t("paywall.tryProTitle")}
+            {isChangePlan ? t("profile.changePlan") : t("paywall.tryProTitle")}
           </Text>
           <Text style={[Typography.bodyMedium, styles.subhead]}>
-            {t("paywall.tryProSubtitle", { limit: freeLimit })}
+            {isChangePlan
+              ? t("paywall.changePlanSubtitle")
+              : t("paywall.tryProSubtitle", { limit: freeLimit })}
           </Text>
           {billing && !billing.hasActiveSubscription ? (
             <Text style={[Typography.bodySmall, styles.usageLine]}>
@@ -397,7 +447,8 @@ const Paywall = () => {
           <MintBrandModalFooterRow>
             <MintBrandModalPrimaryButton
               label={busy ? t("inspiration.pleaseWait") : primaryCta}
-              onPress={purchaseDisabled ? () => {} : runPurchase}
+              onPress={runPurchase}
+              disabled={purchaseDisabled}
               accessibilityLabel={primaryCta}
             />
             <MintBrandModalSecondaryButton

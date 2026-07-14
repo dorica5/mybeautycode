@@ -908,6 +908,14 @@ export const da: AppLocaleMessages = {
       "Planerne er ikke tilgængelige endnu. Fuldfør opsætning i App Store Connect og RevenueCat, og prøv igen.",
     currentPlanBadge: "Din plan",
     currentPlanCta: "Nuværende plan",
+    changePlanSubtitle:
+      "Vælg en anden plan. Din nuværende plan er markeret nedenfor.",
+    changePlanFootnote:
+      "Planændringer håndteres af {{store}}. Tidspunkt, proratering og om skift sker med det samme eller ved fornyelse følger butikkens regler.",
+    storeGooglePlay: "Google Play",
+    storeAppStore: "App Store",
+    switchToPlan: "Skift til {{plan}}",
+    switchToPlanWithPrice: "Skift til {{plan}} — {{price}}",
     subscribeWithStorePrice: "Abonner — {{price}}",
     subscriptionSuccessTitle: "Du er klar",
     subscriptionSuccessMessage:

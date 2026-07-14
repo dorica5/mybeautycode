@@ -119,11 +119,15 @@ export async function presentCustomerCenterSafe(
   }
 }
 
-/** Opens the platform subscription management page (fallback if Customer Center fails). */
+/** Opens the platform subscription management page (Play / App Store — current store only). */
 export async function openStoreSubscriptionManagement(): Promise<boolean> {
+  const packageId =
+    Constants.expoConfig?.android?.package ??
+    Constants.expoConfig?.ios?.bundleIdentifier ??
+    "com.dorica.myne";
   const url =
     Platform.OS === "android"
-      ? "https://play.google.com/store/account/subscriptions"
+      ? `https://play.google.com/store/account/subscriptions?package=${encodeURIComponent(packageId)}`
       : "https://apps.apple.com/account/subscriptions";
   try {
     const ok = await Linking.canOpenURL(url);
