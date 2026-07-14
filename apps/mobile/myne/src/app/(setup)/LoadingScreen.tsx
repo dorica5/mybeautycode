@@ -18,6 +18,7 @@ import {
 import { useBeautyCodeLogoSize } from "@/src/hooks/useBeautyCodeLogoSize";
 import { StatusBar } from "expo-status-bar";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { hideNativeSplash } from "@/src/lib/nativeSplash";
 
 const LoadingScreen = ({
   connectionError = false,
@@ -33,6 +34,10 @@ const LoadingScreen = ({
   const pathname = usePathname();
   const logoSize = useBeautyCodeLogoSize();
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    void hideNativeSplash();
+  }, []);
 
   useEffect(() => {
     const isSetupMode =

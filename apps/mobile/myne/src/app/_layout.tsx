@@ -145,14 +145,23 @@ const RootLayout = () => {
   }, []);
   const fontsLoaded = useLoadFonts();
 
-  const onRootLayout = useCallback(() => {
+  /** onLayout fires once before fonts finish — hide splash when fonts load, not only on layout. */
+  useEffect(() => {
     if (fontsLoaded) {
       void hideNativeSplash();
     }
   }, [fontsLoaded]);
 
+  /** Safety net if font loading stalls on a cold start. */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void hideNativeSplash();
+    }, 3500);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <View style={{ flex: 1 }} onLayout={onRootLayout}>
+    <View style={{ flex: 1 }}>
     <LanguageProvider>
     {!fontsLoaded ? (
       <LoadingScreen />

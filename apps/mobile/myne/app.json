@@ -60,7 +60,7 @@
           "backgroundColor": "#B2DCC5",
           "image": "./assets/images/splash.png",
           "resizeMode": "contain",
-          "imageWidth": 220
+          "imageWidth": 280
         }
       ],
       "expo-font",

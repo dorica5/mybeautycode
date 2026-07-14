@@ -9,7 +9,7 @@ import {
 import { useFonts } from "expo-font";
 
 const useLoadFonts = () => {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Anton_400Regular,
     Outfit_300Light,
     Outfit_400Regular,
@@ -28,7 +28,8 @@ const useLoadFonts = () => {
     "ChauPhilomeneOne-Italic": require("../assets/fonts/Chau_Philomene_One/ChauPhilomeneOne-Italic.ttf"),
   });
 
-  return fontsLoaded;
+  /** Proceed if fonts fail — system fallbacks are better than an infinite native splash. */
+  return fontsLoaded || Boolean(fontError);
 };
 
 export default useLoadFonts;
