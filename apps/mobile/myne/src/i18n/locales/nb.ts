@@ -911,6 +911,14 @@ export const nb: AppLocaleMessages = {
     rcNotConfigured: "Abonnement er ikke satt opp i denne versjonen ennå.",
     productsNotAvailable:
       "Planene er ikke tilgjengelige ennå. Fullfør oppsett i App Store Connect og RevenueCat, og prøv igjen.",
+    currentPlanBadge: "Din plan",
+    currentPlanCta: "Gjeldende plan",
+    subscribeWithStorePrice: "Abonner — {{price}}",
+    subscriptionSuccessTitle: "Du er klar",
+    subscriptionSuccessMessage:
+      "Pro er aktiv. Du har nå ubegrensede besøk.",
+    restoreSuccessMessage:
+      "Abonnementet ble funnet og gjenopprettet på denne enheten.",
   },
   billing: {
     visitUsage: "{{used}} av {{limit}} gratis besøk brukt",

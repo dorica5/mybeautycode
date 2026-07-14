@@ -28,7 +28,8 @@
       },
       "env": {
         "NPM_USE_CI": "false",
-        "EXPO_PUBLIC_DEV_PASSWORD_RESET": "true"
+        "EXPO_PUBLIC_DEV_PASSWORD_RESET": "true",
+        "EXPO_NO_DEV_CLIENT": "1"
       }
     },
     "production": {

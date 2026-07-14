@@ -46,12 +46,14 @@ export function VisitClientPersonalNoteSection({
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const inputRef = useRef<TextInput>(null);
+  const userEditedRef = useRef(false);
   const [infoVisible, setInfoVisible] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState(() => remoteNote ?? "");
   const [snapshot, setSnapshot] = useState(() => (remoteNote ?? "").trim());
 
   useEffect(() => {
+    if (userEditedRef.current) return;
     const from = remoteNote ?? "";
     const trimmed = from.trim();
     setDraft(from);
@@ -60,6 +62,7 @@ export function VisitClientPersonalNoteSection({
   }, [haircodeId, remoteNote]);
 
   const handleDraftChange = useCallback((text: string) => {
+    userEditedRef.current = true;
     setDraft(clampVisitTextInput(text));
   }, []);
 
@@ -84,6 +87,7 @@ export function VisitClientPersonalNoteSection({
     try {
       await saveMutation.mutateAsync(trimmed);
       setSnapshot(trimmed);
+      userEditedRef.current = false;
       if (!trimmed) setExpanded(false);
       return true;
     } catch (e: unknown) {

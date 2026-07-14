@@ -19,11 +19,16 @@ import { PostHogProvider } from "posthog-react-native";
 import LanguageProvider from "../providers/LanguageProvider";
 import { BillingProvider } from "../providers/BillingProvider";
 import { applyAppTextScalingDefaults } from "@/src/lib/textScaling";
+import {
+  hideNativeSplash,
+  keepNativeSplashVisible,
+} from "@/src/lib/nativeSplash";
 
+keepNativeSplashVisible();
 applyAppTextScalingDefaults();
 
 export const unstable_settings = {
-  initialRouteName: "(auth)",
+  initialRouteName: "index",
 };
 
 import { APP_URL_SCHEME } from "@/src/constants/brand";
@@ -140,8 +145,14 @@ const RootLayout = () => {
   }, []);
   const fontsLoaded = useLoadFonts();
 
+  const onRootLayout = useCallback(() => {
+    if (fontsLoaded) {
+      void hideNativeSplash();
+    }
+  }, [fontsLoaded]);
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }} onLayout={onRootLayout}>
     <LanguageProvider>
     {!fontsLoaded ? (
       <LoadingScreen />

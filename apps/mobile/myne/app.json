@@ -54,6 +54,15 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#B2DCC5",
+          "image": "./assets/images/splash.png",
+          "resizeMode": "contain",
+          "imageWidth": 220
+        }
+      ],
       "expo-font",
       "expo-secure-store",
       [
@@ -79,7 +88,12 @@
         "expo-build-properties",
         {
           "ios": {
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "buildReactNativeFromSource": true,
+            "forceStaticLinking": [
+              "react-native-maps",
+              "react-native-google-maps"
+            ]
           },
           "android": {
             "kotlinVersion": "2.0.21"

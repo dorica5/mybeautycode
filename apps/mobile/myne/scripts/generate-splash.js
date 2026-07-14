@@ -12,7 +12,7 @@ const H = 2778;
 
 async function main() {
   const root = path.join(__dirname, "..");
-  const svgPath = path.join(root, "assets/android_icon.svg");
+  const svgPath = path.join(root, "assets/appstore.svg");
   const outPath = path.join(root, "assets/images/splash.png");
 
   const logoWidth = Math.round(W * 0.42);

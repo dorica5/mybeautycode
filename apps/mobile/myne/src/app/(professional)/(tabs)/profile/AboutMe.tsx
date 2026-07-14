@@ -202,6 +202,7 @@ const AboutMe = () => {
   const [colorBrands, setColorBrands] = useState<string[]>(() =>
     parseColorBrands(originalColorBrand)
   );
+  const userEditedRef = useRef(false);
 
   const professionApi = useMemo((): ProfessionChoiceCode | null => {
     if (!storedProfessionReady || activeProfessionCode == null) return null;
@@ -213,7 +214,7 @@ const AboutMe = () => {
     discoveryOptionsForProfession(professionApi).length > 0;
 
   useEffect(() => {
-    if (professionApi == null) return;
+    if (professionApi == null || changed || userEditedRef.current) return;
     const d = profile.professions_detail?.find(
       (x: ProfessionDetailApi) =>
         coerceProfessionCode(x.profession_code) === professionApi
@@ -253,6 +254,7 @@ const AboutMe = () => {
     profile.social_media,
     profile.booking_site,
     profile.color_brand,
+    changed,
   ]);
 
   const [discoverySubmitAttempted, setDiscoverySubmitAttempted] = useState(false);
@@ -539,6 +541,7 @@ const AboutMe = () => {
 
       await refreshWorkFromServer();
       setChanged(false);
+      userEditedRef.current = false;
       Keyboard.dismiss();
     } catch (e) {
       const message =
@@ -586,6 +589,7 @@ const AboutMe = () => {
   };
 
   const commitDiscoveryCategories = useCallback((next: string[]) => {
+    userEditedRef.current = true;
     setDiscoveryCategories([...next].sort());
   }, []);
 
@@ -763,6 +767,7 @@ const AboutMe = () => {
               value={about_me}
               inputRef={superPowerRef}
               onChangeText={(text) => {
+                userEditedRef.current = true;
                 const lines = text.split("\n");
                 if (lines.length < 5) {
                   setAboutMe(text);

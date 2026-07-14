@@ -109,6 +109,10 @@ const SalonName = () => {
   };
 
   useEffect(() => {
+    if (!changed) setBusinessName(originalName);
+  }, [originalName, changed]);
+
+  useEffect(() => {
     setChanged(businessName !== originalName);
   }, [businessName, originalName]);
 

@@ -132,6 +132,14 @@ export function profileSetupIsComplete(
 function shouldCompletedUserLeaveForHome(pathname: string): boolean {
   const p = pathname ?? "";
   if (
+    p.includes("(client)") ||
+    p.includes("(professional)") ||
+    p === "/home" ||
+    p.endsWith("/home")
+  ) {
+    return false;
+  }
+  if (
     p.includes("ChangePassword") ||
     p.includes("reset-password") ||
     p.includes("CheckMail") ||
@@ -167,6 +175,7 @@ type AuthData = {
   session: Session | null;
   profile: any;
   loading: boolean;
+  loadingProfile: boolean;
   isSignUp: boolean;
   loadingSetup: boolean;
   isSigningOut: boolean;
@@ -190,6 +199,7 @@ export const AuthContext = createContext<AuthData>({
   session: null,
   profile: null,
   loading: true,
+  loadingProfile: true,
   loadingSetup: false,
   isSignUp: false,
   isSigningOut: false,
@@ -453,6 +463,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     }
 
     if (!sessionSnap) {
+      initialLoadComplete.current = true;
       return;
     }
 
@@ -586,6 +597,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
     } finally {
       setLoadingProfile(false);
+      initialLoadComplete.current = true;
     }
   };
 
@@ -635,9 +647,23 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   );
 
   const navigateToSplash = () => {
+    const authPaths = [
+      "Splash",
+      "SignIn",
+      "SignUp",
+      "ChangePassword",
+      "Reset",
+      "CheckMail",
+      "(auth)",
+      "reset-password",
+      "Onboarding",
+    ];
+    if (authPaths.some((path) => pathname.includes(path))) {
+      return;
+    }
     console.log("Navigating to splash screen");
     setTimeout(() => {
-      router.replace("/Splash");
+      router.replace("/(auth)/Splash");
     }, 100);
   };
 
@@ -815,32 +841,35 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (profile && setupComplete) {
-        const home = resolveAppHome(profile, lastAppSurfacePref);
-
         const leaveBootstrap = shouldCompletedUserLeaveForHome(pathname);
-        const shouldGoHome =
-          leaveBootstrap || !initialLoadComplete.current;
-
-        if (shouldGoHome) {
-          console.log("Redirecting to home", {
-            home,
-            leaveBootstrap,
-            pathname,
-            lastAppSurfacePref,
-          });
-          setIsNavigating(true);
-          setTimeout(() => {
-            router.replace(home);
-            initialLoadComplete.current = true;
-            setTimeout(() => setIsNavigating(false), 1000);
-          }, 100);
+        if (!leaveBootstrap) {
+          return;
         }
+
+        const home = resolveAppHome(profile, lastAppSurfacePref);
+        console.log("Redirecting to home", {
+          home,
+          leaveBootstrap,
+          pathname,
+          lastAppSurfacePref,
+        });
+        setIsNavigating(true);
+        setTimeout(() => {
+          router.replace(home);
+          initialLoadComplete.current = true;
+          setTimeout(() => setIsNavigating(false), 1000);
+        }, 100);
       }
 
       return;
     }
 
     if (!session && !isFirstLaunch) {
+      /** `index.tsx` already `<Redirect>`s to Splash from `/` — a second `replace` here flashes Splash twice. */
+      if (pathname === "/" || pathname === "") {
+        return;
+      }
+
       const authPaths = [
         "Splash",
         "SignIn",
@@ -858,7 +887,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         console.log("No session but onboarding complete, navigating to splash");
         setIsNavigating(true);
         setTimeout(() => {
-          router.replace("/Splash");
+          router.replace("/(auth)/Splash");
           setTimeout(() => setIsNavigating(false), 600);
         }, 50);
       }
@@ -984,12 +1013,24 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        /** Mount `fetchSessionAndProfile()` already bootstraps; avoid duplicate fetch + Splash flicker. */
+        if (event === "INITIAL_SESSION") {
+          if (newSession) setSession(newSession);
+          return;
+        }
+
         /**
          * Display-name / metadata sync from signup flows (`updateUser`) — session is enough.
          * A full bootstrap would call `execFetchSession` → global `loading` + fight `router.replace` to home,
          * and `/api/auth/me` was already refreshed by the profile PUT mutation before this fires.
          */
         if (event === "USER_UPDATED" && newSession) {
+          setSession(newSession);
+          return;
+        }
+
+        /** Token refresh must not re-run full bootstrap — that flickers loading and loops Splash/index. */
+        if (event === "TOKEN_REFRESHED" && newSession) {
           setSession(newSession);
           return;
         }
@@ -1064,14 +1105,14 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     !profileConnectionError;
 
   /**
-   * Keep one loading shell until we know routing (session + `/me` fetch), so `/` doesn’t briefly show Splash
-   * before this overlay. Also hold when profile is still retrying after a transient API failure.
+   * Keep one loading shell until first bootstrap completes (session + `/me` when signed in).
+   * After that, do not replace the whole tree on background session checks — that looked like a Splash loop.
    */
   const shouldHoldTree =
-    loading ||
     firstLaunchLoading ||
-    (isAuthed && loadingProfile) ||
-    profileFetchPending;
+    profileFetchPending ||
+    (isAuthed && (loading || loadingProfile)) ||
+    (loading && !initialLoadComplete.current);
 
   const retryProfileFetch = () => {
     if (!session?.user?.id) return;
@@ -1086,6 +1127,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         session,
         profile,
         loading,
+        loadingProfile,
         loadingSetup,
         isSignUp,
         isSigningOut: isSigningOut.current,

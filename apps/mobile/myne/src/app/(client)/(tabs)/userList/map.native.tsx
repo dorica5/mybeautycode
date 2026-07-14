@@ -177,23 +177,55 @@ const BERGEN_REGION: Region = {
 
 function iosGoogleMapsConfigured(): boolean {
   const ios = Constants.expoConfig?.ios as
-    | { config?: { googleMapsApiKey?: string } }
+    { config?: { googleMapsApiKey?: string } } | undefined;
+  const extra = Constants.expoConfig?.extra as
+    | { EXPO_PUBLIC_GOOGLE_MAPS_IOS_KEY?: string }
     | undefined;
-  const key = ios?.config?.googleMapsApiKey;
-  return Platform.OS === "ios" && typeof key === "string" && key.length > 0;
+  const key =
+    ios?.config?.googleMapsApiKey?.trim() ||
+    extra?.EXPO_PUBLIC_GOOGLE_MAPS_IOS_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_KEY?.trim() ||
+    "";
+  return Platform.OS === "ios" && key.length > 0;
 }
 
 function androidGoogleMapsConfigured(): boolean {
   const android = Constants.expoConfig?.android as
-    | { config?: { googleMaps?: { apiKey?: string } } } }
+    { config?: { googleMaps?: { apiKey?: string } } } | undefined;
+  const extra = Constants.expoConfig?.extra as
+    | { EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY?: string }
     | undefined;
-  const key = android?.config?.googleMaps?.apiKey;
-  return Platform.OS === "android" && typeof key === "string" && key.length > 0;
+  const key =
+    android?.config?.googleMaps?.apiKey?.trim() ||
+    extra?.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY?.trim() ||
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY?.trim() ||
+    "";
+  return Platform.OS === "android" && key.length > 0;
 }
 
-/** Google Maps provider requires a native API key baked into the dev/production build. */
-function nativeGoogleMapsConfigured(): boolean {
-  return iosGoogleMapsConfigured() || androidGoogleMapsConfigured();
+function isExpoGo(): boolean {
+  return Constants.appOwnership === "expo";
+}
+
+/** iOS uses Apple Maps (native). Android store/dev builds use Google via manifest. */
+function useGoogleMapsProvider(): boolean {
+  if (Platform.OS !== "android") return false;
+  if (!isExpoGo()) return true;
+  return androidGoogleMapsConfigured();
+}
+
+/**
+ * Only block maps in Expo Go (no custom native key). Store + dev-client builds
+ * always attempt the map — the key lives in AndroidManifest from EAS prebuild.
+ */
+function canOpenNativeMap(): boolean {
+  if (Platform.OS === "ios") return true;
+  if (Platform.OS === "android" && !isExpoGo()) return true;
+  return androidGoogleMapsConfigured();
+}
+
+function mapProviderForPlatform(): typeof PROVIDER_GOOGLE | undefined {
+  return useGoogleMapsProvider() ? PROVIDER_GOOGLE : undefined;
 }
 
 /**
@@ -608,7 +640,7 @@ const MapLocationScreen = () => {
   const restoreMapModalAfterProfileRef = useRef(false);
   const mapModalWasVisibleRef = useRef(false);
 
-  const useStyledGoogleMap = nativeGoogleMapsConfigured();
+  const useStyledGoogleMap = useGoogleMapsProvider();
 
   const closeMapModal = useCallback(() => {
     restoreMapModalAfterProfileRef.current = false;
@@ -618,7 +650,7 @@ const MapLocationScreen = () => {
   }, []);
 
   const onCheckLocation = useCallback(async () => {
-    if (!nativeGoogleMapsConfigured()) {
+    if (!canOpenNativeMap()) {
       Alert.alert(
         t("discover.mapNotConfiguredTitle"),
         t("discover.mapNotConfiguredMessage")
@@ -1374,16 +1406,14 @@ const MapLocationScreen = () => {
                 <ActivityIndicator size="large" color={primaryBlack} />
               </View>
             ) : mapRegion && Platform.OS !== "web" ? (
-              nativeGoogleMapsConfigured() ? (
+              canOpenNativeMap() ? (
               <View style={styles.mapModalMapSection}>
                 <View style={styles.mapCardStack}>
                   <MapView
                     key={`salon-discovery-map-${mapRemountKey}`}
                     ref={mapViewRef}
                     style={styles.mapView}
-                    provider={
-                      useStyledGoogleMap ? PROVIDER_GOOGLE : undefined
-                    }
+                    provider={mapProviderForPlatform()}
                     customMapStyle={
                       useStyledGoogleMap ? SALON_MAP_DARK_STYLE : undefined
                     }

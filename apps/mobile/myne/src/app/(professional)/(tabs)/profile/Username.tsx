@@ -100,6 +100,10 @@ const Username = () => {
   };
 
   useEffect(() => {
+    if (!changed) setUsername(original);
+  }, [original, changed]);
+
+  useEffect(() => {
     setChanged(sanitizeUsername(username) !== sanitizeUsername(original));
   }, [username, original]);
 

@@ -270,7 +270,7 @@ export const en = {
     mapWebFallback: "The map is available in the app on iOS and Android.",
     mapNotConfiguredTitle: "Map unavailable",
     mapNotConfiguredMessage:
-      "Google Maps is not configured in this build. Add EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY to EAS (development + production), enable Maps SDK for Android, restrict the key to com.dorica.myne, then rebuild the dev client.",
+      "Maps are not available in Expo Go on Android. Install your EAS dev or production build to use Google Maps.",
     locationErrorTitle: "Location",
     locationErrorMessage:
       "Could not read your position. Showing the map around Bergen.",
@@ -912,6 +912,14 @@ export const en = {
     rcNotConfigured: "Subscriptions are not configured yet on this build.",
     productsNotAvailable:
       "Plans are not available yet. Finish App Store Connect and RevenueCat setup, then try again.",
+    currentPlanBadge: "Your plan",
+    currentPlanCta: "Current plan",
+    subscribeWithStorePrice: "Subscribe — {{price}}",
+    subscriptionSuccessTitle: "You're all set",
+    subscriptionSuccessMessage:
+      "Pro is active. You now have unlimited visits.",
+    restoreSuccessMessage:
+      "Your subscription was found and restored on this device.",
   },
   billing: {
     visitUsage: "{{used}} of {{limit}} free visits used",

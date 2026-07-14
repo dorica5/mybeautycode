@@ -37,8 +37,10 @@ const AuthLayout = () => {
     return <Redirect href="/(auth)/Onboarding" />;
   }
 
-  // Fully set up users should not stay on auth stack (avoids root index loading loop)
+  // Signed-in users who finished setup must leave the auth stack only — not when already on home tabs.
+  const inAuthGroup = segments[0] === "(auth)";
   if (
+    inAuthGroup &&
     session &&
     profile &&
     profileSetupIsComplete(profile) &&
@@ -61,7 +63,7 @@ const AuthLayout = () => {
       screenOptions={{ headerShown: false, ...nativeStackHorizontalIOSLike }}
     >
       <Stack.Screen name="Onboarding" />
-      <Stack.Screen name="Splash" />
+      <Stack.Screen name="Splash" options={{ animation: "none" }} />
       <Stack.Screen name="SignIn" />
       <Stack.Screen name="SignUp" />
       <Stack.Screen name="Reset" />

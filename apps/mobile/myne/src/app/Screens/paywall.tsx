@@ -28,6 +28,7 @@ import {
   responsiveScale,
 } from "@/src/utils/responsive";
 import {
+  MintBrandModal,
   MintBrandModalFooterRow,
   MintBrandModalPrimaryButton,
   MintBrandModalSecondaryButton,
@@ -38,9 +39,11 @@ import { useBilling } from "@/src/providers/BillingProvider";
 import { mobileBillingConfig } from "@/src/constants/billingConfig";
 import {
   findPackage,
+  getCustomerInfoSafe,
   getOfferingsSafe,
   getRevenueCatApiKey,
   hasActiveEntitlement,
+  activePremiumProductId,
   packagePriceLabel,
   purchasePackageSafe,
   restorePurchasesSafe,
@@ -60,6 +63,8 @@ const Paywall = () => {
   const [selectedPlan, setSelectedPlan] = useState<Plan>("annual");
   const [busy, setBusy] = useState(false);
   const [offerings, setOfferings] = useState<Offerings | null>(null);
+  const [activeProductId, setActiveProductId] = useState<string | null>(null);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   const freeLimit =
     billing?.freeVisitLimit ?? mobileBillingConfig.FREE_VISIT_LIMIT;
@@ -72,6 +77,16 @@ const Paywall = () => {
     [offerings]
   );
   const annualPkg = useMemo(() => findPackage(offerings, "annual"), [offerings]);
+
+  const activePlan = useMemo((): Plan | null => {
+    if (!activeProductId) return null;
+    if (annualPkg?.product.identifier === activeProductId) return "annual";
+    if (monthlyPkg?.product.identifier === activeProductId) return "monthly";
+    const id = activeProductId.toLowerCase();
+    if (id.includes("annual") || id.includes("year")) return "annual";
+    if (id.includes("month")) return "monthly";
+    return null;
+  }, [activeProductId, annualPkg, monthlyPkg]);
 
   const pricesNok: Record<Plan, string> = useMemo(
     () => ({
@@ -86,11 +101,30 @@ const Paywall = () => {
   );
 
   const primaryCta = useMemo(() => {
+    if (activePlan && selectedPlan === activePlan) {
+      return t("paywall.currentPlanCta");
+    }
+    const pkg = selectedPlan === "annual" ? annualPkg : monthlyPkg;
+    const storePrice = packagePriceLabel(pkg);
+    if (storePrice) {
+      return t("paywall.subscribeWithStorePrice", { price: storePrice });
+    }
     if (selectedPlan === "annual") {
       return t("paywall.startSubscriptionAnnual", { price: annualPrice });
     }
     return t("paywall.startSubscription", { price: monthlyPrice });
-  }, [annualPrice, monthlyPrice, selectedPlan, t]);
+  }, [
+    activePlan,
+    annualPkg,
+    annualPrice,
+    monthlyPkg,
+    monthlyPrice,
+    selectedPlan,
+    t,
+  ]);
+
+  const purchaseDisabled =
+    busy || (activePlan != null && selectedPlan === activePlan);
 
   const afterTrialLine = useMemo(() => {
     if (selectedPlan === "annual") {
@@ -119,8 +153,23 @@ const Paywall = () => {
     if (!getRevenueCatApiKey() || !revenueCatReady) return;
     let alive = true;
     void (async () => {
-      const next = await getOfferingsSafe();
-      if (alive) setOfferings(next);
+      const [next, info] = await Promise.all([
+        getOfferingsSafe(),
+        getCustomerInfoSafe(),
+      ]);
+      if (!alive) return;
+      setOfferings(next);
+      setActiveProductId(
+        hasActiveEntitlement(info) ? activePremiumProductId(info) : null
+      );
+      if (activePremiumProductId(info)) {
+        const id = activePremiumProductId(info)!.toLowerCase();
+        if (id.includes("annual") || id.includes("year")) {
+          setSelectedPlan("annual");
+        } else if (id.includes("month")) {
+          setSelectedPlan("monthly");
+        }
+      }
     })();
     return () => {
       alive = false;
@@ -164,10 +213,8 @@ const Paywall = () => {
       }
 
       await syncFromRevenueCat(info);
-      await refreshBilling();
-      Alert.alert(t("common.success"), t("billing.subscribedVisitsUnlimited"));
-      if (router.canGoBack()) router.back();
-      else router.replace("/(professional)/(tabs)/home");
+      setActiveProductId(activePremiumProductId(info));
+      setSuccessModalVisible(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : t("paywall.purchaseFailed");
       Alert.alert(t("common.error"), msg);
@@ -190,10 +237,11 @@ const Paywall = () => {
         return;
       }
       await syncFromRevenueCat(info);
-      await refreshBilling();
-      Alert.alert(t("profile.restorePurchases"), t("paywall.restoreSuccess"));
-      if (router.canGoBack()) router.back();
-      else router.replace("/(professional)/(tabs)/home");
+      setActiveProductId(activePremiumProductId(info));
+      Alert.alert(
+        t("profile.restorePurchases"),
+        t("paywall.restoreSuccessMessage")
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : t("paywall.purchaseFailed");
       Alert.alert(t("common.error"), msg);
@@ -209,6 +257,7 @@ const Paywall = () => {
     badge,
     chipLabel,
     disabled,
+    isCurrent,
   }: {
     plan: Plan;
     title: string;
@@ -216,6 +265,7 @@ const Paywall = () => {
     badge?: string;
     chipLabel?: string;
     disabled?: boolean;
+    isCurrent?: boolean;
   }) => {
     const selected = selectedPlan === plan;
     return (
@@ -224,6 +274,7 @@ const Paywall = () => {
         style={({ pressed }) => [
           styles.planCard,
           selected && styles.planCardSelected,
+          isCurrent && styles.planCardCurrent,
           disabled && styles.planCardDisabled,
           pressed && !disabled && { opacity: 0.92 },
         ]}
@@ -234,6 +285,13 @@ const Paywall = () => {
         {badge ? (
           <View style={styles.badge}>
             <Text style={styles.badgeLabel}>{badge}</Text>
+          </View>
+        ) : null}
+        {isCurrent ? (
+          <View style={styles.currentPlanBadge}>
+            <Text style={styles.currentPlanBadgeLabel}>
+              {t("paywall.currentPlanBadge")}
+            </Text>
           </View>
         ) : null}
 
@@ -308,6 +366,7 @@ const Paywall = () => {
             title={t("paywall.yearly")}
             subtitle={t("paywall.yearlySubtitle")}
             badge={t("paywall.annualFreeMonthsBadge")}
+            isCurrent={activePlan === "annual"}
             disabled={revenueCatReady && !annualPkg}
           />
           <PlanCard
@@ -315,6 +374,7 @@ const Paywall = () => {
             title={t("paywall.monthly")}
             subtitle={t("paywall.monthlySubtitle")}
             chipLabel={t("paywall.freeVisitsChip", { limit: freeLimit })}
+            isCurrent={activePlan === "monthly"}
             disabled={revenueCatReady && !monthlyPkg}
           />
         </View>
@@ -337,7 +397,7 @@ const Paywall = () => {
           <MintBrandModalFooterRow>
             <MintBrandModalPrimaryButton
               label={busy ? t("inspiration.pleaseWait") : primaryCta}
-              onPress={busy ? () => {} : runPurchase}
+              onPress={purchaseDisabled ? () => {} : runPurchase}
               accessibilityLabel={primaryCta}
             />
             <MintBrandModalSecondaryButton
@@ -367,6 +427,29 @@ const Paywall = () => {
           </View>
         </View>
       </ScrollView>
+
+      <MintBrandModal
+        visible={successModalVisible}
+        onClose={() => {
+          setSuccessModalVisible(false);
+          void refreshBilling();
+          if (router.canGoBack()) router.back();
+          else router.replace("/(professional)/(tabs)/home");
+        }}
+        title={t("paywall.subscriptionSuccessTitle")}
+        message={t("paywall.subscriptionSuccessMessage")}
+        footer={
+          <MintBrandModalPrimaryButton
+            label={t("common.gotIt")}
+            onPress={() => {
+              setSuccessModalVisible(false);
+              void refreshBilling();
+              if (router.canGoBack()) router.back();
+              else router.replace("/(professional)/(tabs)/home");
+            }}
+          />
+        }
+      />
     </SafeAreaView>
   );
 };
@@ -442,6 +525,9 @@ const styles = StyleSheet.create({
     borderColor: primaryBlack,
     backgroundColor: `${secondaryGreen}66`,
   },
+  planCardCurrent: {
+    borderColor: primaryBlack,
+  },
   planCardDisabled: {
     opacity: 0.55,
   },
@@ -459,6 +545,21 @@ const styles = StyleSheet.create({
   badgeLabel: {
     ...Typography.bodySmall,
     color: primaryWhite,
+    fontWeight: "600",
+  },
+  currentPlanBadge: {
+    position: "absolute",
+    top: responsivePadding(10),
+    left: responsivePadding(10),
+    backgroundColor: secondaryGreen,
+    paddingHorizontal: responsivePadding(10),
+    paddingVertical: responsivePadding(4),
+    borderRadius: responsiveBorderRadius(999),
+    zIndex: 1,
+  },
+  currentPlanBadgeLabel: {
+    ...Typography.bodySmall,
+    color: primaryBlack,
     fontWeight: "600",
   },
   planRow: {
