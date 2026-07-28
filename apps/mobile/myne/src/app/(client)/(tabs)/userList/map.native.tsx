@@ -32,10 +32,9 @@ import {
 } from "react-native-safe-area-context";
 import {
   router,
-  useFocusEffect,
   useLocalSearchParams,
-  usePathname,
 } from "expo-router";
+import { ClientProfessionalProfileScreen } from "@/src/components/discover/ClientProfessionalProfileScreen";
 import { CaretRight, X } from "phosphor-react-native";
 import { ProSubscriberStarBadge } from "@/src/components/ProSubscriberStarBadge";
 import { AvatarWithSpinner } from "@/src/components/avatarSpinner";
@@ -96,6 +95,8 @@ import {
 } from "@/src/utils/responsive";
 import {
   clusterSalonPins,
+  regionForSalonPinFocus,
+  regionToSplitSalonCluster,
   salonClusterTotalProfessionals,
   shouldClusterByZoomWithHysteresis,
   type SalonMapCluster,
@@ -105,6 +106,7 @@ import type { ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import { HorizontalScrollHintRow } from "@/src/components/HorizontalScrollHintRow";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { useScrollRevealBack } from "@/src/hooks/useScrollRevealBack";
+import { useProductAnalytics } from "@/src/lib/productAnalytics";
 
 const ROW_HEIGHT = 52;
 /** Match `SearchInput` default white pill width (design dp) — same as Find professionals. */
@@ -345,13 +347,6 @@ const FALLBACK_REGION_DELTA = 0.01;
 const MIN_REGION_DELTA = 0.003;
 /** Upper bound so a country-level hit doesn't zoom the user out to space. */
 const MAX_REGION_DELTA = 2.0;
-/** Tighter zoom when a single salon pin is tapped. */
-const SALON_PIN_ZOOM_FACTOR = 0.16;
-const SALON_PIN_MIN_DELTA = 0.004;
-const SALON_PIN_MAX_DELTA = 0.009;
-/** Cluster tap zoom (was 0.42 — too many taps needed to reach street level). */
-const CLUSTER_ZOOM_FACTOR = 0.26;
-const CLUSTER_MIN_DELTA = 0.003;
 /** Extra breathing room around the Google-recommended viewport. */
 const VIEWPORT_PADDING = 1.3;
 
@@ -402,29 +397,6 @@ function placeToRegion(
   };
 }
 
-function regionZoomedToCoordinate(
-  latitude: number,
-  longitude: number,
-  boundsRegion: Region | null,
-  opts: { factor: number; minDelta: number; maxDelta: number }
-): Region {
-  const base = boundsRegion ?? BERGEN_REGION;
-  return {
-    latitude,
-    longitude,
-    latitudeDelta: clamp(
-      base.latitudeDelta * opts.factor,
-      opts.minDelta,
-      opts.maxDelta
-    ),
-    longitudeDelta: clamp(
-      base.longitudeDelta * opts.factor,
-      opts.minDelta,
-      opts.maxDelta
-    ),
-  };
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -440,20 +412,19 @@ const SalonMapMarker = React.memo(function SalonMapMarker({
   salon,
   selected,
   onSalonPress,
-  renderPulseKey,
+  snapshotEpoch,
 }: {
   salon: SalonPin;
   selected: boolean;
   onSalonPress: (salon: SalonPin) => void;
-  /** Bump when fetched marker set / counts change so the native snapshot refreshes */
-  renderPulseKey: number;
+  snapshotEpoch: number;
 }) {
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
   useEffect(() => {
     setTracksViewChanges(true);
-    const t = setTimeout(() => setTracksViewChanges(false), 350);
+    const t = setTimeout(() => setTracksViewChanges(false), 700);
     return () => clearTimeout(t);
-  }, [selected, renderPulseKey]);
+  }, [snapshotEpoch, selected]);
 
   const accessibility = salon.formatted_address;
 
@@ -490,13 +461,13 @@ const SalonClusterMapMarker = React.memo(function SalonClusterMapMarker({
   selectedSalonId,
   onSalonPress,
   onMultiSalonClusterPress,
-  renderPulseKey,
+  snapshotEpoch,
 }: {
   cluster: SalonMapCluster;
   selectedSalonId: string | null;
   onSalonPress: (salon: SalonPin) => void;
   onMultiSalonClusterPress: (cluster: SalonMapCluster) => void;
-  renderPulseKey: number;
+  snapshotEpoch: number;
 }) {
   const totalPros = salonClusterTotalProfessionals(cluster.members);
   const singleMember = cluster.members.length === 1 ? cluster.members[0] : null;
@@ -507,9 +478,9 @@ const SalonClusterMapMarker = React.memo(function SalonClusterMapMarker({
   const [tracksViewChanges, setTracksViewChanges] = useState(true);
   useEffect(() => {
     setTracksViewChanges(true);
-    const t = setTimeout(() => setTracksViewChanges(false), 350);
+    const t = setTimeout(() => setTracksViewChanges(false), 700);
     return () => clearTimeout(t);
-  }, [selected, totalPros, cluster.members.length, renderPulseKey]);
+  }, [snapshotEpoch, selected, totalPros, cluster.members.length]);
 
   const accessibility = singleMember
     ? singleMember.name
@@ -546,10 +517,10 @@ const SalonClusterMapMarker = React.memo(function SalonClusterMapMarker({
 
 const MapLocationScreen = () => {
   const { t } = useI18n();
+  const trackProduct = useProductAnalytics();
   const insets = useSafeAreaInsets();
   const { backVisible: locationBackVisible, onScroll: onLocationScroll } =
     useScrollRevealBack();
-  const pathname = usePathname();
   const { width: windowWidth } = useWindowDimensions();
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
@@ -604,19 +575,6 @@ const MapLocationScreen = () => {
     }
   }, [professionKey]);
 
-  /** After returning from professional profile, pathname is the map route again — show location UI. */
-  useEffect(() => {
-    const onMap =
-      pathname?.includes("/userList/map") ||
-      pathname?.includes("userList/map");
-    if (
-      onMap &&
-      !pathname?.includes("professionalProfile")
-    ) {
-      setMaskMapLocationShell(false);
-    }
-  }, [pathname]);
-
   const screenTitle = useMemo(
     () => mapScreenTitle(professionKey, t),
     [professionKey, t]
@@ -624,11 +582,10 @@ const MapLocationScreen = () => {
 
   const [locationQuery, setLocationQuery] = useState("");
   const [mapModalVisible, setMapModalVisible] = useState(false);
-  /**
-   * Hide the address / Organic-pattern shell immediately when opening a pro profile (same tick as
-   * router.push), before pathname updates — avoids flashing that screen under the closing modal.
-   */
-  const [maskMapLocationShell, setMaskMapLocationShell] = useState(false);
+  /** Pro profile opened from a pin sheet — rendered inside the map modal (no stack navigation). */
+  const [mapProfileOverlayId, setMapProfileOverlayId] = useState<string | null>(
+    null
+  );
   const [mapLoading, setMapLoading] = useState(false);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [showUserOnMap, setShowUserOnMap] = useState(false);
@@ -649,12 +606,9 @@ const MapLocationScreen = () => {
   const mapViewRef = useRef<MapView | null>(null);
   /** Debounce timer so pan/zoom settles before we re-query. */
   const regionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Skip marker snapshot pulses while the user is pinching/panning. */
+  /** Skip bounds refetch while the user is pinching (markers stay mounted). */
   const isMapGesturingRef = useRef(false);
-  const markerPulseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
-  const lastMarkerPinSignatureRef = useRef("");
+  const programmaticCameraRef = useRef(false);
   /** Places Autocomplete dropdown state (location search above the map). */
   const [predictions, setPredictions] = useState<AutocompletePrediction[]>([]);
   const [predictionsLoading, setPredictionsLoading] = useState(false);
@@ -682,14 +636,14 @@ const MapLocationScreen = () => {
     mapCameraIntentRef.current += 1;
     return mapCameraIntentRef.current;
   }, []);
-  /** After opening a pro profile from the map, reopen the map modal on back (keep pins / camera). */
-  const restoreMapModalAfterProfileRef = useRef(false);
-  const mapModalWasVisibleRef = useRef(false);
+  /** Saved pin-sheet scroll offset when opening a pro profile overlay from the map. */
+  const restorePinSheetScrollRef = useRef(0);
+  const pendingPinSheetScrollRestoreRef = useRef<number | null>(null);
 
   const useStyledGoogleMap = useGoogleMapsProvider();
 
   const closeMapModal = useCallback(() => {
-    restoreMapModalAfterProfileRef.current = false;
+    setMapProfileOverlayId(null);
     setSelectedSalon(null);
     setBoundsRegion(null);
     setMapModalVisible(false);
@@ -710,6 +664,10 @@ const MapLocationScreen = () => {
     setBoundsRegion(BERGEN_REGION);
     setMapModalVisible(true);
     setMapLoading(false);
+    trackProduct("map_opened", {
+      source: "current_location",
+      profession: professionKey ?? null,
+    });
 
     const intentId = bumpMapCameraIntent();
 
@@ -733,14 +691,18 @@ const MapLocationScreen = () => {
       setMapRegion(region);
       setBoundsRegion(region);
       setShowUserOnMap(true);
+      programmaticCameraRef.current = true;
       mapViewRef.current?.animateToRegion(region, 350);
+      setTimeout(() => {
+        programmaticCameraRef.current = false;
+      }, 900);
     } catch {
       Alert.alert(
         t("discover.locationErrorTitle"),
         t("discover.locationErrorMessage")
       );
     }
-  }, [t, bumpMapCameraIntent]);
+  }, [t, bumpMapCameraIntent, trackProduct, professionKey]);
 
   /**
    * Recenter the map on a resolved place (from either a picked Places
@@ -757,6 +719,7 @@ const MapLocationScreen = () => {
   const flyToPlace = useCallback(
     (place: ResolvedPlace) => {
       bumpMapCameraIntent();
+      programmaticCameraRef.current = true;
       const region = placeToRegion(
         place.latitude,
         place.longitude,
@@ -764,15 +727,29 @@ const MapLocationScreen = () => {
       );
       setSelectedSalon(null);
       setShowUserOnMap(false);
+      setClusterMarkers(
+        shouldClusterByZoomWithHysteresis(region.latitudeDelta, false)
+      );
       setMapRegion(region);
       setBoundsRegion(region);
       if (!mapModalVisible) {
         setMapModalVisible(true);
+        trackProduct("map_opened", {
+          source: "location_search",
+          profession: professionKey ?? null,
+        });
       } else {
         mapViewRef.current?.animateToRegion(region, 500);
       }
+      trackProduct("map_location_searched", {
+        profession: professionKey ?? null,
+        placeId: place.placeId ?? null,
+      });
+      setTimeout(() => {
+        programmaticCameraRef.current = false;
+      }, 900);
     },
-    [mapModalVisible, bumpMapCameraIntent]
+    [mapModalVisible, bumpMapCameraIntent, trackProduct, professionKey]
   );
 
   /**
@@ -783,12 +760,16 @@ const MapLocationScreen = () => {
    */
   useEffect(() => {
     if (!mapModalVisible || !mapRegion) return;
+    if (programmaticCameraRef.current) return;
+    if (isMapGesturingRef.current) return;
     const ref = mapViewRef.current;
     if (!ref) return;
-    // One tick after commit so the native map is ready for camera moves
-    // (required for a just-mounted MapView on Android).
+    programmaticCameraRef.current = true;
     const handle = setTimeout(() => {
       ref.animateToRegion(mapRegion, 400);
+      setTimeout(() => {
+        programmaticCameraRef.current = false;
+      }, 480);
     }, 50);
     return () => clearTimeout(handle);
   }, [mapRegion, mapModalVisible]);
@@ -923,13 +904,6 @@ const MapLocationScreen = () => {
 
   const [clusterMarkers, setClusterMarkers] = useState(false);
 
-  useEffect(() => {
-    if (!boundsRegion) return;
-    setClusterMarkers((prev) =>
-      shouldClusterByZoomWithHysteresis(boundsRegion.latitudeDelta, prev)
-    );
-  }, [boundsRegion?.latitudeDelta]);
-
   const showAggregatedSalonPins = Boolean(boundsRegion && clusterMarkers);
 
   const salonClusters = useMemo(() => {
@@ -941,70 +915,29 @@ const MapLocationScreen = () => {
     );
   }, [boundsRegion, showAggregatedSalonPins, salons]);
 
-  /** Bumps Marker `tracksViewChanges` pulses when fetched pins change so bitmaps repaint without a pinch. */
   const markerPinSignature = useMemo(() => {
     if (showAggregatedSalonPins && salonClusters && salonClusters.length > 0) {
       return salonClusters
         .map((c) => {
           const total = salonClusterTotalProfessionals(c.members);
-          return `${c.id}:${total}:${c.members.map((m) => m.id).join(",")}`;
+          return `${c.id}:${total}`;
         })
         .join("|");
     }
     return salons
-      .map((s) => `${s.id}:${s.professional_count}:${s.latitude.toFixed(5)},${s.longitude.toFixed(5)}`)
-      .sort()
+      .map(
+        (s) =>
+          `${s.id}:${s.professional_count}:${s.latitude.toFixed(5)},${s.longitude.toFixed(5)}`
+      )
       .join("|");
   }, [salons, salonClusters, showAggregatedSalonPins]);
 
-  const [markerRenderPulseKey, setMarkerRenderPulseKey] = useState(0);
+  const [markerSnapshotEpoch, setMarkerSnapshotEpoch] = useState(0);
 
-  /** Google Maps marker bitmaps often stay blank after a hidden Modal is shown again — pulse + remount. */
-  const refreshMapPinsAfterModalShown = useCallback(() => {
-    requestAnimationFrame(() => {
-      setMarkerRenderPulseKey((k) => k + 1);
-    });
-    return [setTimeout(() => setMarkerRenderPulseKey((k) => k + 1), 400)];
-  }, []);
-
-  const restoreMapAfterProfessionalProfile = useCallback(() => {
-    if (!restoreMapModalAfterProfileRef.current) return;
-    restoreMapModalAfterProfileRef.current = false;
-    setMaskMapLocationShell(false);
-    setMapModalVisible(true);
-    setMapRemountKey((k) => k + 1);
-  }, []);
-
-  /** Repaint custom marker bitmaps when pin data changes — not on every camera move. */
   useEffect(() => {
     if (!mapModalVisible) return;
-    if (isMapGesturingRef.current) return;
-    if (markerPinSignature === lastMarkerPinSignatureRef.current) return;
-    lastMarkerPinSignatureRef.current = markerPinSignature;
-
-    if (markerPulseDebounceRef.current) {
-      clearTimeout(markerPulseDebounceRef.current);
-    }
-    markerPulseDebounceRef.current = setTimeout(() => {
-      if (isMapGesturingRef.current) return;
-      setMarkerRenderPulseKey((k) => k + 1);
-    }, 400);
-
-    return () => {
-      if (markerPulseDebounceRef.current) {
-        clearTimeout(markerPulseDebounceRef.current);
-      }
-    };
+    setMarkerSnapshotEpoch((epoch) => epoch + 1);
   }, [mapModalVisible, markerPinSignature]);
-
-  /** When the map modal becomes visible again, repaint custom marker snapshots. */
-  useEffect(() => {
-    const becameVisible = mapModalVisible && !mapModalWasVisibleRef.current;
-    mapModalWasVisibleRef.current = mapModalVisible;
-    if (!becameVisible || !boundsRegion) return;
-    const timers = refreshMapPinsAfterModalShown();
-    return () => timers.forEach(clearTimeout);
-  }, [mapModalVisible, boundsRegion, refreshMapPinsAfterModalShown]);
 
   const {
     data: salonProfessionals = [],
@@ -1060,12 +993,15 @@ const MapLocationScreen = () => {
   }, []);
 
   const pinSheetTranslateY = useRef(new Animated.Value(0)).current;
+  const pinSheetScrollRef = useRef<ScrollView>(null);
+  const pinSheetScrollOffsetRef = useRef(0);
   const pinSheetScrollAtTop = useRef(true);
 
   useEffect(() => {
     if (selectedSalon) {
       pinSheetTranslateY.setValue(0);
       pinSheetScrollAtTop.current = true;
+      pinSheetScrollOffsetRef.current = 0;
     }
   }, [selectedSalon?.id, pinSheetTranslateY]);
 
@@ -1146,10 +1082,42 @@ const MapLocationScreen = () => {
 
   const handlePinSheetScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      pinSheetScrollAtTop.current = e.nativeEvent.contentOffset.y <= 0;
+      const y = e.nativeEvent.contentOffset.y;
+      pinSheetScrollOffsetRef.current = y;
+      pinSheetScrollAtTop.current = y <= 0;
     },
     []
   );
+
+  const restorePinSheetScroll = useCallback(() => {
+    const scrollY = pendingPinSheetScrollRestoreRef.current;
+    if (scrollY == null || scrollY <= 0) {
+      pendingPinSheetScrollRestoreRef.current = null;
+      return;
+    }
+    pendingPinSheetScrollRestoreRef.current = null;
+    pinSheetScrollRef.current?.scrollTo({ y: scrollY, animated: false });
+    pinSheetScrollAtTop.current = scrollY <= 0;
+  }, []);
+
+  const closeMapProfileOverlay = useCallback(() => {
+    setMapProfileOverlayId(null);
+    pendingPinSheetScrollRestoreRef.current = restorePinSheetScrollRef.current;
+    requestAnimationFrame(() => {
+      restorePinSheetScroll();
+    });
+  }, [restorePinSheetScroll]);
+
+  const onMapModalShow = useCallback(() => {
+    const scrollY = pendingPinSheetScrollRestoreRef.current;
+    if (scrollY == null || scrollY <= 0) {
+      pendingPinSheetScrollRestoreRef.current = null;
+      return;
+    }
+    pendingPinSheetScrollRestoreRef.current = null;
+    pinSheetScrollRef.current?.scrollTo({ y: scrollY, animated: false });
+    pinSheetScrollAtTop.current = scrollY <= 0;
+  }, []);
 
   const handleMapPress = useCallback(
     (e: MapPressEvent) => {
@@ -1164,80 +1132,86 @@ const MapLocationScreen = () => {
     [clearPinSelection]
   );
 
+  const animateMapToRegion = useCallback((region: Region) => {
+    programmaticCameraRef.current = true;
+    setMapRegion(region);
+    setBoundsRegion(region);
+    setClusterMarkers((prev) =>
+      shouldClusterByZoomWithHysteresis(region.latitudeDelta, prev)
+    );
+    mapViewRef.current?.animateToRegion(region, 400);
+    setTimeout(() => {
+      programmaticCameraRef.current = false;
+    }, 480);
+  }, []);
+
   const handleSalonMarkerPress = useCallback(
     (salon: SalonPin) => {
       markerPressConsumesMapPressRef.current = true;
-      const region = regionZoomedToCoordinate(
-        salon.latitude,
-        salon.longitude,
-        boundsRegion,
-        {
-          factor: SALON_PIN_ZOOM_FACTOR,
-          minDelta: SALON_PIN_MIN_DELTA,
-          maxDelta: SALON_PIN_MAX_DELTA,
-        }
-      );
-      setMapRegion(region);
-      mapViewRef.current?.animateToRegion(region, 450);
+      const region = regionForSalonPinFocus(salon, boundsRegion);
+      if (region) {
+        animateMapToRegion(region);
+      }
       setSelectedSalon(salon);
+      trackProduct("map_pin_opened", {
+        salonId: salon.id,
+        profession: professionKey ?? null,
+      });
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           markerPressConsumesMapPressRef.current = false;
         });
       });
     },
-    [boundsRegion]
+    [animateMapToRegion, boundsRegion, trackProduct, professionKey]
   );
 
   const handleMultiSalonClusterPress = useCallback(
     (cluster: SalonMapCluster) => {
       if (cluster.members.length <= 1) return;
-      const br = boundsRegion;
-      if (!br) return;
       markerPressConsumesMapPressRef.current = true;
       setSelectedSalon(null);
-      const region = regionZoomedToCoordinate(
-        cluster.latitude,
-        cluster.longitude,
-        br,
-        {
-          factor: CLUSTER_ZOOM_FACTOR,
-          minDelta: CLUSTER_MIN_DELTA,
-          maxDelta: SALON_PIN_MAX_DELTA * 1.6,
-        }
-      );
-      setMapRegion(region);
-      mapViewRef.current?.animateToRegion(region, 450);
+      const region = regionToSplitSalonCluster(cluster, boundsRegion);
+      animateMapToRegion(region);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           markerPressConsumesMapPressRef.current = false;
         });
       });
     },
-    [boundsRegion]
+    [animateMapToRegion, boundsRegion]
   );
 
-  /** Debounce `onRegionChangeComplete`: wait until the user stops panning/zooming. */
+  /** Debounce bounds refetch until the user stops panning/zooming. */
   const handleRegionChangeStart = useCallback(() => {
-    isMapGesturingRef.current = true;
+    if (!programmaticCameraRef.current) {
+      isMapGesturingRef.current = true;
+    }
   }, []);
 
   const handleRegionChangeComplete = useCallback((r: Region) => {
+    if (programmaticCameraRef.current) {
+      return;
+    }
     isMapGesturingRef.current = false;
     if (regionDebounceRef.current) clearTimeout(regionDebounceRef.current);
     regionDebounceRef.current = setTimeout(() => {
       setBoundsRegion(r);
-    }, 400);
+      setClusterMarkers((prev) =>
+        shouldClusterByZoomWithHysteresis(r.latitudeDelta, prev)
+      );
+    }, 280);
   }, []);
 
-  /** First layout often skips `onRegionChangeComplete`; commit bounds + refresh snapshots when native map loads. */
+  /** First layout often skips `onRegionChangeComplete`; commit bounds when native map loads. */
   const handleMapReady = useCallback(() => {
     if (mapRegion) {
       setBoundsRegion(mapRegion);
+      setClusterMarkers((prev) =>
+        shouldClusterByZoomWithHysteresis(mapRegion.latitudeDelta, prev)
+      );
     }
-    requestAnimationFrame(() => {
-      setMarkerRenderPulseKey((k) => k + 1);
-    });
+    setMarkerSnapshotEpoch((epoch) => epoch + 1);
   }, [mapRegion]);
 
   useEffect(
@@ -1248,31 +1222,16 @@ const MapLocationScreen = () => {
   );
 
   const openProfessionalProfile = useCallback(
-    async (pro: SalonProfessional) => {
-      /**
-       * The map runs inside a React Native `Modal`, so we must hide it before
-       * or after `router.push` carefully. Do **not** clear `boundsRegion` /
-       * `mapRegion` — when the user taps back we reopen the modal (see `useFocusEffect`).
-       */
+    (pro: SalonProfessional) => {
       const proId = pro.hairdresser_id;
-      restoreMapModalAfterProfileRef.current = true;
-      /** Same tick as navigation intent — blanks the location form under the modal. */
-      setMaskMapLocationShell(true);
-      setSelectedSalon(null);
-      /** Warm cache so `[id]` can paint without waiting blocked-list queries. Cap wait so tap still feels responsive. */
+      restorePinSheetScrollRef.current = pinSheetScrollOffsetRef.current;
+
       if (isUuid(proId)) {
-        try {
-          await Promise.race([
-            queryClient.fetchQuery({
-              queryKey: clientProfileByIdQueryKey(proId),
-              queryFn: () => fetchClientProfileById(proId),
-              staleTime: 60_000,
-            }),
-            new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 400)),
-          ]);
-        } catch {
-          /* profile screen retries */
-        }
+        void queryClient.prefetchQuery({
+          queryKey: clientProfileByIdQueryKey(proId),
+          queryFn: () => fetchClientProfileById(proId),
+          staleTime: 60_000,
+        });
       }
       if (clientId) {
         void queryClient.prefetchQuery({
@@ -1292,25 +1251,14 @@ const MapLocationScreen = () => {
           staleTime: 60_000,
         });
       }
-      const href = {
-        pathname: "/(client)/(tabs)/userList/professionalProfile/[id]" as const,
-        params: {
-          id: proId,
-          ...(backendProfessionCode ? { profession: backendProfessionCode } : {}),
-        },
-      };
-      router.push(href);
-      requestAnimationFrame(() => {
-        setMapModalVisible(false);
+      setMapProfileOverlayId(proId);
+      trackProduct("map_pro_opened", {
+        professionalId: proId,
+        salonId: selectedSalon?.id ?? null,
+        profession: backendProfessionCode ?? null,
       });
     },
-    [backendProfessionCode, clientId, queryClient]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      restoreMapAfterProfessionalProfile();
-    }, [restoreMapAfterProfessionalProfile])
+    [backendProfessionCode, clientId, queryClient, trackProduct, selectedSalon?.id]
   );
 
   /** Modal is a separate window: SafeAreaView often mis-insets; pad explicitly like other screens. */
@@ -1329,10 +1277,6 @@ const MapLocationScreen = () => {
     );
   }
 
-  const hideMapLocationUI =
-    maskMapLocationShell ||
-    Boolean(pathname?.includes("professionalProfile"));
-
   return (
     <>
       <StatusBar style="dark" />
@@ -1341,6 +1285,7 @@ const MapLocationScreen = () => {
         animationType="slide"
         presentationStyle="fullScreen"
         onRequestClose={closeMapModal}
+        onShow={onMapModalShow}
       >
         <View
           style={[
@@ -1354,6 +1299,14 @@ const MapLocationScreen = () => {
           ]}
         >
           <StatusBar style="dark" />
+          {mapProfileOverlayId ? (
+            <ClientProfessionalProfileScreen
+              hairdresserId={mapProfileOverlayId}
+              routeProfessionRaw={backendProfessionCode}
+              onBack={closeMapProfileOverlay}
+              topInsetHandledExternally
+            />
+          ) : (
           <View style={styles.mapModalChrome}>
             <View style={navBackChromeStyles.screenBar}>
               <NavBackRow onPress={closeMapModal} />
@@ -1515,7 +1468,7 @@ const MapLocationScreen = () => {
                             onMultiSalonClusterPress={
                               handleMultiSalonClusterPress
                             }
-                            renderPulseKey={markerRenderPulseKey}
+                            snapshotEpoch={markerSnapshotEpoch}
                           />
                         ))
                       : salons.map((salon) => (
@@ -1524,7 +1477,7 @@ const MapLocationScreen = () => {
                             salon={salon}
                             selected={selectedSalon?.id === salon.id}
                             onSalonPress={handleSalonMarkerPress}
-                            renderPulseKey={markerRenderPulseKey}
+                            snapshotEpoch={markerSnapshotEpoch}
                           />
                         ))}
                   </MapView>
@@ -1584,6 +1537,7 @@ const MapLocationScreen = () => {
                               )}
                             </Text>
                             <ScrollView
+                              ref={pinSheetScrollRef}
                               style={[
                                 styles.clusterListScroll,
                                 pinSheetMetrics.listHeight > 0 &&
@@ -1674,6 +1628,7 @@ const MapLocationScreen = () => {
               </View>
             )}
           </View>
+          )}
         </View>
       </Modal>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -1691,10 +1646,7 @@ const MapLocationScreen = () => {
             >
               <NavBackRow onPress={() => router.back()} />
             </View>
-            {hideMapLocationUI ? (
-              <View style={styles.mapShellPlaceholder} />
-            ) : (
-              <ScrollView
+            <ScrollView
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
@@ -1809,7 +1761,6 @@ const MapLocationScreen = () => {
                 </View>
               </View>
             </ScrollView>
-            )}
           </SafeAreaView>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
@@ -2024,10 +1975,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
   },
   safe: {
-    flex: 1,
-    backgroundColor: primaryGreen,
-  },
-  mapShellPlaceholder: {
     flex: 1,
     backgroundColor: primaryGreen,
   },

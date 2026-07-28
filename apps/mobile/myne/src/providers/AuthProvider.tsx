@@ -23,6 +23,7 @@ import {
   readCachedProfile,
   writeCachedProfile,
 } from "../lib/profileCache";
+import { recordProductEvent } from "../api/analytics";
 import { router, usePathname, useSegments, type Href } from "expo-router";
 
 /** Cross-group route so replace() leaves (auth)/Splash and lands in the setup stack. */
@@ -624,10 +625,10 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         });
 
         try {
-          postHog.capture("App Opened", {
-            role:
-              (profileData as { user_type?: string }).user_type ?? "unknown",
-          });
+          const role =
+            (profileData as { user_type?: string }).user_type ?? "unknown";
+          postHog.capture("App Opened", { role });
+          void recordProductEvent({ eventType: "app_opened", payload: { role } });
         } catch {
           /* avoid blocking bootstrap on analytics */
         }

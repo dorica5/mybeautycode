@@ -6,6 +6,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { recordProductEvent } from "../api/analytics";
 import { api } from "@/src/lib/apiClient";
 import { Alert } from "react-native";
 import { useImageContext } from "./ImageProvider";
@@ -147,6 +148,13 @@ export default function MarkProvider({ children }: PropsWithChildren) {
       setSelectedImages([]);
       setMarked(false);
       setSelectedRecipient(null);
+      void recordProductEvent({
+        eventType: "inspiration_shared",
+        payload: {
+          recipientId,
+          imageCount: uploadedImages.length,
+        },
+      });
       Alert.alert(t("common.success"), t("inspiration.sharedSuccess"));
     } catch (error) {
       console.error("Sharing error:", error);

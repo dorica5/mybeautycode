@@ -58,6 +58,10 @@ import {
 } from "@/src/utils/responsive";
 import { usePostHog } from "posthog-react-native";
 import {
+  trackProductEvent,
+  useProductAnalytics,
+} from "@/src/lib/productAnalytics";
+import {
   type InspirationFilterTab,
   inspirationFilterTabToProfessionCode,
   profileHasProfessionalCapability,
@@ -212,7 +216,8 @@ const MyInspiration = () => {
 
   /** Invalidate inspiration cache only when switching client ↔ pro (not when switching pro lane). */
   const prevSurfaceRef = useRef<"client" | "pro" | null>(null);
-  const posthog = usePostHog()
+  const posthog = usePostHog();
+  const track = useProductAnalytics();
 
   const [uploadingImages, setUploadingImages] = useState<string[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
@@ -267,6 +272,12 @@ const MyInspiration = () => {
       })();
     },
     [refreshInspirationImages, setImageGallery, inspirationCategory]
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      track("inspiration_opened", { category: inspirationCategoryRef.current });
+    }, [track])
   );
 
   useFocusEffect(
@@ -407,8 +418,9 @@ const MyInspiration = () => {
 
       setUploadProgress((prev) => ({ ...prev, [tempId]: 100 }));
 
-      posthog.capture("Inspiration Saved", {
+      trackProductEvent(posthog, "inspiration_saved", {
         user_id: profile?.id ?? "unknown",
+        category: inspirationFilterTabToProfessionCode(filterTab),
       });
 
       return {

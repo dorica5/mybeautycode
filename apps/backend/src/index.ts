@@ -23,6 +23,8 @@ import { feedbackRoutes } from "./routes/feedback";
 import { billingRoutes } from "./routes/billing";
 import { placesRoutes } from "./routes/places";
 import { slackRoutes } from "./routes/slack";
+import { adminRoutes } from "./routes/admin";
+import { analyticsRoutes } from "./routes/analytics";
 import { logSlackFeedbackStatus } from "./lib/slackEnv";
 import { billingConfig } from "./config/billingConfig";
 
@@ -81,6 +83,8 @@ app.use("/api/professional-analytics", professionalAnalyticsRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/places", placesRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 app.set("io", io);
 

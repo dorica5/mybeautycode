@@ -52,6 +52,7 @@ import {
 import { formatVisitDateForCountry } from "@/src/utils/formatVisitDateForCountry";
 import { StatusBar } from "expo-status-bar";
 import { usePostHog } from "posthog-react-native";
+import { trackProductEvent } from "@/src/lib/productAnalytics";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { useVisitScreenGate } from "@/src/hooks/useVisitScreenGate";
 import ImageCropModal, {
@@ -726,7 +727,7 @@ const NewVisit = () => {
         mode: isEditing ? "edit" : "create",
       });
 
-      posthog.capture("Visit Added", {
+      trackProductEvent(posthog, "visit_added", {
         hairdresser_id: profile?.id ?? "unknown",
         client_id: clientId ?? "unknown",
       });
