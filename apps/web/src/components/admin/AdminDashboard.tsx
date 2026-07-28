@@ -3,8 +3,47 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient, getApiBaseUrl } from "@/lib/admin/client";
 import { fetchAdminMetrics, type AdminMetrics } from "@/lib/admin/metrics";
+import { downloadMetricsCsv, downloadMetricsPdf } from "@/lib/admin/exportMetrics";
 
 const STORAGE_KEY = "myne_admin_key";
+
+const MARKETING_EVENT_LABELS: Record<string, string> = {
+  profile_view: "Profile views",
+  booking_click: "Booking link taps",
+  social_click: "Social link taps",
+  phone_click: "Phone taps",
+  paywall_viewed: "Paywall viewed",
+  paywall_opened: "Paywall opened",
+  subscription_purchased: "Subscriptions purchased",
+  subscription_purchase_started: "Purchase started",
+  client_pro_link_created: "Client linked to pro",
+  feedback_submitted: "Feedback submitted",
+  signed_up: "Sign ups (tracked)",
+  login: "Logins (tracked)",
+  profile_completed: "Setup completed",
+  inspiration_saved: "Inspirations saved",
+  inspiration_shared: "Inspirations shared",
+  visit_added: "Visits added",
+  visit_edited: "Visits edited",
+  discover_profession_selected: "Discover profession picked",
+  search_performed: "Searches performed",
+  discover_pro_selected: "Pro selected (discover/search)",
+  discover_pro_opened: "Pro profile opened (discover)",
+  discover_map_cta: "Map CTA tapped",
+  home_cta_tapped: "Home CTA tapped",
+  client_link_requested: "Link requests sent",
+  client_link_accepted: "Link requests accepted",
+  client_link_declined: "Link requests declined",
+  notification_opened: "Notifications opened",
+  notifications_tab_opened: "Notifications tab opened",
+};
+
+const MAP_EVENT_LABELS: Record<string, string> = {
+  map_opened: "Map opened",
+  map_location_searched: "Location searched",
+  map_pin_opened: "Salon pin tapped",
+  map_pro_opened: "Pro profile opened",
+};
 
 function pct(part: number, whole: number): string {
   if (whole <= 0) return "0%";
@@ -118,6 +157,7 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authed, setAuthed] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useEffect(() => {
     const saved = sessionStorage.getItem(STORAGE_KEY);
@@ -287,7 +327,31 @@ export function AdminDashboard() {
             </p>
           ) : null}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {metrics ? (
+            <>
+              <button
+                type="button"
+                onClick={() => downloadMetricsCsv(metrics)}
+                className="rounded-full border-2 border-foreground px-4 py-2 text-sm font-medium"
+              >
+                Download CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setExportingPdf(true);
+                  void downloadMetricsPdf(metrics).finally(() =>
+                    setExportingPdf(false)
+                  );
+                }}
+                disabled={exportingPdf}
+                className="rounded-full border-2 border-foreground px-4 py-2 text-sm font-medium"
+              >
+                {exportingPdf ? "Building PDF…" : "Download PDF"}
+              </button>
+            </>
+          ) : null}
           <button
             type="button"
             onClick={() => void loadMetrics()}
@@ -362,6 +426,180 @@ export function AdminDashboard() {
               hint={`${metrics.users.signupsLast30Days} in last 30 days`}
             />
           </section>
+
+          {metrics.map ? (
+            <>
+              <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  label="Map users (7d)"
+                  value={metrics.map.usersLast7Days}
+                  hint={`${metrics.map.usersLast30Days} used the map in last 30 days`}
+                />
+                <MetricCard
+                  label="Map opens (7d)"
+                  value={metrics.map.opensLast7Days}
+                  hint={`${metrics.map.opensTotal} total opens · ${metrics.map.opensLast30Days} in 30d`}
+                />
+                <MetricCard
+                  label="Map searches (7d)"
+                  value={metrics.map.searchesLast7Days}
+                  hint="Users searched a city or address"
+                />
+                <MetricCard
+                  label="Pro profiles from map (7d)"
+                  value={metrics.map.proProfileOpensLast7Days}
+                  hint={`${metrics.map.pinOpensLast7Days} salon pins tapped`}
+                />
+              </section>
+
+              <section className="grid gap-4 lg:grid-cols-2">
+                <MiniTrend
+                  title="Map opens (14 days)"
+                  points={metrics.map.opensByDay}
+                />
+                <div className="rounded-2xl border-2 border-card-border bg-primary-white p-5">
+                  <h2 className="font-display text-xl">Map funnel (7 days)</h2>
+                  <p className="mt-1 text-sm text-foreground/60">
+                    Open map → search → tap pin → open professional
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {metrics.map.byEventLast7Days.map((row) => (
+                      <BarRow
+                        key={row.eventType}
+                        label={MAP_EVENT_LABELS[row.eventType] ?? row.eventType}
+                        value={row.count}
+                        max={Math.max(
+                          ...metrics.map.byEventLast7Days.map((r) => r.count),
+                          1
+                        )}
+                      />
+                    ))}
+                  </div>
+                  {metrics.map.opensLast7Days === 0 ? (
+                    <p className="mt-4 text-xs text-foreground/55">
+                      No map events yet. Data appears after users open the map
+                      on a build with analytics tracking.
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+            </>
+          ) : null}
+
+          {metrics.marketing ? (
+            <>
+              <section>
+                <h2 className="font-display text-2xl">Marketing & conversion</h2>
+                <p className="mt-1 text-sm text-foreground/60">
+                  Booking, social, paywall, and high-intent actions — lifetime
+                  totals from pro profiles plus live events (7 days).
+                </p>
+              </section>
+
+              <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  label="Profile views (lifetime)"
+                  value={metrics.marketing.profileViewsTotal}
+                  hint={`${metrics.marketing.profileViewsLast7Days} in last 7 days`}
+                />
+                <MetricCard
+                  label="Booking clicks (lifetime)"
+                  value={metrics.marketing.bookingClicksTotal}
+                  hint={`${metrics.marketing.bookingRatePct}% of profile views · ${metrics.marketing.bookingClicksLast7Days} in 7d`}
+                />
+                <MetricCard
+                  label="Social clicks (lifetime)"
+                  value={metrics.marketing.socialClicksTotal}
+                  hint={`${metrics.marketing.socialClicksLast7Days} in last 7 days`}
+                />
+                <MetricCard
+                  label="Phone taps (7d)"
+                  value={metrics.marketing.phoneClicksLast7Days}
+                  hint="Salon phone from pro profile"
+                />
+              </section>
+
+              <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <MetricCard
+                  label="Paywall views (7d)"
+                  value={metrics.marketing.paywallViewsLast7Days}
+                  hint={`${metrics.marketing.paywallOpensLast7Days} opened from limit prompts`}
+                />
+                <MetricCard
+                  label="Subscriptions (7d)"
+                  value={metrics.marketing.subscriptionsPurchasedLast7Days}
+                  hint={`${metrics.subscriptions.activeInDatabase} paying pros in database`}
+                />
+                <MetricCard
+                  label="Client → pro links (7d)"
+                  value={metrics.marketing.clientLinksCreatedLast7Days}
+                  hint={`${metrics.engagement.clientProLinksActive} active links total`}
+                />
+                <MetricCard
+                  label="Feedback submitted (7d)"
+                  value={metrics.marketing.feedbackSubmittedLast7Days}
+                  hint={`${metrics.marketing.signupsTrackedLast7Days} signups tracked in app`}
+                />
+              </section>
+
+              <section className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-2xl border-2 border-card-border bg-primary-white p-5">
+                  <h2 className="font-display text-xl">Social by platform</h2>
+                  <p className="mt-1 text-sm text-foreground/60">
+                    Instagram, TikTok, etc. — lifetime taps on pro profiles
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {metrics.marketing.socialByPlatform.length === 0 ? (
+                      <p className="text-sm text-foreground/60">
+                        No social taps recorded yet.
+                      </p>
+                    ) : (
+                      metrics.marketing.socialByPlatform.map((row) => (
+                        <BarRow
+                          key={row.platform}
+                          label={row.platform}
+                          value={row.count}
+                          max={
+                            metrics.marketing?.socialByPlatform[0]?.count ?? 1
+                          }
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border-2 border-card-border bg-primary-white p-5">
+                  <h2 className="font-display text-xl">Product events (7d)</h2>
+                  <p className="mt-1 text-sm text-foreground/60">
+                    Investor-ready activity from the latest app builds
+                  </p>
+                  <div className="mt-4 space-y-2">
+                    {metrics.marketing.keyEventsLast7Days.length === 0 ? (
+                      <p className="text-sm text-foreground/60">
+                        Events appear after users run a build with full
+                        analytics tracking.
+                      </p>
+                    ) : (
+                      metrics.marketing.keyEventsLast7Days.map((row) => (
+                        <div
+                          key={row.eventType}
+                          className="flex justify-between rounded-xl bg-secondary-green/60 px-3 py-2 text-sm"
+                        >
+                          <span>
+                            {MARKETING_EVENT_LABELS[row.eventType] ??
+                              row.eventType}
+                          </span>
+                          <span className="font-medium tabular-nums">
+                            {row.count}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </section>
+            </>
+          ) : null}
 
           <section className="grid gap-4 lg:grid-cols-2">
             <MiniTrend title="Signups (14 days)" points={metrics.trends.signupsByDay} />

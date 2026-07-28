@@ -51,6 +51,7 @@ import {
 } from "@/src/lib/revenuecat";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { privacyPolicyUrl, termsOfServiceUrl } from "@/src/lib/legalLinks";
+import { useProductAnalytics } from "@/src/lib/productAnalytics";
 import type { Offerings } from "react-native-purchases";
 
 type Plan = "monthly" | "annual";
@@ -65,6 +66,7 @@ function planFromProductId(productId: string | null | undefined): Plan | null {
 
 const Paywall = () => {
   const { t } = useI18n();
+  const track = useProductAnalytics();
   const logoSize = useBeautyCodeLogoSize();
   const { from } = useLocalSearchParams<{ from?: string }>();
   const { billing, syncFromRevenueCat, refreshBilling, revenueCatReady } =
@@ -205,6 +207,10 @@ const Paywall = () => {
 
   useFocusEffect(
     useCallback(() => {
+      track("paywall_viewed", {
+        from: typeof from === "string" ? from : "unknown",
+        change_plan: isChangePlan,
+      });
       if (!getRevenueCatApiKey() || !revenueCatReady) return;
       let alive = true;
       void (async () => {
@@ -221,7 +227,7 @@ const Paywall = () => {
       return () => {
         alive = false;
       };
-    }, [billing?.plan, revenueCatReady])
+    }, [billing?.plan, from, isChangePlan, revenueCatReady, track])
   );
 
   const openLink = async (url: string) => {
@@ -242,6 +248,7 @@ const Paywall = () => {
     }
 
     setBusy(true);
+    track("subscription_purchase_started", { plan: selectedPlan, from: from ?? "unknown" });
     try {
       const loadedOfferings = offerings ?? (await getOfferingsSafe());
       if (!offerings && loadedOfferings) setOfferings(loadedOfferings);
@@ -262,6 +269,7 @@ const Paywall = () => {
 
       await syncFromRevenueCat(info);
       setActiveProductId(activePremiumProductId(info));
+      track("subscription_purchased", { plan: selectedPlan, from: from ?? "unknown" });
       setSuccessModalVisible(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : t("paywall.purchaseFailed");
@@ -286,6 +294,7 @@ const Paywall = () => {
       }
       await syncFromRevenueCat(info);
       setActiveProductId(activePremiumProductId(info));
+      track("subscription_restored", { from: from ?? "unknown" });
       Alert.alert(
         t("profile.restorePurchases"),
         t("paywall.restoreSuccessMessage")
@@ -318,7 +327,11 @@ const Paywall = () => {
     const selected = selectedPlan === plan;
     return (
       <Pressable
-        onPress={() => !disabled && setSelectedPlan(plan)}
+        onPress={() => {
+          if (disabled) return;
+          setSelectedPlan(plan);
+          track("paywall_plan_selected", { plan });
+        }}
         style={({ pressed }) => [
           styles.planCard,
           selected && styles.planCardSelected,

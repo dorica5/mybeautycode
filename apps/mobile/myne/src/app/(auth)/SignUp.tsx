@@ -14,6 +14,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
+import { recordProductEvent } from "@/src/api/analytics";
 import { usePostHog } from "posthog-react-native";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { useRef, useState } from "react";
@@ -178,6 +179,7 @@ const SignUp = () => {
         posthog.identify(user.id, {
           email: user.email ?? null,
         });
+        void recordProductEvent({ eventType: "signed_up" });
       } catch {
         /* PostHog optional */
       }

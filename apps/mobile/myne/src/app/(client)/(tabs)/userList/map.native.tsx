@@ -1305,6 +1305,7 @@ const MapLocationScreen = () => {
               routeProfessionRaw={backendProfessionCode}
               onBack={closeMapProfileOverlay}
               topInsetHandledExternally
+              discoverySource="map"
             />
           ) : (
           <View style={styles.mapModalChrome}>

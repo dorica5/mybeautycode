@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { useFocusEffect } from "expo-router";
-import { recordProfessionalAnalyticsEvent } from "@/src/api/professionalAnalytics";
+import { recordProfessionalAnalyticsEvent } from "@/src/api/professionalAnalytics";`r`nimport { recordProductEvent } from "@/src/api/analytics";
 import {
   View,
   Text,
@@ -303,11 +303,19 @@ export function PublicProfessionalProfileView({
   const handleCall = useCallback(() => {
     const p = salonPhone?.trim();
     if (!p) return;
+    if (shouldTrackAnalytics) {
+      void recordProductEvent({
+        eventType: "phone_click",
+        entityType: "professional_profile",
+        entityId: profileUserId,
+        payload: { professionCode: lane ?? null },
+      });
+    }
     void openTelUrl(
       p.startsWith("tel:") ? p : `tel:${p}`,
       t("common.cannotOpenLink")
     );
-  }, [salonPhone, t]);
+  }, [salonPhone, shouldTrackAnalytics, profileUserId, lane, t]);
 
   const handleBooking = useCallback(() => {
     if (!safeBookingUrl) return;

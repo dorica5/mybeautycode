@@ -20,6 +20,7 @@ import {
   pushNotificationProfileNav,
   resolveProToClientProfileNav,
 } from "@/src/lib/notificationProfileNavigation";
+import { recordProductEvent } from "@/src/api/analytics";
 
 const CLIENT_CARD_READ_BG = "#FFFFFF";
 
@@ -219,6 +220,14 @@ export const NotificationItem = ({
 
   const handlePress = async () => {
     if (isRejectedLink) return;
+
+    void recordProductEvent({
+      eventType: "notification_opened",
+      payload: {
+        type: notification.type ?? "unknown",
+        status: notification.status ?? null,
+      },
+    });
 
     if (isAcceptedLink) {
       void markAsRead();

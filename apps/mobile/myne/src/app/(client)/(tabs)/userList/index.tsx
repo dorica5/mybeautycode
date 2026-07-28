@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -37,6 +37,7 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { recordProductEvent } from "@/src/api/analytics";
 
 type Profession = "hair" | "nails" | "brows" | "barber";
 
@@ -109,6 +110,23 @@ const FindProfessionalsScreen = () => {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
+  const lastTrackedSearchRef = useRef("");
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (q.length < 2 || !professionKey) return;
+    const trackKey = `${professionKey}:${q.toLowerCase()}`;
+    if (lastTrackedSearchRef.current === trackKey) return;
+    lastTrackedSearchRef.current = trackKey;
+    void recordProductEvent({
+      eventType: "search_performed",
+      payload: {
+        context: "discover",
+        professionCode: professionKey,
+        queryLength: q.length,
+      },
+    });
+  }, [debouncedQuery, professionKey]);
+
   const handleSearch = useCallback(
     (query: string) => setSearchQuery(query),
     []
@@ -123,6 +141,10 @@ const FindProfessionalsScreen = () => {
     // Profession already chosen on the previous (filter) step -> jump straight to the map.
     // Fallback (no param): bounce to the filter screen so the user picks one first.
     if (professionKey) {
+      void recordProductEvent({
+        eventType: "discover_map_cta",
+        payload: { professionCode: professionKey },
+      });
       router.push({
         pathname: "/(client)/(tabs)/userList/map",
         params: { profession: professionKey },
@@ -231,6 +253,7 @@ const FindProfessionalsScreen = () => {
                   context="client"
                   query={debouncedQuery}
                   professionCode={professionKey}
+                  discoverSource="discover_search"
                 />
               )}
               ListEmptyComponent={

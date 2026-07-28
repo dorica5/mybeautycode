@@ -17,6 +17,7 @@ import { CaretUp, Images, X } from "phosphor-react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { randomUUID } from "expo-crypto";
+import { recordProductEvent } from "@/src/api/analytics";
 import TopNav from "@/src/components/TopNav";
 import {
   MintProfileScreenShell,
@@ -303,6 +304,10 @@ export default function FeedbackScreen() {
         type,
         screenshot_paths:
           screenshotPaths.length > 0 ? screenshotPaths : undefined,
+      });
+      void recordProductEvent({
+        eventType: "feedback_submitted",
+        payload: { type },
       });
       setSuccessSubmittedType(type);
       setSuccessVisible(true);

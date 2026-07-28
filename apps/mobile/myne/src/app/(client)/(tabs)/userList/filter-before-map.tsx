@@ -28,6 +28,7 @@ import {
 } from "@/src/utils/responsive";
 import { useI18n, useProfessionLabel } from "@/src/providers/LanguageProvider";
 import { useScrollRevealBack } from "@/src/hooks/useScrollRevealBack";
+import { recordProductEvent } from "@/src/api/analytics";
 
 type Profession = "hair" | "nails" | "brows" | "barber";
 
@@ -94,6 +95,10 @@ const FilterBeforeMapScreen = () => {
     // Ignore repeat taps while the hand-off animation is running.
     if (navTimerRef.current) return;
     setSelected(key);
+    void recordProductEvent({
+      eventType: "discover_profession_selected",
+      payload: { profession: key },
+    });
     navTimerRef.current = setTimeout(() => {
       navTimerRef.current = null;
       router.push({

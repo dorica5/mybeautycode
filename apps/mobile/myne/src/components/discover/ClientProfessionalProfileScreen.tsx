@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { StyleSheet, View, Alert, Pressable, ActivityIndicator } from "react-native";
 import { DotsThree } from "phosphor-react-native";
-import { router, type Href } from "expo-router";
+import { router, useFocusEffect, type Href } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
@@ -32,6 +32,14 @@ import { BlockedProfileScreen } from "@/src/components/BlockedProfileScreen";
 import ThemedRouteLoading from "@/src/components/ThemedRouteLoading";
 import { resolveAvatarStoragePath } from "@/src/lib/resolveAvatarStoragePath";
 import { buildPublicProfessionalProfileFields } from "@/src/lib/publicProfessionalProfileFields";
+import { recordProductEvent } from "@/src/api/analytics";
+
+export type DiscoverProSource =
+  | "map"
+  | "discover_search"
+  | "global_search"
+  | "notification"
+  | "unknown";
 
 export type ClientProfessionalProfileScreenProps = {
   hairdresserId: string;
@@ -41,6 +49,8 @@ export type ClientProfessionalProfileScreenProps = {
   onBack: () => void;
   /** Map modal overlay — parent applies status-bar inset. */
   topInsetHandledExternally?: boolean;
+  /** How the user reached this profile (for attribution). */
+  discoverySource?: DiscoverProSource;
 };
 
 export function ClientProfessionalProfileScreen({
@@ -49,6 +59,7 @@ export function ClientProfessionalProfileScreen({
   relationshipFromRoute,
   onBack,
   topInsetHandledExternally = false,
+  discoverySource = "unknown",
 }: ClientProfessionalProfileScreenProps) {
   const { t } = useI18n();
   const moderationDetailCopy = useModerationDetailCopy();
@@ -77,6 +88,20 @@ export function ClientProfessionalProfileScreen({
     }
     return null;
   }, [relationshipLane, p?.profession_codes]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void recordProductEvent({
+        eventType: "discover_pro_opened",
+        entityType: "professional_profile",
+        entityId: hairdresser_id,
+        payload: {
+          source: discoverySource,
+          professionCode: relationshipLane ?? displayLane,
+        },
+      });
+    }, [hairdresser_id, discoverySource, relationshipLane, displayLane])
+  );
 
   const data = p
     ? {
@@ -181,6 +206,13 @@ export function ClientProfessionalProfileScreen({
     setLoading(true);
     try {
       await addHairdresserDB();
+
+      void recordProductEvent({
+        eventType: "client_pro_link_created",
+        entityType: "professional_profile",
+        entityId: hairdresser_id,
+        payload: { professionCode: relationshipLane },
+      });
 
       setLinkJustAdded(true);
       queryClient.setQueryData(

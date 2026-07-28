@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { useClearOnProfessionChange } from "@/src/hooks/useClearOnProfessionChange";
 import { primaryBlack } from "@/src/constants/Colors";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { recordProductEvent } from "@/src/api/analytics";
 
 const SearchPage = () => {
   const { t } = useI18n();
@@ -56,6 +57,23 @@ const SearchPage = () => {
       clearTimeout(handler);
     };
   }, [searchQuery]);
+
+  const lastTrackedSearchRef = useRef("");
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (q.length < 2 || !activeProfessionCode) return;
+    const trackKey = `${activeProfessionCode}:${q.toLowerCase()}`;
+    if (lastTrackedSearchRef.current === trackKey) return;
+    lastTrackedSearchRef.current = trackKey;
+    void recordProductEvent({
+      eventType: "search_performed",
+      payload: {
+        context: "global_search",
+        professionCode: activeProfessionCode,
+        queryLength: q.length,
+      },
+    });
+  }, [debouncedQuery, activeProfessionCode]);
 
   useEffect(() => {
     const uid = profile?.id;
@@ -173,6 +191,7 @@ const SearchPage = () => {
             context="hairdresser"
             query={debouncedQuery}
             professionCode={activeProfessionCode}
+            discoverSource="global_search"
           />
         )}
         contentContainerStyle={styles.resultsContainer}

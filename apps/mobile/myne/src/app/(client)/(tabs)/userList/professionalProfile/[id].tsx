@@ -2,6 +2,7 @@
 import React, { useMemo } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { ClientProfessionalProfileScreen } from "@/src/components/discover/ClientProfessionalProfileScreen";
+import type { DiscoverProSource } from "@/src/components/discover/ClientProfessionalProfileScreen";
 
 function normalizeRouteParam(
   value: string | string[] | undefined
@@ -22,10 +23,16 @@ function parseRelationshipRouteParam(
 }
 
 const ProfessionalProfileScreen = () => {
-  const { id, profession, relationship: relationshipParam } = useLocalSearchParams<{
+  const {
+    id,
+    profession,
+    relationship: relationshipParam,
+    source,
+  } = useLocalSearchParams<{
     id: string | string[];
     profession?: string | string[];
     relationship?: string | string[];
+    source?: string | string[];
   }>();
   const hairdresser_id = normalizeRouteParam(id);
   const routeProfessionRaw = useMemo(() => {
@@ -36,6 +43,18 @@ const ProfessionalProfileScreen = () => {
     () => parseRelationshipRouteParam(relationshipParam),
     [relationshipParam]
   );
+  const discoverySource = useMemo((): DiscoverProSource => {
+    const raw = normalizeRouteParam(source);
+    if (
+      raw === "map" ||
+      raw === "discover_search" ||
+      raw === "global_search" ||
+      raw === "notification"
+    ) {
+      return raw;
+    }
+    return "discover_search";
+  }, [source]);
 
   if (!hairdresser_id) return null;
 
@@ -44,6 +63,7 @@ const ProfessionalProfileScreen = () => {
       hairdresserId={hairdresser_id}
       routeProfessionRaw={routeProfessionRaw}
       relationshipFromRoute={relationshipFromRoute}
+      discoverySource={discoverySource}
       onBack={() => router.back()}
     />
   );

@@ -727,7 +727,7 @@ const NewVisit = () => {
         mode: isEditing ? "edit" : "create",
       });
 
-      trackProductEvent(posthog, "visit_added", {
+      trackProductEvent(posthog, isEditing ? "visit_edited" : "visit_added", {
         hairdresser_id: profile?.id ?? "unknown",
         client_id: clientId ?? "unknown",
       });

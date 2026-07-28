@@ -15,6 +15,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 import { usePostHog } from "posthog-react-native";
+import { recordProductEvent } from "@/src/api/analytics";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { useRef, useState } from "react";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -98,6 +99,10 @@ const SignIn = () => {
             email: data.user.email ?? null,
             role: "pending_setup",
           });
+          void recordProductEvent({
+            eventType: "login",
+            payload: { role: "pending_setup" },
+          });
           router.replace("/(setup)/Setup");
           return;
         }
@@ -115,6 +120,10 @@ const SignIn = () => {
       posthog.identify(data.user.id, {
         email: data.user.email ?? null,
         role: profile?.user_type ?? "unknown",
+      });
+      void recordProductEvent({
+        eventType: "login",
+        payload: { role: profile?.user_type ?? "unknown" },
       });
     } catch (err) {
       setErrorMessage("An unexpected error occurred. Please try again.");

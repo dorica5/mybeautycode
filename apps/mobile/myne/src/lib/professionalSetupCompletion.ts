@@ -1,6 +1,7 @@
 import { pinSessionProfessionCode, setLastAppSurface, setLastProfessionCode } from "@/src/lib/lastVisitPreference";
 import { resolveProfessionalFullName } from "@/src/lib/professionalDisplayName";
 import { supabase } from "@/src/lib/supabase";
+import { recordProductEvent } from "@/src/api/analytics";
 import type { PostHog } from "posthog-react-native";
 
 export async function runProfessionalSetupCompletionSideEffects(opts: {
@@ -21,6 +22,10 @@ export async function runProfessionalSetupCompletionSideEffects(opts: {
   pinSessionProfessionCode(professionCode);
 
   posthog?.capture("Profile Completed", { role: "HAIRDRESSER" });
+  void recordProductEvent({
+    eventType: "profile_completed",
+    payload: { role: "HAIRDRESSER", professionCode },
+  });
 
   const { data: user } = await supabase.auth.getUser();
   const display =

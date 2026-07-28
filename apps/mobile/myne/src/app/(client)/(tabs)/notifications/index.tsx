@@ -29,6 +29,7 @@ import {
   useI18n,
 } from "@/src/providers/LanguageProvider";
 import type { AppLocale } from "@/src/i18n";
+import { recordProductEvent } from "@/src/api/analytics";
 
 type NotifRow = {
   created_at?: string;
@@ -151,6 +152,10 @@ const Notifications = () => {
 
   useFocusEffect(
     useCallback(() => {
+      void recordProductEvent({
+        eventType: "notifications_tab_opened",
+        payload: { role: "client" },
+      });
       void loadNotifications(false);
     }, [loadNotifications])
   );

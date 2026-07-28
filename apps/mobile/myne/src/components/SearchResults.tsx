@@ -29,6 +29,9 @@ import {
 import { isUuid } from "../utils/isUuid";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
+import { recordProductEvent } from "@/src/api/analytics";
+
+type DiscoverSource = "discover_search" | "global_search";
 
 type SearchResultProps = {
   item: {
@@ -48,9 +51,17 @@ type SearchResultProps = {
   query?: string;
   /** Active professional lane — required for `/visits/[id]` relationship checks. */
   professionCode?: string | null;
+  /** Where the row was shown (client discover vs pro global search). */
+  discoverSource?: DiscoverSource;
 };
 
-const SearchResults = ({ item, context, query, professionCode }: SearchResultProps) => {
+const SearchResults = ({
+  item,
+  context,
+  query,
+  professionCode,
+  discoverSource,
+}: SearchResultProps) => {
   const { t } = useI18n();
   const { profile } = useAuth();
   const { data: blockedIdList, isFetched: blockedListFetched } =
@@ -280,6 +291,15 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
                 setActionBusyClientId(clientId);
                 try {
                   await requestClientLink(clientId, professionCode);
+                  void recordProductEvent({
+                    eventType: "client_link_requested",
+                    entityType: "client_profile",
+                    entityId: clientId,
+                    payload: {
+                      professionCode: professionCode?.trim() ?? null,
+                      source: discoverSource ?? "global_search",
+                    },
+                  });
                   await invalidateAfterLinkChange();
                 } catch (err) {
                   const msg =
@@ -317,6 +337,21 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
     : null;
   const laneParam =
     item.profession_code?.trim() || professionCode?.trim() || null;
+  const sourceParam = discoverSource ?? "discover_search";
+
+  const trackProSelected = () => {
+    if (!proId) return;
+    void recordProductEvent({
+      eventType: "discover_pro_selected",
+      entityType: "professional_profile",
+      entityId: proId,
+      payload: {
+        source: sourceParam,
+        professionCode: laneParam,
+        queryLength: query?.trim().length ?? 0,
+      },
+    });
+  };
 
   const rowContent = (
     <>
@@ -340,6 +375,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
           full_name: item.full_name,
           phone_number: item.phone_number,
           client_id: item.client_id,
+          source: sourceParam,
           ...(laneParam ? { profession: laneParam } : {}),
           ...(hasRelationship
             ? { relationship: "true" }
@@ -351,6 +387,7 @@ const SearchResults = ({ item, context, query, professionCode }: SearchResultPro
     >
       <Pressable
         style={({ pressed }) => [{ opacity: pressed ? 0.5 : 1 }]}
+        onPress={trackProSelected}
       >
         {rowContent}
       </Pressable>

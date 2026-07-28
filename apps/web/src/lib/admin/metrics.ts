@@ -42,6 +42,36 @@ export type AdminMetrics = {
   };
   geography: { country: string; count: number }[];
   productEventsLast7Days: { eventType: string; count: number }[];
+  map: {
+    usersLast7Days: number;
+    usersLast30Days: number;
+    opensLast7Days: number;
+    opensLast30Days: number;
+    opensTotal: number;
+    searchesLast7Days: number;
+    pinOpensLast7Days: number;
+    proProfileOpensLast7Days: number;
+    byEventLast7Days: { eventType: string; count: number }[];
+    opensByDay: { date: string; count: number }[];
+  };
+  marketing: {
+    profileViewsTotal: number;
+    bookingClicksTotal: number;
+    socialClicksTotal: number;
+    bookingRatePct: number;
+    profileViewsLast7Days: number;
+    bookingClicksLast7Days: number;
+    socialClicksLast7Days: number;
+    phoneClicksLast7Days: number;
+    paywallViewsLast7Days: number;
+    paywallOpensLast7Days: number;
+    subscriptionsPurchasedLast7Days: number;
+    clientLinksCreatedLast7Days: number;
+    feedbackSubmittedLast7Days: number;
+    signupsTrackedLast7Days: number;
+    socialByPlatform: { platform: string; count: number }[];
+    keyEventsLast7Days: { eventType: string; count: number }[];
+  };
   trends: {
     signupsByDay: { date: string; count: number }[];
     visitsByDay: { date: string; count: number }[];
