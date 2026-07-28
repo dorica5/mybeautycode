@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import * as Notifications from "expo-notifications";
 import { api } from "@/src/lib/apiClient";
 import { supabase } from "@/src/lib/supabase";
+import {
+  isStaleRefreshTokenError,
+  purgeStaleAuthSession,
+} from "@/src/lib/authSessionRecovery";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { getExpoPushTokenSafe } from "@/src/lib/pushRegistration";
 
@@ -28,6 +32,10 @@ async function resolveAccessToken(
       const { data: refreshed, error } = await supabase.auth.refreshSession();
       if (!error && refreshed.session?.access_token) {
         return refreshed.session.access_token;
+      }
+      if (error && isStaleRefreshTokenError(error)) {
+        await purgeStaleAuthSession();
+        return undefined;
       }
     }
 

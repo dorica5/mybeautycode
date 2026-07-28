@@ -1,5 +1,9 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import {
+  isStaleRefreshTokenError,
+  purgeStaleAuthSession,
+} from "./authSessionRecovery";
 import { supabase } from "./supabase";
 
 const RAW_API_URL =
@@ -53,6 +57,10 @@ async function getBearerToken(): Promise<string | undefined> {
     const { data: refreshed, error } = await supabase.auth.refreshSession();
     if (!error && refreshed.session?.access_token) {
       return refreshed.session.access_token;
+    }
+    if (error && isStaleRefreshTokenError(error)) {
+      await purgeStaleAuthSession();
+      return undefined;
     }
   }
 
@@ -113,6 +121,10 @@ async function fetchWithSessionRefresh(
 
   const { data: refreshed, error } = await supabase.auth.refreshSession();
   const newToken = refreshed?.session?.access_token;
+  if (error && isStaleRefreshTokenError(error)) {
+    await purgeStaleAuthSession();
+    return res;
+  }
   if (error || !newToken) {
     return res;
   }

@@ -1,5 +1,9 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { supabase } from "../lib/supabase";
+import {
+  isStaleRefreshTokenError,
+  purgeStaleAuthSession,
+} from "../lib/authSessionRecovery";
 import { api, setApiOn401 } from "../lib/apiClient";
 import { Session } from "@supabase/supabase-js";
 import {
@@ -445,8 +449,14 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       const { data, error } = await supabase.auth.getSession();
 
       if (error) {
-        console.error("Error fetching session:", error.message);
+        if (isStaleRefreshTokenError(error)) {
+          await purgeStaleAuthSession();
+          await clearProfile();
+        } else {
+          console.warn("Error fetching session:", error.message);
+        }
         setLoadingProfile(false);
+        initialLoadComplete.current = true;
         return;
       }
 

@@ -40,7 +40,13 @@ const io = new Server(httpServer, {
 
 setupSocket(io);
 
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Admin-Key"],
+  })
+);
 
 app.use("/api/slack", slackRoutes);
 
@@ -92,6 +98,9 @@ const PORT = process.env.PORT || 3001;
 
 httpServer.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
+  console.log(
+    `[admin] ADMIN_METRICS_API_KEY configured: ${Boolean(process.env.ADMIN_METRICS_API_KEY?.trim())}`
+  );
   logSlackFeedbackStatus();
   if (billingConfig.TEST_SUBSCRIBED_PROFILE_IDS.size > 0) {
     console.log(

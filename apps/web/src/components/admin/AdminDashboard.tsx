@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getSupabaseBrowserClient } from "@/lib/admin/client";
+import { getSupabaseBrowserClient, getApiBaseUrl } from "@/lib/admin/client";
 import { fetchAdminMetrics, type AdminMetrics } from "@/lib/admin/metrics";
 
 const STORAGE_KEY = "myne_admin_key";
@@ -131,13 +131,17 @@ export function AdminDashboard() {
     setLoading(true);
     setError(null);
     try {
+      const storedKey = sessionStorage.getItem(STORAGE_KEY)?.trim() ?? "";
+      const key = adminKey.trim() || storedKey;
       const data = await fetchAdminMetrics({
-        adminKey: accessToken ? undefined : adminKey,
+        adminKey: accessToken ? undefined : key || undefined,
         accessToken: accessToken ?? undefined,
       });
       setMetrics(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load metrics");
+      const base = getApiBaseUrl();
+      const msg = e instanceof Error ? e.message : "Failed to load metrics";
+      setError(`${msg} (API: ${base})`);
       setMetrics(null);
     } finally {
       setLoading(false);

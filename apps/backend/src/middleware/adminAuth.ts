@@ -13,13 +13,26 @@ export const adminAuthMiddleware = (
   next: NextFunction
 ) => {
   const configuredKey = process.env.ADMIN_METRICS_API_KEY?.trim();
-  const headerKey = req.headers["x-admin-key"];
-  if (
-    configuredKey &&
-    typeof headerKey === "string" &&
-    headerKey === configuredKey
-  ) {
+  const headerKey =
+    typeof req.headers["x-admin-key"] === "string"
+      ? req.headers["x-admin-key"].trim()
+      : "";
+
+  if (configuredKey && headerKey && headerKey === configuredKey) {
     return next();
+  }
+
+  if (headerKey && !configuredKey) {
+    res.status(503).json({
+      error:
+        "ADMIN_METRICS_API_KEY is not set on the backend. Add it in Render and redeploy.",
+    });
+    return;
+  }
+
+  if (headerKey && configuredKey) {
+    res.status(401).json({ error: "Invalid admin API key" });
+    return;
   }
 
   authMiddleware(req, res, () => {
