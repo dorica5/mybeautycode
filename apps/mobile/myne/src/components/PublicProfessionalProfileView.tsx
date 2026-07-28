@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import { useFocusEffect } from "expo-router";
-import { recordProfessionalAnalyticsEvent } from "@/src/api/professionalAnalytics";`r`nimport { recordProductEvent } from "@/src/api/analytics";
+import { recordProfessionalAnalyticsEvent } from "@/src/api/professionalAnalytics";
+import { recordProductEvent } from "@/src/api/analytics";
 import {
   View,
   Text,

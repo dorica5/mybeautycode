@@ -316,12 +316,13 @@ const ViewGallery = () => {
                   ) : (
                     <OptimizedImage
                       directUrl={
-                        String(item.media_url).startsWith("http")
+                        signedUrl ??
+                        (String(item.media_url).startsWith("http")
                           ? item.media_url
-                          : undefined
+                          : undefined)
                       }
                       path={
-                        !String(item.media_url).startsWith("http")
+                        !signedUrl && !String(item.media_url).startsWith("http")
                           ? item.media_url
                           : undefined
                       }

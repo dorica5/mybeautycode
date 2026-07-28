@@ -7,6 +7,8 @@ import { supabase } from "@/src/lib/supabase";
 import { isUuid } from "@/src/utils/isUuid";
 
 /** Avoid long full-screen spinners when the API host is unreachable or times out. */
+const MIN_SEARCH_QUERY_LEN = 2;
+
 const SEARCH_QUERY_OPTIONS = {
   retry: 1,
   retryDelay: 400,
@@ -124,7 +126,21 @@ export const useListAllClientSearch = (
       );
     },
     /** Same lane contract as latest visits: never call unscoped (would list unrelated profiles server-side). */
-    enabled: !!hairdresser_id && q.length > 0 && !!code,
+    enabled: !!hairdresser_id && q.length >= MIN_SEARCH_QUERY_LEN && !!code,
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery?.queryKey) return undefined;
+      const [, , , prevProId, prevCode] = previousQuery.queryKey as [
+        string,
+        string,
+        string,
+        string | undefined,
+        string,
+      ];
+      if (prevProId !== hairdresser_id || prevCode !== (code ?? "any")) {
+        return undefined;
+      }
+      return previousData;
+    },
     ...SEARCH_QUERY_OPTIONS,
   });
 };
@@ -164,7 +180,20 @@ export const useListAllHairdresserSearch = (
         `/api/profiles/search/hairdressers-with-relationship?${params.toString()}`
       );
     },
-    enabled: q.length > 0 && !!clientId && !!code,
+    enabled: q.length >= MIN_SEARCH_QUERY_LEN && !!clientId && !!code,
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery?.queryKey) return undefined;
+      const [, , prevClientId, prevCode] = previousQuery.queryKey as [
+        string,
+        string,
+        string,
+        string,
+      ];
+      if (prevClientId !== (clientId ?? "") || prevCode !== (code ?? "any")) {
+        return undefined;
+      }
+      return previousData;
+    },
     ...SEARCH_QUERY_OPTIONS,
   });
 };

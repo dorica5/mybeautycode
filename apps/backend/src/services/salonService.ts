@@ -21,7 +21,7 @@ export type BoundsInput = {
 };
 
 /** Cap on viewport span to avoid accidental whole-country scans on very zoomed-out maps. */
-const MAX_VIEWPORT_DEGREES = 5; // ~550km at the equator; plenty for city-level browsing.
+const MAX_VIEWPORT_DEGREES = 10;
 /** Hard upper bound on salons per response. */
 const MAX_RESULTS = 200;
 

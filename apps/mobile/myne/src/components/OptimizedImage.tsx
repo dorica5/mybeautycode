@@ -1,7 +1,7 @@
 import { Image, ImageProps } from "expo-image";
 import React, { useState, useEffect, useMemo } from "react";
 import { PixelRatio } from "react-native";
-import { fetchSignedStorageUrl } from "../lib/storageSignedUrl";
+import { fetchSignedStorageUrl, peekSignedStorageUrl } from "../lib/storageSignedUrl";
 
 export type ImageSizePreset =
   | "thumbnail"
@@ -73,11 +73,15 @@ const OptimizedImage = ({
   fallback,
   style,
   contentFit = "cover",
-  transition = 200,
+  transition = 150,
   priority = "normal",
   ...imageProps
 }: OptimizedImageProps) => {
-  const [resolvedPathUrl, setResolvedPathUrl] = useState<string | null>(null);
+  const [resolvedPathUrl, setResolvedPathUrl] = useState<string | null>(() => {
+    if (directUrl) return null;
+    if (!path) return null;
+    return peekSignedStorageUrl(bucket, path);
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -89,13 +93,22 @@ const OptimizedImage = ({
       };
     }
 
-    setResolvedPathUrl(null);
-
     if (!path) {
+      setResolvedPathUrl(null);
       return () => {
         cancelled = true;
       };
     }
+
+    const cached = peekSignedStorageUrl(bucket, path);
+    if (cached) {
+      setResolvedPathUrl(cached);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setResolvedPathUrl(null);
 
     if (path.startsWith("http")) {
       setResolvedPathUrl(path);

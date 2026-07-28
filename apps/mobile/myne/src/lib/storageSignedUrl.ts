@@ -51,6 +51,19 @@ function writeCachedSignedUrl(key: string, url: string): void {
   });
 }
 
+/** Synchronous read — instant paint when URL was signed recently (lists, scroll-back). */
+export function peekSignedStorageUrl(
+  bucket: string,
+  pathOrUrl: string | null | undefined
+): string | null {
+  const safe = normalizeStorageObjectPath(bucket, pathOrUrl ?? "");
+  if (!safe) return null;
+  if (String(pathOrUrl).trim().startsWith("http")) {
+    return String(pathOrUrl).trim();
+  }
+  return readCachedSignedUrl(cacheKey(bucket, safe));
+}
+
 export async function fetchSignedStorageUrl(
   bucket: string,
   path: string

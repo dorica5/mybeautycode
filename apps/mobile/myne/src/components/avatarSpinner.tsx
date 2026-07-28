@@ -1,5 +1,5 @@
 // src/components/AvatarWithSpinner.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -25,17 +25,33 @@ export const AvatarWithSpinner: React.FC<AvatarWithSpinnerProps> = ({
   style,
   bucket = "avatars",
 }) => {
-  const [loading, setLoading] = useState<boolean>(!!uri);
+  const displayUri = uri?.trim() || null;
+  const [loading, setLoading] = useState(false);
+  const loadFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset spinner whenever uri changes
-  useEffect(() => {
-    if (uri) {
-      setLoading(true);
+  const clearLoadFallback = () => {
+    if (loadFallbackRef.current) {
+      clearTimeout(loadFallbackRef.current);
+      loadFallbackRef.current = null;
     }
-  }, [uri]);
+  };
+
+  const finishLoading = () => {
+    clearLoadFallback();
+    setLoading(false);
+  };
+
+  const startLoading = () => {
+    clearLoadFallback();
+    setLoading(true);
+    // Cached/prefetched images may never fire onLoad after a uri swap.
+    loadFallbackRef.current = setTimeout(finishLoading, 800);
+  };
+
+  useEffect(() => () => clearLoadFallback(), []);
 
   // Determine if uri is a full URL or a path
-  const isFullUrl = uri?.startsWith("http");
+  const isFullUrl = displayUri?.startsWith("http");
 
   // Ensure circle: if style overrides width/height, use same value for both to avoid oval
   const flattenedStyle = (style && StyleSheet.flatten(style)) || {};
@@ -48,29 +64,30 @@ export const AvatarWithSpinner: React.FC<AvatarWithSpinnerProps> = ({
     <View
       style={[
         styles.container,
-        !uri && styles.containerPlaceholder,
+        !displayUri && styles.containerPlaceholder,
         style,
         circleStyles,
       ]}
     >
-      {uri ? (
+      {displayUri ? (
         <>
           <OptimizedImage
+            key={displayUri}
             {...(isFullUrl
-              ? { directUrl: uri }
-              : { path: uri, bucket }
+              ? { directUrl: displayUri }
+              : { path: displayUri, bucket }
             )}
-            width={Math.round(dimension * 2)}
-            height={Math.round(dimension * 2)}
+            sizePreset="avatar-small"
+            width={Math.round(dimension)}
+            height={Math.round(dimension)}
             enableProgressiveLoading={false}
+            transition={0}
+            priority="high"
             style={{ width: dimension, height: dimension, borderRadius: dimension / 2 }}
             contentFit="cover"
-            onLoadStart={() => setLoading(true)}
-            onLoad={() => {
-              setLoading(false);
-              // failsafe: stop spinner after 1s even if onLoad misbehaves
-              setTimeout(() => setLoading(false), 1000);
-            }}
+            onLoadStart={startLoading}
+            onLoad={finishLoading}
+            onError={finishLoading}
           />
           {loading && (
             <View style={styles.spinnerOverlay}>

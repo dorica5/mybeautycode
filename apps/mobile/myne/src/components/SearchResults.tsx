@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View, Pressable, ActivityIndicator, Alert } from "react-native";
-import React, { useState } from "react";
+import React, { useState, memo } from "react";
 import { Link, router, type Href } from "expo-router";
 import { ResponsiveText } from "./ResponsiveText";
 import { AvatarWithSpinner } from "./avatarSpinner";
@@ -30,6 +30,8 @@ import { isUuid } from "../utils/isUuid";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { formatPhoneForDisplay } from "@/src/lib/profileFieldValidation";
 import { recordProductEvent } from "@/src/api/analytics";
+import { resolveSignedAvatarUrl } from "@/src/hooks/useBatchSignedAvatars";
+import type { BlockedUserRow } from "@/src/api/moderation";
 
 type DiscoverSource = "discover_search" | "global_search";
 
@@ -53,6 +55,11 @@ type SearchResultProps = {
   professionCode?: string | null;
   /** Where the row was shown (client discover vs pro global search). */
   discoverSource?: DiscoverSource;
+  /** Pre-signed avatar URLs from parent batch sign (search lists). */
+  signedAvatarMap?: Record<string, string>;
+  /** Lifted from parent — avoids N hook subscriptions per row (pro search). */
+  blockedIdList?: BlockedUserRow[];
+  blockedListFetched?: boolean;
 };
 
 const SearchResults = ({
@@ -61,11 +68,19 @@ const SearchResults = ({
   query,
   professionCode,
   discoverSource,
+  signedAvatarMap,
+  blockedIdList: blockedIdListProp,
+  blockedListFetched: blockedListFetchedProp,
 }: SearchResultProps) => {
   const { t } = useI18n();
   const { profile } = useAuth();
-  const { data: blockedIdList, isFetched: blockedListFetched } =
-    useBlockedIdList(profile?.id);
+  const { data: blockedIdListFromHook, isFetched: blockedListFetchedFromHook } =
+    useBlockedIdList(
+      blockedIdListProp === undefined ? profile?.id : undefined
+    );
+  const blockedIdList = blockedIdListProp ?? blockedIdListFromHook;
+  const blockedListFetched =
+    blockedListFetchedProp ?? blockedListFetchedFromHook;
   const queryClient = useQueryClient();
   const [actionBusyClientId, setActionBusyClientId] = useState<string | null>(null);
 
@@ -255,7 +270,7 @@ const SearchResults = ({
           onPress={navigateToClient}
         >
           <AvatarWithSpinner
-            uri={item.avatar_url}
+            uri={resolveSignedAvatarUrl(item.avatar_url, signedAvatarMap ?? {})}
             size={responsiveScale(48)}
             style={[styles.profilePicture, styles.profilePicturePro]}
           />
@@ -332,6 +347,10 @@ const SearchResults = ({
   }
 
   const proId = item.hairdresser_id ?? item.profile_id ?? item.id;
+  const displayAvatarUrl = resolveSignedAvatarUrl(
+    item.avatar_url,
+    signedAvatarMap ?? {}
+  );
   const href = proId
     ? `/(client)/(tabs)/userList/professionalProfile/${proId}`
     : null;
@@ -356,7 +375,7 @@ const SearchResults = ({
   const rowContent = (
     <>
       <AvatarWithSpinner
-        uri={item.avatar_url}
+        uri={displayAvatarUrl}
         size={responsiveScale(50)}
         style={styles.profilePicture}
       />
@@ -398,7 +417,7 @@ const SearchResults = ({
   );
 };
 
-export default SearchResults;
+export default memo(SearchResults);
 
 const styles = StyleSheet.create({
   resultItem: {

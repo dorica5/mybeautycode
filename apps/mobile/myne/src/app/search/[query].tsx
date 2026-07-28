@@ -8,6 +8,7 @@ import {
   Keyboard,
   ActivityIndicator,
   Pressable,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import SearchInput from "@/src/components/SearchInput";
@@ -16,7 +17,9 @@ import SearchResults from "@/src/components/SearchResults";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useListAllClientSearch } from "@/src/api/profiles";
-import { blockedIdListQueryKey, blockedIds } from "@/src/api/moderation";
+import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
+import { useBatchSignedAvatars } from "@/src/hooks/useBatchSignedAvatars";
+import { useBlockedIdList, blockedIdListQueryKey, blockedIds } from "@/src/api/moderation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { useClearOnProfessionChange } from "@/src/hooks/useClearOnProfessionChange";
@@ -34,7 +37,7 @@ const SearchPage = () => {
     activeProfessionCode,
   } = useActiveProfessionState(profile);
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
 
   const {
     data: searchResults = [],
@@ -48,15 +51,14 @@ const SearchPage = () => {
     activeProfessionCode
   );
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 600);
+  const signedAvatarMap = useBatchSignedAvatars(
+    debouncedQuery.trim().length >= 2
+      ? (searchResults as { avatar_url?: string | null }[])
+      : []
+  );
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchQuery]);
+  const { data: blockedIdList, isFetched: blockedListFetched } =
+    useBlockedIdList(profile?.id);
 
   const lastTrackedSearchRef = useRef("");
   useEffect(() => {
@@ -91,7 +93,6 @@ const SearchPage = () => {
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
-    setDebouncedQuery("");
   }, []);
 
   useClearOnProfessionChange(
@@ -101,7 +102,7 @@ const SearchPage = () => {
   );
 
   const q = debouncedQuery.trim();
-  const hasQuery = q.length > 0;
+  const hasQuery = q.length >= 2;
 
   const waitingAuth = hasQuery && !profile?.id;
 
@@ -185,6 +186,10 @@ const SearchPage = () => {
           const row = item as { client_id?: string; id?: string };
           return `${row.client_id ?? row.id ?? "row"}_${index}`;
         }}
+        removeClippedSubviews={Platform.OS === "android"}
+        maxToRenderPerBatch={8}
+        windowSize={8}
+        initialNumToRender={10}
         renderItem={({ item }) => (
           <SearchResults
             item={item as never}
@@ -192,6 +197,9 @@ const SearchPage = () => {
             query={debouncedQuery}
             professionCode={activeProfessionCode}
             discoverSource="global_search"
+            signedAvatarMap={signedAvatarMap}
+            blockedIdList={blockedIdList}
+            blockedListFetched={blockedListFetched}
           />
         )}
         contentContainerStyle={styles.resultsContainer}

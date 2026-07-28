@@ -17,7 +17,11 @@ import SearchInput from "@/src/components/SearchInput";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SearchResults from "@/src/components/SearchResults";
 import { useListAllClientSearch } from "@/src/api/profiles";
-import { blockedIdListQueryKey, blockedIds } from "@/src/api/moderation";
+import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
+import {
+  useBatchSignedAvatars,
+} from "@/src/hooks/useBatchSignedAvatars";
+import { useBlockedIdList, blockedIdListQueryKey, blockedIds } from "@/src/api/moderation";
 import { prefetchHaircodeWithMedia, useLatestHaircodes } from "@/src/api/visits";
 import { useQueryClient } from "@tanstack/react-query";
 import VisitCard from "@/src/components/VisitCard";
@@ -109,11 +113,11 @@ function visitClientPhone(item: VisitListItem): string {
 
 const HomeScreen = () => {
   const { t, locale } = useI18n();
-  const { profile, session } = useAuth();
+  const { profile } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
   const [clientSearchFieldFocused, setClientSearchFieldFocused] =
     useState(false);
 
@@ -122,17 +126,19 @@ const HomeScreen = () => {
 
   const {
     data: searchResults = [],
-    isLoading,
+    isFetching,
   } = useListAllClientSearch(
     debouncedQuery,
     profile?.id,
     activeProfessionCode
   );
 
-  useEffect(() => {
-    const handler = setTimeout(() => setDebouncedQuery(searchQuery), 200);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
+  const signedAvatarMap = useBatchSignedAvatars(
+    searchResults as { avatar_url?: string | null }[]
+  );
+
+  const { data: blockedIdList, isFetched: blockedListFetched } =
+    useBlockedIdList(profile?.id);
 
   useEffect(() => {
     const uid = profile?.id;
@@ -157,7 +163,6 @@ const HomeScreen = () => {
     Keyboard.dismiss();
     setClientSearchFieldFocused(false);
     setSearchQuery("");
-    setDebouncedQuery("");
   }, []);
 
   useClearOnProfessionChange(
@@ -167,7 +172,7 @@ const HomeScreen = () => {
   );
 
   const showClientSearchResults =
-    clientSearchFieldFocused && debouncedQuery.trim().length > 0;
+    clientSearchFieldFocused && debouncedQuery.trim().length >= 2;
 
   const clientListData = (showClientSearchResults ? searchResults : []) as never[];
 
@@ -200,51 +205,6 @@ const HomeScreen = () => {
         new Date(visitCreatedAtIso(a)!).getTime()
     );
   }, [latestHaircodes]);
-
-  const clients = useMemo(() => {
-    const seen = new Set<string>();
-    const out: { name: string; phone: string }[] = [];
-    for (const item of latestVisitsSorted) {
-      const norm = visitClientProfileNormalized(item);
-      if (!norm) continue;
-      const key = `${norm.phone}|${norm.displayName}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ name: norm.displayName, phone: norm.phone });
-    }
-    return out;
-  }, [latestVisitsSorted]);
-
-  useEffect(() => {
-    const searchText = debouncedQuery;
-    const trimmed = searchText.trim();
-    if (!trimmed || !profile?.id || !activeProfessionCode) return;
-
-    const hairdresserId = profile.id;
-    const q = trimmed.toLowerCase();
-    const filteredClients = clients.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.phone.replace(/\s/g, "").includes(trimmed.replace(/\s/g, ""))
-    );
-
-    console.log("AUTH USER ID:", session?.user?.id);
-    console.log("PROFILE ID USED:", profile?.id);
-    console.log("HAIRDRESSER ID USED:", hairdresserId);
-    console.log("SEARCH TEXT RAW:", searchText);
-    console.log(
-      "SEARCH TEXT CHARS:",
-      [...searchText].map((c) => c.charCodeAt(0))
-    );
-    console.log("ALL CLIENTS BEFORE SEARCH:", clients);
-    console.log("FILTERED CLIENTS:", filteredClients);
-  }, [
-    debouncedQuery,
-    profile?.id,
-    activeProfessionCode,
-    session?.user?.id,
-    clients,
-  ]);
 
   const hasLatestVisits = latestVisitsSorted.length > 0;
 
@@ -398,23 +358,26 @@ const HomeScreen = () => {
                         return `${row.client_id ?? row.id ?? "row"}_${index}`;
                       }}
                       keyboardShouldPersistTaps="handled"
-                      removeClippedSubviews={false}
+                      removeClippedSubviews={Platform.OS === "android"}
                       style={styles.searchResultsList}
                       contentContainerStyle={styles.searchResultsListContent}
-                      maxToRenderPerBatch={10}
+                      maxToRenderPerBatch={8}
                       updateCellsBatchingPeriod={50}
-                      windowSize={10}
-                      initialNumToRender={12}
+                      windowSize={8}
+                      initialNumToRender={10}
                       renderItem={({ item }) => (
                         <SearchResults
                           item={item}
                           context="hairdresser"
                           query={debouncedQuery}
                           professionCode={activeProfessionCode}
+                          signedAvatarMap={signedAvatarMap}
+                          blockedIdList={blockedIdList}
+                          blockedListFetched={blockedListFetched}
                         />
                       )}
                       ListEmptyComponent={
-                        isLoading ? (
+                        isFetching ? (
                           <View style={styles.loadingClients}>
                             <ActivityIndicator color={primaryBlack} />
                           </View>

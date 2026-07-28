@@ -16,11 +16,11 @@ export type SalonMapCluster = {
   members: SalonPin[];
 };
 
-/** Above this `latitudeDelta`, show cluster bubbles (numbers / grouped). */
-export const ZOOM_CLUSTER_LATITUDE_DELTA = 0.026;
+/** Above this `latitudeDelta`, prefer merging nearby pins. */
+export const ZOOM_CLUSTER_LATITUDE_DELTA = 0.14;
 /** Hysteresis band so cluster ↔ pin mode does not flip rapidly while pinching. */
-export const CLUSTER_ZOOM_IN_LATITUDE_DELTA = 0.032;
-export const CLUSTER_ZOOM_OUT_LATITUDE_DELTA = 0.022;
+export const CLUSTER_ZOOM_IN_LATITUDE_DELTA = 0.16;
+export const CLUSTER_ZOOM_OUT_LATITUDE_DELTA = 0.12;
 
 /**
  * True when the map is zoomed out enough to prefer clusters over individual pins.
@@ -131,18 +131,40 @@ function expandSalonCluster(seed: SalonPin, pool: SalonPin[], thrLat: number, th
 }
 
 /**
- * Merge nearby salon pins when zoomed out so the bubble shows total professionals
- * in the area, not a single stacked pin with count 1.
+ * Merge nearby salon pins so overlapping bubbles become one total.
+ *
+ * `aggressive` (zoomed out): merge by ~18% of viewport so nearby areas collapse.
+ * Otherwise: only merge pins that would stack on screen (~bubble footprint).
  */
+const SALON_CLUSTER_AREA_FRACTION = 0.18;
+const SALON_CLUSTER_OVERLAP_FRACTION = 0.1;
+const SALON_CLUSTER_MIN_DEG = 0.00085;
+const SALON_CLUSTER_AREA_MAX_DEG = 0.12;
+const SALON_CLUSTER_OVERLAP_MAX_DEG = 0.0035;
+
 export function clusterSalonPins(
   salons: SalonPin[],
   latitudeDelta: number,
-  longitudeDelta: number
+  longitudeDelta: number,
+  aggressive = true
 ): SalonMapCluster[] {
   if (salons.length === 0) return [];
 
-  const thrLat = Math.max(latitudeDelta * 0.13, 0.0006);
-  const thrLng = Math.max(longitudeDelta * 0.13, 0.0006);
+  const fraction = aggressive
+    ? SALON_CLUSTER_AREA_FRACTION
+    : SALON_CLUSTER_OVERLAP_FRACTION;
+  const maxDeg = aggressive
+    ? SALON_CLUSTER_AREA_MAX_DEG
+    : SALON_CLUSTER_OVERLAP_MAX_DEG;
+
+  const thrLat = Math.min(
+    Math.max(latitudeDelta * fraction, SALON_CLUSTER_MIN_DEG),
+    maxDeg
+  );
+  const thrLng = Math.min(
+    Math.max(longitudeDelta * fraction, SALON_CLUSTER_MIN_DEG),
+    maxDeg
+  );
 
   const clusters: SalonMapCluster[] = [];
   const assigned = new Set<string>();
@@ -257,44 +279,8 @@ export function regionToSplitSalonCluster(
     };
   }
 
-  let region = boundingBoxRegionForPins(members, 1.6, currentRegion);
-  let subclusters = clusterSalonPins(
-    members,
-    region.latitudeDelta,
-    region.longitudeDelta
-  );
-
-  let guard = 0;
-  while (subclusters.length <= 1 && guard < 12) {
-    const nextLat = region.latitudeDelta * 0.72;
-    const nextLng = region.longitudeDelta * 0.72;
-    if (
-      nextLat <= MIN_SPLIT_VIEW_LAT_DELTA * 1.05 &&
-      nextLng <= MIN_SPLIT_VIEW_LNG_DELTA * 1.05
-    ) {
-      break;
-    }
-    region = {
-      latitude: region.latitude,
-      longitude: region.longitude,
-      latitudeDelta: nextLat,
-      longitudeDelta: nextLng,
-    };
-    subclusters = clusterSalonPins(
-      members,
-      region.latitudeDelta,
-      region.longitudeDelta
-    );
-    guard += 1;
-  }
-
-  const { minLat, maxLat, minLng, maxLng } = pinBoundingBox(members);
-  return {
-    latitude: (minLat + maxLat) / 2,
-    longitude: (minLng + maxLng) / 2,
-    latitudeDelta: region.latitudeDelta,
-    longitudeDelta: region.longitudeDelta,
-  };
+  // Fit camera to the real salon positions (no tiny stepwise zoom).
+  return boundingBoxRegionForPins(members, 1.55, null);
 }
 
 function paddingFactorForSingle(): number {

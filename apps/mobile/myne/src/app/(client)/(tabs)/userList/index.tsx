@@ -19,6 +19,8 @@ import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import SearchInput from "@/src/components/SearchInput";
 import SearchResults from "@/src/components/SearchResults";
 import { useListAllHairdresserSearch } from "@/src/api/profiles";
+import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
+import { useBatchSignedAvatars } from "@/src/hooks/useBatchSignedAvatars";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { StatusBar } from "expo-status-bar";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
@@ -72,7 +74,7 @@ const FindProfessionalsScreen = () => {
   const heroPatternVerticalNudge = heroHeight * 0.34;
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
 
   const { profile, session } = useAuth();
   const clientId = profile?.id ?? session?.user?.id;
@@ -91,24 +93,21 @@ const FindProfessionalsScreen = () => {
     professionKey
   );
 
+  const signedAvatarMap = useBatchSignedAvatars(
+    debouncedQuery.trim().length >= 2
+      ? (searchResults as { avatar_url?: string | null }[])
+      : []
+  );
+
   useEffect(() => {
     const unsubscribe = navigation.addListener("tabPress", () => {
       if (isFocused) {
         setSearchQuery("");
-        setDebouncedQuery("");
       }
     });
 
     return unsubscribe;
   }, [navigation, isFocused]);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500);
-
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
 
   const lastTrackedSearchRef = useRef("");
   useEffect(() => {
@@ -134,7 +133,6 @@ const FindProfessionalsScreen = () => {
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
-    setDebouncedQuery("");
   }, []);
 
   const goToMap = useCallback(() => {
@@ -168,15 +166,15 @@ const FindProfessionalsScreen = () => {
             </View>
 
             <FlatList
-              data={debouncedQuery ? searchResults : []}
+              data={debouncedQuery.trim().length >= 2 ? searchResults : []}
               keyExtractor={(item, index) =>
                 `${item.hairdresser_id ?? (item as { profile_id?: string }).profile_id ?? index}_${index}`
               }
               keyboardShouldPersistTaps="handled"
-              removeClippedSubviews={false}
-              maxToRenderPerBatch={5}
+              removeClippedSubviews={Platform.OS === "android"}
+              maxToRenderPerBatch={8}
               updateCellsBatchingPeriod={50}
-              windowSize={10}
+              windowSize={8}
               initialNumToRender={10}
               ListHeaderComponent={
                 <>
@@ -254,6 +252,7 @@ const FindProfessionalsScreen = () => {
                   query={debouncedQuery}
                   professionCode={professionKey}
                   discoverSource="discover_search"
+                  signedAvatarMap={signedAvatarMap}
                 />
               )}
               ListEmptyComponent={
