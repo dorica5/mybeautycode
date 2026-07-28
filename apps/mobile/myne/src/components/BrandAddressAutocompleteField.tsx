@@ -28,6 +28,7 @@ import {
   fetchAutocomplete,
   fetchPlaceDetails,
   getGooglePlacesKey,
+  placesSearchAvailable,
 } from "@/src/lib/googlePlaces";
 
 type Prediction = AutocompletePrediction;
@@ -77,6 +78,7 @@ export function BrandAddressAutocompleteField({
   containerStyle,
 }: BrandAddressAutocompleteFieldProps) {
   const apiKey = getGooglePlacesKey();
+  const canSearch = placesSearchAvailable();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -89,7 +91,7 @@ export function BrandAddressAutocompleteField({
 
   const runAutocomplete = useCallback(
     async (q: string) => {
-      if (!apiKey || q.trim().length < 2) {
+      if (!canSearch || q.trim().length < 2) {
         setPredictions([]);
         setLoading(false);
         return;
@@ -104,7 +106,7 @@ export function BrandAddressAutocompleteField({
         setLoading(false);
       }
     },
-    [apiKey, countryCode]
+    [apiKey, canSearch, countryCode]
   );
 
   // True while we are programmatically applying a pick's formatted_address via
@@ -126,7 +128,7 @@ export function BrandAddressAutocompleteField({
    * avoids suggestions for the saved address on open and chained variants right after picking one.
    */
   useEffect(() => {
-    if (!apiKey) return;
+    if (!canSearch) return;
     if (!fieldFocused || !editedSinceFocusRef.current) {
       setPredictions([]);
       setLoading(false);
@@ -139,10 +141,10 @@ export function BrandAddressAutocompleteField({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [value, apiKey, fieldFocused, runAutocomplete]);
+  }, [value, canSearch, fieldFocused, runAutocomplete]);
 
   const onPick = async (p: Prediction) => {
-    if (!apiKey) return;
+    if (!canSearch) return;
     setPicking(true);
     setPredictions([]);
     try {
@@ -243,7 +245,7 @@ export function BrandAddressAutocompleteField({
     }, 220);
   };
 
-  if (!apiKey) {
+  if (!canSearch) {
     return (
       <View style={containerStyle}>
         <BrandOutlineField

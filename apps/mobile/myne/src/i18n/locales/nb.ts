@@ -1022,7 +1022,7 @@ export const nb: AppLocaleMessages = {
     reset: "Tilbakestill",
     invalidResetLink: "Ugyldig tilbakestillingslenke",
     invalidResetLinkBody:
-      "Denne lenken for passordtilbakestilling er ugyldig eller utløpt. Be om en ny tilbakestilling.",
+      "Denne lenken er ugyldig eller utløpt. Hvis du allerede åpnet den på PC, må du kopiere lenken derfra til telefonen. Ikke trykk på e-posten igjen. Ellers: be om ny tilbakestilling og åpne lenken kun på telefonen.",
     goToSignIn: "Gå til innlogging",
     devPreviewTitle: "Utviklingsforhåndsvisning",
     devPreviewMessage:

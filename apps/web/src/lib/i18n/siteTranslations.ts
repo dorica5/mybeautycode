@@ -60,6 +60,23 @@ export type SiteTranslations = {
     backHome: string;
     contactBody: string;
   };
+  resetPassword: {
+    pageTitle: string;
+    desktopTitle: string;
+    desktopBody: string;
+    desktopWarning: string;
+    desktopSteps: string;
+    desktopHint: string;
+    copyLink: string;
+    linkCopied: string;
+    openingApp: string;
+    openingAppBody: string;
+    openInAppTitle: string;
+    openInAppBody: string;
+    openInApp: string;
+    invalidLinkTitle: string;
+    invalidLinkBody: string;
+  };
 };
 
 const en: SiteTranslations = {
@@ -154,6 +171,28 @@ const en: SiteTranslations = {
     backHome: "Back to home",
     contactBody:
       "Questions, feedback, or support? We would love to hear from you.",
+  },
+  resetPassword: {
+    pageTitle: "Reset your password",
+    desktopTitle: "Open this link on your phone",
+    desktopBody:
+      "You opened the password reset link on a computer. That's OK. The link is still valid, but only in the address bar of this page.",
+    desktopWarning:
+      "Important: the button in the email only works once. Do not tap it again on your phone.",
+    desktopSteps:
+      "Tap Copy link below, then paste it into Safari or Chrome on your phone. The myne app will open so you can choose a new password.",
+    desktopHint:
+      "myne is a phone app. You cannot reset your password from a computer browser.",
+    copyLink: "Copy link",
+    linkCopied: "Link copied",
+    openingApp: "Opening myne…",
+    openingAppBody: "If nothing happens, tap the button below.",
+    openInAppTitle: "Continue in the myne app",
+    openInAppBody: "Tap below to finish resetting your password in the app.",
+    openInApp: "Open in app",
+    invalidLinkTitle: "This link is invalid or expired",
+    invalidLinkBody:
+      "Request a new password reset from the sign-in screen in the myne app.",
   },
 };
 
@@ -250,6 +289,28 @@ const nb: SiteTranslations = {
     contactBody:
       "Spørsmål, tilbakemeldinger eller behov for support? Vi hører gjerne fra deg.",
   },
+  resetPassword: {
+    pageTitle: "Tilbakestill passordet ditt",
+    desktopTitle: "Åpne denne lenken på telefonen",
+    desktopBody:
+      "Du åpnet tilbakestillingslenken på en PC. Det går fint. Lenken er fortsatt gyldig, men bare i adresselinjen på denne siden.",
+    desktopWarning:
+      "Viktig: knappen i e-posten fungerer bare én gang. Ikke trykk på den igjen på telefonen.",
+    desktopSteps:
+      "Trykk Kopier lenke nedenfor, og lim den inn i Safari eller Chrome på telefonen. myne-appen åpnes, og du kan velge et nytt passord.",
+    desktopHint:
+      "myne er en telefonapp. Du kan ikke tilbakestille passordet fra en nettleser på PC.",
+    copyLink: "Kopier lenke",
+    linkCopied: "Lenke kopiert",
+    openingApp: "Åpner myne…",
+    openingAppBody: "Hvis ingenting skjer, trykk på knappen nedenfor.",
+    openInAppTitle: "Fortsett i myne-appen",
+    openInAppBody: "Trykk nedenfor for å fullføre tilbakestillingen av passordet i appen.",
+    openInApp: "Åpne i appen",
+    invalidLinkTitle: "Denne lenken er ugyldig eller utløpt",
+    invalidLinkBody:
+      "Be om ny tilbakestilling av passord fra innloggingsskjermen i myne-appen.",
+  },
 };
 
 const sv: SiteTranslations = {
@@ -345,6 +406,28 @@ const sv: SiteTranslations = {
     contactBody:
       "Frågor, feedback eller behov av support? Vi hör gärna av dig.",
   },
+  resetPassword: {
+    pageTitle: "Återställ ditt lösenord",
+    desktopTitle: "Öppna den här länken på telefonen",
+    desktopBody:
+      "Du öppnade återställningslänken på en dator. Det är okej. Länken gäller fortfarande, men bara i adressfältet på den här sidan.",
+    desktopWarning:
+      "Viktigt: knappen i mejlet fungerar bara en gång. Tryck inte på den igen på telefonen.",
+    desktopSteps:
+      "Tryck Kopiera länk nedan och klistra in den i Safari eller Chrome på telefonen. myne-appen öppnas så att du kan välja ett nytt lösenord.",
+    desktopHint:
+      "myne är en telefonapp. Du kan inte återställa lösenordet från en datorwebbläsare.",
+    copyLink: "Kopiera länk",
+    linkCopied: "Länk kopierad",
+    openingApp: "Öppnar myne…",
+    openingAppBody: "Om inget händer, tryck på knappen nedan.",
+    openInAppTitle: "Fortsätt i myne-appen",
+    openInAppBody: "Tryck nedan för att slutföra lösenordsåterställningen i appen.",
+    openInApp: "Öppna i appen",
+    invalidLinkTitle: "Den här länken är ogiltig eller har gått ut",
+    invalidLinkBody:
+      "Begär en ny lösenordsåterställning från inloggningsskärmen i myne-appen.",
+  },
 };
 
 const da: SiteTranslations = {
@@ -439,6 +522,28 @@ const da: SiteTranslations = {
     backHome: "Tilbage til forsiden",
     contactBody:
       "Spørgsmål, feedback eller brug for support? Vi hører gerne fra dig.",
+  },
+  resetPassword: {
+    pageTitle: "Nulstil din adgangskode",
+    desktopTitle: "Åbn dette link på din telefon",
+    desktopBody:
+      "Du åbnede nulstillingslinket på en computer. Det er fint. Linket er stadig gyldigt, men kun i adresselinjen på denne side.",
+    desktopWarning:
+      "Vigtigt: knappen i e-mailen virker kun én gang. Tryk ikke på den igen på telefonen.",
+    desktopSteps:
+      "Tryk Kopier link nedenfor, og indsæt det i Safari eller Chrome på telefonen. myne-appen åbner, så du kan vælge en ny adgangskode.",
+    desktopHint:
+      "myne er en telefonapp. Du kan ikke nulstille adgangskoden fra en computerbrowser.",
+    copyLink: "Kopier link",
+    linkCopied: "Link kopieret",
+    openingApp: "Åbner myne…",
+    openingAppBody: "Hvis der ikke sker noget, tryk på knappen nedenfor.",
+    openInAppTitle: "Fortsæt i myne-appen",
+    openInAppBody: "Tryk nedenfor for at fuldføre nulstilling af adgangskoden i appen.",
+    openInApp: "Åbn i appen",
+    invalidLinkTitle: "Dette link er ugyldigt eller udløbet",
+    invalidLinkBody:
+      "Anmod om ny nulstilling af adgangskode fra login-skærmen i myne-appen.",
   },
 };
 

@@ -18,12 +18,28 @@ export type SalonMapCluster = {
 
 /** Above this `latitudeDelta`, show cluster bubbles (numbers / grouped). */
 export const ZOOM_CLUSTER_LATITUDE_DELTA = 0.026;
+/** Hysteresis band so cluster ↔ pin mode does not flip rapidly while pinching. */
+export const CLUSTER_ZOOM_IN_LATITUDE_DELTA = 0.032;
+export const CLUSTER_ZOOM_OUT_LATITUDE_DELTA = 0.022;
 
 /**
  * True when the map is zoomed out enough to prefer clusters over individual pins.
  */
 export function shouldClusterByZoom(latitudeDelta: number): boolean {
   return latitudeDelta > ZOOM_CLUSTER_LATITUDE_DELTA;
+}
+
+/**
+ * Cluster mode with hysteresis — pass previous `clustering` state from the screen.
+ */
+export function shouldClusterByZoomWithHysteresis(
+  latitudeDelta: number,
+  clustering: boolean
+): boolean {
+  if (clustering) {
+    return latitudeDelta > CLUSTER_ZOOM_OUT_LATITUDE_DELTA;
+  }
+  return latitudeDelta > CLUSTER_ZOOM_IN_LATITUDE_DELTA;
 }
 
 function expandCluster(

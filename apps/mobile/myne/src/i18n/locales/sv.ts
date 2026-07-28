@@ -1015,7 +1015,7 @@ export const sv: AppLocaleMessages = {
     reset: "Återställ",
     invalidResetLink: "Ogiltig återställningslänk",
     invalidResetLinkBody:
-      "Den här länken för lösenordsåterställning är ogiltig eller har gått ut. Begär en ny återställning.",
+      "Den här länken är ogiltig eller har gått ut. Om du redan öppnade den på en dator, kopiera länken från den fliken och klistra in den på telefonen. Tryck inte på mejlet igen. Annars: begär en ny återställning och öppna länken bara på telefonen.",
     goToSignIn: "Gå till inloggning",
     devPreviewTitle: "Utvecklingsförhandsvisning",
     devPreviewMessage:

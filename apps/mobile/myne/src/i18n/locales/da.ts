@@ -1017,7 +1017,7 @@ export const da: AppLocaleMessages = {
     reset: "Nulstil",
     invalidResetLink: "Ugyldigt nulstillingslink",
     invalidResetLinkBody:
-      "Dette link til nulstilling af kodeord er ugyldigt eller udløbet. Anmod om en ny nulstilling.",
+      "Dette link er ugyldigt eller udløbet. Hvis du allerede åbnede det på en computer, skal du kopiere linket fra den fane og indsætte det på telefonen. Tryk ikke på e-mailen igen. Ellers: anmod om ny nulstilling og åbn linket kun på telefonen.",
     goToSignIn: "Gå til log ind",
     devPreviewTitle: "Udviklingsforhåndsvisning",
     devPreviewMessage:

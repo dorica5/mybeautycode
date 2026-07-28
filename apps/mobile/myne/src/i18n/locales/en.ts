@@ -1024,7 +1024,7 @@ export const en = {
     reset: "Reset",
     invalidResetLink: "Invalid reset link",
     invalidResetLinkBody:
-      "This password reset link is invalid or has expired. Please request a new password reset.",
+      "This link is invalid or expired. If you already opened it on a computer, copy the link from that browser tab and paste it on your phone. Do not tap the email again. Otherwise, request a new reset and open the link on your phone only.",
     goToSignIn: "Go to Sign in",
     devPreviewTitle: "Development preview",
     devPreviewMessage:
