@@ -50,7 +50,6 @@ import { PermissionStatus } from "expo-location";
 import Constants from "expo-constants";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
 import SearchInput from "@/src/components/SearchInput";
-import { ProfessionalMapPinBubble } from "@/src/components/ProfessionalMapPinBubble";
 import { ClusterMapBubble } from "@/src/components/ClusterMapBubble";
 import { Typography } from "@/src/constants/Typography";
 import { SALON_MAP_DARK_STYLE } from "@/src/constants/mapDarkStyle";
@@ -425,20 +424,27 @@ function clamp(value: number, min: number, max: number): number {
 
 const EMPTY_SALON_PINS: SalonPin[] = [];
 
-const MARKER_SNAPSHOT_MS = 450;
-const MERGE_HOLDOVER_MS = 520;
-const REGION_SETTLE_MS = 200;
+const IS_ANDROID = Platform.OS === "android";
+/** Android needs a longer snapshot window before freezing custom marker bitmaps. */
+const MARKER_SNAPSHOT_MS = IS_ANDROID ? 750 : 450;
+const MERGE_HOLDOVER_MS = IS_ANDROID ? 650 : 520;
+/** Android fires more settle events — wait a bit longer before swapping clusters. */
+const REGION_SETTLE_MS = IS_ANDROID ? 320 : 200;
 
 /**
  * Snapshot custom marker views once on mount / when count|selected changes,
- * then freeze. Do NOT tie tracking to the pinch gesture — that blanks pins
- * for the whole settle window (often several seconds).
+ * then freeze. On Android, `freezeTracking` forces freeze during pinch/pan
+ * (tracking mid-gesture is the common Google Maps crash).
+ *
+ * Always use the text cluster bubble (no SVG) — SVG inside Marker is unstable
+ * on Android.
  */
 const DiscoveryMapMarker = React.memo(function DiscoveryMapMarker({
   latitude,
   longitude,
   count,
   selected,
+  freezeTracking,
   accessibilityLabel,
   onPress,
 }: {
@@ -446,6 +452,7 @@ const DiscoveryMapMarker = React.memo(function DiscoveryMapMarker({
   longitude: number;
   count: number;
   selected: boolean;
+  freezeTracking: boolean;
   accessibilityLabel: string;
   onPress: () => void;
 }) {
@@ -461,17 +468,16 @@ const DiscoveryMapMarker = React.memo(function DiscoveryMapMarker({
     <Marker
       coordinate={{ latitude, longitude }}
       anchor={{ x: 0.5, y: 0.5 }}
-      tracksViewChanges={tracksViewChanges}
+      tracksViewChanges={!freezeTracking && tracksViewChanges}
       stopPropagation
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
     >
       <View collapsable={false} pointerEvents="none">
-        {count >= 1 ? (
-          <ClusterMapBubble count={count} selected={selected} />
-        ) : (
-          <ProfessionalMapPinBubble selected={selected} />
-        )}
+        <ClusterMapBubble
+          count={Math.max(count, 1)}
+          selected={selected}
+        />
       </View>
     </Marker>
   );
@@ -566,6 +572,11 @@ const MapLocationScreen = () => {
   const [boundsRegion, setBoundsRegion] = useState<Region | null>(null);
   const [clusterMarkers, setClusterMarkers] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  /**
+   * Android only: freeze marker bitmaps during pinch/pan. Ending freeze must
+   * NOT re-arm tracksViewChanges on every pin (that crashes Google Maps).
+   */
+  const [androidGestureFreeze, setAndroidGestureFreeze] = useState(false);
   /** Remember salons we've already loaded so panning back doesn't wait on the API. */
   const [salonMemory, setSalonMemory] = useState<SalonPin[]>([]);
   /** Bump to remount MapView after the modal was hidden (e.g. pro profile) so pin snapshots repaint. */
@@ -634,6 +645,7 @@ const MapLocationScreen = () => {
     setMapReady(false);
     setSalonMemory([]);
     setHeldMarkers([]);
+    setAndroidGestureFreeze(false);
     setMapModalVisible(false);
   }, []);
 
@@ -1260,21 +1272,37 @@ const MapLocationScreen = () => {
   const handleRegionChangeStart = useCallback(() => {
     if (!programmaticCameraRef.current) {
       isMapGesturingRef.current = true;
+      if (IS_ANDROID) {
+        setAndroidGestureFreeze(true);
+      }
     }
   }, []);
 
   const handleRegionChangeComplete = useCallback((r: Region) => {
     if (programmaticCameraRef.current) {
+      if (IS_ANDROID) setAndroidGestureFreeze(false);
       return;
     }
     isMapGesturingRef.current = false;
     const prev = boundsRegionRef.current;
     // Ignore tiny settle jitter so we don't keep resetting the debounce for seconds.
     if (prev && !regionMeaningfullyChanged(prev, r)) {
+      if (IS_ANDROID) setAndroidGestureFreeze(false);
       return;
     }
     if (regionDebounceRef.current) clearTimeout(regionDebounceRef.current);
     regionDebounceRef.current = setTimeout(() => {
+      if (IS_ANDROID) {
+        // Unfreeze first, then swap clusters on the next frame (idle + tracking safe).
+        setAndroidGestureFreeze(false);
+        requestAnimationFrame(() => {
+          setBoundsRegion(r);
+          setClusterMarkers((prevCluster) =>
+            shouldClusterByZoomWithHysteresis(r.latitudeDelta, prevCluster)
+          );
+        });
+        return;
+      }
       setBoundsRegion(r);
       setClusterMarkers((prevCluster) =>
         shouldClusterByZoomWithHysteresis(r.latitudeDelta, prevCluster)
@@ -1543,6 +1571,7 @@ const MapLocationScreen = () => {
                               longitude={c.longitude}
                               count={totalPros}
                               selected={selected}
+                              freezeTracking={androidGestureFreeze}
                               accessibilityLabel={
                                 single?.formatted_address ??
                                 `${c.members.length} salons`

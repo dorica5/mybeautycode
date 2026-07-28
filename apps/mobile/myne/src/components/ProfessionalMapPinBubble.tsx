@@ -49,9 +49,8 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.22,
         shadowRadius: responsiveScale(3),
       },
-      android: {
-        elevation: 5,
-      },
+      // elevation inside Marker children crashes / glitches Google Maps on Android
+      android: {},
       default: {},
     }),
   },

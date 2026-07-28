@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     borderColor: primaryBlack,
     justifyContent: "center",
     alignItems: "center",
-    overflow: "visible",
+    overflow: Platform.OS === "android" ? "hidden" : "visible",
     ...Platform.select({
       ios: {
         shadowColor: "#000",
@@ -48,7 +48,8 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.22,
         shadowRadius: responsiveScale(3),
       },
-      android: { elevation: 5 },
+      // elevation inside Marker children crashes / glitches Google Maps on Android
+      android: {},
       default: {},
     }),
   },
