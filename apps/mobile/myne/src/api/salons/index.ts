@@ -1,5 +1,5 @@
 import { api } from "@/src/lib/apiClient";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useQuery, type Query } from "@tanstack/react-query";
 
 /** One salon pin = one Google Place with ≥1 matching pro listing it as a business address. */
 export type SalonPin = {
@@ -187,7 +187,20 @@ export const useSalonsInBounds = (
     enabled: !!rounded,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
-    placeholderData: keepPreviousData,
+    // Keep pins while panning, but never show the previous specialty filter's pins.
+    placeholderData: (
+      previousData: SalonPin[] | undefined,
+      previousQuery: Query<SalonPin[], Error, SalonPin[], readonly unknown[]>
+    ) => {
+      if (!previousData || !previousQuery) return undefined;
+      const prevKey = previousQuery.queryKey;
+      const prevProf = prevKey[6];
+      const prevFilter = prevKey[7];
+      if (prevProf === profKey && prevFilter === filterKey) {
+        return previousData;
+      }
+      return undefined;
+    },
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   });

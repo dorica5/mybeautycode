@@ -15,6 +15,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -22,9 +23,13 @@ import {
   StyleSheet,
   Text,
   TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import LoadingScreen from "./(setup)/LoadingScreen";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { parsePasswordResetTokensFromUrl } from "@/src/lib/passwordResetTokens";
@@ -44,6 +49,8 @@ type PasswordStrengthLevel = "weak" | "medium" | "strong";
 
 const PasswordReset = () => {
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const urlParams = useLocalSearchParams();
   const [tokensExtracted, setTokensExtracted] = useState(false);
   const [authTokens, setAuthTokens] = useState<AuthTokens>({
@@ -255,9 +262,19 @@ const PasswordReset = () => {
 
   if (!hasValidTokens && !isDevPreview) {
     return (
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <SafeAreaView style={styles.safe} edges={["left", "right"]}>
         <StatusBar style="dark" />
-        <View style={styles.invalidWrap}>
+        <View
+          style={[
+            styles.invalidWrap,
+            {
+              paddingTop: insets.top + responsiveMargin(24),
+              paddingBottom:
+                Math.max(insets.bottom, responsiveMargin(16)) +
+                responsiveMargin(24),
+            },
+          ]}
+        >
           <Text style={[Typography.h3, styles.invalidTitle]}>
             {t("authPassword.invalidResetLink")}
           </Text>
@@ -277,19 +294,31 @@ const PasswordReset = () => {
     );
   }
 
+  const topPad = insets.top + responsiveMargin(16);
+  const bottomPad =
+    Math.max(insets.bottom, responsiveMargin(16)) + responsiveMargin(24);
+  const minInnerHeight = Math.max(
+    windowHeight - topPad - bottomPad,
+    responsiveScale(480)
+  );
+
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.safe} edges={["left", "right"]}>
       <StatusBar style="dark" />
       <KeyboardAvoidingView
         style={styles.keyboard}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={
-          Platform.OS === "ios" ? 0 : responsiveScale(20)
-        }
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingTop: topPad,
+                paddingBottom: bottomPad,
+                minHeight: minInnerHeight,
+              },
+            ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -378,7 +407,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: responsivePadding(24),
-    paddingVertical: responsiveMargin(32),
   },
   devBanner: {
     ...Typography.bodySmall,

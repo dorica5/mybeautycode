@@ -93,7 +93,6 @@ import {
 } from "@/src/utils/responsive";
 import {
   clusterSalonPins,
-  regionForSalonPinFocus,
   regionToSplitSalonCluster,
   salonClusterTotalProfessionals,
   shouldClusterByZoomWithHysteresis,
@@ -345,9 +344,10 @@ function regionToBounds(
   };
 }
 
-/** Wider pad for which remembered pins to mount — catch them before they're fully on-screen. */
+/** Tight pad for which pins to mount — wide pads keep off-screen markers alive
+ * until they blank permanently (RN maps). Fetch still uses wider `regionToBounds`. */
 function regionToDisplayBounds(r: Region) {
-  return regionToBounds(r, 0.9);
+  return regionToBounds(r, 0.12);
 }
 
 function salonInBounds(
@@ -427,7 +427,6 @@ const EMPTY_SALON_PINS: SalonPin[] = [];
 const IS_ANDROID = Platform.OS === "android";
 /** Android needs a longer snapshot window before freezing custom marker bitmaps. */
 const MARKER_SNAPSHOT_MS = IS_ANDROID ? 750 : 450;
-const MERGE_HOLDOVER_MS = IS_ANDROID ? 650 : 520;
 /** Android fires more settle events — wait a bit longer before swapping clusters. */
 const REGION_SETTLE_MS = IS_ANDROID ? 320 : 200;
 
@@ -582,13 +581,14 @@ const MapLocationScreen = () => {
   /** Bump to remount MapView after the modal was hidden (e.g. pro profile) so pin snapshots repaint. */
   const [mapRemountKey, setMapRemountKey] = useState(0);
   /**
-   * Markers on the map — may briefly include previous pins during a merge so
-   * the old bubbles stay visible while new cluster snapshots paint.
+   * Remount epoch bumps when a pin re-enters the viewport so custom Marker
+   * bitmaps paint again (RN maps blanks off-screen ones).
    */
-  const [heldMarkers, setHeldMarkers] = useState<SalonMapCluster[]>([]);
-  const mergeHoldoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  const [remountEpochById, setRemountEpochById] = useState<
+    Record<string, number>
+  >({});
+  const visibleMarkerIdsRef = useRef<Set<string>>(new Set());
+  const seenMarkerIdsRef = useRef<Set<string>>(new Set());
   const boundsRegionRef = useRef<Region | null>(null);
 
   const toggleDiscoveryCategory = useCallback((code: string) => {
@@ -644,7 +644,6 @@ const MapLocationScreen = () => {
     setClusterMarkers(false);
     setMapReady(false);
     setSalonMemory([]);
-    setHeldMarkers([]);
     setAndroidGestureFreeze(false);
     setMapModalVisible(false);
   }, []);
@@ -909,15 +908,43 @@ const MapLocationScreen = () => {
 
   /** Keep previous pins visible while a new bounds fetch is in flight. */
   const salons = nearbySalons ?? EMPTY_SALON_PINS;
+  /** True when this filter/viewport finished loading and the API returned no salons. */
+  const confirmedNoSalons =
+    !salonsFetching &&
+    nearbySalons !== undefined &&
+    nearbySalons.length === 0;
+
+  const discoveryFilterKey = useMemo(
+    () =>
+      `${backendProfessionCode ?? "any"}:${
+        salonDiscoveryFilter
+          ? `${salonDiscoveryFilter.categories.slice().sort().join(",")}:${
+              salonDiscoveryFilter.match
+            }`
+          : "all"
+      }`,
+    [backendProfessionCode, salonDiscoveryFilter]
+  );
+
+  // Specialty / profession filter changed — drop remembered pins from the old filter.
+  useEffect(() => {
+    setSalonMemory([]);
+    visibleMarkerIdsRef.current = new Set();
+    // Keep seenMarkerIdsRef so pan-back remount still works after filter toggles.
+  }, [discoveryFilterKey]);
 
   useEffect(() => {
+    if (confirmedNoSalons) {
+      setSalonMemory([]);
+      return;
+    }
     if (salons.length === 0) return;
     setSalonMemory((prev) => {
       const byId = new Map(prev.map((s) => [s.id, s]));
       for (const s of salons) byId.set(s.id, s);
       return Array.from(byId.values());
     });
-  }, [salons]);
+  }, [salons, confirmedNoSalons]);
 
   /**
    * Pins to show: memory ∩ current padded viewport, plus latest API hits in view.
@@ -925,6 +952,9 @@ const MapLocationScreen = () => {
    * so they stay invisible when you zoom/pan them back until a remount/merge.
    */
   const displaySalons = useMemo(() => {
+    // Empty API result for this filter must win — don't keep a pin from a
+    // previous specialty that briefly matched (e.g. add styling → remove it).
+    if (confirmedNoSalons) return EMPTY_SALON_PINS;
     if (!boundsRegion) return salons;
     const b = regionToDisplayBounds(boundsRegion);
     const byId = new Map<string, SalonPin>();
@@ -939,7 +969,7 @@ const MapLocationScreen = () => {
       for (const s of salons) byId.set(s.id, s);
     }
     return Array.from(byId.values());
-  }, [salonMemory, boundsRegion, salons]);
+  }, [salonMemory, boundsRegion, salons, confirmedNoSalons]);
 
   /** Hide GPS when zoomed out so the blue dot doesn't cover cluster counts. */
   const showUserLocationDot = showUserOnMap && !clusterMarkers;
@@ -958,54 +988,61 @@ const MapLocationScreen = () => {
     );
   }, [boundsRegion, displaySalons, clusterMarkers]);
 
-  /** Keep last non-empty clusters so a brief empty fetch doesn't blank the map. */
+  /**
+   * Hold last non-empty clusters only while a same-filter bounds refetch is in
+   * flight. Never keep them after a confirmed empty result (filter mismatch).
+   */
   const lastClustersRef = useRef<SalonMapCluster[]>([]);
-  if (salonClusters && salonClusters.length > 0) {
+  const lastClustersFilterKeyRef = useRef(discoveryFilterKey);
+  if (lastClustersFilterKeyRef.current !== discoveryFilterKey) {
+    lastClustersFilterKeyRef.current = discoveryFilterKey;
+    lastClustersRef.current = [];
+  }
+  if (confirmedNoSalons) {
+    lastClustersRef.current = [];
+  } else if (salonClusters && salonClusters.length > 0) {
     lastClustersRef.current = salonClusters;
   }
   const targetClusters =
     salonClusters && salonClusters.length > 0
       ? salonClusters
-      : lastClustersRef.current;
+      : salonsFetching && !confirmedNoSalons
+        ? lastClustersRef.current
+        : [];
 
   const targetClusterSig = targetClusters
     .map((c) => `${c.id}:${salonClusterTotalProfessionals(c.members)}`)
     .join("|");
 
-  const targetClustersRef = useRef(targetClusters);
-  targetClustersRef.current = targetClusters;
-
-  // Keep outgoing pins mounted briefly while incoming merged pins snapshot.
+  // Remount pins that left the viewport and came back (blank custom markers).
   useEffect(() => {
-    const next = targetClustersRef.current;
-    if (next.length === 0) return;
-
-    setHeldMarkers((prev) => {
-      const newIds = new Set(next.map((c) => c.id));
-      const leftover = prev.filter((c) => !newIds.has(c.id));
-      if (leftover.length === 0) return next;
-      return [...next, ...leftover];
-    });
-
-    if (mergeHoldoverTimerRef.current) {
-      clearTimeout(mergeHoldoverTimerRef.current);
-    }
-    mergeHoldoverTimerRef.current = setTimeout(() => {
-      setHeldMarkers(targetClustersRef.current);
-      mergeHoldoverTimerRef.current = null;
-    }, MERGE_HOLDOVER_MS);
-
-    return () => {
-      if (mergeHoldoverTimerRef.current) {
-        clearTimeout(mergeHoldoverTimerRef.current);
+    const ids = new Set(targetClusters.map((c) => c.id));
+    const reentered: string[] = [];
+    for (const id of ids) {
+      if (!visibleMarkerIdsRef.current.has(id)) {
+        if (seenMarkerIdsRef.current.has(id)) {
+          reentered.push(id);
+        } else {
+          seenMarkerIdsRef.current.add(id);
+        }
       }
-    };
-  }, [targetClusterSig]);
+    }
+    visibleMarkerIdsRef.current = ids;
+
+    if (reentered.length > 0) {
+      setRemountEpochById((prev) => {
+        const next = { ...prev };
+        for (const id of reentered) {
+          next[id] = (next[id] ?? 0) + 1;
+        }
+        return next;
+      });
+    }
+  }, [targetClusterSig, targetClusters]);
 
   boundsRegionRef.current = boundsRegion;
 
-  const markersToRender =
-    heldMarkers.length > 0 ? heldMarkers : targetClusters;
+  const markersToRender = targetClusters;
 
   const {
     data: salonProfessionals = [],
@@ -1234,22 +1271,15 @@ const MapLocationScreen = () => {
         salonId: salon.id,
         profession: professionKey ?? null,
       });
-      const region = regionForSalonPinFocus(salon, boundsRegion);
-      if (region) {
-        // Camera only — don't refetch bounds (that remounts markers and blanks them).
-        programmaticCameraRef.current = true;
-        mapViewRef.current?.animateToRegion(region, 400);
-        setTimeout(() => {
-          programmaticCameraRef.current = false;
-        }, 680);
-      }
+      // Keep the camera still — the pin is already on screen. Animating away
+      // makes "back from pro profile" feel like the map jumped.
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           markerPressConsumesMapPressRef.current = false;
         });
       });
     },
-    [boundsRegion, trackProduct, professionKey]
+    [trackProduct, professionKey]
   );
 
   const handleMultiSalonClusterPress = useCallback(
@@ -1323,9 +1353,6 @@ const MapLocationScreen = () => {
   useEffect(
     () => () => {
       if (regionDebounceRef.current) clearTimeout(regionDebounceRef.current);
-      if (mergeHoldoverTimerRef.current) {
-        clearTimeout(mergeHoldoverTimerRef.current);
-      }
     },
     []
   );
@@ -1402,16 +1429,15 @@ const MapLocationScreen = () => {
           ]}
         >
           <StatusBar style="dark" />
-          {mapProfileOverlayId ? (
-            <ClientProfessionalProfileScreen
-              hairdresserId={mapProfileOverlayId}
-              routeProfessionRaw={backendProfessionCode}
-              onBack={closeMapProfileOverlay}
-              topInsetHandledExternally
-              discoverySource="map"
-            />
-          ) : (
-          <View style={styles.mapModalChrome}>
+          <View style={styles.mapModalBody}>
+            <View
+              style={[
+                styles.mapModalChrome,
+                mapProfileOverlayId ? styles.mapModalChromeHidden : null,
+              ]}
+              pointerEvents={mapProfileOverlayId ? "none" : "auto"}
+              collapsable={false}
+            >
             <View style={navBackChromeStyles.screenBar}>
               <NavBackRow onPress={closeMapModal} />
               <View style={styles.mapModalTitleGutter}>
@@ -1566,7 +1592,7 @@ const MapLocationScreen = () => {
                               );
                           return (
                             <DiscoveryMapMarker
-                              key={c.id}
+                              key={`${c.id}:${remountEpochById[c.id] ?? 0}`}
                               latitude={c.latitude}
                               longitude={c.longitude}
                               count={totalPros}
@@ -1735,7 +1761,18 @@ const MapLocationScreen = () => {
               </View>
             )}
           </View>
-          )}
+            {mapProfileOverlayId ? (
+              <View style={styles.mapProfileOverlay} pointerEvents="auto">
+                <ClientProfessionalProfileScreen
+                  hairdresserId={mapProfileOverlayId}
+                  routeProfessionRaw={backendProfessionCode}
+                  onBack={closeMapProfileOverlay}
+                  topInsetHandledExternally
+                  discoverySource="map"
+                />
+              </View>
+            ) : null}
+          </View>
         </View>
       ) : (
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -1887,6 +1924,19 @@ const styles = StyleSheet.create({
   mapModalChrome: {
     flex: 1,
     minHeight: 0,
+  },
+  mapModalBody: {
+    flex: 1,
+    minHeight: 0,
+  },
+  /** Keep map mounted (and camera stable) while the pro profile covers it. */
+  mapModalChromeHidden: {
+    opacity: 0,
+  },
+  mapProfileOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
+    backgroundColor: primaryGreen,
   },
   /** Same horizontal inset as `mapModalMapSection` so title lines up with map edges. */
   mapModalTitleGutter: {

@@ -16,7 +16,7 @@ const CheckMail = () => {
   const { t } = useI18n();
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right", "bottom"]}>
       <StatusBar style="dark" />
       <View style={styles.content}>
         <Text

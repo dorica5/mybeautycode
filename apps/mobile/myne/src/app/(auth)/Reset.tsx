@@ -21,13 +21,19 @@ import {
   StyleSheet,
   Text,
   TouchableWithoutFeedback,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 const Reset = () => {
   const { t } = useI18n();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -51,25 +57,42 @@ const Reset = () => {
     }
   };
 
+  const topPad = insets.top + responsiveMargin(8);
+  const bottomPad =
+    Math.max(insets.bottom, responsiveMargin(16)) + responsiveMargin(24);
+  const minInnerHeight = Math.max(
+    windowHeight - topPad - bottomPad,
+    responsiveScale(420)
+  );
+
   return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <SafeAreaView style={styles.safe} edges={["left", "right"]}>
       <StatusBar style="dark" />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.container}>
-          <NavBackRow
-            accessibilityLabel={t("common.back")}
-            onPress={() => router.back()}
-            style={styles.backRow}
-            hitSlop={12}
-          />
+          <View style={[styles.backWrap, { top: topPad }]}>
+            <NavBackRow
+              accessibilityLabel={t("common.back")}
+              onPress={() => router.back()}
+              style={styles.backRow}
+              hitSlop={12}
+            />
+          </View>
 
           <KeyboardAvoidingView
             style={styles.keyboard}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : responsiveScale(20)}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
           >
             <ScrollView
-              contentContainerStyle={styles.scrollContent}
+              contentContainerStyle={[
+                styles.scrollContent,
+                {
+                  paddingTop: topPad + responsiveMargin(56),
+                  paddingBottom: bottomPad,
+                  minHeight: minInnerHeight,
+                },
+              ]}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
@@ -127,24 +150,23 @@ const styles = StyleSheet.create({
     backgroundColor: primaryGreen,
     paddingHorizontal: responsivePadding(24),
   },
-  backRow: {
-    alignSelf: "flex-start",
+  backWrap: {
     position: "absolute",
     left: responsiveMargin(16),
-    top: responsiveMargin(8),
     zIndex: 2,
+  },
+  backRow: {
+    alignSelf: "flex-start",
     paddingVertical: responsiveMargin(4),
   },
   keyboard: {
     flex: 1,
     minHeight: 0,
     width: "100%",
-    paddingTop: responsiveMargin(52),
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: responsiveMargin(220),
-    paddingBottom: responsiveMargin(32),
+    justifyContent: "center",
   },
   formBlock: {
     alignItems: "center",
