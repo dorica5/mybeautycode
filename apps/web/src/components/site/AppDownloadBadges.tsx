@@ -26,13 +26,21 @@ function GooglePlayLogo({ className }: { className?: string }) {
   );
 }
 
+const APP_STORE_URL =
+  "https://apps.apple.com/no/app/myne-my-care-my-way/id6780479123?l=nb";
+const GOOGLE_PLAY_URL =
+  "https://play.google.com/store/apps/details?id=com.dorica.myne";
+
 function AppStoreBadge() {
   const { t } = useSiteLanguage();
 
   return (
-    <div
+    <a
+      href={APP_STORE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
       className="flex h-10 items-center gap-2 rounded-[0.45rem] bg-black px-2.5 text-white sm:h-11 sm:px-3"
-      aria-hidden
+      aria-label={t.download.appStoreBottom}
     >
       <AppleLogo className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
       <div className="leading-none">
@@ -43,7 +51,7 @@ function AppStoreBadge() {
           {t.download.appStoreBottom}
         </div>
       </div>
-    </div>
+    </a>
   );
 }
 
@@ -51,9 +59,12 @@ function GooglePlayBadge() {
   const { t } = useSiteLanguage();
 
   return (
-    <div
+    <a
+      href={GOOGLE_PLAY_URL}
+      target="_blank"
+      rel="noopener noreferrer"
       className="flex h-10 items-center gap-2 rounded-[0.45rem] bg-black px-2.5 text-white sm:h-11 sm:px-3"
-      aria-hidden
+      aria-label={`${t.download.googlePlayNormal}${t.download.googlePlayBold}`}
     >
       <GooglePlayLogo className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" />
       <div className="leading-none">
@@ -65,11 +76,11 @@ function GooglePlayBadge() {
           <span className="font-semibold">{t.download.googlePlayBold}</span>
         </div>
       </div>
-    </div>
+    </a>
   );
 }
 
-/** App Store + Google Play badges (visual only for now). */
+/** App Store + Google Play badges link to the live store listings. */
 export function AppDownloadBadges() {
   const { t } = useSiteLanguage();
 

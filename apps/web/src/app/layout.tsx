@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "myne — hair & beauty, together",
   description:
     "Connect with professionals, keep your visit history, and own your look — the myne app for clients and stylists.",
+  icons: {
+    icon: [{ url: "/images/myne-mark.svg", type: "image/svg+xml" }],
+    apple: "/images/myne-mark.svg",
+    shortcut: "/images/myne-mark.svg",
+  },
   openGraph: {
     title: "myne",
     description: "Hair & beauty, together.",
