@@ -252,6 +252,11 @@ export const en = {
     checkLocation: "Check my location",
     searchLocation: "Or search for location",
     allSpecialties: "All specialties",
+    expertiseRequired: "Select at least one expertise.",
+    expertiseInfoTitle: "Visible in search",
+    expertiseInfoMessage:
+      "Select at least one expertise to appear on the map and in search. Pick everything that applies. You can change these anytime in Get discovered.",
+    expertiseInfoA11y: "About visibility in search",
     matchAllSelected: "Must offer all selected",
     matchAllSelectedA11y:
       "Only show professionals who offer every selected specialty, not just one",
@@ -263,6 +268,9 @@ export const en = {
     useMyCurrentLocation: "Use my current location",
     prosAtLocation: "{{count}} {{role}} at this location",
     mapWebFallback: "The map is available in the app on iOS and Android.",
+    mapNotConfiguredTitle: "Map unavailable",
+    mapNotConfiguredMessage:
+      "Maps are not available in Expo Go on Android. Install your EAS dev or production build to use Google Maps.",
     locationErrorTitle: "Location",
     locationErrorMessage:
       "Could not read your position. Showing the map around Bergen.",
@@ -404,7 +412,7 @@ export const en = {
     personalNote: "Personal note",
     personalNoteAdd: "Add a personal note",
     personalNoteAddHint: "Only you can see this · tap to add",
-    personalNotePlaceholder: "Hair goals, products to try, how it felt…",
+    personalNotePlaceholder: "What do I think about the result/treatment?",
     personalNoteSave: "Save",
     personalNoteSaved: "Saved",
     personalNoteSaving: "Saving…",
@@ -422,6 +430,7 @@ export const en = {
     maxPhotosReached: "Maximum photos reached",
     addImage: "Add image",
     addVideo: "Add video",
+    addPhotoOrVideo: "Add photo or video",
     saveVisit: "Save visit",
     visitNotFound: "Visit not found.",
     missingVisitId: "Missing visit ID",
@@ -723,17 +732,62 @@ export const en = {
     title: "Feedback",
     sendToTeam: "Send to team",
     intro:
-      "Vote for what we should build next. Submit your own idea below. We review everything and update status as we go.",
-    communityBoard: "Community board",
+      "Vote on new feature ideas below — only features appear on this board. Bug reports and improvements go straight to our team.",
+    communityBoard: "Feature ideas",
+    boardHint:
+      "Top four feature ideas by votes. Bug reports and improvements are sent to the team only — they are not listed here.",
     couldNotLoadBoard: "Could not load the board.",
-    emptyBoard: "No ideas on the board yet. Be the first to suggest something below.",
-    haveSuggestion: "Have a suggestion?",
-    formHint:
-      "Send an idea, improvement, or bug. Our team is notified right away; your idea appears on the board for others to vote on.",
+    emptyBoard: "No feature ideas on the board yet. Suggest one below.",
+    haveSuggestion: "Send feedback",
+    formHeading: {
+      feature: "Suggest a feature",
+      improvement: "Suggest an improvement",
+      bug: "Report a bug",
+      other: "Other feedback",
+    },
+    formHint: {
+      feature:
+        "Describe a feature you'd like. If it earns enough votes, it can appear in the top four on the board.",
+      improvement:
+        "Tell us what we should improve. This goes directly to the team — it won't appear on the voting board.",
+      bug: "Describe what went wrong and how to reproduce it. This goes directly to the team — it won't appear on the voting board.",
+      other: "Share anything else we should know. This goes directly to the team.",
+    },
     titleLabel: "Title",
-    titlePlaceholder: "e.g. Filter map by price range",
+    titlePlaceholder: {
+      feature: "e.g. Filter map by price range",
+      improvement: "e.g. Faster visit photo upload",
+      bug: "e.g. App closes when opening gallery",
+      other: "e.g. Question about my account",
+    },
     descriptionLabel: "Description",
-    descriptionPlaceholder: "What should it do, and why would it help you?",
+    descriptionPlaceholder: {
+      feature: "What should it do, and why would it help you?",
+      improvement: "What's not working well today, and how should it work?",
+      bug: "What happened, what did you expect, and what steps trigger it?",
+      other: "Add any details that help us understand.",
+    },
+    missingTitleMessage: {
+      feature: "Please add a short title for your feature idea.",
+      improvement: "Please add a short title for your improvement.",
+      bug: "Please add a short title for your bug report.",
+      other: "Please add a short title.",
+    },
+    thanksTitle: {
+      feature: "Thanks!",
+      improvement: "Thanks!",
+      bug: "Report received",
+      other: "Thanks!",
+    },
+    thanksMessage: {
+      feature:
+        "Your feature idea was sent to our team. If it earns enough votes, it can appear in the top four on the board.",
+      improvement:
+        "Your improvement was sent to our team. We'll review it — it won't appear on the voting board.",
+      bug: "Your bug report was sent to our team. We'll investigate and follow up if needed.",
+      other: "Your message was sent to our team. We'll review it.",
+    },
+    couldNotSendSuggestion: "Could not send your feedback.",
     screenshotsOptional: "Screenshots (optional)",
     removeScreenshot: "Remove screenshot",
     addScreenshot: "Add screenshot",
@@ -745,12 +799,7 @@ export const en = {
     screenshotLimitMessage: "You can attach up to {{count}} screenshots.",
     couldNotAddScreenshots: "Could not add screenshots.",
     missingTitle: "Missing title",
-    missingTitleMessage: "Please add a short title for your idea.",
-    thanksTitle: "Thanks!",
-    thanksMessage:
-      "Your suggestion was sent to our team. It's on the board — vote for other ideas you'd like us to prioritise.",
     somethingWentWrong: "Something went wrong",
-    couldNotSendSuggestion: "Could not send your suggestion.",
     couldNotUploadScreenshot: "Could not upload a screenshot. Please try again.",
     tapForDetails: "Tap for details",
     voteA11y: "Vote, {{count}} votes",
@@ -863,6 +912,22 @@ export const en = {
     rcNotConfigured: "Subscriptions are not configured yet on this build.",
     productsNotAvailable:
       "Plans are not available yet. Finish App Store Connect and RevenueCat setup, then try again.",
+    currentPlanBadge: "Your plan",
+    currentPlanCta: "Current plan",
+    changePlanSubtitle:
+      "Pick a different plan. Your current plan is marked below.",
+    changePlanFootnote:
+      "Plan changes are handled by {{store}}. Timing, proration, and whether a switch takes effect immediately or at renewal follow the store's rules.",
+    storeGooglePlay: "Google Play",
+    storeAppStore: "the App Store",
+    switchToPlan: "Switch to {{plan}}",
+    switchToPlanWithPrice: "Switch to {{plan}} — {{price}}",
+    subscribeWithStorePrice: "Subscribe — {{price}}",
+    subscriptionSuccessTitle: "You're all set",
+    subscriptionSuccessMessage:
+      "Pro is active. You now have unlimited visits.",
+    restoreSuccessMessage:
+      "Your subscription was found and restored on this device.",
   },
   billing: {
     visitUsage: "{{used}} of {{limit}} free visits used",
@@ -873,7 +938,7 @@ export const en = {
     limitReachedCreate:
       "You've used all {{limit}} free visits. Subscribe to add more visits.",
     limitReachedView:
-      "You've used all {{limit}} free visits. Subscribe to view visit history.",
+      "You've used all {{limit}} free visits. You can still view visits you created. Subscribe to add more visits and see full client history from other professionals.",
     subscribeToContinue: "View plans",
     upgradeAnytimeHint: "Tap to view plans and upgrade early",
     discoveryFreeNote: "Map search and discovery stay free.",
@@ -959,7 +1024,7 @@ export const en = {
     reset: "Reset",
     invalidResetLink: "Invalid reset link",
     invalidResetLinkBody:
-      "This password reset link is invalid or has expired. Please request a new password reset.",
+      "This link is invalid or expired. If you already opened it on a computer, copy the link from that browser tab and paste it on your phone. Do not tap the email again. Otherwise, request a new reset and open the link on your phone only.",
     goToSignIn: "Go to Sign in",
     devPreviewTitle: "Development preview",
     devPreviewMessage:

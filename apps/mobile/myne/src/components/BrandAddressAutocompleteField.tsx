@@ -9,8 +9,10 @@ import {
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -26,6 +28,7 @@ import {
   fetchAutocomplete,
   fetchPlaceDetails,
   getGooglePlacesKey,
+  placesSearchAvailable,
 } from "@/src/lib/googlePlaces";
 
 type Prediction = AutocompletePrediction;
@@ -43,6 +46,8 @@ const SINGLE_LINE_PAD = Math.max(
 );
 /** Switch to multiline before the line wraps (single-line inputs don't wrap). */
 const MULTILINE_CHAR_THRESHOLD = 44;
+/** Scrollable suggestion panel — tall enough to browse past the Android keyboard. */
+const SUGGESTIONS_MAX_HEIGHT = responsiveScale(220, 260);
 
 export type BrandAddressAutocompleteFieldProps = {
   label: string;
@@ -73,6 +78,7 @@ export function BrandAddressAutocompleteField({
   containerStyle,
 }: BrandAddressAutocompleteFieldProps) {
   const apiKey = getGooglePlacesKey();
+  const canSearch = placesSearchAvailable();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -85,7 +91,7 @@ export function BrandAddressAutocompleteField({
 
   const runAutocomplete = useCallback(
     async (q: string) => {
-      if (!apiKey || q.trim().length < 2) {
+      if (!canSearch || q.trim().length < 2) {
         setPredictions([]);
         setLoading(false);
         return;
@@ -100,7 +106,7 @@ export function BrandAddressAutocompleteField({
         setLoading(false);
       }
     },
-    [apiKey, countryCode]
+    [apiKey, canSearch, countryCode]
   );
 
   // True while we are programmatically applying a pick's formatted_address via
@@ -122,7 +128,7 @@ export function BrandAddressAutocompleteField({
    * avoids suggestions for the saved address on open and chained variants right after picking one.
    */
   useEffect(() => {
-    if (!apiKey) return;
+    if (!canSearch) return;
     if (!fieldFocused || !editedSinceFocusRef.current) {
       setPredictions([]);
       setLoading(false);
@@ -135,10 +141,10 @@ export function BrandAddressAutocompleteField({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [value, apiKey, fieldFocused, runAutocomplete]);
+  }, [value, canSearch, fieldFocused, runAutocomplete]);
 
   const onPick = async (p: Prediction) => {
-    if (!apiKey) return;
+    if (!canSearch) return;
     setPicking(true);
     setPredictions([]);
     try {
@@ -158,6 +164,7 @@ export function BrandAddressAutocompleteField({
       }
     } finally {
       setPicking(false);
+      Keyboard.dismiss();
       // Release on the next tick so the effect tied to `value` sees the flag.
       requestAnimationFrame(() => {
         applyingPickRef.current = false;
@@ -180,6 +187,27 @@ export function BrandAddressAutocompleteField({
   /** Only toggles scroll at max height — avoids height state fighting contentSize. */
   const [scrollEnabled, setScrollEnabled] = useState(false);
   const [isWrapped, setIsWrapped] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const showSub = Keyboard.addListener("keyboardDidShow", (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  const showSuggestionsAbove =
+    Platform.OS === "android" &&
+    keyboardHeight > 0 &&
+    fieldFocused &&
+    predictions.length > 0;
 
   useEffect(() => {
     if (!value.trim()) {
@@ -213,10 +241,11 @@ export function BrandAddressAutocompleteField({
     blurTimer.current = setTimeout(() => {
       setPredictions([]);
       setFieldFocused(false);
+      Keyboard.dismiss();
     }, 220);
   };
 
-  if (!apiKey) {
+  if (!canSearch) {
     return (
       <View style={containerStyle}>
         <BrandOutlineField
@@ -233,11 +262,40 @@ export function BrandAddressAutocompleteField({
     );
   }
 
+  const renderSuggestions = () => (
+    <ScrollView
+      style={styles.suggestions}
+      contentContainerStyle={styles.suggestionsContent}
+      keyboardShouldPersistTaps="always"
+      nestedScrollEnabled
+      showsVerticalScrollIndicator
+    >
+      {predictions.map((p) => (
+        <Pressable
+          key={p.place_id}
+          accessibilityRole="button"
+          accessibilityLabel={p.description}
+          onPressIn={() => clearBlurTimer()}
+          onPress={() => onPick(p)}
+          style={({ pressed }) => [
+            styles.suggestionRow,
+            pressed && styles.suggestionRowPressed,
+          ]}
+        >
+          <Text style={[Typography.bodySmall, styles.suggestionText]}>
+            {p.description}
+          </Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+
   return (
     <View style={[styles.outer, containerStyle]}>
       <Text style={[Typography.label, styles.label]} accessibilityRole="text">
         {label}
       </Text>
+      {showSuggestionsAbove ? renderSuggestions() : null}
       <View style={styles.fieldShell}>
         <TextInput
           value={value}
@@ -277,29 +335,9 @@ export function BrandAddressAutocompleteField({
           </View>
         ) : null}
       </View>
-      {predictions.length > 0 ? (
-        <View style={styles.suggestions} pointerEvents="box-none">
-          {predictions.map((p) => (
-            <Pressable
-              key={p.place_id}
-              accessibilityRole="button"
-              accessibilityLabel={p.description}
-              onPressIn={() => clearBlurTimer()}
-              onPress={() => onPick(p)}
-              style={({ pressed }) => [
-                styles.suggestionRow,
-                pressed && styles.suggestionRowPressed,
-              ]}
-            >
-              <Text
-                style={[Typography.bodySmall, styles.suggestionText]}
-              >
-                {p.description}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
+      {!showSuggestionsAbove && predictions.length > 0
+        ? renderSuggestions()
+        : null}
     </View>
   );
 }
@@ -343,6 +381,7 @@ const styles = StyleSheet.create({
   },
   suggestions: {
     marginTop: responsiveMargin(6),
+    marginBottom: responsiveMargin(6),
     borderRadius: responsiveScale(14),
     borderWidth: 1,
     borderColor: primaryBlack,
@@ -350,6 +389,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     zIndex: 20,
     elevation: 6,
+    maxHeight: SUGGESTIONS_MAX_HEIGHT,
+  },
+  suggestionsContent: {
+    flexGrow: 0,
   },
   suggestionRow: {
     paddingVertical: responsivePadding(12),

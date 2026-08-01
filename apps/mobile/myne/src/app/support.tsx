@@ -13,6 +13,7 @@ import { useAuth } from "../providers/AuthProvider";
 import { sendSupportRequest } from "../api/support";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { SUPPORT_EMAIL } from "@/src/constants/brand";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 
 export default function SupportPage() {
   const { t } = useI18n();
@@ -150,14 +151,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: primaryGreen,
   },
   title: {
     fontSize: 24,
     fontFamily: "Inter-Bold",
     textAlign: "center",
     marginBottom: 20,
-    color: "#333",
+    color: primaryBlack,
   },
   banNotice: {
     backgroundColor: "#fee",
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   restrictionNotice: {
-    backgroundColor: "#fff8e1",
+    backgroundColor: primaryWhite,
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "Inter-Bold",
     marginBottom: 8,
-    color: "#333",
+    color: primaryBlack,
   },
   textArea: {
     borderWidth: 1,

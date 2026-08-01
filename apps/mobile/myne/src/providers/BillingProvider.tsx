@@ -26,6 +26,7 @@ import {
   getCustomerInfoSafe,
   getRevenueCatApiKey,
   hasActiveEntitlement,
+  activePremiumProductId,
   shouldInitializeRevenueCat,
 } from "@/src/lib/revenuecat";
 
@@ -53,7 +54,7 @@ async function pushEntitlementToBackend(info: CustomerInfo | null) {
   return syncProEntitlement({
     entitlementActive: active,
     entitlementExpiresAt: entitlementExpiresAtIso(info),
-    plan: active ? "premium" : null,
+    plan: active ? activePremiumProductId(info) ?? "premium" : null,
   });
 }
 
@@ -74,6 +75,7 @@ function normalizeBillingForPro(
       hasActiveSubscription: true,
       canCreateVisit: true,
       canViewVisits: true,
+      canViewOwnVisits: true,
       atVisitLimit: false,
       plan: "dev_bypass",
     };

@@ -27,6 +27,8 @@ import {
   isTablet,
 } from "@/src/utils/responsive";
 import { useI18n, useProfessionLabel } from "@/src/providers/LanguageProvider";
+import { useScrollRevealBack } from "@/src/hooks/useScrollRevealBack";
+import { recordProductEvent } from "@/src/api/analytics";
 
 type Profession = "hair" | "nails" | "brows" | "barber";
 
@@ -52,6 +54,7 @@ const FilterBeforeMapScreen = () => {
   const { fromTab } = useLocalSearchParams<{ fromTab?: string }>();
   const hideBack = fromTab === "1";
   const isFocused = useIsFocused();
+  const { backVisible, onScroll } = useScrollRevealBack();
 
   const patternWidth = windowWidth;
   const heroHeight = patternWidth / 1.77;
@@ -92,6 +95,10 @@ const FilterBeforeMapScreen = () => {
     // Ignore repeat taps while the hand-off animation is running.
     if (navTimerRef.current) return;
     setSelected(key);
+    void recordProductEvent({
+      eventType: "discover_profession_selected",
+      payload: { profession: key },
+    });
     navTimerRef.current = setTimeout(() => {
       navTimerRef.current = null;
       router.push({
@@ -104,15 +111,28 @@ const FilterBeforeMapScreen = () => {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right", "bottom"]}>
       <StatusBar style="dark" />
+      {!hideBack ? (
+        <View
+          style={[
+            styles.backOverlay,
+            { paddingTop: insets.top },
+            navBackChromeStyles.screenBar,
+            !backVisible && styles.backHidden,
+          ]}
+          pointerEvents={backVisible ? "auto" : "none"}
+        >
+          <NavBackRow onPress={() => router.back()} />
+        </View>
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        scrollEventThrottle={16}
+        onScroll={onScroll}
       >
-        {!hideBack ? (
-          <View style={navBackChromeStyles.screenBar}>
-            <NavBackRow onPress={() => router.back()} />
-          </View>
+        {hideBack ? (
+          <View style={[navBackChromeStyles.screenBar, navBackPlaceholderStyle()]} />
         ) : (
           <View style={[navBackChromeStyles.screenBar, navBackPlaceholderStyle()]} />
         )}
@@ -189,6 +209,17 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: primaryGreen,
+  },
+  backOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: primaryGreen,
+  },
+  backHidden: {
+    opacity: 0,
   },
   scrollContent: {
     flexGrow: 1,

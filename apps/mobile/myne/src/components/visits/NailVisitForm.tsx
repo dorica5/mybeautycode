@@ -43,7 +43,12 @@ import {
 import type { ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import type { DiscoveryCategoryOption } from "@/src/constants/profDiscoveryCategories";
 /** Description field limit for new/edit visit (spaces count). */
-export const VISIT_DESCRIPTION_MAX_CHARS = 240;
+import {
+  VISIT_TEXT_MAX_CHARS,
+  VISIT_TEXT_INPUT_HEIGHT_DP,
+} from "@/src/lib/visitTextInput";
+
+export const VISIT_DESCRIPTION_MAX_CHARS = VISIT_TEXT_MAX_CHARS;
 /** Max photos (images) per visit when creating or editing. */
 export const VISIT_MAX_PHOTOS = 10;
 /** Max videos per visit when creating or editing. */
@@ -83,12 +88,10 @@ export type NailVisitFormProps = {
   /** Active pro lane — drives price visibility info copy. */
   professionCode?: ProfessionChoiceCode | null;
   capturedMedia: MediaItem[];
-  pickImage: (index?: number) => void;
-  pickVideo: () => void;
+  pickMedia: () => void;
   removeMedia: (index: number) => void;
   /** Disable add while cropping or uploading. */
-  pickImageDisabled?: boolean;
-  pickVideoDisabled?: boolean;
+  pickMediaDisabled?: boolean;
   isPending: boolean;
   isUploadingMedia: boolean;
   onSave: () => void;
@@ -116,11 +119,9 @@ export function NailVisitForm({
   onChangePrice,
   professionCode,
   capturedMedia,
-  pickImage,
-  pickVideo,
+  pickMedia,
   removeMedia,
-  pickImageDisabled = false,
-  pickVideoDisabled = false,
+  pickMediaDisabled = false,
   isPending,
   isUploadingMedia,
   onSave,
@@ -133,8 +134,31 @@ export function NailVisitForm({
   const videoCount = capturedMedia.filter((m) => m.type === "video").length;
   const imagesAtLimit = imageCount >= VISIT_MAX_PHOTOS;
   const videoAtLimit = videoCount >= VISIT_MAX_VIDEOS;
-  const addImageDisabled = pickImageDisabled || imagesAtLimit;
-  const addVideoDisabled = pickVideoDisabled || videoAtLimit;
+  const canAddImage = !pickMediaDisabled && !imagesAtLimit;
+  const canAddVideo = !pickMediaDisabled && !videoAtLimit;
+  const addMediaDisabled = !canAddImage && !canAddVideo;
+  const addMediaLabel = useMemo(() => {
+    if (canAddImage && canAddVideo) {
+      return t("visits.addPhotoOrVideo");
+    }
+    if (canAddImage) {
+      return t("visits.addImage");
+    }
+    if (canAddVideo) {
+      return t("visits.addVideo");
+    }
+    if (imagesAtLimit) {
+      return t("visits.maximumPhotos", { count: String(VISIT_MAX_PHOTOS) });
+    }
+    return t("visits.maximumVideos", { count: String(VISIT_MAX_VIDEOS) });
+  }, [canAddImage, canAddVideo, imagesAtLimit, t]);
+  const addMediaA11y = useMemo(() => {
+    if (!canAddImage && imagesAtLimit) return t("visits.maxPhotosReached");
+    if (!canAddVideo && videoAtLimit) return t("visits.maxVideosReached");
+    if (canAddImage && canAddVideo) return t("visits.addPhotoOrVideo");
+    if (canAddImage) return t("visits.addImage");
+    return t("visits.addVideo");
+  }, [canAddImage, canAddVideo, imagesAtLimit, videoAtLimit, t]);
   const { width, height } = useWindowDimensions();
   const dropdownCodeSet = useMemo(
     () => new Set(serviceDropdownOptions.map((o) => o.code)),
@@ -248,7 +272,8 @@ export function NailVisitForm({
                 value={newHaircode}
                 onChangeText={onChangeDescription}
                 multiline
-                minInputHeight={responsiveScale(120)}
+                maxInputHeight={VISIT_TEXT_INPUT_HEIGHT_DP}
+                scrollEnabled
                 placeholder={t("visits.describeService")}
                 containerStyle={[
                   styles.nailDescribeOutlineContainer,
@@ -357,13 +382,14 @@ export function NailVisitForm({
                         {item.uri && item.type !== "video" ? (
                           <Image
                             source={{ uri: item.uri }}
-                            style={styles.nailThumb}
+                            style={styles.nailThumbMedia}
                             resizeMode="cover"
                           />
                         ) : item.uri && item.type === "video" ? (
                           <Video
                             source={{ uri: item.uri }}
-                            style={styles.nailThumb}
+                            style={styles.nailThumbMedia}
+                            videoStyle={styles.nailThumbMedia}
                             useNativeControls={false}
                             resizeMode={ResizeMode.COVER}
                             isMuted
@@ -388,18 +414,16 @@ export function NailVisitForm({
               ) : null}
 
               <Pressable
-                onPress={() => pickImage()}
-                disabled={addImageDisabled}
+                onPress={pickMedia}
+                disabled={addMediaDisabled}
                 style={({ pressed }) => [
                   styles.nailUploadAddRow,
                   capturedMedia.length > 0 && styles.nailUploadAddRowBelowGrid,
-                  pressed && !addImageDisabled && styles.nailUploadAddRowPressed,
-                  addImageDisabled && styles.nailUploadAddRowDisabled,
+                  pressed && !addMediaDisabled && styles.nailUploadAddRowPressed,
+                  addMediaDisabled && styles.nailUploadAddRowDisabled,
                 ]}
                 accessibilityRole="button"
-                accessibilityLabel={
-                  imagesAtLimit ? t("visits.maxPhotosReached") : t("visits.addImage")
-                }
+                accessibilityLabel={addMediaA11y}
               >
                 <Plus
                   size={responsiveScale(20)}
@@ -407,36 +431,7 @@ export function NailVisitForm({
                   strokeWidth={1.5}
                 />
                 <Text style={[Typography.bodyMedium, styles.nailUploadAddText]}>
-                  {imagesAtLimit
-                    ? t("visits.maximumPhotos", { count: String(VISIT_MAX_PHOTOS) })
-                    : t("visits.addImage")}
-                </Text>
-                <View style={styles.nailUploadAddRowEndSpacer} />
-              </Pressable>
-
-              <Pressable
-                onPress={() => pickVideo()}
-                disabled={addVideoDisabled}
-                style={({ pressed }) => [
-                  styles.nailUploadAddRow,
-                  styles.nailUploadAddRowBelowGrid,
-                  pressed && !addVideoDisabled && styles.nailUploadAddRowPressed,
-                  addVideoDisabled && styles.nailUploadAddRowDisabled,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  videoAtLimit ? t("visits.maxVideosReached") : t("visits.addVideo")
-                }
-              >
-                <Plus
-                  size={responsiveScale(20)}
-                  color={primaryBlack}
-                  strokeWidth={1.5}
-                />
-                <Text style={[Typography.bodyMedium, styles.nailUploadAddText]}>
-                  {videoAtLimit
-                    ? t("visits.maximumVideos", { count: String(VISIT_MAX_VIDEOS) })
-                    : t("visits.addVideo")}
+                  {addMediaLabel}
                 </Text>
                 <View style={styles.nailUploadAddRowEndSpacer} />
               </Pressable>
@@ -689,15 +684,14 @@ const styles = StyleSheet.create({
     position: "relative",
     width: "100%",
     aspectRatio: 1,
-  },
-  nailThumb: {
-    width: "100%",
-    height: "100%",
+    overflow: "hidden",
     borderRadius: responsiveScale(20),
     borderWidth: 1,
     borderColor: primaryBlack,
     backgroundColor: primaryWhite,
-    overflow: "hidden",
+  },
+  nailThumbMedia: {
+    ...StyleSheet.absoluteFillObject,
   },
   nailThumbDelete: {
     position: "absolute",

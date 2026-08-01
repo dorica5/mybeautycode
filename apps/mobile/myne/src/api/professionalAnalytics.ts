@@ -1,4 +1,5 @@
 import { api } from "@/src/lib/apiClient";
+import { recordProductEvent } from "@/src/api/analytics";
 
 import type { SocialKind } from "@/src/lib/inferSocialFromUrl";
 
@@ -41,6 +42,18 @@ export function recordProfessionalAnalyticsEvent(params: {
   if (event === "social_click" && socialPlatform) {
     body.social_platform = socialPlatform;
   }
+
+  void recordProductEvent({
+    eventType: event,
+    entityType: "professional_profile",
+    entityId: subjectProfileId,
+    payload: {
+      professionCode: code ?? null,
+      socialPlatform:
+        event === "social_click" ? socialPlatform ?? "other" : null,
+    },
+  });
+
   return api
     .post<{ recorded: boolean }>("/api/professional-analytics/events", body)
     .then(() => undefined)

@@ -193,16 +193,24 @@ export function MintBrandModalPrimaryButton({
   label,
   onPress,
   accessibilityLabel,
+  disabled,
 }: {
   label: string;
   onPress: () => void;
   accessibilityLabel?: string;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.primaryPill, pressed && { opacity: 0.88 }]}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.primaryPill,
+        disabled && styles.primaryPillDisabled,
+        pressed && !disabled && { opacity: 0.88 },
+      ]}
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
       accessibilityLabel={accessibilityLabel ?? label}
     >
       <Text style={styles.primaryPillLabel}>{label}</Text>
@@ -315,6 +323,9 @@ const styles = StyleSheet.create({
     backgroundColor: primaryBlack,
     justifyContent: "center",
     alignItems: "center",
+  },
+  primaryPillDisabled: {
+    opacity: 0.45,
   },
   primaryPillLabel: {
     ...Typography.outfitRegular16,

@@ -99,8 +99,8 @@ const LastName = () => {
   };
 
   useEffect(() => {
-    setLastName(original);
-  }, [original]);
+    if (!changed) setLastName(original);
+  }, [original, changed]);
 
   useEffect(() => {
     setChanged(lastName !== original);

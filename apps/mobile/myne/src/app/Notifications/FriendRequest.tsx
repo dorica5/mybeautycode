@@ -33,6 +33,7 @@ import { useI18n } from "@/src/providers/LanguageProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
 import { coerceProfessionCode } from "@/src/constants/professionCodes";
 import { clientAddedPushBody } from "@/src/i18n/pushCopy";
+import { recordProductEvent } from "@/src/api/analytics";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   pushNotificationProfileNav,
@@ -141,6 +142,13 @@ export const FriendRequest = () => {
 
   const handleResponse = async (accepted: boolean) => {
     setLoading(true);
+    void recordProductEvent({
+      eventType: accepted ? "client_link_accepted" : "client_link_declined",
+      payload: {
+        isClientRequest,
+        professionCode: requestLane,
+      },
+    });
     try {
       let clientProfessionalLinkId: string | null = null;
       if (notificationId) {

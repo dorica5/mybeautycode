@@ -22,6 +22,7 @@ import {
   responsiveScale,
 } from "@/src/utils/responsive";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { recordProductEvent } from "@/src/api/analytics";
 
 const HomeScreen = () => {
   const { t } = useI18n();
@@ -43,6 +44,13 @@ const HomeScreen = () => {
   const username = profile?.username?.trim() ?? "";
 
   const avatarSize = responsiveScale(120, 144);
+
+  const trackHomeCta = (cta: "find_pro" | "my_visits" | "my_inspiration") => {
+    void recordProductEvent({
+      eventType: "home_cta_tapped",
+      payload: { cta },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
@@ -96,9 +104,10 @@ const HomeScreen = () => {
             title={t("home.clientSearchCta")}
             horizontalPadding={32}
             verticalPadding={16}
-            onPress={() =>
-              router.push("/(client)/(tabs)/userList/filter-before-map")
-            }
+            onPress={() => {
+              trackHomeCta("find_pro");
+              router.push("/(client)/(tabs)/userList/filter-before-map");
+            }}
             style={styles.searchCta}
             textStyle={styles.searchCtaLabel}
           />
@@ -106,12 +115,18 @@ const HomeScreen = () => {
 
         <BrandHomeNavLink
           title={t("home.myVisits")}
-          onPress={() => router.push("/visits/see_visits_client")}
+          onPress={() => {
+            trackHomeCta("my_visits");
+            router.push("/visits/see_visits_client");
+          }}
           style={styles.navLink}
         />
         <BrandHomeNavLink
           title={t("home.myInspiration")}
-          onPress={() => router.push({ pathname: "/inspiration" })}
+          onPress={() => {
+            trackHomeCta("my_inspiration");
+            router.push({ pathname: "/inspiration" });
+          }}
         />
       </ScrollView>
     </SafeAreaView>

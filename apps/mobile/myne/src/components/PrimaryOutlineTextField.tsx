@@ -2,6 +2,10 @@ import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import { authFieldInputStyle } from "@/src/constants/authFieldInputStyle";
 import { Typography } from "@/src/constants/Typography";
 import {
+  visitMultilineInputBoxStyle,
+  visitMultilineInputTextStyle,
+} from "@/src/lib/visitTextInput";
+import {
   sanitizeDecimalNumericInput,
   sanitizeIntegerNumericInput,
   sanitizeTelephonePadInput,
@@ -44,6 +48,11 @@ export type PrimaryOutlineTextFieldProps = Omit<
   multiline?: boolean;
   minInputHeight?: number;
   /**
+   * When set on multiline fields, caps height at this dp value while growing from
+   * one line. Pair with `scrollEnabled`.
+   */
+  maxInputHeight?: number;
+  /**
    * Single-line outline shape. Default `pill` (current app-wide default).
    * `rounded` matches setup cards (~18) — use on visit forms etc.
    */
@@ -68,6 +77,7 @@ export function PrimaryOutlineTextField({
   inputRef,
   multiline = false,
   minInputHeight,
+  maxInputHeight,
   singleLineShape = "pill",
   style,
   accessibilityLabel,
@@ -122,6 +132,20 @@ export function PrimaryOutlineTextField({
     }
   };
 
+  const useCappedVisitMultiline = multiline && maxInputHeight != null;
+
+  const multilineSizeStyle = multiline
+    ? useCappedVisitMultiline
+      ? visitMultilineInputBoxStyle(maxInputHeight)
+      : minInputHeight != null
+        ? { minHeight: minInputHeight }
+        : null
+    : null;
+
+  const multilineTextStyle = useCappedVisitMultiline
+    ? visitMultilineInputTextStyle()
+    : null;
+
   return (
     <View style={[styles.wrap, { maxWidth: wrapMaxW }, containerStyle]}>
       {showLabel ? (
@@ -149,15 +173,14 @@ export function PrimaryOutlineTextField({
           multiline={multiline}
           textAlignVertical={multiline ? "top" : "center"}
           style={[
-            styles.input,
+            useCappedVisitMultiline ? null : styles.input,
             multiline
               ? [
-                  styles.inputArea,
-                  minInputHeight != null
-                    ? { minHeight: minInputHeight }
-                    : null,
+                  useCappedVisitMultiline
+                    ? [multilineTextStyle, multilineSizeStyle, styles.inputAreaFixed]
+                    : [styles.input, styles.inputArea, multilineSizeStyle],
                 ]
-              : [styles.inputSingleLine, { borderRadius: singleLineRadius }],
+              : [styles.input, styles.inputSingleLine, { borderRadius: singleLineRadius }],
             password && value.length > 0 ? styles.inputWithEye : null,
             style,
           ]}
@@ -228,9 +251,12 @@ const styles = StyleSheet.create({
     ...authFieldInputStyle,
   },
   inputArea: {
-    minHeight: responsiveScale(120),
+    width: "100%",
     borderRadius: responsiveScale(20),
     paddingVertical: responsivePadding(14),
+  },
+  inputAreaFixed: {
+    borderRadius: responsiveScale(20),
   },
   inputWithEye: {
     paddingRight: responsivePadding(48),

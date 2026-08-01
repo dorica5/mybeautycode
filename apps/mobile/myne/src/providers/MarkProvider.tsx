@@ -6,6 +6,8 @@ import {
   useEffect,
   useState,
 } from "react";
+import { usePostHog } from "posthog-react-native";
+import { trackProductEvent } from "../lib/productAnalytics";
 import { api } from "@/src/lib/apiClient";
 import { Alert } from "react-native";
 import { useImageContext } from "./ImageProvider";
@@ -58,6 +60,7 @@ const MarkContext = createContext<MarkData>({
 
 export default function MarkProvider({ children }: PropsWithChildren) {
   const { t } = useI18n();
+  const posthog = usePostHog();
   const markImagesLabel = t("inspiration.markImages");
   const [marked, setMarked] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
@@ -147,6 +150,10 @@ export default function MarkProvider({ children }: PropsWithChildren) {
       setSelectedImages([]);
       setMarked(false);
       setSelectedRecipient(null);
+      void trackProductEvent(posthog, "inspiration_shared", {
+        recipientId,
+        imageCount: uploadedImages.length,
+      });
       Alert.alert(t("common.success"), t("inspiration.sharedSuccess"));
     } catch (error) {
       console.error("Sharing error:", error);

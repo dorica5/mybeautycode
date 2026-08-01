@@ -1,5 +1,5 @@
 import { api } from "@/src/lib/apiClient";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
 /** One salon pin = one Google Place with ≥1 matching pro listing it as a business address. */
 export type SalonPin = {
@@ -130,12 +130,35 @@ export async function fetchSalonProfessionals(
   );
 }
 
+/** Must stay in sync with backend `salonService` MAX_VIEWPORT_DEGREES. */
+export const MAX_SALON_QUERY_VIEWPORT_DEGREES = 10;
+
+/** Shrink oversized map bounds so /nearby accepts the query (whole-country zoom). */
+export function clampSalonQueryBounds(bounds: SalonBounds): SalonBounds {
+  const latSpan = bounds.neLat - bounds.swLat;
+  const lngSpan = bounds.neLng - bounds.swLng;
+  const max = MAX_SALON_QUERY_VIEWPORT_DEGREES;
+  if (latSpan <= max && lngSpan <= max) {
+    return roundBounds(bounds);
+  }
+  const centerLat = (bounds.neLat + bounds.swLat) / 2;
+  const centerLng = (bounds.neLng + bounds.swLng) / 2;
+  const halfLat = Math.min(latSpan / 2, max / 2);
+  const halfLng = Math.min(lngSpan / 2, max / 2);
+  return roundBounds({
+    neLat: centerLat + halfLat,
+    neLng: centerLng + halfLng,
+    swLat: centerLat - halfLat,
+    swLng: centerLng - halfLng,
+  });
+}
+
 export const useSalonsInBounds = (
   bounds: SalonBounds | null,
   professionCode: string | null | undefined,
   discoveryFilter?: SalonDiscoveryFilter | null
 ) => {
-  const rounded = bounds ? roundBounds(bounds) : null;
+  const rounded = bounds ? clampSalonQueryBounds(bounds) : null;
   const code = professionCode?.trim() || null;
   const filterKey = salonDiscoveryFilterQueryKeyPart(discoveryFilter ?? null);
   const profKey = code ?? "any";
@@ -164,16 +187,7 @@ export const useSalonsInBounds = (
     enabled: !!rounded,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
-    placeholderData: (previousData, previousQuery) => {
-      if (!previousQuery?.queryKey) return undefined;
-      const pk = previousQuery.queryKey;
-      const prevProf = pk[6];
-      const prevFilter = pk[7];
-      if (prevProf !== profKey || prevFilter !== filterKey) {
-        return undefined;
-      }
-      return previousData;
-    },
+    placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
   });

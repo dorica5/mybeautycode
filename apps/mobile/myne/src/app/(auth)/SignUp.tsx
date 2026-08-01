@@ -1,5 +1,5 @@
 /* eslint-disable react/react-in-jsx-scope */
-import Logo from "../../../assets/images/myBeautyCode_logo.svg";
+import { BrandLogo } from "@/src/components/BrandLogo";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
 import { PrimaryOutlineTextField } from "@/src/components/PrimaryOutlineTextField";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
@@ -14,6 +14,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
+import { recordProductEvent } from "@/src/api/analytics";
 import { usePostHog } from "posthog-react-native";
 import { NavBackRow } from "@/src/components/NavBackRow";
 import { useRef, useState } from "react";
@@ -178,6 +179,7 @@ const SignUp = () => {
         posthog.identify(user.id, {
           email: user.email ?? null,
         });
+        void recordProductEvent({ eventType: "signed_up" });
       } catch {
         /* PostHog optional */
       }
@@ -237,7 +239,7 @@ const SignUp = () => {
             />
 
             <View style={styles.logoBlock}>
-              <Logo width={logoSize.width} height={logoSize.height} />
+              <BrandLogo width={logoSize.width} height={logoSize.height} />
             </View>
 
             <View style={styles.formBlock}>

@@ -202,7 +202,7 @@ const SingleVisitClient = () => {
       clearTimeout(fallbackId);
       noteScrollCleanupRef.current = null;
       requestAnimationFrame(() => {
-        visitScrollRef.current?.scrollToEnd({ animated: true });
+        visitScrollRef.current?.scrollToEnd({ animated: false });
       });
     };
 

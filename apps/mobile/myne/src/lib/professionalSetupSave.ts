@@ -2,6 +2,7 @@ import type { PlaceDetails } from "@/src/components/BrandAddressAutocompleteFiel
 import type { ProfessionChoiceCode } from "@/src/constants/professionCodes";
 import { parseProfilePhone } from "@/src/lib/profileFieldValidation";
 import { validateExternalUrl } from "@/src/lib/safeExternalUrl";
+import { sanitizeDiscoveryCategoriesForProfession } from "@/src/constants/profDiscoveryCategories";
 
 export type ProfessionalSetupFormFields = {
   businessName: string;
@@ -17,8 +18,16 @@ export function buildProfessionalSetupProfilePutBody(args: {
   profileCountry: string;
   fields: ProfessionalSetupFormFields;
   placeDetails: PlaceDetails | null;
+  discoveryCategories?: string[];
 }) {
-  const { userId, professionCode, profileCountry, fields, placeDetails } = args;
+  const {
+    userId,
+    professionCode,
+    profileCountry,
+    fields,
+    placeDetails,
+    discoveryCategories,
+  } = args;
   if (!profileCountry.trim()) {
     throw new Error("Missing profile country");
   }
@@ -53,6 +62,14 @@ export function buildProfessionalSetupProfilePutBody(args: {
   const placeStillMatches =
     placeDetails && placeDetails.formattedAddress.trim() === bizAddr;
 
+  const sanitizedDiscovery =
+    discoveryCategories != null
+      ? sanitizeDiscoveryCategoriesForProfession(
+          discoveryCategories,
+          professionCode
+        )
+      : null;
+
   return {
     id: userId,
     business_name: fields.businessName.trim(),
@@ -66,5 +83,8 @@ export function buildProfessionalSetupProfilePutBody(args: {
     about_me: null,
     setup_status: true,
     profession_code: professionCode,
+    ...(sanitizedDiscovery != null
+      ? { discovery_categories: sanitizedDiscovery }
+      : {}),
   };
 }

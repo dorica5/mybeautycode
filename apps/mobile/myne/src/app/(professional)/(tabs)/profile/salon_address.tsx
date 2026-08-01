@@ -1,6 +1,7 @@
 import {
   Alert,
   Keyboard,
+  Pressable,
   StyleSheet,
   Text,
   ScrollView,
@@ -22,11 +23,10 @@ import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { Typography } from "@/src/constants/Typography";
 import { scale } from "@/src/utils/responsive";
-import type { ProfessionDetailApi } from "@/src/constants/types";
 import {
-  coerceProfessionCode,
-  establishmentNoun,
-} from "@/src/constants/professionCodes";
+  resolveLaneBusinessAddress,
+} from "@/src/lib/professionLaneFields";
+import { establishmentNoun } from "@/src/constants/professionCodes";
 import { geocodeAddress, getGooglePlacesKey } from "@/src/lib/googlePlaces";
 
 import { useI18n } from "@/src/providers/LanguageProvider";
@@ -37,25 +37,13 @@ const SalonAddress = () => {
   const { storedProfessionReady, activeProfessionCode } =
     useActiveProfessionState(profile);
 
-  /**
-   * Strictly per-lane value. Do NOT fall back to `profile.business_address`:
-   * that top-level field is serialized from the default (hair-first) profession
-   * row, so using it as a fallback would show the same address across every
-   * lane even when the DB has different ones.
-   */
-  const detailForActive = useMemo(() => {
-    const rows = profile?.professions_detail;
-    const code = activeProfessionCode;
-    if (!rows?.length || !code) return null;
-    return (
-      rows.find(
-        (r: ProfessionDetailApi) =>
-          coerceProfessionCode(r.profession_code) === code
-      ) ?? null
-    );
-  }, [profile?.professions_detail, activeProfessionCode]);
-
-  const originalAddress = detailForActive?.business_address ?? "";
+  const originalAddress = useMemo(
+    () =>
+      profile
+        ? resolveLaneBusinessAddress(profile, activeProfessionCode)
+        : "",
+    [profile, activeProfessionCode]
+  );
   const id = profile?.id;
   const profileCountry = profile?.country?.trim() ?? "";
   const placeNoun = establishmentNoun(activeProfessionCode);
@@ -261,23 +249,29 @@ const SalonAddress = () => {
       >
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={mintProfileScrollContent}
+          contentContainerStyle={[mintProfileScrollContent, styles.scrollFill]}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
+          keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          <BrandAddressAutocompleteField
-            label={fieldLabel}
-            value={address}
-            onChangeText={handleAddressChange}
-            onPlaceSelected={setPlaceDetails}
-            countryCode={
-              profileCountry.length === 2 ? profileCountry : undefined
-            }
-          />
-          {attemptedSubmit && error ? (
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          ) : null}
+          <Pressable
+            style={styles.tapToDismiss}
+            onPress={Keyboard.dismiss}
+            accessible={false}
+          >
+            <BrandAddressAutocompleteField
+              label={fieldLabel}
+              value={address}
+              onChangeText={handleAddressChange}
+              onPlaceSelected={setPlaceDetails}
+              countryCode={
+                profileCountry.length === 2 ? profileCountry : undefined
+              }
+            />
+            {attemptedSubmit && error ? (
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            ) : null}
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </MintProfileScreenShell>
@@ -289,6 +283,8 @@ export default SalonAddress;
 const styles = StyleSheet.create({
   keyboard: { flex: 1 },
   scroll: { flex: 1 },
+  scrollFill: { flexGrow: 1 },
+  tapToDismiss: { flexGrow: 1 },
   errorText: {
     ...Typography.outfitRegular16,
     color: "#C62828",

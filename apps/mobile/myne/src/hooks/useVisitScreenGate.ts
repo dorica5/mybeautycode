@@ -5,12 +5,15 @@ import {
   type VisitBillingAction,
 } from "@/src/hooks/useVisitLimitGate";
 
-/** Redirect pros away from visit screens when over the free visit limit. */
-export function useVisitScreenGate(action: VisitBillingAction) {
+/** Redirect pros away from visit create when over the free visit limit. */
+export function useVisitScreenGate(
+  action: VisitBillingAction,
+  enabled = true
+) {
   const { blocked, loading, guard } = useVisitLimitGate(action);
 
   useEffect(() => {
-    if (loading || !blocked) return;
+    if (!enabled || loading || !blocked) return;
     const allowed = guard();
     if (!allowed) {
       const t = setTimeout(() => {
@@ -19,7 +22,7 @@ export function useVisitScreenGate(action: VisitBillingAction) {
       }, 100);
       return () => clearTimeout(t);
     }
-  }, [blocked, loading, guard]);
+  }, [blocked, enabled, loading, guard]);
 
   return { blocked, loading };
 }

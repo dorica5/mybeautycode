@@ -42,11 +42,25 @@ export const billingController = {
 
   async revenueCatWebhook(req: Request, res: Response) {
     try {
-      const result = await billingService.handleRevenueCatWebhook(req.body);
+      const authHeader =
+        typeof req.headers.authorization === "string"
+          ? req.headers.authorization
+          : undefined;
+      const result = await billingService.handleRevenueCatWebhook(
+        req.body,
+        authHeader
+      );
       res.json(result);
     } catch (err) {
+      const statusCode =
+        typeof err === "object" &&
+        err !== null &&
+        "statusCode" in err &&
+        typeof (err as { statusCode?: number }).statusCode === "number"
+          ? (err as { statusCode: number }).statusCode
+          : 500;
       console.error("billing revenueCatWebhook error:", err);
-      res.status(500).json({ error: "Webhook processing failed" });
+      res.status(statusCode).json({ error: "Webhook processing failed" });
     }
   },
 };

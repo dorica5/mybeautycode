@@ -45,7 +45,29 @@ type OnboardingPage = {
 
 const ONBOARDING_HERO_IMAGE = require("@/assets/images/onboarding_image.png");
 
-/** One Anton heading row - never wraps to a second line inside the row. */
+/** Anton is wide ? conservative width estimate so both title lines share one size. */
+function fitTitleFontSize(text: string, innerWidth: number): number {
+  const trimmed = text.trim();
+  if (!trimmed || innerWidth <= 0) return 0;
+  return Math.floor(innerWidth / (trimmed.length * 0.58));
+}
+
+function titleSizeForPage(
+  line1: string,
+  line2: string,
+  innerWidth: number,
+  compact: boolean
+): number {
+  const maxSize = responsiveFontSize(compact ? 40 : 44);
+  const minSize = responsiveFontSize(compact ? 28 : 32);
+  const fit = Math.min(
+    fitTitleFontSize(line1, innerWidth),
+    fitTitleFontSize(line2, innerWidth)
+  );
+  return Math.min(maxSize, Math.max(minSize, fit));
+}
+
+/** One Anton heading row ? same font size as its pair; never shrinks independently. */
 function OnboardingTitleLine({
   text,
   fontSize,
@@ -58,8 +80,6 @@ function OnboardingTitleLine({
   return (
     <Text
       numberOfLines={1}
-      adjustsFontSizeToFit
-      minimumFontScale={0.72}
       maxFontSizeMultiplier={1}
       allowFontScaling={false}
       style={[
@@ -188,16 +208,6 @@ export default function Onboarding() {
 
     const shellPad = responsivePadding(20);
     const innerW = width - shellPad * 2;
-    const longestTitleChars = Math.max(
-      ...pages.flatMap((p) => [p.titleLine1.length, p.titleLine2.length]),
-      1
-    );
-    /** Anton is wide - scale so the longest row fits one line on this device width. */
-    const fitByWidth = Math.floor(innerW / (longestTitleChars * 0.56));
-    const titleSize = Math.min(
-      responsiveFontSize(compact ? 40 : 44),
-      Math.max(responsiveFontSize(compact ? 28 : 32), fitByWidth)
-    );
 
     const imageTop = responsiveMargin(compact ? 8 : 14, 18);
     const titleGap = responsiveMargin(compact ? 18 : 24, 28);
@@ -216,14 +226,19 @@ export default function Onboarding() {
       Math.min(Math.round(pageH * targetRatio), maxImageH)
     );
 
+    const titleSizes = pages.map((page) =>
+      titleSizeForPage(page.titleLine1, page.titleLine2, innerW, compact)
+    );
+    const titleLineHeight = (size: number) => Math.round(size * 1.1);
+
     return {
       shellPad,
       imageTop,
       imageH,
       titleGap,
       subtitleGap,
-      titleSize,
-      titleLineHeight: Math.round(titleSize * 1.1),
+      titleSizes,
+      titleLineHeight,
       controlsPadTop: responsiveMargin(compact ? 16 : 24),
       controlsPadBottom: responsiveMargin(compact ? 8 : 12),
     };
@@ -301,7 +316,7 @@ export default function Onboarding() {
         onScroll={onScrollWhileDragging}
         onScrollBeginDrag={onScrollBeginDrag}
         onMomentumScrollEnd={onMomentumScrollEnd}
-        renderItem={({ item }) => (
+        renderItem={({ item, index: pageIndex }) => (
           <View style={[styles.card, { width, height: pageHeight }]}>
             <View
               style={[styles.pageShell, { paddingHorizontal: layout.shellPad }]}
@@ -330,13 +345,13 @@ export default function Onboarding() {
               >
                 <OnboardingTitleLine
                   text={item.titleLine1}
-                  fontSize={layout.titleSize}
-                  lineHeight={layout.titleLineHeight}
+                  fontSize={layout.titleSizes[pageIndex]}
+                  lineHeight={layout.titleLineHeight(layout.titleSizes[pageIndex])}
                 />
                 <OnboardingTitleLine
                   text={item.titleLine2}
-                  fontSize={layout.titleSize}
-                  lineHeight={layout.titleLineHeight}
+                  fontSize={layout.titleSizes[pageIndex]}
+                  lineHeight={layout.titleLineHeight(layout.titleSizes[pageIndex])}
                 />
               </View>
 

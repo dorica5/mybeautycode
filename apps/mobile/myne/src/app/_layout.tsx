@@ -19,11 +19,16 @@ import { PostHogProvider } from "posthog-react-native";
 import LanguageProvider from "../providers/LanguageProvider";
 import { BillingProvider } from "../providers/BillingProvider";
 import { applyAppTextScalingDefaults } from "@/src/lib/textScaling";
+import {
+  hideNativeSplash,
+  keepNativeSplashVisible,
+} from "@/src/lib/nativeSplash";
 
+keepNativeSplashVisible();
 applyAppTextScalingDefaults();
 
 export const unstable_settings = {
-  initialRouteName: "(auth)",
+  initialRouteName: "index",
 };
 
 import { APP_URL_SCHEME } from "@/src/constants/brand";
@@ -139,6 +144,21 @@ const RootLayout = () => {
     return () => subscription?.remove();
   }, []);
   const fontsLoaded = useLoadFonts();
+
+  /** onLayout fires once before fonts finish — hide splash when fonts load, not only on layout. */
+  useEffect(() => {
+    if (fontsLoaded) {
+      void hideNativeSplash();
+    }
+  }, [fontsLoaded]);
+
+  /** Safety net if font loading stalls on a cold start. */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void hideNativeSplash();
+    }, 3500);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <View style={{ flex: 1 }}>

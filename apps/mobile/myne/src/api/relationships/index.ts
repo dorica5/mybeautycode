@@ -1,5 +1,5 @@
 import { api } from "@/src/lib/apiClient";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type QueryClient } from "@tanstack/react-query";
 
 export async function checkRelationship(
   hairdresserId: string,
@@ -81,6 +81,23 @@ export const clientLinkUiStatusQueryKey = (
     clientId,
     professionCode ?? "unspecified",
   ] as const;
+
+/** Drop cached “active link” state after block, report, or unblock. */
+export function clearClientLinkRelationshipCache(
+  queryClient: QueryClient,
+  hairdresserId: string,
+  clientId: string,
+  professionCode: string
+) {
+  queryClient.setQueryData(
+    relationshipCheckQueryKey(clientId, hairdresserId, professionCode),
+    false
+  );
+  queryClient.setQueryData(
+    clientLinkUiStatusQueryKey(hairdresserId, clientId, professionCode),
+    "none" satisfies ClientLinkUiStatus
+  );
+}
 
 export function useClientLinkUiStatus(
   hairdresserId?: string,

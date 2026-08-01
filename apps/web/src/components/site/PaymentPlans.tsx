@@ -94,13 +94,21 @@ export function PaymentPlans() {
 
         <PlanCard
           title={plans.monthly.title}
-          price={formatBillingTemplate(plans.monthly.priceLabel, billingValues)}
+          price={
+            plans.monthly.priceLabel
+              ? formatBillingTemplate(plans.monthly.priceLabel, billingValues)
+              : undefined
+          }
           features={monthlyFeatures}
         />
 
         <PlanCard
           title={plans.annual.title}
-          price={formatBillingTemplate(plans.annual.priceLabel, billingValues)}
+          price={
+            plans.annual.priceLabel
+              ? formatBillingTemplate(plans.annual.priceLabel, billingValues)
+              : undefined
+          }
           cornerBadge={plans.annual.badge}
           features={annualFeatures}
         />

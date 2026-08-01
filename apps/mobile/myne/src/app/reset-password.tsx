@@ -15,7 +15,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -28,10 +27,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import LoadingScreen from "./(setup)/LoadingScreen";
 import { useI18n } from "@/src/providers/LanguageProvider";
-import {
-  isPasswordResetDevToolsEnabled,
-  parsePasswordResetTokensFromUrl,
-} from "@/src/lib/passwordResetTokens";
+import { parsePasswordResetTokensFromUrl } from "@/src/lib/passwordResetTokens";
 
 /**
  * In development, you can open `/reset-password` with no query params to preview the layout.
@@ -63,9 +59,7 @@ const PasswordReset = () => {
   const [buttonDisabled, setButtonDisabled] = useState(true);
   const [alertVisible, setAlertVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [recoveryLink, setRecoveryLink] = useState("");
 
-  const showDevTools = isPasswordResetDevToolsEnabled();
   const tokensResolvedRef = useRef(false);
 
   const paramAccessToken = useMemo(() => {
@@ -199,19 +193,6 @@ const PasswordReset = () => {
   );
   const isDevPreview = DEV_PREVIEW_PASSWORD_RESET && !hasValidTokens;
 
-  const applyPastedRecoveryLink = () => {
-    const tokens = parsePasswordResetTokensFromUrl(recoveryLink);
-    if (!tokens) {
-      Alert.alert(
-        t("authPassword.devPasteInvalidTitle"),
-        t("authPassword.devPasteInvalidMessage")
-      );
-      return;
-    }
-    setAuthTokens(tokens);
-    setTokensExtracted(true);
-  };
-
   const updatePassword = async () => {
     if (isLoading) return;
 
@@ -283,32 +264,6 @@ const PasswordReset = () => {
           <Text style={[Typography.bodyMedium, styles.invalidBody]}>
             {t("authPassword.invalidResetLinkBody")}
           </Text>
-          {showDevTools ? (
-            <View style={styles.devPasteBlock}>
-              <Text style={[Typography.bodySmall, styles.devPasteHint]}>
-                {t("authPassword.devPasteHint")}
-              </Text>
-              <PrimaryOutlineTextField
-                label={t("authPassword.devPasteLabel")}
-                value={recoveryLink}
-                onChangeText={setRecoveryLink}
-                placeholder={t("authPassword.devPastePlaceholder")}
-                autoCapitalize="none"
-                autoCorrect={false}
-                multiline
-                containerStyle={styles.devPasteField}
-              />
-              <PaddedLabelButton
-                title={t("authPassword.devPasteContinue")}
-                horizontalPadding={24}
-                verticalPadding={14}
-                disabled={!recoveryLink.trim()}
-                onPress={applyPastedRecoveryLink}
-                style={styles.primaryButton}
-                textStyle={styles.primaryButtonLabel}
-              />
-            </View>
-          ) : null}
           <PaddedLabelButton
             title={t("authPassword.goToSignIn")}
             horizontalPadding={32}
@@ -482,20 +437,6 @@ const styles = StyleSheet.create({
     color: primaryBlack,
     textAlign: "center",
     marginBottom: responsiveMargin(28),
-  },
-  devPasteBlock: {
-    width: "100%",
-    marginBottom: responsiveMargin(20),
-  },
-  devPasteHint: {
-    color: primaryBlack,
-    textAlign: "center",
-    opacity: 0.85,
-    marginBottom: responsiveMargin(12),
-  },
-  devPasteField: {
-    width: "100%",
-    marginBottom: responsiveMargin(12),
   },
 });
 

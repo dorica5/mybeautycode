@@ -1,10 +1,15 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { supabase } from "../lib/supabase";
+import {
+  isStaleRefreshTokenError,
+  purgeStaleAuthSession,
+} from "../lib/authSessionRecovery";
 import { api, setApiOn401 } from "../lib/apiClient";
 import { Session } from "@supabase/supabase-js";
 import {
   createContext,
   PropsWithChildren,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -22,11 +27,12 @@ import {
   readCachedProfile,
   writeCachedProfile,
 } from "../lib/profileCache";
+import { recordProductEvent } from "../api/analytics";
 import { router, usePathname, useSegments, type Href } from "expo-router";
 
 /** Cross-group route so replace() leaves (auth)/Splash and lands in the setup stack. */
 const SETUP_ENTRY: Href = "/(setup)/Setup";
-import { Alert } from "react-native";
+import { Alert, AppState } from "react-native";
 import { Profile } from "../constants/types";
 import { useImageContext } from "./ImageProvider";
 import LoadingScreen from "../app/(setup)/LoadingScreen";
@@ -131,6 +137,14 @@ export function profileSetupIsComplete(
 function shouldCompletedUserLeaveForHome(pathname: string): boolean {
   const p = pathname ?? "";
   if (
+    p.includes("(client)") ||
+    p.includes("(professional)") ||
+    p === "/home" ||
+    p.endsWith("/home")
+  ) {
+    return false;
+  }
+  if (
     p.includes("ChangePassword") ||
     p.includes("reset-password") ||
     p.includes("CheckMail") ||
@@ -166,6 +180,7 @@ type AuthData = {
   session: Session | null;
   profile: any;
   loading: boolean;
+  loadingProfile: boolean;
   isSignUp: boolean;
   loadingSetup: boolean;
   isSigningOut: boolean;
@@ -181,12 +196,15 @@ type AuthData = {
   clearProfile: () => void;
   setLoadingSetup: (loadingSetup: boolean) => void;
   retryProfileFetch: () => void;
+  /** Lightweight `/api/auth/me` refresh — no global loading shell (cross-device account sync). */
+  refreshProfile: (opts?: { bypassDebounce?: boolean }) => Promise<void>;
 };
 
 export const AuthContext = createContext<AuthData>({
   session: null,
   profile: null,
   loading: true,
+  loadingProfile: true,
   loadingSetup: false,
   isSignUp: false,
   isSigningOut: false,
@@ -201,6 +219,7 @@ export const AuthContext = createContext<AuthData>({
   clearProfile: () => {},
   setLoadingSetup: () => {},
   retryProfileFetch: () => {},
+  refreshProfile: async () => {},
 });
 
 export default function AuthProvider({ children }: PropsWithChildren) {
@@ -226,6 +245,9 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   const prevLoadingSetupRef = useRef<boolean | null>(null);
   /** Serializes overlapping fetchSession runs so loaders always clear without generation races. */
   const fetchSessionTailRef = useRef<Promise<void | undefined>>(Promise.resolve(undefined));
+  const profileRefreshInFlightRef = useRef<Promise<void> | null>(null);
+  const lastProfileRefreshAtRef = useRef(0);
+  const appStateRef = useRef(AppState.currentState);
   const isSigningOut = useRef(false);
   const isChangingPassword = useRef(false);
   const pathname = usePathname();
@@ -427,8 +449,14 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       const { data, error } = await supabase.auth.getSession();
 
       if (error) {
-        console.error("Error fetching session:", error.message);
+        if (isStaleRefreshTokenError(error)) {
+          await purgeStaleAuthSession();
+          await clearProfile();
+        } else {
+          console.warn("Error fetching session:", error.message);
+        }
         setLoadingProfile(false);
+        initialLoadComplete.current = true;
         return;
       }
 
@@ -446,16 +474,29 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     }
 
     if (!sessionSnap) {
+      initialLoadComplete.current = true;
       return;
     }
 
-    /** Profile/status — runs after session is known; Splash and auth shells can navigate while this resolves. */
-    setLoadingProfile(true);
+    const userId = sessionSnap.user.id as string;
+    const cachedProfile = await readCachedProfile(userId);
+    const hydratedFromCache = Boolean(cachedProfile);
+    if (cachedProfile) {
+      setProfile(cachedProfile);
+      setProfileConnectionError(false);
+      setLoadingProfile(false);
+      initialLoadComplete.current = true;
+    }
+
+    /** Profile/status — cache paints UI first; network refresh runs without blocking tabs. */
+    if (!hydratedFromCache) {
+      setLoadingProfile(true);
+    }
     try {
-      let profileData: Profile | null = null;
+      let profileData: Profile | null = hydratedFromCache ? cachedProfile : null;
       let profileError: unknown = null;
-      /** Retries: 404 (profile row lag), 5xx (cold start / transient DB). */
-      for (let attempt = 0; attempt < 6; attempt++) {
+      /** Retries: 404 (profile row lag), 5xx (cold start). Timeouts fail fast — no retry storm. */
+      for (let attempt = 0; attempt < 3; attempt++) {
         try {
           profileData = (await api.get("/api/auth/me")) as Profile;
           profileError = null;
@@ -465,6 +506,12 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           const err = e as Error & { status?: number };
           const status = err.status;
           const msg = (err.message ?? "").toLowerCase();
+          const timedOut =
+            msg.includes("timed out") ||
+            msg.includes("timeout") ||
+            msg.includes("aborted") ||
+            msg.includes("abort");
+          if (timedOut) break;
           const noProfileYet =
             status === 404 ||
             msg.includes("profile not found") ||
@@ -475,11 +522,11 @@ export default function AuthProvider({ children }: PropsWithChildren) {
             status === 503 ||
             msg.includes("failed to fetch profile") ||
             isTransientNetworkFailure(msg);
-          if (isTransientNetworkFailure(msg) && attempt >= 2) {
+          if (isTransientNetworkFailure(msg) && attempt >= 1) {
             break;
           }
-          if ((noProfileYet || transient) && attempt < 5) {
-            const delay = transient ? 650 * (attempt + 1) : 350 * (attempt + 1);
+          if ((noProfileYet || transient) && attempt < 2) {
+            const delay = transient ? 500 * (attempt + 1) : 300 * (attempt + 1);
             await new Promise((r) => setTimeout(r, delay));
             continue;
           }
@@ -488,6 +535,10 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       let profileResolvedMissing = false;
+
+      if (!profileData && profileError && hydratedFromCache) {
+        return;
+      }
 
       if (!profileData && profileError) {
         const err = profileError as Error & { status?: number };
@@ -545,39 +596,56 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       profileRetryCountRef.current = 0;
 
       if (profileData) {
-        const status = await checkUserStatus(sessionSnap.user.id as string);
-        setUserStatus(status);
-
-        if (status && !status.can_act) {
-          const wasHandled = handleRestrictedUser(status);
-          if (wasHandled && status.is_banned) {
-            return;
-          }
-        }
-      }
-
-      if (profileData) {
         setProfileMissingConfirmed(false);
-        profileData = await ensureSetupStatusPersisted(
-          sessionSnap.user.id as string,
-          profileData as Profile
-        );
         setProfile(profileData as Profile);
         const setupComplete = profileSetupIsComplete(profileData as Profile);
         setIsSignUp(!setupComplete);
-        await writeCachedProfile(sessionSnap.user.id as string, profileData as Profile);
-        await syncSignupDate(sessionSnap, profileData);
+        void writeCachedProfile(sessionSnap.user.id as string, profileData as Profile);
+        lastProfileRefreshAtRef.current = Date.now();
+
+        void (async () => {
+          try {
+            const status = await checkUserStatus(sessionSnap.user.id as string);
+            setUserStatus(status);
+            if (status && !status.can_act) {
+              handleRestrictedUser(status);
+            }
+          } catch (e) {
+            console.warn("checkUserStatus failed", e);
+          }
+        })();
+
+        void (async () => {
+          try {
+            const synced = await ensureSetupStatusPersisted(
+              sessionSnap.user.id as string,
+              profileData as Profile
+            );
+            if (synced !== profileData) {
+              setProfile(synced);
+              await writeCachedProfile(sessionSnap.user.id as string, synced);
+            }
+          } catch (e) {
+            console.warn("ensureSetupStatusPersisted failed", e);
+          }
+        })();
+
+        void syncSignupDate(sessionSnap, profileData).catch((e) => {
+          console.warn("syncSignupDate failed", e);
+        });
+
         try {
-          postHog.capture("App Opened", {
-            role:
-              (profileData as { user_type?: string }).user_type ?? "unknown",
-          });
+          const role =
+            (profileData as { user_type?: string }).user_type ?? "unknown";
+          postHog.capture("App Opened", { role });
+          void recordProductEvent({ eventType: "app_opened", payload: { role } });
         } catch {
           /* avoid blocking bootstrap on analytics */
         }
       }
     } finally {
       setLoadingProfile(false);
+      initialLoadComplete.current = true;
     }
   };
 
@@ -589,10 +657,61 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     return queued;
   };
 
+  const refreshProfile = useCallback(
+    async (opts?: { bypassDebounce?: boolean }) => {
+      const userId = session?.user?.id;
+      if (!userId) return;
+
+      const now = Date.now();
+      if (
+        !opts?.bypassDebounce &&
+        now - lastProfileRefreshAtRef.current < 30_000
+      ) {
+        return;
+      }
+
+      if (profileRefreshInFlightRef.current) {
+        return profileRefreshInFlightRef.current;
+      }
+
+      const run = (async () => {
+        try {
+          let data = (await api.get("/api/auth/me")) as Profile;
+          data = await ensureSetupStatusPersisted(userId, data);
+          setProfile(data);
+          await writeCachedProfile(userId, data);
+          lastProfileRefreshAtRef.current = Date.now();
+        } catch (err) {
+          console.error("Error refreshing profile:", err);
+        } finally {
+          profileRefreshInFlightRef.current = null;
+        }
+      })();
+
+      profileRefreshInFlightRef.current = run;
+      return run;
+    },
+    [session?.user?.id]
+  );
+
   const navigateToSplash = () => {
+    const authPaths = [
+      "Splash",
+      "SignIn",
+      "SignUp",
+      "ChangePassword",
+      "Reset",
+      "CheckMail",
+      "(auth)",
+      "reset-password",
+      "Onboarding",
+    ];
+    if (authPaths.some((path) => pathname.includes(path))) {
+      return;
+    }
     console.log("Navigating to splash screen");
     setTimeout(() => {
-      router.replace("/Splash");
+      router.replace("/(auth)/Splash");
     }, 100);
   };
 
@@ -770,32 +889,35 @@ export default function AuthProvider({ children }: PropsWithChildren) {
       }
 
       if (profile && setupComplete) {
-        const home = resolveAppHome(profile, lastAppSurfacePref);
-
         const leaveBootstrap = shouldCompletedUserLeaveForHome(pathname);
-        const shouldGoHome =
-          leaveBootstrap || !initialLoadComplete.current;
-
-        if (shouldGoHome) {
-          console.log("Redirecting to home", {
-            home,
-            leaveBootstrap,
-            pathname,
-            lastAppSurfacePref,
-          });
-          setIsNavigating(true);
-          setTimeout(() => {
-            router.replace(home);
-            initialLoadComplete.current = true;
-            setTimeout(() => setIsNavigating(false), 1000);
-          }, 100);
+        if (!leaveBootstrap) {
+          return;
         }
+
+        const home = resolveAppHome(profile, lastAppSurfacePref);
+        console.log("Redirecting to home", {
+          home,
+          leaveBootstrap,
+          pathname,
+          lastAppSurfacePref,
+        });
+        setIsNavigating(true);
+        setTimeout(() => {
+          router.replace(home);
+          initialLoadComplete.current = true;
+          setTimeout(() => setIsNavigating(false), 1000);
+        }, 100);
       }
 
       return;
     }
 
     if (!session && !isFirstLaunch) {
+      /** `index.tsx` already `<Redirect>`s to Splash from `/` — a second `replace` here flashes Splash twice. */
+      if (pathname === "/" || pathname === "") {
+        return;
+      }
+
       const authPaths = [
         "Splash",
         "SignIn",
@@ -813,7 +935,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         console.log("No session but onboarding complete, navigating to splash");
         setIsNavigating(true);
         setTimeout(() => {
-          router.replace("/Splash");
+          router.replace("/(auth)/Splash");
           setTimeout(() => setIsNavigating(false), 600);
         }, 50);
       }
@@ -895,24 +1017,26 @@ export default function AuthProvider({ children }: PropsWithChildren) {
   }, [session?.user?.id, profile?.setup_status]);
 
   useEffect(() => {
-    if (session?.user?.id) {
-      console.log("Registering push notifications for user:", session.user.id);
-      try {
-        registerForPushNotificationAsync(session.user.id)
-          .then((token) => {
-            if (token) {
-              console.log("Successfully registered token:", token);
-              setExpoPushToken(token as any);
-            }
-          })
-          .catch((error) => {
-            console.error("Failed to register for push notifications:", error);
-          });
-      } catch (error) {
-        console.error("Error in push notification registration:", error);
-      }
+    const userId = session?.user?.id;
+    const accessToken = session?.access_token;
+    if (!userId || !accessToken || loading) return;
+
+    console.log("Registering push notifications for user:", userId);
+    try {
+      registerForPushNotificationAsync(userId, accessToken)
+        .then((token) => {
+          if (token) {
+            console.log("Successfully registered token:", token);
+            setExpoPushToken(token as any);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to register for push notifications:", error);
+        });
+    } catch (error) {
+      console.error("Error in push notification registration:", error);
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, session?.access_token, loading]);
 
   useEffect(() => {
     setApiOn401(() => signOut());
@@ -937,12 +1061,24 @@ export default function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
 
+        /** Mount `fetchSessionAndProfile()` already bootstraps; avoid duplicate fetch + Splash flicker. */
+        if (event === "INITIAL_SESSION") {
+          if (newSession) setSession(newSession);
+          return;
+        }
+
         /**
          * Display-name / metadata sync from signup flows (`updateUser`) — session is enough.
          * A full bootstrap would call `execFetchSession` → global `loading` + fight `router.replace` to home,
          * and `/api/auth/me` was already refreshed by the profile PUT mutation before this fires.
          */
         if (event === "USER_UPDATED" && newSession) {
+          setSession(newSession);
+          return;
+        }
+
+        /** Token refresh must not re-run full bootstrap — that flickers loading and loops Splash/index. */
+        if (event === "TOKEN_REFRESHED" && newSession) {
           setSession(newSession);
           return;
         }
@@ -979,18 +1115,20 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     const prev = prevLoadingSetupRef.current;
     prevLoadingSetupRef.current = loadingSetup;
     if (prev !== true || loadingSetup !== false || !session?.user?.id) return;
+    void refreshProfile({ bypassDebounce: true });
+  }, [loadingSetup, session?.user?.id, refreshProfile]);
 
-    const refreshProfile = async () => {
-      try {
-        let data = (await api.get("/api/auth/me")) as Profile;
-        data = await ensureSetupStatusPersisted(session.user.id, data);
-        setProfile(data);
-      } catch (err) {
-        console.error("Error refreshing profile:", err);
-      }
-    };
-    void refreshProfile();
-  }, [loadingSetup, session?.user?.id]);
+  /** Sync linked profession accounts when returning from background (debounced). */
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      appStateRef.current = state;
+      if (state !== "active" || !session?.user?.id) return;
+      const since = Date.now() - lastProfileRefreshAtRef.current;
+      if (since < 90_000) return;
+      void refreshProfile();
+    });
+    return () => sub.remove();
+  }, [session?.user?.id, refreshProfile]);
 
   useSyncSignupDate();
 
@@ -1003,14 +1141,14 @@ export default function AuthProvider({ children }: PropsWithChildren) {
     !profileConnectionError;
 
   /**
-   * Keep one loading shell until we know routing (session + `/me` fetch), so `/` doesn’t briefly show Splash
-   * before this overlay. Also hold when profile is still retrying after a transient API failure.
+   * Keep one loading shell until first bootstrap completes (session + `/me` when signed in).
+   * After that, do not replace the whole tree on background session checks — that looked like a Splash loop.
    */
   const shouldHoldTree =
-    loading ||
     firstLaunchLoading ||
-    (isAuthed && loadingProfile) ||
-    profileFetchPending;
+    profileFetchPending ||
+    (isAuthed && (loading || loadingProfile)) ||
+    (loading && !initialLoadComplete.current);
 
   const retryProfileFetch = () => {
     if (!session?.user?.id) return;
@@ -1025,6 +1163,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         session,
         profile,
         loading,
+        loadingProfile,
         loadingSetup,
         isSignUp,
         isSigningOut: isSigningOut.current,
@@ -1039,6 +1178,7 @@ export default function AuthProvider({ children }: PropsWithChildren) {
         clearProfile,
         setLoadingSetup,
         retryProfileFetch,
+        refreshProfile,
       }}
     >
       {shouldHoldTree ? (

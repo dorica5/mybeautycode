@@ -3,7 +3,7 @@ import React from "react";
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import TopNavGallery from "@/src/components/TopNavGallery";
 
 type ImageDetailsParams = {
@@ -35,7 +35,7 @@ function ImageDetails() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: primaryGreen,
   },
 
   image: {

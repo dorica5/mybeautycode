@@ -1,13 +1,12 @@
 import Constants from "expo-constants";
+import { api } from "@/src/lib/apiClient";
 
 /**
  * Shared helpers for Google Maps Platform REST calls from the mobile client.
- * The key comes from `app.config.js` → `expoConfig.extra.googlePlacesApiKey`
- * (backed by `EXPO_PUBLIC_GOOGLE_PLACES_API_KEY`).
  *
- * Every screen that does address autocomplete / geocoding / place detail
- * lookups imports from here so there's one place to change URLs, quotas,
- * or migrate to Places API (New).
+ * Production builds call `/api/places/*` on your backend so the Google key
+ * stays server-side (Android/iOS app-restricted Maps keys block direct REST
+ * calls from JavaScript). Falls back to a client key for local dev when set.
  */
 
 export function getGooglePlacesKey(): string {
@@ -15,6 +14,19 @@ export function getGooglePlacesKey(): string {
     | { googlePlacesApiKey?: string }
     | undefined;
   return (extra?.googlePlacesApiKey ?? "").trim();
+}
+
+/** True when autocomplete can run via backend and/or a client Places key. */
+export function placesSearchAvailable(): boolean {
+  return hasBackendApi() || !!getGooglePlacesKey();
+}
+
+function hasBackendApi(): boolean {
+  const raw =
+    Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL ??
+    process.env.EXPO_PUBLIC_API_URL ??
+    "";
+  return String(raw).trim().length > 0;
 }
 
 /** Bias place-result language (street names, etc.) toward the user's region. */
@@ -67,51 +79,21 @@ function resolveLanguage(opts?: PlacesLookupOptions): string {
   );
 }
 
-/**
- * Places Autocomplete (classic). Returns up to Google's default list of
- * predictions. We intentionally do NOT pass `types=address` — that filter
- * excludes partial street / area queries and worsens coverage for
- * Scandinavian residential addresses.
- */
-export async function fetchAutocomplete(
-  input: string,
-  apiKey: string,
-  opts?: PlacesLookupOptions
-): Promise<AutocompletePrediction[]> {
-  const q = input.trim();
-  if (!q || q.length < 2 || !apiKey) return [];
-  const params = new URLSearchParams({
-    input: q,
-    key: apiKey,
-    language: resolveLanguage(opts),
-  });
+function placesQueryParams(opts?: PlacesLookupOptions): URLSearchParams {
+  const params = new URLSearchParams();
   if (opts?.countryCode && opts.countryCode.length === 2) {
-    params.append("components", `country:${opts.countryCode.toLowerCase()}`);
+    params.set("countryCode", opts.countryCode);
   }
-  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params.toString()}`;
-  try {
-    const res = await fetch(url);
-    const json = (await res.json()) as {
-      predictions?: AutocompletePrediction[];
-      status: string;
-      error_message?: string;
-    };
-    if (json.status !== "OK" && json.status !== "ZERO_RESULTS") {
-      if (__DEV__ && json.error_message) {
-        console.warn("[Places Autocomplete]", json.status, json.error_message);
-      }
-      return [];
-    }
-    return json.predictions ?? [];
-  } catch {
-    return [];
+  if (opts?.preferredCountryCode && opts.preferredCountryCode.length === 2) {
+    params.set("preferredCountryCode", opts.preferredCountryCode);
   }
+  return params;
 }
 
 /**
- * Lat/lng bounding box as returned by Google (`geometry.viewport`). Use
- * this to size the map region so a street shows the whole street, a city
- * shows the whole city, and a POI shows its immediate block.
+ * Place Details: resolve a Google place id into the canonical formatted
+ * address + coordinates + suggested viewport. Returns `null` on any error
+ * or unexpected shape.
  */
 export type PlaceViewport = {
   northeast: { latitude: number; longitude: number };
@@ -152,17 +134,123 @@ function parseViewport(raw?: RawViewport | null): PlaceViewport | null {
   };
 }
 
+async function fetchAutocompleteViaBackend(
+  input: string,
+  opts?: PlacesLookupOptions
+): Promise<AutocompletePrediction[] | null> {
+  if (!hasBackendApi()) return null;
+  try {
+    const params = placesQueryParams(opts);
+    params.set("input", input.trim());
+    const data = await api.get<{ predictions?: AutocompletePrediction[] }>(
+      `/api/places/autocomplete?${params.toString()}`
+    );
+    return data.predictions ?? [];
+  } catch (e) {
+    if (__DEV__) {
+      console.warn("[Places Autocomplete via API]", e);
+    }
+    return null;
+  }
+}
+
+async function fetchPlaceDetailsViaBackend(
+  placeId: string,
+  opts?: PlacesLookupOptions
+): Promise<ResolvedPlace | null | undefined> {
+  if (!hasBackendApi()) return undefined;
+  try {
+    const params = placesQueryParams(opts);
+    params.set("placeId", placeId);
+    const data = await api.get<{ place?: ResolvedPlace }>(
+      `/api/places/details?${params.toString()}`
+    );
+    return data.place ?? null;
+  } catch (e) {
+    if (__DEV__) {
+      console.warn("[Place Details via API]", e);
+    }
+    return null;
+  }
+}
+
+async function geocodeAddressViaBackend(
+  query: string,
+  opts?: PlacesLookupOptions
+): Promise<ResolvedPlace | null | undefined> {
+  if (!hasBackendApi()) return undefined;
+  try {
+    const params = placesQueryParams(opts);
+    params.set("address", query.trim());
+    const data = await api.get<{ place?: ResolvedPlace }>(
+      `/api/places/geocode?${params.toString()}`
+    );
+    return data.place ?? null;
+  } catch (e) {
+    if (__DEV__) {
+      console.warn("[Geocoding via API]", e);
+    }
+    return null;
+  }
+}
+
 /**
- * Place Details: resolve a Google place id into the canonical formatted
- * address + coordinates + suggested viewport. Returns `null` on any error
- * or unexpected shape.
+ * Places Autocomplete (classic). Returns up to Google's default list of
+ * predictions. We intentionally do NOT pass `types=address` — that filter
+ * excludes partial street / area queries and worsens coverage for
+ * Scandinavian residential addresses.
  */
+export async function fetchAutocomplete(
+  input: string,
+  apiKey: string,
+  opts?: PlacesLookupOptions
+): Promise<AutocompletePrediction[]> {
+  const q = input.trim();
+  if (!q || q.length < 2) return [];
+
+  const viaBackend = await fetchAutocompleteViaBackend(q, opts);
+  if (viaBackend !== null) return viaBackend;
+
+  if (!apiKey) return [];
+  const params = new URLSearchParams({
+    input: q,
+    key: apiKey,
+    language: resolveLanguage(opts),
+  });
+  if (opts?.countryCode && opts.countryCode.length === 2) {
+    params.append("components", `country:${opts.countryCode.toLowerCase()}`);
+  }
+  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params.toString()}`;
+  try {
+    const res = await fetch(url);
+    const json = (await res.json()) as {
+      predictions?: AutocompletePrediction[];
+      status: string;
+      error_message?: string;
+    };
+    if (json.status !== "OK" && json.status !== "ZERO_RESULTS") {
+      if (__DEV__ && json.error_message) {
+        console.warn("[Places Autocomplete]", json.status, json.error_message);
+      }
+      return [];
+    }
+    return json.predictions ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchPlaceDetails(
   placeId: string,
   apiKey: string,
   opts?: PlacesLookupOptions
 ): Promise<ResolvedPlace | null> {
-  if (!placeId || !apiKey) return null;
+  if (!placeId) return null;
+
+  const viaBackend = await fetchPlaceDetailsViaBackend(placeId, opts);
+  if (viaBackend !== undefined) return viaBackend;
+
+  if (!apiKey) return null;
   const params = new URLSearchParams({
     place_id: placeId,
     fields: "place_id,formatted_address,geometry",
@@ -214,15 +302,6 @@ export async function fetchPlaceDetails(
 
 /**
  * Geocode a free-text address into a canonical place.
- *
- * Covers the common case where a professional types a real address that
- * Places Autocomplete doesn't surface as a suggestion (Scandinavian
- * residential street numbers are a classic gap — Autocomplete leans on the
- * POI index). Geocoding is much more forgiving because it matches on the
- * address string directly.
- *
- * Returns `null` on no-match / network error so callers can decide whether
- * to block save, fall back to saving text-only, or prompt the user.
  */
 export async function geocodeAddress(
   query: string,
@@ -230,7 +309,12 @@ export async function geocodeAddress(
   opts?: PlacesLookupOptions
 ): Promise<ResolvedPlace | null> {
   const q = query.trim();
-  if (!q || !apiKey) return null;
+  if (!q) return null;
+
+  const viaBackend = await geocodeAddressViaBackend(q, opts);
+  if (viaBackend !== undefined) return viaBackend;
+
+  if (!apiKey) return null;
   const params = new URLSearchParams({
     address: q,
     key: apiKey,

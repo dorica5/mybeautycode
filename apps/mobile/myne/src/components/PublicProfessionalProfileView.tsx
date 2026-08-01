@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import { useFocusEffect } from "expo-router";
 import { recordProfessionalAnalyticsEvent } from "@/src/api/professionalAnalytics";
+import { recordProductEvent } from "@/src/api/analytics";
 import {
   View,
   Text,
@@ -92,7 +93,7 @@ async function openSafeWebUrl(raw: string, cannotOpenMessage: string) {
   }
 }
 
-/** Local copy — avoids Metro occasionally resolving a stale `professionCodes` bundle without this export. */
+/** Local copy 뿯ν뿯½뿯½ avoids Metro occasionally resolving a stale `professionCodes` bundle without this export. */
 function relationshipCtaLabelsForLane(
   code: ProfessionChoiceCode | null | undefined,
   t: (key: string) => string
@@ -148,13 +149,15 @@ export type PublicProfessionalProfileViewProps = {
   businessAddress?: string | null;
   aboutMe?: string | null;
   salonPhone?: string | null;
-  /** Active RevenueCat / pro subscription — shown to clients below salon name. */
+  /** Active RevenueCat / pro subscription 뿯ν뿯½뿯½ shown to clients below salon name. */
   hasActiveSubscription?: boolean;
   bookingSite?: string | null;
   socialMediaRaw?: string | null;
   colorBrandRaw?: string | null;
-  /** Client discover / add-pro flows — hide salon color brand from customers. */
+  /** Client discover / add-pro flows 뿯ν뿯½뿯½ hide salon color brand from customers. */
   hideColorBrand?: boolean;
+  /** Parent already applied top safe-area inset (e.g. map modal overlay). */
+  topInsetHandledExternally?: boolean;
   professionCodes?: string[] | null;
   /** When set (e.g. self-view with a chosen role), scopes color-brand + work grid to that profession. */
   activeProfessionCode?: ProfessionChoiceCode | null;
@@ -172,7 +175,7 @@ export type PublicProfessionalProfileViewProps = {
    * booking/social taps per profession lane for pro insights.
    */
   analyticsProfessionCode?: string | null;
-  /** Viewer's linked profession codes — used to gate hair color brand (hairdressers only). */
+  /** Viewer's linked profession codes 뿯ν뿯½뿯½ used to gate hair color brand (hairdressers only). */
   viewerProfessionCodes?: string[] | null;
 };
 
@@ -192,6 +195,7 @@ export function PublicProfessionalProfileView({
   socialMediaRaw,
   colorBrandRaw,
   hideColorBrand,
+  topInsetHandledExternally = false,
   professionCodes,
   activeProfessionCode,
   onBack,
@@ -213,7 +217,7 @@ export function PublicProfessionalProfileView({
     const shellPad = responsivePadding(16, 28);
     const shortSide = Math.min(windowWidth, windowHeight);
 
-    /** One centered column — tablet width matches phone card ratio on short side. */
+    /** One centered column 뿯ν뿯½뿯½ tablet width matches phone card ratio on short side. */
     let maxShellW: number;
     if (tablet) {
       maxShellW = Math.min(
@@ -224,7 +228,7 @@ export function PublicProfessionalProfileView({
       maxShellW = Math.min(windowWidth - responsivePadding(36), 520);
     }
 
-    /** `scalePercent(38)` on tablet uses portrait min(width,height) → ~292pt avatar; cap for same balance as phones */
+    /** `scalePercent(38)` on tablet uses portrait min(width,height) 뿯ν뿯½뿯½ ~292pt avatar; cap for same balance as phones */
     const phoneAvatar = Math.round(scalePercent(38));
     const avatarSize = tablet ? responsiveScale(152, 200) : phoneAvatar;
 
@@ -300,11 +304,19 @@ export function PublicProfessionalProfileView({
   const handleCall = useCallback(() => {
     const p = salonPhone?.trim();
     if (!p) return;
+    if (shouldTrackAnalytics) {
+      void recordProductEvent({
+        eventType: "phone_click",
+        entityType: "professional_profile",
+        entityId: profileUserId,
+        payload: { professionCode: lane ?? null },
+      });
+    }
     void openTelUrl(
       p.startsWith("tel:") ? p : `tel:${p}`,
       t("common.cannotOpenLink")
     );
-  }, [salonPhone, t]);
+  }, [salonPhone, shouldTrackAnalytics, profileUserId, lane, t]);
 
   const handleBooking = useCallback(() => {
     if (!safeBookingUrl) return;
@@ -318,8 +330,7 @@ export function PublicProfessionalProfileView({
     void openSafeWebUrl(safeBookingUrl, t("common.cannotOpenLink"));
   }, [safeBookingUrl, shouldTrackAnalytics, lane, profileUserId, t]);
 
-  return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+  const profileScroll = (
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -329,7 +340,7 @@ export function PublicProfessionalProfileView({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/** Shared inset with visit headers / Find pros — see NavBackRow.navBackChromeStyles */}
+        {/** Shared inset with visit headers / Find pros 뿯ν뿯½뿯½ see NavBackRow.navBackChromeStyles */}
         <View style={navBackChromeStyles.screenBar}>
           <View style={navBackChromeStyles.row}>
             <NavBackRow onPress={onBack} hitSlop={12} layout="inlineBar" />
@@ -559,6 +570,13 @@ export function PublicProfessionalProfileView({
         </View>
         </View>
       </ScrollView>
+  );
+
+  return topInsetHandledExternally ? (
+    <View style={styles.safe}>{profileScroll}</View>
+  ) : (
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      {profileScroll}
     </SafeAreaView>
   );
 }
@@ -584,7 +602,7 @@ const styles = StyleSheet.create({
     minWidth: responsiveScale(40),
     alignItems: "flex-end",
   },
-  /** Keeps Back aligned when no menu — mirrors VisitRecordScreenHeader trail placeholder. */
+  /** Keeps Back aligned when no menu 뿯ν뿯½뿯½ mirrors VisitRecordScreenHeader trail placeholder. */
   headerRightPlaceholder: {
     minWidth: responsiveScale(40),
   },
@@ -635,7 +653,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     alignSelf: "center",
   },
-  /** Compact pill on phone — not full-width. */
+  /** Compact pill on phone 뿯ν뿯½뿯½ not full-width. */
   addHairdresserBtnPhone: {
     maxWidth: responsiveScale(320),
   },

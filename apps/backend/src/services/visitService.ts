@@ -20,6 +20,31 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const VISIT_DESCRIPTION_MAX_CHARS = 140;
+const VISIT_CLIENT_PRIVATE_NOTE_MAX_CHARS = 140;
+const VISIT_TEXT_MAX_LINES = 6;
+
+function assertMaxTextLength(
+  value: unknown,
+  maxChars: number,
+  fieldLabel: string
+): void {
+  if (value == null) return;
+  const text = typeof value === "string" ? value : String(value);
+  if (text.length > maxChars) {
+    throw Object.assign(
+      new Error(`${fieldLabel} must be at most ${maxChars} characters`),
+      { statusCode: 400 as const }
+    );
+  }
+  if (text.split("\n").length > VISIT_TEXT_MAX_LINES) {
+    throw Object.assign(
+      new Error(`${fieldLabel} must be at most ${VISIT_TEXT_MAX_LINES} lines`),
+      { statusCode: 400 as const }
+    );
+  }
+}
+
 export const visitService = {
   /** Professionals only see their own visits for the client (same scope as latest). Clients see the full timeline. */
   async listClientHaircodes(
@@ -415,6 +440,12 @@ export const visitService = {
     const durationMinutes = data.duration ? parseInt(data.duration, 10) : null;
     const price = data.price ? parseFloat(data.price) : null;
 
+    assertMaxTextLength(
+      data.service_description,
+      VISIT_DESCRIPTION_MAX_CHARS,
+      "Service description"
+    );
+
     return prisma.serviceRecord.create({
       data: {
         clientUserId: data.client_id,
@@ -434,6 +465,11 @@ export const visitService = {
   async update(serviceRecordId: string, data: Record<string, unknown>) {
     const updateData: Record<string, unknown> = {};
     if (data.service_description != null) {
+      assertMaxTextLength(
+        data.service_description,
+        VISIT_DESCRIPTION_MAX_CHARS,
+        "Service description"
+      );
       updateData.summary = data.service_description;
       updateData.serviceName = data.service_description;
     }
@@ -455,14 +491,13 @@ export const visitService = {
     clientUserId: string,
     note: string
   ) {
-    const trimmed = typeof note === "string" ? note.trim() : "";
-    const maxChars = 1200;
-    if (trimmed.length > maxChars) {
-      throw Object.assign(
-        new Error(`Note must be at most ${maxChars} characters`),
-        { statusCode: 400 as const }
-      );
-    }
+    const raw = typeof note === "string" ? note : "";
+    assertMaxTextLength(
+      raw,
+      VISIT_CLIENT_PRIVATE_NOTE_MAX_CHARS,
+      "Personal note"
+    );
+    const trimmed = raw.trim();
     return prisma.serviceRecord.update({
       where: { id: serviceRecordId, clientUserId },
       data: {

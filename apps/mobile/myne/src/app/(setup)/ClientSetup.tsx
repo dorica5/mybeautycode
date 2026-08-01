@@ -49,6 +49,7 @@ import {
   isTablet,
 } from "@/src/utils/responsive";
 import { usePostHog } from "posthog-react-native";
+import { recordProductEvent } from "@/src/api/analytics";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 const ClientSetup = () => {
@@ -248,6 +249,10 @@ const ClientSetup = () => {
 
       await updateUserProfile();
       posthog.capture("Profile Completed", { role: "CLIENT" });
+      void recordProductEvent({
+        eventType: "profile_completed",
+        payload: { role: "CLIENT" },
+      });
       if (userId) {
         const { data: user } = await supabase.auth.getUser();
 

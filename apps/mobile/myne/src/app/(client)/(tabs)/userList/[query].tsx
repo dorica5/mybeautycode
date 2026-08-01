@@ -26,7 +26,7 @@ import {
   responsivePadding,
   responsiveMargin,
 } from "@/src/utils/responsive";
-import { primaryBlack } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 const SearchHairdresserPage = () => {
@@ -190,7 +190,7 @@ export default SearchHairdresserPage;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: primaryGreen,
   },
   resultsContainer: {
     paddingTop: responsivePadding(10),

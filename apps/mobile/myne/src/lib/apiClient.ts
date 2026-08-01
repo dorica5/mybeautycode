@@ -1,5 +1,9 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import {
+  isStaleRefreshTokenError,
+  purgeStaleAuthSession,
+} from "./authSessionRecovery";
 import { supabase } from "./supabase";
 
 const RAW_API_URL =
@@ -54,23 +58,30 @@ async function getBearerToken(): Promise<string | undefined> {
     if (!error && refreshed.session?.access_token) {
       return refreshed.session.access_token;
     }
+    if (error && isStaleRefreshTokenError(error)) {
+      await purgeStaleAuthSession();
+      return undefined;
+    }
   }
 
   return session.access_token;
 }
 
-async function getAuthHeaders(): Promise<Record<string, string>> {
+async function getAuthHeaders(
+  accessTokenOverride?: string
+): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  const token = await getBearerToken();
+  const token = accessTokenOverride ?? (await getBearerToken());
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
   return headers;
 }
 
-const REQUEST_TIMEOUT_MS = 20_000;
+/** Long enough for cold starts; short enough that retries don't stack into minutes. */
+const REQUEST_TIMEOUT_MS = 10_000;
 
 /** Avoid hanging forever on unreachable API hosts (common wrong localhost on device). */
 async function fetchWithTimeout(
@@ -94,10 +105,11 @@ async function fetchWithTimeout(
 /** One retry after Supabase refresh — fixes expired JWT ("exp" check failed on backend). */
 async function fetchWithSessionRefresh(
   path: string,
-  init: RequestInit
+  init: RequestInit,
+  accessTokenOverride?: string
 ): Promise<Response> {
   const url = `${API_URL}${path}`;
-  const auth = await getAuthHeaders();
+  const auth = await getAuthHeaders(accessTokenOverride);
   const merged: Record<string, string> = {
     ...auth,
     ...(init.headers as Record<string, string> | undefined),
@@ -109,6 +121,10 @@ async function fetchWithSessionRefresh(
 
   const { data: refreshed, error } = await supabase.auth.refreshSession();
   const newToken = refreshed?.session?.access_token;
+  if (error && isStaleRefreshTokenError(error)) {
+    await purgeStaleAuthSession();
+    return res;
+  }
   if (error || !newToken) {
     return res;
   }
@@ -172,11 +188,19 @@ export const api = {
     return handleResponse(res) as Promise<T>;
   },
 
-  async post<T = unknown>(path: string, body?: unknown): Promise<T> {
-    const res = await fetchWithSessionRefresh(path, {
-      method: "POST",
-      body: body ? JSON.stringify(body) : undefined,
-    });
+  async post<T = unknown>(
+    path: string,
+    body?: unknown,
+    opts?: { accessToken?: string }
+  ): Promise<T> {
+    const res = await fetchWithSessionRefresh(
+      path,
+      {
+        method: "POST",
+        body: body ? JSON.stringify(body) : undefined,
+      },
+      opts?.accessToken
+    );
     return handleResponse(res) as Promise<T>;
   },
 

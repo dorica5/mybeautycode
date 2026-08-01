@@ -42,6 +42,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { usePostHog } from "posthog-react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { useRefreshProfileOnFocus } from "@/src/hooks/useRefreshProfileOnFocus";
 import { AppLanguageButton } from "@/src/components/AppLanguageButton";
 
 const ProfileScreen = () => {
@@ -49,6 +50,8 @@ const ProfileScreen = () => {
   const { avatarImage } = useImageContext();
   const posthog = usePostHog();
   const { t } = useI18n();
+
+  useRefreshProfileOnFocus();
 
   if (loading) {
     return <ActivityIndicator />;

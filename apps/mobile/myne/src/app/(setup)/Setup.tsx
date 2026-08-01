@@ -12,7 +12,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import OrganicPattern from "../../../assets/images/Organic-pattern-5.svg";
-import FooterLogo from "../../../assets/images/myBeautyCode_logo.svg";
+import { BrandLogo } from "@/src/components/BrandLogo";
 import {
   primaryBlack,
   primaryGreen,
@@ -35,8 +35,8 @@ import { StatusBar } from "expo-status-bar";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
 const PATTERN_ASPECT = 226 / 390;
-/** Footer logo viewBox 132×95 */
-const LOGO_ASPECT = 73 / 110;
+/** android_icon.svg is square */
+const LOGO_ASPECT = 1;
 
 const Setup = () => {
   const { t } = useI18n();
@@ -233,7 +233,7 @@ const Setup = () => {
             )}
 
             <View style={styles.footer}>
-              <FooterLogo
+              <BrandLogo
                 width={layout.footerLogoWidth}
                 height={layout.footerLogoHeight}
               />

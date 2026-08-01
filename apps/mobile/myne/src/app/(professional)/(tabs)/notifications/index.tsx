@@ -31,6 +31,7 @@ import {
   useI18n,
 } from "@/src/providers/LanguageProvider";
 import type { AppLocale } from "@/src/i18n";
+import { recordProductEvent } from "@/src/api/analytics";
 
 type NotifRow = {
   created_at?: string;
@@ -180,13 +181,14 @@ const Notifications = () => {
 
   useEffect(() => {
     void loadNotifications(false);
-
-    const interval = setInterval(() => loadNotifications(false), 30000);
-    return () => clearInterval(interval);
   }, [loadNotifications]);
 
   useFocusEffect(
     useCallback(() => {
+      void recordProductEvent({
+        eventType: "notifications_tab_opened",
+        payload: { role: "professional" },
+      });
       void loadNotifications(false);
     }, [loadNotifications])
   );

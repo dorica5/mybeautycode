@@ -21,6 +21,10 @@ import { salonRoutes } from "./routes/salons";
 import { professionalAnalyticsRoutes } from "./routes/professionalAnalytics";
 import { feedbackRoutes } from "./routes/feedback";
 import { billingRoutes } from "./routes/billing";
+import { placesRoutes } from "./routes/places";
+import { slackRoutes } from "./routes/slack";
+import { adminRoutes } from "./routes/admin";
+import { analyticsRoutes } from "./routes/analytics";
 import { logSlackFeedbackStatus } from "./lib/slackEnv";
 import { billingConfig } from "./config/billingConfig";
 
@@ -36,7 +40,16 @@ const io = new Server(httpServer, {
 
 setupSocket(io);
 
-app.use(cors());
+app.use(
+  cors({
+    origin: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Admin-Key"],
+  })
+);
+
+app.use("/api/slack", slackRoutes);
+
 app.use(express.json());
 
 app.get("/health", (_req, res) => {
@@ -75,6 +88,9 @@ app.use("/api/salons", salonRoutes);
 app.use("/api/professional-analytics", professionalAnalyticsRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/billing", billingRoutes);
+app.use("/api/places", placesRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/analytics", analyticsRoutes);
 
 app.set("io", io);
 
@@ -82,6 +98,9 @@ const PORT = process.env.PORT || 3001;
 
 httpServer.listen(PORT, () => {
   console.log(`Backend running on http://localhost:${PORT}`);
+  console.log(
+    `[admin] ADMIN_METRICS_API_KEY configured: ${Boolean(process.env.ADMIN_METRICS_API_KEY?.trim())}`
+  );
   logSlackFeedbackStatus();
   if (billingConfig.TEST_SUBSCRIBED_PROFILE_IDS.size > 0) {
     console.log(

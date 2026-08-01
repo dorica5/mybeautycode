@@ -35,6 +35,7 @@ type ReportReasonPickerProps = {
   reportedId: string;
   professionCode: string | null | undefined;
   context?: string;
+  clientLink?: { hairdresserId: string; clientId: string };
   onDone: () => void;
 };
 
@@ -43,6 +44,7 @@ export function ReportReasonPicker({
   reportedId,
   professionCode,
   context,
+  clientLink,
   onDone,
 }: ReportReasonPickerProps) {
   const { t } = useI18n();
@@ -62,6 +64,7 @@ export function ReportReasonPicker({
         professionCode,
         context,
         queryClient,
+        clientLink,
       });
 
       if (result.autoBlocked) {

@@ -106,6 +106,7 @@ export default function GeneralSetup() {
   const { profilePicture, setProfilePicture } = useSetup();
   const { mutateAsync: updateProfile } = useUpdateSupabaseProfile();
   const localAvatarPickRef = useRef(false);
+  const userEditedRef = useRef(false);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -134,14 +135,16 @@ export default function GeneralSetup() {
       try {
         const me = await api.get<MeProfile>("/api/auth/me");
         if (cancelled) return;
-        if (me.first_name != null) setFirstName(me.first_name);
-        if (me.last_name != null) setLastName(me.last_name);
-        if (me.username) setUserName(me.username);
-        if (me.country) setCountry(me.country);
-        if (me.phone_number) {
-          const parsed = parsePhoneNumberFromString(me.phone_number);
-          if (parsed) setPhone(parsed.formatNational());
-          else setPhone(me.phone_number);
+        if (!userEditedRef.current) {
+          if (me.first_name != null) setFirstName(me.first_name);
+          if (me.last_name != null) setLastName(me.last_name);
+          if (me.username) setUserName(me.username);
+          if (me.country) setCountry(me.country);
+          if (me.phone_number) {
+            const parsed = parsePhoneNumberFromString(me.phone_number);
+            if (parsed) setPhone(parsed.formatNational());
+            else setPhone(me.phone_number);
+          }
         }
         const rawAvatar = me.avatar_url;
         if (!localAvatarPickRef.current && rawAvatar) {
@@ -362,7 +365,10 @@ export default function GeneralSetup() {
           <BrandOutlineField
             label="First name"
             value={firstName}
-            onChangeText={setFirstName}
+            onChangeText={(v) => {
+              userEditedRef.current = true;
+              setFirstName(v);
+            }}
             autoCapitalize="words"
             containerStyle={styles.formFieldSpacing}
           />
@@ -371,7 +377,10 @@ export default function GeneralSetup() {
           <BrandOutlineField
             label="Last name"
             value={lastName}
-            onChangeText={setLastName}
+            onChangeText={(v) => {
+              userEditedRef.current = true;
+              setLastName(v);
+            }}
             autoCapitalize="words"
             containerStyle={styles.formFieldSpacing}
           />
@@ -381,6 +390,7 @@ export default function GeneralSetup() {
             label="Username"
             value={userName}
             onChangeText={(t) => {
+              userEditedRef.current = true;
               setUserName(sanitizeUsername(t));
               if (errors.userName) {
                 setErrors((prev) => ({ ...prev, userName: "" }));
@@ -396,6 +406,7 @@ export default function GeneralSetup() {
             label="Country"
             value={country}
             onChange={(c) => {
+              userEditedRef.current = true;
               setCountry(c);
               if (attempted) {
                 setErrors((e) => {
@@ -420,7 +431,10 @@ export default function GeneralSetup() {
                 : "Phone number"
             }
             value={phone}
-            onChangeText={setPhone}
+            onChangeText={(v) => {
+              userEditedRef.current = true;
+              setPhone(v);
+            }}
             inputRestriction="telephone"
             editable={!!country}
             accessibilityState={{ disabled: !country }}

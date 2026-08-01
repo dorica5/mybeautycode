@@ -5,7 +5,7 @@ import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useAddHairdresser, useClientSearch } from "@/src/api/profiles";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { BRAND_DISPLAY_NAME } from "@/src/constants/brand";
-import { Colors, primaryBlack, primaryGreen } from "@/src/constants/Colors";
+import { primaryBlack, primaryGreen } from "@/src/constants/Colors";
 import type { Profile } from "@/src/constants/types";
 import RapportUserModal from "@/src/components/RapportUserModal";
 import {
@@ -186,7 +186,11 @@ const OtherProfessionalProfileScreen = () => {
         client_id,
         hairdresser_id,
         professionCodeFromVisit,
-        queryClient
+        queryClient,
+        {
+          hairdresserId: hairdresser_id,
+          clientId: client_id,
+        }
       );
       setUnblockSuccessVisible(true);
     } catch (error) {
@@ -203,8 +207,10 @@ const OtherProfessionalProfileScreen = () => {
         hairdresser_id,
         reason,
         professionCodeFromVisit,
-        queryClient as unknown as {
-          invalidateQueries: (opts: unknown) => void;
+        queryClient,
+        {
+          hairdresserId: hairdresser_id,
+          clientId: client_id,
         }
       );
       Alert.alert(
@@ -302,6 +308,10 @@ const OtherProfessionalProfileScreen = () => {
               reportedId={hairdresser_id}
               professionCode={professionCodeFromVisit}
               context="visit_other_pro_profile"
+              clientLink={{
+                hairdresserId: hairdresser_id,
+                clientId: client_id,
+              }}
               onDone={() => setActiveAction(null)}
             />
           ) : null}

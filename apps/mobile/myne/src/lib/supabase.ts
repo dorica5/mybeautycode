@@ -22,13 +22,14 @@ const storage = {
       }
       return null
     } else {
-      // Mobile - use SecureStore for better security
+      // Mobile — prefer SecureStore; also read AsyncStorage (legacy fallback writes).
       try {
-        return await SecureStore.getItemAsync(key)
-      } catch (error) {
-        // Fallback to AsyncStorage if SecureStore fails
-        return await AsyncStorage.getItem(key)
+        const secure = await SecureStore.getItemAsync(key);
+        if (secure != null) return secure;
+      } catch {
+        /* try AsyncStorage below */
       }
+      return await AsyncStorage.getItem(key);
     }
   },
   
@@ -54,11 +55,11 @@ const storage = {
       }
     } else {
       try {
-        await SecureStore.deleteItemAsync(key)
-      } catch (error) {
-        // Fallback to AsyncStorage if SecureStore fails
-        await AsyncStorage.removeItem(key)
+        await SecureStore.deleteItemAsync(key);
+      } catch {
+        /* continue */
       }
+      await AsyncStorage.removeItem(key);
     }
   },
 }

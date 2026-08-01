@@ -21,7 +21,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 import { randomUUID } from "expo-crypto";
 import { Palette, XCircle } from "phosphor-react-native";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
-import { BrandAnchoredMultiSelect } from "@/src/components/BrandAnchoredMultiSelect";
+import { ProfessionalDiscoveryCategoriesSection } from "@/src/components/ProfessionalDiscoveryCategoriesSection";
 import {
   MintProfileScreenShell,
   mintProfileScrollContent,
@@ -31,7 +31,7 @@ import { useAuth } from "@/src/providers/AuthProvider";
 import { useUpdateSupabaseProfile } from "@/src/api/profiles";
 import CustomAlert from "@/src/components/CustomAlert";
 import { PaddedLabelButton } from "@/src/components/PaddedLabelButton";
-import { Colors, primaryBlack, primaryWhite } from "@/src/constants/Colors";
+import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
 import {
   contentCardMaxWidth,
@@ -64,8 +64,7 @@ import {
   type ProfessionChoiceCode,
 } from "@/src/constants/professionCodes";
 import {
-  discoverySectionTitleForProfession,
-  localizedDiscoveryOptionsForProfession,
+  discoveryOptionsForProfession,
   normalizeDiscoveryCategoriesFromApi,
   sanitizeDiscoveryCategoriesForProfession,
 } from "@/src/constants/profDiscoveryCategories";
@@ -203,20 +202,19 @@ const AboutMe = () => {
   const [colorBrands, setColorBrands] = useState<string[]>(() =>
     parseColorBrands(originalColorBrand)
   );
+  const userEditedRef = useRef(false);
 
   const professionApi = useMemo((): ProfessionChoiceCode | null => {
     if (!storedProfessionReady || activeProfessionCode == null) return null;
     return activeProfessionCode;
   }, [storedProfessionReady, activeProfessionCode]);
 
-  const discoveryCategoryOptions = useMemo(
-    () => localizedDiscoveryOptionsForProfession(professionApi ?? null, t),
-    [professionApi, t]
-  );
-  const showDiscoveryCategoryPicker = discoveryCategoryOptions.length > 0;
+  const showDiscoveryCategoryPicker =
+    professionApi != null &&
+    discoveryOptionsForProfession(professionApi).length > 0;
 
   useEffect(() => {
-    if (professionApi == null) return;
+    if (professionApi == null || changed || userEditedRef.current) return;
     const d = profile.professions_detail?.find(
       (x: ProfessionDetailApi) =>
         coerceProfessionCode(x.profession_code) === professionApi
@@ -256,8 +254,10 @@ const AboutMe = () => {
     profile.social_media,
     profile.booking_site,
     profile.color_brand,
+    changed,
   ]);
 
+  const [discoverySubmitAttempted, setDiscoverySubmitAttempted] = useState(false);
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
@@ -470,6 +470,17 @@ const AboutMe = () => {
       Alert.alert(t("common.loading"), t("profile.pleaseWaitTryAgain"));
       return;
     }
+    if (
+      showDiscoveryCategoryPicker &&
+      sanitizeDiscoveryCategoriesForProfession(
+        discoveryCategories,
+        professionApi
+      ).length === 0
+    ) {
+      setDiscoverySubmitAttempted(true);
+      return;
+    }
+    setDiscoverySubmitAttempted(false);
     setLoading(true);
     try {
       const draftSavedIds = new Set(
@@ -530,6 +541,7 @@ const AboutMe = () => {
 
       await refreshWorkFromServer();
       setChanged(false);
+      userEditedRef.current = false;
       Keyboard.dismiss();
     } catch (e) {
       const message =
@@ -577,6 +589,7 @@ const AboutMe = () => {
   };
 
   const commitDiscoveryCategories = useCallback((next: string[]) => {
+    userEditedRef.current = true;
     setDiscoveryCategories([...next].sort());
   }, []);
 
@@ -709,38 +722,22 @@ const AboutMe = () => {
           </Text>
 
           {showDiscoveryCategoryPicker && professionApi ? (
-            <View
-              style={[
+            <ProfessionalDiscoveryCategoriesSection
+              professionCode={professionApi}
+              value={discoveryCategories}
+              onChange={(next) => {
+                commitDiscoveryCategories(next);
+                if (next.length > 0) {
+                  setDiscoverySubmitAttempted(false);
+                }
+              }}
+              showError={discoverySubmitAttempted}
+              containerStyle={[
                 styles.section,
                 sectionMaxStyle,
                 styles.discoverySection,
               ]}
-            >
-              <Text style={[Typography.label, styles.sectionLabel]}>
-                {professionApi
-                  ? discoverySectionTitleForProfession(professionApi, t)
-                  : t("aboutMePro.categories")}
-              </Text>
-              <Text style={[Typography.outfitRegular16, styles.focusHint]}>
-                {t("aboutMePro.discoveryHint")}
-              </Text>
-              <BrandAnchoredMultiSelect
-                label={
-                  professionApi
-                    ? discoverySectionTitleForProfession(professionApi, t)
-                    : t("aboutMePro.categories")
-                }
-                hideLabel
-                items={discoveryCategoryOptions.map((opt) => ({
-                  value: opt.code,
-                  label: opt.label,
-                }))}
-                value={discoveryCategories}
-                onChange={commitDiscoveryCategories}
-                placeholder={t("aboutMePro.selectCategories")}
-                containerStyle={styles.discoveryDropdown}
-              />
-            </View>
+            />
           ) : null}
 
           <View style={[styles.section, sectionMaxStyle]}>
@@ -770,6 +767,7 @@ const AboutMe = () => {
               value={about_me}
               inputRef={superPowerRef}
               onChangeText={(text) => {
+                userEditedRef.current = true;
                 const lines = text.split("\n");
                 if (lines.length < 5) {
                   setAboutMe(text);

@@ -252,6 +252,11 @@ export const sv: AppLocaleMessages = {
     checkLocation: "Kontrollera min plats",
     searchLocation: "Eller sök efter plats",
     allSpecialties: "Alla specialiteter",
+    expertiseRequired: "Välj minst en specialitet.",
+    expertiseInfoTitle: "Synlig i sök",
+    expertiseInfoMessage:
+      "Välj minst en specialitet för att synas på kartan och i sök. Välj allt som passar. Du kan uppdatera det när som helst under Bli upptäckt.",
+    expertiseInfoA11y: "Om synlighet i sök",
     matchAllSelected: "Må erbjuda alla valda",
     matchAllSelectedA11y:
       "Visa bara professionella som erbjuder alla valda specialiteter, inte bara en",
@@ -401,7 +406,7 @@ export const sv: AppLocaleMessages = {
     personalNote: "Personlig anteckning",
     personalNoteAdd: "Lägg till personlig anteckning",
     personalNoteAddHint: "Bara du kan se detta · tryck för att lägga till",
-    personalNotePlaceholder: "Hårmål, produkter att testa, hur det kändes…",
+    personalNotePlaceholder: "Vad tycker jag om resultatet/behandlingen?",
     personalNoteSave: "Spara",
     personalNoteSaved: "Sparad",
     personalNoteSaving: "Sparar…",
@@ -419,6 +424,7 @@ export const sv: AppLocaleMessages = {
     maxPhotosReached: "Max antal bilder uppnått",
     addImage: "Lägg till bild",
     addVideo: "Lägg till video",
+    addPhotoOrVideo: "Lägg till bild eller video",
     saveVisit: "Spara besök",
     visitNotFound: "Besök hittades inte.",
     missingVisitId: "Saknar besöks-ID",
@@ -718,18 +724,62 @@ export const sv: AppLocaleMessages = {
     title: "Feedback",
     sendToTeam: "Skicka till teamet",
     intro:
-      "Rösta på vad vi ska bygga härnäst. Skicka in din egen idé nedan. Vi granskar allt och uppdaterar status under tiden.",
-    communityBoard: "Communitytavla",
+      "Rösta på nya funktionsidéer nedan — endast funktioner visas på tavlan. Buggrapporter och förbättringar går direkt till teamet.",
+    communityBoard: "Funktionsidéer",
+    boardHint:
+      "Topp fyra funktionsidéer efter röster. Buggrapporter och förbättringar skickas bara till teamet — de listas inte här.",
     couldNotLoadBoard: "Kunde inte läsa in tavlan.",
-    emptyBoard:
-      "Inga idéer på tavlan ännu. Var först med att föreslå något nedan.",
-    haveSuggestion: "Har du ett förslag?",
-    formHint:
-      "Skicka en idé, förbättring eller bugg. Vi lägger till den på tavlan så att andra kan rösta.",
+    emptyBoard: "Inga funktionsidéer på tavlan ännu. Föreslå en nedan.",
+    haveSuggestion: "Skicka feedback",
+    formHeading: {
+      feature: "Föreslå en funktion",
+      improvement: "Föreslå en förbättring",
+      bug: "Rapportera en bugg",
+      other: "Annan feedback",
+    },
+    formHint: {
+      feature:
+        "Beskriv en funktion du vill ha. Med tillräckligt många röster kan den hamna bland topp fyra på tavlan.",
+      improvement:
+        "Berätta vad vi bör förbättra. Skickas direkt till teamet — visas inte på omröstningstavlan.",
+      bug: "Beskriv vad som gick fel och hur man återskapar det. Skickas direkt till teamet — visas inte på omröstningstavlan.",
+      other: "Dela annat vi bör veta. Skickas direkt till teamet.",
+    },
     titleLabel: "Titel",
-    titlePlaceholder: "t.ex. Filtrera karta efter pris",
+    titlePlaceholder: {
+      feature: "t.ex. Filtrera karta efter pris",
+      improvement: "t.ex. Snabbare uppladdning av besöksbilder",
+      bug: "t.ex. Appen stängs när jag öppnar galleriet",
+      other: "t.ex. Fråga om mitt konto",
+    },
     descriptionLabel: "Beskrivning",
-    descriptionPlaceholder: "Vad ska den göra, och varför hjälper det dig?",
+    descriptionPlaceholder: {
+      feature: "Vad ska den göra, och varför hjälper det dig?",
+      improvement: "Vad fungerar inte bra idag, och hur ska det fungera?",
+      bug: "Vad hände, vad förväntade du dig, och vilka steg utlöser det?",
+      other: "Lägg till detaljer som hjälper oss att förstå.",
+    },
+    missingTitleMessage: {
+      feature: "Lägg till en kort titel för funktionsidén.",
+      improvement: "Lägg till en kort titel för förbättringen.",
+      bug: "Lägg till en kort titel för buggrapporten.",
+      other: "Lägg till en kort titel.",
+    },
+    thanksTitle: {
+      feature: "Tack!",
+      improvement: "Tack!",
+      bug: "Rapport mottagen",
+      other: "Tack!",
+    },
+    thanksMessage: {
+      feature:
+        "Din funktionsidé skickades till teamet. Med tillräckligt många röster kan den hamna bland topp fyra på tavlan.",
+      improvement:
+        "Din förbättring skickades till teamet. Vi granskar den — den visas inte på omröstningstavlan.",
+      bug: "Din buggrapport skickades till teamet. Vi undersöker och följer upp vid behov.",
+      other: "Ditt meddelande skickades till teamet. Vi granskar det.",
+    },
+    couldNotSendSuggestion: "Kunde inte skicka din feedback.",
     screenshotsOptional: "Skärmbilder (valfritt)",
     removeScreenshot: "Ta bort skärmbild",
     addScreenshot: "Lägg till skärmbild",
@@ -741,12 +791,7 @@ export const sv: AppLocaleMessages = {
     screenshotLimitMessage: "Du kan bifoga upp till {{count}} skärmbilder.",
     couldNotAddScreenshots: "Kunde inte lägga till skärmbilder.",
     missingTitle: "Saknar titel",
-    missingTitleMessage: "Lägg till en kort titel för din idé.",
-    thanksTitle: "Tack!",
-    thanksMessage:
-      "Ditt förslag finns på tavlan. Rösta på andra idéer som du vill att vi prioriterar.",
     somethingWentWrong: "Något gick fel",
-    couldNotSendSuggestion: "Kunde inte skicka ditt förslag.",
     couldNotUploadScreenshot: "Kunde inte ladda upp skärmbild. Försök igen.",
     tapForDetails: "Tryck för detaljer",
     voteA11y: "Rösta, {{count}} röster",
@@ -859,6 +904,22 @@ export const sv: AppLocaleMessages = {
     rcNotConfigured: "Abonnemang är inte konfigurerat i den här versionen ännu.",
     productsNotAvailable:
       "Planerna är inte tillgängliga ännu. Slutför konfigurationen i App Store Connect och RevenueCat och försök igen.",
+    currentPlanBadge: "Din plan",
+    currentPlanCta: "Nuvarande plan",
+    changePlanSubtitle:
+      "Välj en annan plan. Din nuvarande plan är markerad nedan.",
+    changePlanFootnote:
+      "Planändringar hanteras av {{store}}. Tidpunkt, proratering och om byte sker direkt eller vid förnyelse följer butikens regler.",
+    storeGooglePlay: "Google Play",
+    storeAppStore: "App Store",
+    switchToPlan: "Byt till {{plan}}",
+    switchToPlanWithPrice: "Byt till {{plan}} — {{price}}",
+    subscribeWithStorePrice: "Prenumerera — {{price}}",
+    subscriptionSuccessTitle: "Du är redo",
+    subscriptionSuccessMessage:
+      "Pro är aktiv. Du har nu obegränsade besök.",
+    restoreSuccessMessage:
+      "Ditt abonnemang hittades och återställdes på den här enheten.",
   },
   billing: {
     visitUsage: "{{used}} av {{limit}} gratis besök använda",
@@ -869,7 +930,7 @@ export const sv: AppLocaleMessages = {
     limitReachedCreate:
       "Du har använt alla {{limit}} gratis besök. Prenumerera för att lägga till fler.",
     limitReachedView:
-      "Du har använt alla {{limit}} gratis besök. Prenumerera för att se besökshistorik.",
+      "Du har använt alla {{limit}} gratis besök. Du kan fortfarande se besök du skapat. Prenumerera för att lägga till fler och se full kundhistorik från andra yrkesutövare.",
     subscribeToContinue: "Se planer",
     discoveryFreeNote: "Kartsökning och upptäckt förblir gratis.",
     usageTitle: "Besöksanvändning",
@@ -954,7 +1015,7 @@ export const sv: AppLocaleMessages = {
     reset: "Återställ",
     invalidResetLink: "Ogiltig återställningslänk",
     invalidResetLinkBody:
-      "Den här länken för lösenordsåterställning är ogiltig eller har gått ut. Begär en ny återställning.",
+      "Den här länken är ogiltig eller har gått ut. Om du redan öppnade den på en dator, kopiera länken från den fliken och klistra in den på telefonen. Tryck inte på mejlet igen. Annars: begär en ny återställning och öppna länken bara på telefonen.",
     goToSignIn: "Gå till inloggning",
     devPreviewTitle: "Utvecklingsförhandsvisning",
     devPreviewMessage:

@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useClientSearch, requestClientLink } from "@/src/api/profiles";
+import { recordProductEvent } from "@/src/api/analytics";
 import { BlockedInlineNotice } from "@/src/components/BlockedProfileScreen";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
@@ -142,6 +143,15 @@ const UserProfile = () => {
     setLoading(true);
     try {
       await requestClientLink(client_id, activeProfessionCode);
+      void recordProductEvent({
+        eventType: "client_link_requested",
+        entityType: "client_profile",
+        entityId: client_id,
+        payload: {
+          professionCode: activeProfessionCode,
+          source: "client_profile",
+        },
+      });
       queryClient.setQueryData(
         clientLinkUiStatusQueryKey(
           String(hairdresser_id),
@@ -265,7 +275,11 @@ const UserProfile = () => {
                   hairdresser_id,
                   String(client_id),
                   activeProfessionCode,
-                  queryClient
+                  queryClient,
+                  {
+                    hairdresserId: hairdresser_id,
+                    clientId: String(client_id),
+                  }
                 );
                 setUnblockSuccessVisible(true);
               }}

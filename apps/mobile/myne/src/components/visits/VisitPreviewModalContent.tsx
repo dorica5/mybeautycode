@@ -11,7 +11,7 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
-import { Image, type ImageLoadEventData } from "expo-image";
+import { Image } from "expo-image";
 import { Audio, ResizeMode, Video, type AVPlaybackStatus } from "expo-av";
 import { primaryBlack, primaryGreen, primaryWhite } from "@/src/constants/Colors";
 import { Typography } from "@/src/constants/Typography";
@@ -125,27 +125,8 @@ function PreviewModalCloseX() {
   );
 }
 
-/** `object-fit: contain` sizing: max box maxW×maxH, return drawn width/height. */
-function containedDisplaySize(
-  iw: number,
-  ih: number,
-  maxW: number,
-  maxH: number
-): { dw: number; dh: number } {
-  if (iw <= 0 || ih <= 0 || maxW <= 0 || maxH <= 0) {
-    return { dw: maxW, dh: maxH };
-  }
-  const ar = iw / ih;
-  const boxAr = maxW / maxH;
-  if (ar > boxAr) {
-    return { dw: maxW, dh: maxW / ar };
-  }
-  return { dw: maxH * ar, dh: maxH };
-}
-
 /**
- * Carousel slide image — same framed + rounded look as before, without a separate
- * `getSize` probe: intrinsic size comes from expo-image `onLoad` (same load as paint).
+ * Carousel slide image — fills the same maxW×maxH frame as videos (cover crop).
  */
 export function VisitPreviewSizedImage({
   uri,
@@ -161,23 +142,6 @@ export function VisitPreviewSizedImage({
   /** First slide can use `"high"` for quicker decode priority. */
   priority?: "low" | "normal" | "high";
 }) {
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
-
-  useEffect(() => {
-    setNatural(null);
-  }, [uri]);
-
-  const { dw, dh } = natural
-    ? containedDisplaySize(natural.w, natural.h, maxWidth, maxHeight)
-    : { dw: maxWidth, dh: maxHeight };
-
-  const onLoad = useCallback((e: ImageLoadEventData) => {
-    const { width, height } = e.source;
-    if (width > 0 && height > 0) {
-      setNatural({ w: width, h: height });
-    }
-  }, []);
-
   return (
     <View
       style={[styles.slidePageCenter, { width: maxWidth, height: maxHeight }]}
@@ -185,18 +149,21 @@ export function VisitPreviewSizedImage({
       <View
         style={[
           styles.roundedMediaChrome,
-          { width: dw, height: dh, borderRadius: cornerRadius },
+          {
+            width: maxWidth,
+            height: maxHeight,
+            borderRadius: cornerRadius,
+          },
         ]}
       >
         <Image
           source={{ uri }}
-          style={{ width: dw, height: dh }}
-          contentFit={natural ? "cover" : "contain"}
+          style={styles.mediaFill}
+          contentFit="cover"
           cachePolicy="memory-disk"
           priority={priority}
           transition={0}
           recyclingKey={uri}
-          onLoad={onLoad}
         />
       </View>
     </View>
@@ -222,14 +189,12 @@ export function VisitPreviewSizedVideo({
   const wasActiveRef = useRef(false);
   const isActiveRef = useRef(isActive);
   const wasPlayingRef = useRef(false);
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
 
   useEffect(() => {
     isActiveRef.current = isActive;
   }, [isActive]);
 
   useEffect(() => {
-    setNatural(null);
     wasActiveRef.current = false;
     wasPlayingRef.current = false;
   }, [trimmedUri]);
@@ -318,10 +283,6 @@ export function VisitPreviewSizedVideo({
     }
   }, []);
 
-  const { dw, dh } = natural
-    ? containedDisplaySize(natural.w, natural.h, maxWidth, maxHeight)
-    : { dw: maxWidth, dh: maxHeight };
-
   if (!trimmedUri) {
     return (
       <View
@@ -337,24 +298,25 @@ export function VisitPreviewSizedVideo({
       <View
         style={[
           styles.roundedMediaChrome,
-          { width: dw, height: dh, borderRadius: cornerRadius },
+          {
+            width: maxWidth,
+            height: maxHeight,
+            borderRadius: cornerRadius,
+          },
         ]}
       >
         <Video
           ref={videoRef}
           source={{ uri: trimmedUri }}
-          style={{ width: dw, height: dh }}
+          style={styles.mediaFill}
+          videoStyle={styles.mediaFill}
           useNativeControls
-          resizeMode={ResizeMode.CONTAIN}
+          resizeMode={ResizeMode.COVER}
           shouldPlay={isActive}
           isLooping={false}
           progressUpdateIntervalMillis={250}
           onPlaybackStatusUpdate={onPlaybackStatusUpdate}
-          onReadyForDisplay={(e) => {
-            const { width, height } = e.naturalSize;
-            if (width > 0 && height > 0) {
-              setNatural({ w: width, h: height });
-            }
+          onReadyForDisplay={() => {
             void startPlayback();
           }}
           onLoad={() => {
@@ -738,6 +700,10 @@ const styles = StyleSheet.create({
     borderColor: primaryBlack,
     overflow: "hidden",
     backgroundColor: primaryGreen,
+    position: "relative",
+  },
+  mediaFill: {
+    ...StyleSheet.absoluteFillObject,
   },
   navRow: {
     flexDirection: "row",

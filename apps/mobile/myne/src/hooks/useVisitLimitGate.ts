@@ -1,10 +1,11 @@
 import { useCallback } from "react";
 import { Alert } from "react-native";
+import { recordProductEvent } from "@/src/api/analytics";
 import { router } from "expo-router";
 import { useBilling } from "@/src/providers/BillingProvider";
 import { useI18n } from "@/src/providers/LanguageProvider";
 
-export type VisitBillingAction = "create" | "view";
+export type VisitBillingAction = "create" | "view-shared";
 
 export function useVisitLimitGate(action: VisitBillingAction) {
   const { billing, loading } = useBilling();
@@ -12,14 +13,20 @@ export function useVisitLimitGate(action: VisitBillingAction) {
 
   const blocked =
     billing != null &&
-    !(action === "create" ? billing.canCreateVisit : billing.canViewVisits);
+    !(action === "create"
+      ? billing.canCreateVisit
+      : billing.canViewVisits);
 
   const openPaywall = useCallback(() => {
+    void recordProductEvent({
+      eventType: "paywall_opened",
+      payload: { source: "visit_limit", action },
+    });
     router.push({
       pathname: "/Screens/paywall",
       params: { from: "visit-limit" },
     });
-  }, []);
+  }, [action]);
 
   const guard = useCallback((): boolean => {
     if (loading || !billing) return true;

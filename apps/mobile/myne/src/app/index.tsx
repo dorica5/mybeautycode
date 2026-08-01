@@ -1,15 +1,28 @@
 import { Redirect } from "expo-router";
-import { useAuth } from "@/src/providers/AuthProvider";
+import { useAuth, profileSetupIsComplete } from "@/src/providers/AuthProvider";
+import { resolveAppHome } from "@/src/lib/resolveAppHome";
 import LoadingScreen from "./(setup)/LoadingScreen";
 
 /**
- * Bootstrap: first launch → Onboarding; otherwise Splash when logged out.
- * Signed-in users stay on `/` with a loader until global auth routing replaces away (home / setup).
+ * Bootstrap: first launch → Onboarding; logged out → Splash; signed in → home or setup.
  */
 export default function Index() {
-  const { session, isFirstLaunch, firstLaunchLoading, loading } = useAuth();
+  const {
+    session,
+    isFirstLaunch,
+    firstLaunchLoading,
+    loading,
+    loadingProfile,
+    profile,
+    lastAppSurfacePref,
+  } = useAuth();
 
-  if (loading || firstLaunchLoading) {
+  const bootstrapping =
+    loading ||
+    firstLaunchLoading ||
+    (session != null && loadingProfile && profile == null);
+
+  if (bootstrapping) {
     return <LoadingScreen />;
   }
 
@@ -17,7 +30,16 @@ export default function Index() {
     if (isFirstLaunch) {
       return <Redirect href="/(auth)/Onboarding" />;
     }
-    return <Redirect href="/Splash" />;
+    return <Redirect href="/(auth)/Splash" />;
+  }
+
+  if (profile && !profileSetupIsComplete(profile)) {
+    return <Redirect href="/(setup)/Setup" />;
+  }
+
+  if (profile && profileSetupIsComplete(profile)) {
+    const home = resolveAppHome(profile, lastAppSurfacePref);
+    return <Redirect href={home} />;
   }
 
   return <LoadingScreen />;

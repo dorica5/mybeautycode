@@ -7,7 +7,7 @@ import {
   Text,
 } from "react-native";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { Colors, primaryBlack, primaryWhite } from "@/src/constants/Colors";
+import { primaryBlack, primaryWhite } from "@/src/constants/Colors";
 import TopNav from "@/src/components/TopNav";
 import ProfessionalList from "@/src/components/ProfessionalList";
 import {

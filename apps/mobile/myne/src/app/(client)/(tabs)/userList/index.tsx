@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -19,6 +19,8 @@ import { NavBackRow, navBackChromeStyles } from "@/src/components/NavBackRow";
 import SearchInput from "@/src/components/SearchInput";
 import SearchResults from "@/src/components/SearchResults";
 import { useListAllHairdresserSearch } from "@/src/api/profiles";
+import { useDebouncedValue } from "@/src/hooks/useDebouncedValue";
+import { useBatchSignedAvatars } from "@/src/hooks/useBatchSignedAvatars";
 import { useAuth } from "@/src/providers/AuthProvider";
 import { StatusBar } from "expo-status-bar";
 import OrganicPattern from "../../../../../assets/images/Organic-pattern-5.svg";
@@ -37,6 +39,7 @@ import {
   responsiveMargin,
 } from "@/src/utils/responsive";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { recordProductEvent } from "@/src/api/analytics";
 
 type Profession = "hair" | "nails" | "brows" | "barber";
 
@@ -71,7 +74,7 @@ const FindProfessionalsScreen = () => {
   const heroPatternVerticalNudge = heroHeight * 0.34;
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState(searchQuery);
+  const debouncedQuery = useDebouncedValue(searchQuery, 300);
 
   const { profile, session } = useAuth();
   const clientId = profile?.id ?? session?.user?.id;
@@ -90,24 +93,38 @@ const FindProfessionalsScreen = () => {
     professionKey
   );
 
+  const signedAvatarMap = useBatchSignedAvatars(
+    debouncedQuery.trim().length >= 2
+      ? (searchResults as { avatar_url?: string | null }[])
+      : []
+  );
+
   useEffect(() => {
     const unsubscribe = navigation.addListener("tabPress", () => {
       if (isFocused) {
         setSearchQuery("");
-        setDebouncedQuery("");
       }
     });
 
     return unsubscribe;
   }, [navigation, isFocused]);
 
+  const lastTrackedSearchRef = useRef("");
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQuery(searchQuery);
-    }, 500);
-
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
+    const q = debouncedQuery.trim();
+    if (q.length < 2 || !professionKey) return;
+    const trackKey = `${professionKey}:${q.toLowerCase()}`;
+    if (lastTrackedSearchRef.current === trackKey) return;
+    lastTrackedSearchRef.current = trackKey;
+    void recordProductEvent({
+      eventType: "search_performed",
+      payload: {
+        context: "discover",
+        professionCode: professionKey,
+        queryLength: q.length,
+      },
+    });
+  }, [debouncedQuery, professionKey]);
 
   const handleSearch = useCallback(
     (query: string) => setSearchQuery(query),
@@ -116,13 +133,16 @@ const FindProfessionalsScreen = () => {
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
-    setDebouncedQuery("");
   }, []);
 
   const goToMap = useCallback(() => {
     // Profession already chosen on the previous (filter) step -> jump straight to the map.
     // Fallback (no param): bounce to the filter screen so the user picks one first.
     if (professionKey) {
+      void recordProductEvent({
+        eventType: "discover_map_cta",
+        payload: { professionCode: professionKey },
+      });
       router.push({
         pathname: "/(client)/(tabs)/userList/map",
         params: { profession: professionKey },
@@ -146,15 +166,15 @@ const FindProfessionalsScreen = () => {
             </View>
 
             <FlatList
-              data={debouncedQuery ? searchResults : []}
+              data={debouncedQuery.trim().length >= 2 ? searchResults : []}
               keyExtractor={(item, index) =>
                 `${item.hairdresser_id ?? (item as { profile_id?: string }).profile_id ?? index}_${index}`
               }
               keyboardShouldPersistTaps="handled"
-              removeClippedSubviews={false}
-              maxToRenderPerBatch={5}
+              removeClippedSubviews={Platform.OS === "android"}
+              maxToRenderPerBatch={8}
               updateCellsBatchingPeriod={50}
-              windowSize={10}
+              windowSize={8}
               initialNumToRender={10}
               ListHeaderComponent={
                 <>
@@ -231,6 +251,8 @@ const FindProfessionalsScreen = () => {
                   context="client"
                   query={debouncedQuery}
                   professionCode={professionKey}
+                  discoverSource="discover_search"
+                  signedAvatarMap={signedAvatarMap}
                 />
               )}
               ListEmptyComponent={

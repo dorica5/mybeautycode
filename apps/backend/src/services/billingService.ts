@@ -127,6 +127,7 @@ export const billingService = {
         hasActiveSubscription: false,
         canCreateVisit: true,
         canViewVisits: true,
+        canViewOwnVisits: true,
         atVisitLimit: false,
         monthlyPriceNok: billingConfig.MONTHLY_PRICE_NOK,
         entitlementExpiresAt: null,
@@ -154,6 +155,7 @@ export const billingService = {
       hasActiveSubscription,
       canCreateVisit: canUseVisits,
       canViewVisits: canUseVisits,
+      canViewOwnVisits: true,
       atVisitLimit,
       monthlyPriceNok: billingConfig.MONTHLY_PRICE_NOK,
       entitlementExpiresAt: sub?.entitlementExpiresAt?.toISOString() ?? null,
@@ -237,8 +239,94 @@ export const billingService = {
     return this.getProBillingStatus(profileId);
   },
 
-  /** Stub for RevenueCat webhooks — extend when dashboard is configured. */
-  async handleRevenueCatWebhook(_payload: unknown) {
-    return { received: true, processed: false };
+  /** RevenueCat server notifications — upserts `professional_subscriptions`. */
+  async handleRevenueCatWebhook(payload: unknown, authorizationHeader?: string) {
+    const secret = process.env.REVENUECAT_WEBHOOK_SECRET?.trim();
+    if (secret) {
+      const auth = authorizationHeader?.trim() ?? "";
+      if (auth !== secret && auth !== `Bearer ${secret}`) {
+        throw Object.assign(new Error("Invalid RevenueCat webhook authorization"), {
+          statusCode: 401 as const,
+        });
+      }
+    }
+
+    const body = payload as {
+      event?: {
+        type?: string;
+        app_user_id?: string;
+        product_id?: string;
+        expiration_at_ms?: number | null;
+        purchased_at_ms?: number | null;
+      };
+    };
+
+    const event = body?.event;
+    const profileId = event?.app_user_id?.trim();
+    if (!event?.type || !profileId) {
+      return { received: true, processed: false, reason: "missing_event" };
+    }
+
+    const pp = await prisma.professionalProfile.findUnique({
+      where: { profileId },
+      select: { id: true },
+    });
+    if (!pp) {
+      return { received: true, processed: false, reason: "not_professional" };
+    }
+
+    const type = event.type;
+    const expiresMs =
+      typeof event.expiration_at_ms === "number" ? event.expiration_at_ms : null;
+    const expiresAt = expiresMs ? new Date(expiresMs) : null;
+
+    const activating = new Set([
+      "INITIAL_PURCHASE",
+      "RENEWAL",
+      "UNCANCELLATION",
+      "NON_RENEWING_PURCHASE",
+      "PRODUCT_CHANGE",
+      "SUBSCRIPTION_EXTENDED",
+    ]);
+    const deactivating = new Set(["EXPIRATION"]);
+
+    let entitlementActive = activating.has(type);
+    if (deactivating.has(type)) {
+      entitlementActive = false;
+    }
+    if (type === "CANCELLATION") {
+      entitlementActive = expiresAt ? expiresAt.getTime() > Date.now() : true;
+    }
+
+    const plan = event.product_id?.trim() || null;
+    const now = new Date();
+
+    await prisma.professionalSubscription.upsert({
+      where: { profileId },
+      create: {
+        profileId,
+        entitlementActive,
+        entitlementExpiresAt: expiresAt,
+        plan,
+        revenueCatAppUserId: profileId,
+        lastSyncedAt: now,
+      },
+      update: {
+        entitlementActive,
+        entitlementExpiresAt: expiresAt,
+        plan,
+        revenueCatAppUserId: profileId,
+        lastSyncedAt: now,
+        updatedAt: now,
+      },
+    });
+
+    return {
+      received: true,
+      processed: true,
+      eventType: type,
+      profileId,
+      entitlementActive,
+    };
   },
 };

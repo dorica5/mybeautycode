@@ -31,9 +31,6 @@ export const visitController = {
     try {
       const professionCode = readProfessionCodeQuery(req.query);
       const clientIdStr = String(clientId);
-      if (req.userId !== clientIdStr) {
-        await billingService.assertProCanViewVisits(req.userId!);
-      }
       await serviceRecordAccessService.assertCanAccessClientTimeline(
         req.userId!,
         clientIdStr,
@@ -65,9 +62,6 @@ export const visitController = {
     try {
       const professionCode = readProfessionCodeQuery(req.query);
       const clientIdStr = String(clientId);
-      if (req.userId !== clientIdStr) {
-        await billingService.assertProCanViewVisits(req.userId!);
-      }
       await serviceRecordAccessService.assertCanAccessClientTimeline(
         req.userId!,
         clientIdStr,
@@ -94,7 +88,6 @@ export const visitController = {
   async listLatestHaircodes(req: Request, res: Response) {
     const hairdresserId = req.userId!;
     try {
-      await billingService.assertProCanViewVisits(hairdresserId);
       const professionCode = readProfessionCodeQuery(req.query);
       const data = await visitService.listLatestHaircodes(
         hairdresserId,
@@ -114,13 +107,6 @@ export const visitController = {
     try {
       const record = await visitService.getWithMedia(id);
       if (!record) return res.status(404).json({ error: "Visit not found" });
-      const clientUserId =
-        typeof (record as { clientUserId?: string }).clientUserId === "string"
-          ? (record as { clientUserId: string }).clientUserId
-          : null;
-      if (clientUserId && clientUserId !== req.userId) {
-        await billingService.assertProCanViewVisits(req.userId!);
-      }
       await serviceRecordAccessService.assertCanAccessServiceRecord(req.userId!, id);
       const { clientPrivateNote, ...rest } = record as Record<string, unknown> & {
         clientPrivateNote?: string | null;
@@ -170,13 +156,6 @@ export const visitController = {
     try {
       const peek = await visitService.getWithMedia(id);
       if (!peek) return res.status(404).json({ error: "Visit not found" });
-      const clientUserId =
-        typeof (peek as { clientUserId?: string }).clientUserId === "string"
-          ? (peek as { clientUserId: string }).clientUserId
-          : null;
-      if (clientUserId && clientUserId !== req.userId) {
-        await billingService.assertProCanViewVisits(req.userId!);
-      }
       await serviceRecordAccessService.assertCanAccessServiceRecord(req.userId!, id);
       const data = await visitService.getMedia(id);
       res.json(data);
@@ -268,7 +247,6 @@ export const visitController = {
       }
 
       await serviceRecordAccessService.assertProfessionalOwnsVisit(req.userId!, id);
-      await billingService.assertProCanViewVisits(req.userId!);
       const data = await visitService.update(id, req.body);
       res.json(data);
     } catch (err: unknown) {
@@ -329,7 +307,6 @@ export const visitController = {
           sid
         );
       }
-      await billingService.assertProCanViewVisits(req.userId!);
       await visitService.insertMedia(records);
       res.json({ success: true });
     } catch (err: unknown) {

@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Button, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useI18n } from "@/src/providers/LanguageProvider";
+import { primaryWhite } from "@/src/constants/Colors";
 
 const QRScanner = () => {
   const { t } = useI18n();
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     height: 70,
     bottom: 0,
     borderRadius: 50,
-    backgroundColor: "#fff",
+    backgroundColor: primaryWhite,
   },
   picContainer: {
     position: "absolute",

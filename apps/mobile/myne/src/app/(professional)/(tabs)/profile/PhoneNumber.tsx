@@ -7,7 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { BrandOutlineField } from "@/src/components/BrandOutlineField";
 import {
   MintProfileScreenShell,
@@ -22,21 +22,26 @@ import { formatPhoneForDisplay, parseProfilePhone } from "@/src/lib/profileField
 import { useActiveProfessionState } from "@/src/hooks/useActiveProfessionState";
 import { useI18n } from "@/src/providers/LanguageProvider";
 import { establishmentNoun } from "@/src/constants/professionCodes";
+import { resolveLaneBusinessPhone } from "@/src/lib/professionLaneFields";
 
 const PhoneNumber = () => {
   const { t } = useI18n();
   const { profile, setProfile } = useAuth();
-  const { activeProfessionCode } = useActiveProfessionState(profile);
+  const { storedProfessionReady, activeProfessionCode } =
+    useActiveProfessionState(profile);
   const placeNoun = establishmentNoun(activeProfessionCode);
   const fieldLabel = t("profile.placePhoneNumber", { place: placeNoun });
-  const originalPhoneNumber =
-    profile.business_number ?? profile.salon_phone_number ?? null;
+  const originalPhoneNumber = useMemo(
+    () => resolveLaneBusinessPhone(profile, activeProfessionCode),
+    [profile, activeProfessionCode]
+  );
   const userId = profile.id;
   const countryHint = profile.country?.trim() || null;
 
   const [phoneNumber, setPhoneNumber] = useState(
     () => formatPhoneForDisplay(originalPhoneNumber, countryHint) || ""
   );
+  const [hasEdited, setHasEdited] = useState(false);
   const [changed, setChanged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
@@ -80,9 +85,11 @@ const PhoneNumber = () => {
     updateProfile(
       {
         id: userId,
-        // Prisma: ProfessionalProfile.businessNumber
         business_number: formatted,
         country,
+        ...(activeProfessionCode
+          ? { profession_code: activeProfessionCode }
+          : {}),
       },
       {
         onSuccess: () => {
@@ -118,6 +125,17 @@ const PhoneNumber = () => {
       }
     );
   };
+
+  useEffect(() => {
+    if (!storedProfessionReady || hasEdited) return;
+    setPhoneNumber(
+      formatPhoneForDisplay(originalPhoneNumber, countryHint) || ""
+    );
+  }, [storedProfessionReady, originalPhoneNumber, countryHint, hasEdited]);
+
+  useEffect(() => {
+    setHasEdited(false);
+  }, [activeProfessionCode]);
 
   useEffect(() => {
     setChanged(
@@ -157,6 +175,7 @@ const PhoneNumber = () => {
             value={phoneNumber}
             onChangeText={(t) => {
               setPhoneNumber(t);
+              setHasEdited(true);
               setChanged(true);
               if (attemptedSubmit) {
                 const ok = validate(t);
