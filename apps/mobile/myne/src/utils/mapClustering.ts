@@ -202,7 +202,14 @@ type MapPin = { latitude: number; longitude: number };
 
 const MIN_SPLIT_VIEW_LAT_DELTA = 0.0009;
 const MIN_SPLIT_VIEW_LNG_DELTA = 0.0009;
-const SINGLE_PIN_CONTEXT_DELTA = 0.009;
+/** Comfortable street-level frame when tapping a single salon from far out. */
+const SINGLE_PIN_CONTEXT_DELTA = 0.012;
+/** Above this, treat the camera as "zoomed out" and always dive to the salon. */
+const FAR_OUT_LATITUDE_DELTA = 0.08;
+
+function paddingFactorForSingle(): number {
+  return 2.2;
+}
 
 function pinBoundingBox(pins: MapPin[]) {
   let minLat = pins[0].latitude;
@@ -271,29 +278,42 @@ export function regionToSplitSalonCluster(
     if (!pin) {
       return boundingBoxRegionForPins([], paddingFactorForSingle(), currentRegion);
     }
-    return regionForSalonPinFocus(pin, currentRegion) ?? {
-      latitude: pin.latitude,
-      longitude: pin.longitude,
-      latitudeDelta: SINGLE_PIN_CONTEXT_DELTA,
-      longitudeDelta: SINGLE_PIN_CONTEXT_DELTA,
-    };
+    return (
+      regionForSalonPinFocus(pin, currentRegion) ?? {
+        latitude: pin.latitude,
+        longitude: pin.longitude,
+        latitudeDelta: SINGLE_PIN_CONTEXT_DELTA,
+        longitudeDelta: SINGLE_PIN_CONTEXT_DELTA,
+      }
+    );
   }
 
   // Fit camera to the real salon positions (no tiny stepwise zoom).
   return boundingBoxRegionForPins(members, 1.55, null);
 }
 
-function paddingFactorForSingle(): number {
-  return 2.2;
-}
-
-/** Gentle focus on one salon; returns null when the map is already close enough. */
+/**
+ * Zoom to a single salon. From a country/city-wide view always dive in; when
+ * already close, return null so the sheet opens without a useless nudge.
+ */
 export function regionForSalonPinFocus(
   salon: SalonPin,
   currentRegion: ClusterViewport | null
 ): ClusterViewport | null {
+  const focus: ClusterViewport = {
+    latitude: salon.latitude,
+    longitude: salon.longitude,
+    latitudeDelta: SINGLE_PIN_CONTEXT_DELTA,
+    longitudeDelta: SINGLE_PIN_CONTEXT_DELTA,
+  };
+
   if (!currentRegion) {
-    return boundingBoxRegionForPins([salon], paddingFactorForSingle(), null);
+    return focus;
+  }
+
+  // Far out (e.g. all of Norway): always zoom to the salon — never no-op.
+  if (currentRegion.latitudeDelta > FAR_OUT_LATITUDE_DELTA) {
+    return focus;
   }
 
   const latInside =
@@ -308,7 +328,9 @@ export function regionForSalonPinFocus(
     return null;
   }
 
-  return boundingBoxRegionForPins([salon], paddingFactorForSingle(), currentRegion);
+  // Don't pass currentRegion as a max cap — that used to keep you nearly as
+  // zoomed-out as before when the viewport was huge.
+  return boundingBoxRegionForPins([salon], paddingFactorForSingle(), null);
 }
 
 const COLOC_ROUND = 6;

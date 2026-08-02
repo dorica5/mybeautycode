@@ -57,7 +57,6 @@ import {
   useSalonsInBounds,
   useSalonProfessionals,
   toBackendProfessionCode,
-  type DiscoveryMatchMode,
   type SalonDiscoveryFilter,
   type SalonPin,
   type SalonProfessional,
@@ -93,6 +92,7 @@ import {
 } from "@/src/utils/responsive";
 import {
   clusterSalonPins,
+  regionForSalonPinFocus,
   regionToSplitSalonCluster,
   salonClusterTotalProfessionals,
   shouldClusterByZoomWithHysteresis,
@@ -528,22 +528,13 @@ const MapLocationScreen = () => {
     normalizeProfessionParam(profession)
   );
 
-  /** Get-discovered specialty filters — multi-select; default match is any (OR). */
+  /** Get-discovered specialty filters — multi-select uses AND (must match all). */
   const [selectedDiscoveryCategories, setSelectedDiscoveryCategories] =
     useState<string[]>([]);
-  const [discoveryMatchMode, setDiscoveryMatchMode] =
-    useState<DiscoveryMatchMode>("any");
 
   useEffect(() => {
     setSelectedDiscoveryCategories([]);
-    setDiscoveryMatchMode("any");
   }, [professionKey]);
-
-  useEffect(() => {
-    if (selectedDiscoveryCategories.length < 2) {
-      setDiscoveryMatchMode("any");
-    }
-  }, [selectedDiscoveryCategories.length]);
 
   useEffect(() => {
     if (!professionKey) {
@@ -562,6 +553,9 @@ const MapLocationScreen = () => {
   const [mapProfileOverlayId, setMapProfileOverlayId] = useState<string | null>(
     null
   );
+  /** Mirrors overlay id for region settle callbacks (avoid closing → jump races). */
+  const mapProfileOverlayIdRef = useRef<string | null>(null);
+  mapProfileOverlayIdRef.current = mapProfileOverlayId;
   const [mapLoading, setMapLoading] = useState(false);
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
   const [showUserOnMap, setShowUserOnMap] = useState(false);
@@ -590,6 +584,7 @@ const MapLocationScreen = () => {
   const visibleMarkerIdsRef = useRef<Set<string>>(new Set());
   const seenMarkerIdsRef = useRef<Set<string>>(new Set());
   const boundsRegionRef = useRef<Region | null>(null);
+  const mapRegionRef = useRef<Region | null>(null);
 
   const toggleDiscoveryCategory = useCallback((code: string) => {
     setSelectedDiscoveryCategories((prev) =>
@@ -760,26 +755,26 @@ const MapLocationScreen = () => {
   );
 
   /**
-   * When `mapRegion` changes while the modal is visible, animate the live
-   * map to match. This is the failsafe that actually moves the camera when
-   * the MapView didn't remount (e.g. RN reused a previous mount despite a
-   * new `key`), so the user always sees the region they asked for.
+   * Failsafe only when the map modal opens — not on every `mapRegion` change.
+   * Re-animating on `mapRegion` updates (pin zoom, gesture sync) made returning
+   * from a pro profile feel like the camera jumped.
    */
   useEffect(() => {
-    if (!mapModalVisible || !mapRegion) return;
+    if (!mapModalVisible) return;
+    const region = mapRegionRef.current;
+    if (!region) return;
     if (programmaticCameraRef.current) return;
-    if (isMapGesturingRef.current) return;
     const ref = mapViewRef.current;
     if (!ref) return;
     programmaticCameraRef.current = true;
     const handle = setTimeout(() => {
-      ref.animateToRegion(mapRegion, 400);
+      ref.animateToRegion(region, 400);
       setTimeout(() => {
         programmaticCameraRef.current = false;
       }, 480);
     }, 50);
     return () => clearTimeout(handle);
-  }, [mapRegion, mapModalVisible]);
+  }, [mapModalVisible]);
 
   /** User edited the location text directly → un-suppress autocomplete. */
   const handleLocationQueryChange = useCallback((text: string) => {
@@ -897,9 +892,9 @@ const MapLocationScreen = () => {
     if (selectedDiscoveryCategories.length === 0) return null;
     return {
       categories: selectedDiscoveryCategories,
-      match: discoveryMatchMode,
+      match: "all",
     };
-  }, [selectedDiscoveryCategories, discoveryMatchMode]);
+  }, [selectedDiscoveryCategories]);
 
   const {
     data: nearbySalons,
@@ -1041,6 +1036,7 @@ const MapLocationScreen = () => {
   }, [targetClusterSig, targetClusters]);
 
   boundsRegionRef.current = boundsRegion;
+  mapRegionRef.current = mapRegion;
 
   const markersToRender = targetClusters;
 
@@ -1271,15 +1267,17 @@ const MapLocationScreen = () => {
         salonId: salon.id,
         profession: professionKey ?? null,
       });
-      // Keep the camera still — the pin is already on screen. Animating away
-      // makes "back from pro profile" feel like the map jumped.
+      const region = regionForSalonPinFocus(salon, boundsRegion);
+      if (region) {
+        animateMapToRegion(region);
+      }
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           markerPressConsumesMapPressRef.current = false;
         });
       });
     },
-    [trackProduct, professionKey]
+    [animateMapToRegion, boundsRegion, trackProduct, professionKey]
   );
 
   const handleMultiSalonClusterPress = useCallback(
@@ -1313,6 +1311,12 @@ const MapLocationScreen = () => {
       if (IS_ANDROID) setAndroidGestureFreeze(false);
       return;
     }
+    // Profile covers the map — ignore any late settle callbacks so closing
+    // the overlay never rewrites the camera/state.
+    if (mapProfileOverlayIdRef.current) {
+      if (IS_ANDROID) setAndroidGestureFreeze(false);
+      return;
+    }
     isMapGesturingRef.current = false;
     const prev = boundsRegionRef.current;
     // Ignore tiny settle jitter so we don't keep resetting the debounce for seconds.
@@ -1322,21 +1326,26 @@ const MapLocationScreen = () => {
     }
     if (regionDebounceRef.current) clearTimeout(regionDebounceRef.current);
     regionDebounceRef.current = setTimeout(() => {
+      if (mapProfileOverlayIdRef.current) {
+        if (IS_ANDROID) setAndroidGestureFreeze(false);
+        return;
+      }
+      const commit = () => {
+        // Keep initialRegion in sync with the live camera so a remount/layout
+        // never snaps back to an older country-wide region.
+        setMapRegion(r);
+        setBoundsRegion(r);
+        setClusterMarkers((prevCluster) =>
+          shouldClusterByZoomWithHysteresis(r.latitudeDelta, prevCluster)
+        );
+      };
       if (IS_ANDROID) {
         // Unfreeze first, then swap clusters on the next frame (idle + tracking safe).
         setAndroidGestureFreeze(false);
-        requestAnimationFrame(() => {
-          setBoundsRegion(r);
-          setClusterMarkers((prevCluster) =>
-            shouldClusterByZoomWithHysteresis(r.latitudeDelta, prevCluster)
-          );
-        });
+        requestAnimationFrame(commit);
         return;
       }
-      setBoundsRegion(r);
-      setClusterMarkers((prevCluster) =>
-        shouldClusterByZoomWithHysteresis(r.latitudeDelta, prevCluster)
-      );
+      commit();
     }, REGION_SETTLE_MS);
   }, []);
 
@@ -1431,10 +1440,7 @@ const MapLocationScreen = () => {
           <StatusBar style="dark" />
           <View style={styles.mapModalBody}>
             <View
-              style={[
-                styles.mapModalChrome,
-                mapProfileOverlayId ? styles.mapModalChromeHidden : null,
-              ]}
+              style={styles.mapModalChrome}
               pointerEvents={mapProfileOverlayId ? "none" : "auto"}
               collapsable={false}
             >
@@ -1479,41 +1485,6 @@ const MapLocationScreen = () => {
                       {t("common.all")}
                     </Text>
                   </Pressable>
-                  {selectedDiscoveryCategories.length >= 2 ? (
-                    <Pressable
-                      onPress={() => {
-                        setDiscoveryMatchMode((mode) =>
-                          mode === "all" ? "any" : "all"
-                        );
-                        void queryClient.invalidateQueries({
-                          queryKey: ["salons"],
-                        });
-                      }}
-                      style={({ pressed }) => [
-                        styles.mapDiscoveryChip,
-                        styles.mapDiscoveryMatchChip,
-                        discoveryMatchMode === "all" &&
-                          styles.mapDiscoveryChipSelected,
-                        pressed && styles.mapDiscoveryChipPressed,
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityState={{
-                        selected: discoveryMatchMode === "all",
-                      }}
-                      accessibilityLabel={t("discover.matchAllSelectedA11y")}
-                    >
-                      <Text
-                        style={[
-                          styles.mapDiscoveryChipLabel,
-                          discoveryMatchMode === "all" &&
-                            styles.mapDiscoveryChipLabelSelected,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {t("discover.matchAllSelected")}
-                      </Text>
-                    </Pressable>
-                  ) : null}
                   {discoveryChipOptions.map((opt) => {
                     const active = selectedDiscoveryCategories.includes(opt.code);
                     return (
@@ -1929,10 +1900,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
   },
-  /** Keep map mounted (and camera stable) while the pro profile covers it. */
-  mapModalChromeHidden: {
-    opacity: 0,
-  },
+  /**
+   * Pro profile sits on top of the live map (map stays mounted + opaque).
+   * Avoid opacity:0 on the map — that made Google Maps reset the camera on return.
+   */
   mapProfileOverlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 5,
@@ -1998,11 +1969,6 @@ const styles = StyleSheet.create({
   mapDiscoveryChipSelected: {
     backgroundColor: primaryBlack,
     borderColor: primaryBlack,
-  },
-  /** Mode toggle — visually distinct from specialty chips when inactive. */
-  mapDiscoveryMatchChip: {
-    borderColor: primaryGreen,
-    backgroundColor: `${primaryGreen}14`,
   },
   mapDiscoveryChipPressed: {
     opacity: 0.88,
